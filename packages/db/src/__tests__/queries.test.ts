@@ -62,12 +62,17 @@ describe('insertEvents — empty array', () => {
   })
 })
 
+function makeErrorPool (error: Error): DbPool {
+  const sql = vi.fn(() => Promise.reject(error)) as unknown as DbPool['sql']
+  ;(sql as unknown as Record<string, unknown>).json = (v: unknown) => v
+  return { sql }
+}
+
 describe('error mapping', () => {
   it('maps FK violation (23503) to CONSTRAINT_VIOLATION', async () => {
     const pgError = new Error('violates foreign key constraint')
     Object.assign(pgError, { code: '23503' })
-    const sql = vi.fn(() => Promise.reject(pgError)) as unknown as DbPool['sql']
-    const pool: DbPool = { sql }
+    const pool = makeErrorPool(pgError)
 
     const result = await insertEvent(pool, sampleEvent)
     expect(result.isErr()).toBe(true)
@@ -77,8 +82,7 @@ describe('error mapping', () => {
   it('maps unique violation (23505) to CONSTRAINT_VIOLATION', async () => {
     const pgError = new Error('duplicate key value')
     Object.assign(pgError, { code: '23505' })
-    const sql = vi.fn(() => Promise.reject(pgError)) as unknown as DbPool['sql']
-    const pool: DbPool = { sql }
+    const pool = makeErrorPool(pgError)
 
     const result = await insertEvent(pool, sampleEvent)
     expect(result.isErr()).toBe(true)
@@ -86,8 +90,7 @@ describe('error mapping', () => {
   })
 
   it('maps unknown error to QUERY_FAILED', async () => {
-    const sql = vi.fn(() => Promise.reject(new Error('unknown'))) as unknown as DbPool['sql']
-    const pool: DbPool = { sql }
+    const pool = makeErrorPool(new Error('unknown'))
 
     const result = await insertEvent(pool, sampleEvent)
     expect(result.isErr()).toBe(true)
