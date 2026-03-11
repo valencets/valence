@@ -14,9 +14,12 @@ const DIAGNOSTIC_PANELS: ReadonlyArray<{ label: string; defaultValue: string }> 
 
 export class DiagnosticDashboard extends HTMLElement {
   static observedAttributes = ['gate']
+  private _initialized = false
   private _metrics: HTMLElement[] = []
 
   connectedCallback (): void {
+    if (this._initialized) return
+    this._initialized = true
     this.style.backgroundColor = HUD_COLORS.bg
     this.style.color = HUD_COLORS.textPrimary
     this.style.fontFamily = HUD_TYPOGRAPHY.fontPrimary

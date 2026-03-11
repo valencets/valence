@@ -3,10 +3,13 @@ import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js
 export class HudPanel extends HTMLElement {
   static observedAttributes = ['label']
 
+  private _initialized = false
   private headerEl: HTMLSpanElement | null = null
   private contentEl: HTMLDivElement | null = null
 
   connectedCallback (): void {
+    if (this._initialized) return
+    this._initialized = true
     this.setAttribute('role', 'region')
     const label = this.getAttribute('label') ?? ''
     this.setAttribute('aria-label', label)

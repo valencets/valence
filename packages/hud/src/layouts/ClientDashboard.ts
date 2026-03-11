@@ -4,11 +4,14 @@ import type { HudPeriod } from '../types.js'
 import { formatNumber } from '../data/format-number.js'
 
 export class ClientDashboard extends HTMLElement {
+  private _initialized = false
   private _visitorsMetric: HTMLElement | null = null
   private _leadsMetric: HTMLElement | null = null
   private _periodChangeHandler: ((e: Event) => void) | null = null
 
   connectedCallback (): void {
+    if (this._initialized) return
+    this._initialized = true
     this.style.display = 'block'
     this.style.backgroundColor = HUD_COLORS.bg
     this.style.color = HUD_COLORS.textPrimary
