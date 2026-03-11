@@ -76,6 +76,17 @@ describe('DiagnosticDashboard', () => {
     }
   })
 
+  it('does not duplicate DOM on disconnect + reconnect', () => {
+    const el = attach(createElement({ gate: 'open' }))
+    expect(el.querySelectorAll('hud-panel').length).toBe(6)
+
+    // Simulate fragment swap: disconnect then reconnect
+    el.remove()
+    document.body.appendChild(el)
+
+    expect(el.querySelectorAll('hud-panel').length).toBe(6)
+  })
+
   it('is hidden by default when gate is not open', () => {
     const el = attach(createElement())
     expect(el.style.display).toBe('none')

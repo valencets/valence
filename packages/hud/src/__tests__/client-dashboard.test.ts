@@ -101,6 +101,17 @@ describe('ClientDashboard', () => {
     expect(bars?.length).toBeGreaterThanOrEqual(1)
   })
 
+  it('does not duplicate DOM on disconnect + reconnect', () => {
+    const el = attach(createElement())
+    expect(el.querySelectorAll('hud-panel').length).toBe(5)
+
+    // Simulate fragment swap: disconnect then reconnect
+    el.remove()
+    document.body.appendChild(el)
+
+    expect(el.querySelectorAll('hud-panel').length).toBe(5)
+  })
+
   it('responds to hud-period-change event', () => {
     const el = attach(createElement())
     const timerange = el.querySelector('hud-timerange')

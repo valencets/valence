@@ -1,6 +1,6 @@
 import neostandard from 'neostandard'
 export default [
-  { ignores: ['**/dist/'] },
+  { ignores: ['**/dist/', '**/public/js/'] },
   ...neostandard({ ts: true }),
   {
     rules: {
