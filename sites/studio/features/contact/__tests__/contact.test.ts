@@ -43,6 +43,28 @@ describe('renderContactForm', () => {
   })
 })
 
+describe('renderContactForm layout', () => {
+  it('contains phone number', () => {
+    const html = renderContactForm()
+    expect(html).toContain('972-815-7910')
+  })
+
+  it('contains email address', () => {
+    const html = renderContactForm()
+    expect(html).toContain('mail@forrestblade.com')
+  })
+
+  it('uses grid-2 class for side-by-side layout', () => {
+    const html = renderContactForm()
+    expect(html).toContain('grid-2')
+  })
+
+  it('has telemetry on phone link', () => {
+    const html = renderContactForm()
+    expect(html).toContain('INTENT_CALL')
+  })
+})
+
 describe('renderContactSuccess', () => {
   it('shows success message', () => {
     const html = renderContactSuccess()
