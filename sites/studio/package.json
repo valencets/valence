@@ -5,23 +5,25 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "node --watch server/entry.ts",
+    "dev": "tsx --watch server/entry.ts",
     "test": "vitest run"
   },
   "dependencies": {
-    "@inertia/core": "workspace:*",
-    "@inertia/ingestion": "workspace:*",
-    "@inertia/db": "workspace:*",
-    "@inertia/tokens": "workspace:*",
     "@inertia/components": "workspace:*",
-    "@inertia/hud": "workspace:*",
+    "@inertia/core": "workspace:*",
     "@inertia/critical-css": "workspace:*",
+    "@inertia/db": "workspace:*",
+    "@inertia/hud": "workspace:*",
+    "@inertia/ingestion": "workspace:*",
+    "@inertia/tokens": "workspace:*",
     "neverthrow": "^8.2.0",
-    "zod": "^4.3.6",
-    "postgres": "^3.4.8"
+    "postgres": "^3.4.8",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",
+    "esbuild": "^0.27.3",
+    "tsx": "^4.21.0",
     "vitest": "^4.0.18"
   }
 }
