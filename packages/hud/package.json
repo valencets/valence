@@ -7,6 +7,13 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "echo 'no tests yet'"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "neverthrow": "^8.2.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0",
+    "happy-dom": "^17.0.0"
   }
 }
