@@ -87,7 +87,18 @@ importers:
 
   tools/build: {}
 
-  tools/critical-css: {}
+  tools/critical-css:
+    dependencies:
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
+      postcss:
+        specifier: ^8.5.0
+        version: 8.5.8
+    devDependencies:
+      '@types/node':
+        specifier: ^25.4.0
+        version: 25.4.0
 
 packages:
 
