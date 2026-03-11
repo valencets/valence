@@ -10,10 +10,13 @@ import { applySecurityHeaders, tryServeStatic } from './middleware.js'
 import { registerRoutes } from './register-routes.js'
 import { getStudioCSS } from '../features/theme/config/studio-css.js'
 import { bundleClientJS, bundleAdminJS } from '../features/client/bundle-client.js'
+import { startAggregationCron } from '../features/admin/server/aggregation-cron.js'
+import { seedDemoSummaries } from '@inertia/db/seed'
 
 const config = loadConfig()
 
 let pool: DbPool | null = null
+let cronHandle: { stop: () => void } | null = null
 
 async function boot (): Promise<void> {
   // Init DB pool
@@ -35,6 +38,19 @@ async function boot (): Promise<void> {
     )
   } else {
     console.error('Failed to load migrations:', migrationsResult.error.message)
+  }
+
+  // Start aggregation cron
+  cronHandle = startAggregationCron(pool)
+  console.log('Aggregation cron started')
+
+  // Seed demo data if enabled
+  if (process.env['DEMO_DATA'] === '1') {
+    const seedResult = await seedDemoSummaries(pool)
+    seedResult.match(
+      () => console.log('Seeded demo summary data'),
+      (err) => console.error('Demo seed error:', err.message)
+    )
   }
 
   // Generate CSS to public directory
@@ -76,6 +92,7 @@ async function boot (): Promise<void> {
   // Graceful shutdown
   const shutdown = async (): Promise<void> => {
     console.log('Shutting down...')
+    if (cronHandle) cronHandle.stop()
     server.close()
     if (pool) {
       await closePool(pool)
