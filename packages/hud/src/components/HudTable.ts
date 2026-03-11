@@ -1,4 +1,7 @@
+import { fromThrowable } from 'neverthrow'
 import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js'
+
+const parseJson = fromThrowable(JSON.parse)
 
 export interface HudColumnDef {
   readonly label: string
@@ -54,17 +57,19 @@ export class HudTable extends HTMLElement {
   private getColumns (): ReadonlyArray<HudColumnDef> {
     const raw = this.getAttribute('columns')
     if (raw === null) return []
-    const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed as ReadonlyArray<HudColumnDef>
+    const result = parseJson(raw)
+    if (result.isErr()) return []
+    if (!Array.isArray(result.value)) return []
+    return result.value as ReadonlyArray<HudColumnDef>
   }
 
   private getRows (): ReadonlyArray<Record<string, string | number>> {
     const raw = this.getAttribute('rows')
     if (raw === null) return []
-    const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return (parsed as ReadonlyArray<Record<string, string | number>>).slice(0, MAX_ROWS)
+    const result = parseJson(raw)
+    if (result.isErr()) return []
+    if (!Array.isArray(result.value)) return []
+    return (result.value as ReadonlyArray<Record<string, string | number>>).slice(0, MAX_ROWS)
   }
 
   private renderHeaders (): void {

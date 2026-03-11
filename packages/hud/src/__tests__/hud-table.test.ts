@@ -123,4 +123,21 @@ describe('HudTable', () => {
     const el = attach(createElement())
     expect(el.querySelectorAll('th').length).toBe(0)
   })
+
+  it('returns empty table on malformed columns JSON', () => {
+    const el = attach(createElement({ columns: '{bad json', rows: '[]' }))
+    const headers = el.querySelectorAll('th')
+    expect(headers.length).toBe(0)
+  })
+
+  it('returns empty tbody on malformed rows JSON', () => {
+    const cols = JSON.stringify([{ label: 'Name', key: 'name' }])
+    const el = attach(createElement({ columns: cols, rows: '{bad json' }))
+    expect(el.querySelector('table')).not.toBeNull()
+    // No crash — rows fallback to empty, so all cells are empty
+    const tds = el.querySelectorAll('tbody tr td')
+    for (const td of tds) {
+      expect(td.textContent).toBe('')
+    }
+  })
 })
