@@ -1,4 +1,5 @@
 import { okAsync, ResultAsync } from 'neverthrow'
+import type postgres from 'postgres'
 import type { DbError, SessionRow, EventRow, InsertableSession, InsertableEvent } from './types.js'
 import type { DbPool } from './connection.js'
 import { mapPostgresError } from './connection.js'
@@ -44,7 +45,7 @@ export function insertEvent (pool: DbPool, event: InsertableEvent): ResultAsync<
     (async () => {
       const rows = await pool.sql<EventRow[]>`
         INSERT INTO events (session_id, event_category, dom_target, payload)
-        VALUES (${event.session_id}, ${event.event_category}, ${event.dom_target}, ${pool.sql.json(event.payload)})
+        VALUES (${event.session_id}, ${event.event_category}, ${event.dom_target}, ${pool.sql.json(event.payload as postgres.JSONValue)})
         RETURNING event_id, session_id, created_at, event_category, dom_target, payload
       `
       const row = rows[0]
@@ -68,7 +69,7 @@ export function insertEvents (pool: DbPool, events: ReadonlyArray<InsertableEven
         session_id: e.session_id,
         event_category: e.event_category,
         dom_target: e.dom_target,
-        payload: pool.sql.json(e.payload)
+        payload: pool.sql.json(e.payload as postgres.JSONValue)
       }))
       const result = await pool.sql`
         INSERT INTO events ${pool.sql(values, 'session_id', 'event_category', 'dom_target', 'payload')}

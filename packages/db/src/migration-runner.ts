@@ -55,7 +55,7 @@ export function loadMigrations (directory: string): ResultAsync<ReadonlyArray<Mi
       code: DbErrorCode.MIGRATION_FAILED,
       message: e instanceof Error ? e.message : 'Failed to read migrations directory'
     })
-  ).andThen((filenames) => {
+  ).andThen((filenames: string[]) => {
     const sqlFiles = filenames.filter((f) => f.endsWith('.sql'))
     const parsed: MigrationFile[] = []
 
@@ -110,10 +110,10 @@ export function runMigrations (pool: DbPool, migrations: ReadonlyArray<Migration
 
         await pool.sql.begin(async (tx) => {
           await tx.unsafe(migration.sql)
-          await tx`
-            INSERT INTO _migrations (version, name)
-            VALUES (${migration.version}, ${migration.name})
-          `
+          await tx.unsafe(
+            'INSERT INTO _migrations (version, name) VALUES ($1, $2)',
+            [migration.version, migration.name]
+          )
         })
         count++
       }
