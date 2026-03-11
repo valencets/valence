@@ -21,7 +21,7 @@ export function bootTelemetry (): void {
   ensureSession()
 
   // Init event delegation on document.body
-  initEventDelegation(document.body, buffer)
+  initEventDelegation(buffer, document.body)
 
   // Schedule auto-flush
   const flushHandle = scheduleAutoFlush(

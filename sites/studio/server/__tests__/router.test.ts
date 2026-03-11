@@ -155,6 +155,33 @@ describe('sendJson', () => {
   })
 })
 
+describe('registerRoutes', () => {
+  it('registers the /audit route', async () => {
+    const { registerRoutes } = await import('../register-routes.js')
+    const router = createRouter()
+    registerRoutes(router)
+
+    const req = mockReq('/audit')
+    const res = mockRes()
+    await router.handle(req, res, mockCtx)
+
+    expect(res._status).not.toBe(404)
+  })
+
+  it('registers the /admin/hud route', async () => {
+    const { registerRoutes } = await import('../register-routes.js')
+    const router = createRouter()
+    registerRoutes(router)
+
+    const req = mockReq('/admin/hud')
+    const res = mockRes()
+    await router.handle(req, res, mockCtx)
+
+    // 401 is expected without auth — but NOT 404
+    expect(res._status).not.toBe(404)
+  })
+})
+
 describe('readBody', () => {
   it('reads body from request stream', async () => {
     const { PassThrough } = await import('node:stream')

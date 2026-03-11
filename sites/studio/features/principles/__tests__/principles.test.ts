@@ -22,10 +22,10 @@ describe('renderPrinciples', () => {
     }
   })
 
-  it('has principle navigation links', () => {
+  it('does not have redundant in-page navigation', () => {
     const html = renderPrinciples()
-    expect(html).toContain('Principles navigation')
-    expect(html).toContain('href="#av-206"')
+    expect(html).not.toContain('principle-nav')
+    expect(html).not.toContain('Principles navigation')
   })
 
   it('has telemetry attributes on sections', () => {

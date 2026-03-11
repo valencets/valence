@@ -22,9 +22,6 @@ export function renderPrinciples (): string {
 <section class="section container">
   <h1>Engineering Principles</h1>
   <p class="prose">We borrow coding standards from aerospace engineering — not because websites need to fly, but because your business needs reliability you can bet on.</p>
-  <nav class="principle-nav" aria-label="Principles navigation">
-    ${PRINCIPLES.map((p) => `<a href="#${p.id}">${p.title.split(' — ')[0]}</a>`).join('')}
-  </nav>
 </section>
 <div class="container">
   ${sections}
