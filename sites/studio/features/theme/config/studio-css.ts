@@ -71,11 +71,16 @@ export function getStudioCSS (): string {
   font-display: swap;
 }
 
-/* Base styles */
+/* Viewport flex layout */
+html { height: 100%; }
 body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
 }
+main { flex: 1; }
 
 /* Studio layout utilities */
 .container {
@@ -290,6 +295,53 @@ footer {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
 }
+
+/* Hero CTA row */
+.hero-cta {
+  display: flex;
+  gap: ${SPACING.scale[4]};
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: ${SPACING.scale[8]};
+}
+
+/* Eliminate list (× markers) */
+.eliminate-list { list-style: none; padding: 0; }
+.eliminate-list li {
+  padding: ${SPACING.scale[2]} 0;
+  padding-left: ${SPACING.scale[6]};
+  position: relative;
+}
+.eliminate-list li::before {
+  content: "\\00d7";
+  position: absolute;
+  left: 0;
+  color: var(--destructive);
+  font-weight: bold;
+}
+
+/* CTA section */
+.cta-section {
+  text-align: center;
+  padding-block: ${SPACING.section.paddingY};
+}
+
+/* Contact info bar */
+.contact-info {
+  display: flex;
+  gap: ${SPACING.scale[8]};
+  justify-content: center;
+  flex-wrap: wrap;
+  padding-top: ${SPACING.scale[6]};
+  margin-top: ${SPACING.scale[6]};
+  border-top: 1px solid var(--border);
+}
+.contact-info a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: ${TYPOGRAPHY.fontWeight.medium};
+}
+.contact-info a:hover { text-decoration: underline; }
 `
 
   return tokenCSS + studioCSS
