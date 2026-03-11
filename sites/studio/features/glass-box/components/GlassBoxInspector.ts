@@ -1,8 +1,19 @@
 import { GLASS_BOX_CONFIG, EXPLAINER_MAP } from '../config/glass-box-config.js'
 
+const IGNORED_TAGS: Record<string, boolean> = {
+  INPUT: true,
+  TEXTAREA: true,
+  SELECT: true
+}
+
 export class GlassBoxInspector extends HTMLElement {
   private _hoverTimeout: ReturnType<typeof setTimeout> | null = null
   private _targetEl: Element | null = null
+  private _overlayActive = false
+  private _overlayLabels: HTMLElement[] = []
+  private _boundMouseOver: ((e: Event) => void) | null = null
+  private _boundMouseOut: ((e: Event) => void) | null = null
+  private _boundKeyDown: ((e: Event) => void) | null = null
 
   static get observedAttributes (): string[] {
     return ['visible']
@@ -28,14 +39,20 @@ export class GlassBoxInspector extends HTMLElement {
       display: none;
     `
 
-    document.addEventListener('mouseover', this._onMouseOver.bind(this))
-    document.addEventListener('mouseout', this._onMouseOut.bind(this))
+    this._boundMouseOver = this._onMouseOver.bind(this)
+    this._boundMouseOut = this._onMouseOut.bind(this)
+    this._boundKeyDown = this._onKeyDown.bind(this)
+    document.addEventListener('mouseover', this._boundMouseOver)
+    document.addEventListener('mouseout', this._boundMouseOut)
+    document.addEventListener('keydown', this._boundKeyDown)
   }
 
   disconnectedCallback (): void {
     this._clearTimeout()
-    document.removeEventListener('mouseover', this._onMouseOver.bind(this))
-    document.removeEventListener('mouseout', this._onMouseOut.bind(this))
+    this._removeOverlayLabels()
+    if (this._boundMouseOver) document.removeEventListener('mouseover', this._boundMouseOver)
+    if (this._boundMouseOut) document.removeEventListener('mouseout', this._boundMouseOut)
+    if (this._boundKeyDown) document.removeEventListener('keydown', this._boundKeyDown)
   }
 
   private _onMouseOver (e: Event): void {
@@ -103,6 +120,49 @@ export class GlassBoxInspector extends HTMLElement {
     this.style.display = 'none'
     this.setAttribute('aria-hidden', 'true')
     this._targetEl = null
+  }
+
+  private _onKeyDown (e: Event): void {
+    const ke = e as KeyboardEvent
+    if (ke.key !== '`') return
+
+    const tag = document.activeElement?.tagName ?? ''
+    if (IGNORED_TAGS[tag] === true) return
+
+    this._overlayActive = !this._overlayActive
+
+    if (this._overlayActive) {
+      this._showOverlayLabels()
+    } else {
+      this._removeOverlayLabels()
+    }
+  }
+
+  private _showOverlayLabels (): void {
+    const targets = document.querySelectorAll('[data-telemetry-type]')
+    for (const target of targets) {
+      const type = target.getAttribute('data-telemetry-type') ?? ''
+      const tgt = target.getAttribute('data-telemetry-target') ?? ''
+
+      const label = document.createElement('span')
+      label.setAttribute('data-overlay-label', '')
+      label.textContent = tgt ? `${type} / ${tgt}` : type
+      label.style.cssText = 'position:absolute;z-index:10000;font-family:var(--font-mono,monospace);font-size:10px;background:hsl(215,60%,55%/0.9);color:white;padding:2px 4px;border-radius:2px;pointer-events:none;white-space:nowrap;'
+
+      const rect = target.getBoundingClientRect()
+      label.style.left = `${rect.left + window.scrollX}px`
+      label.style.top = `${rect.top + window.scrollY}px`
+
+      document.body.appendChild(label)
+      this._overlayLabels.push(label)
+    }
+  }
+
+  private _removeOverlayLabels (): void {
+    for (const label of this._overlayLabels) {
+      label.remove()
+    }
+    this._overlayLabels = []
   }
 
   private _clearTimeout (): void {
