@@ -152,6 +152,14 @@ describe('getStudioCSS', () => {
     expect(css).toContain('.grid-4')
   })
 
+  it('contains proof metric styles', () => {
+    const css = getStudioCSS()
+    expect(css).toContain('.proof-grid')
+    expect(css).toContain('.proof-value')
+    expect(css).toContain('.proof-metric')
+    expect(css).toContain('.proof-label')
+  })
+
   it('contains Dank Mono font-face declarations', () => {
     const css = getStudioCSS()
     expect(css).toContain('@font-face')
