@@ -1,15 +1,15 @@
 import type { PartialTheme } from '@inertia/tokens'
 
 // Studio palette: industrial minimalism (HSL)
-// Deep steel background hsl(220,13%,6%), single accent hsl(215,60%,55%)
+// Softer gunmetal background hsl(220,13%,9%), single accent hsl(215,60%,55%)
 export const studioTheme: PartialTheme = {
   colors: {
     dark: {
-      background: 'hsl(220, 13%, 6%)',
+      background: 'hsl(220, 13%, 9%)',
       foreground: 'hsl(0, 0%, 93%)',
-      card: 'hsl(220, 13%, 10%)',
+      card: 'hsl(220, 10%, 14%)',
       'card-foreground': 'hsl(0, 0%, 93%)',
-      popover: 'hsl(220, 13%, 10%)',
+      popover: 'hsl(220, 10%, 14%)',
       'popover-foreground': 'hsl(0, 0%, 93%)',
       primary: 'hsl(215, 60%, 55%)',
       'primary-foreground': 'hsl(0, 0%, 98%)',
@@ -78,7 +78,7 @@ export const studioTheme: PartialTheme = {
   fonts: {
     sans: '"Inter", system-ui, -apple-system, sans-serif',
     serif: '"Georgia", Cambria, serif',
-    mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace'
+    mono: '"Dank Mono", ui-monospace, SFMono-Regular, monospace'
   },
   radius: '0.375rem',
   spacing: '0.25rem',
