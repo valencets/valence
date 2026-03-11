@@ -320,6 +320,30 @@ footer {
   font-weight: bold;
 }
 
+/* Appliance Model spec list */
+.spec-list {
+  padding: ${SPACING.scale[6]};
+  list-style: none;
+}
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  padding: ${SPACING.scale[3]} 0;
+  border-bottom: 1px solid var(--border);
+}
+.spec-row:last-child { border-bottom: none; }
+.spec-row dt {
+  font-size: ${TYPOGRAPHY.scale.sm};
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.spec-row dd {
+  font-weight: ${TYPOGRAPHY.fontWeight.semibold};
+  color: var(--foreground);
+  margin: 0;
+}
+
 /* CTA section */
 .cta-section {
   text-align: center;
