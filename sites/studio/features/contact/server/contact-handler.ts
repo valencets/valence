@@ -73,7 +73,7 @@ export const contactPostHandler: RouteHandler = async (req, res, ctx) => {
 
 function insertContactSubmission (
   pool: DbPool,
-  data: { name: string; email: string; business?: string; subject: string; message: string }
+  data: { name: string; email: string; business?: string | undefined; subject: string; message: string }
 ): ResultAsync<unknown, DbError> {
   return ResultAsync.fromPromise(
     pool.sql`
