@@ -2,7 +2,6 @@ import { execSync } from 'node:child_process'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import postgres from 'postgres'
-import type { Sql } from 'postgres'
 import { createPool, closePool } from '../../connection.js'
 import { loadMigrations, runMigrations } from '../../migration-runner.js'
 import type { DbPool } from '../../connection.js'
@@ -11,9 +10,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const MIGRATIONS_DIR = join(__dirname, '..', '..', '..', 'migrations')
 const TEST_DB = 'inertia_test'
 
-let superuserSql: Sql
-let appPool: DbPool
-let superuserPool: DbPool
+let appPool: DbPool | undefined
+let superuserPool: DbPool | undefined
+let setupPromise: Promise<void> | undefined
+let refCount = 0
 
 function isPostgresRunning (): boolean {
   const result = execSync('pg_isready 2>&1 || true', { encoding: 'utf-8' })
@@ -21,38 +21,39 @@ function isPostgresRunning (): boolean {
 }
 
 export function getAppPool (): DbPool {
+  if (!appPool) throw new Error('setupTestDatabase() has not been called')
   return appPool
 }
 
 export function getSuperuserPool (): DbPool {
+  if (!superuserPool) throw new Error('setupTestDatabase() has not been called')
   return superuserPool
 }
 
-export async function setupTestDatabase (): Promise<void> {
+async function doSetup (): Promise<void> {
   if (!isPostgresRunning()) {
     throw new Error('PostgreSQL is not running. Start it before running integration tests.')
   }
 
-  superuserSql = postgres({
+  const adminSql = postgres({
     database: 'postgres',
     max: 2
   })
 
-  const existing = await superuserSql`
+  const existing = await adminSql`
     SELECT 1 FROM pg_database WHERE datname = ${TEST_DB}
   `
   if (existing.length > 0) {
-    // Terminate existing connections before dropping
-    await superuserSql`
+    await adminSql`
       SELECT pg_terminate_backend(pid)
       FROM pg_stat_activity
       WHERE datname = ${TEST_DB} AND pid <> pg_backend_pid()
     `
-    await superuserSql.unsafe(`DROP DATABASE ${TEST_DB}`)
+    await adminSql.unsafe(`DROP DATABASE ${TEST_DB}`)
   }
 
-  await superuserSql.unsafe(`CREATE DATABASE ${TEST_DB}`)
-  await superuserSql.end()
+  await adminSql.unsafe(`CREATE DATABASE ${TEST_DB}`)
+  await adminSql.end()
 
   superuserPool = createPool({
     host: 'localhost',
@@ -87,9 +88,26 @@ export async function setupTestDatabase (): Promise<void> {
   })
 }
 
+export async function setupTestDatabase (): Promise<void> {
+  refCount++
+  if (!setupPromise) {
+    setupPromise = doSetup()
+  }
+  await setupPromise
+}
+
 export async function teardownTestDatabase (): Promise<void> {
-  await closePool(appPool)
-  await closePool(superuserPool)
+  refCount--
+  if (refCount > 0) return
+
+  if (appPool) {
+    await closePool(appPool)
+    appPool = undefined
+  }
+  if (superuserPool) {
+    await closePool(superuserPool)
+    superuserPool = undefined
+  }
 
   const adminSql = postgres({
     database: 'postgres',
@@ -103,4 +121,6 @@ export async function teardownTestDatabase (): Promise<void> {
   `
   await adminSql.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB}`)
   await adminSql.end()
+
+  setupPromise = undefined
 }
