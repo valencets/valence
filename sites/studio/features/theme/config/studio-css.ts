@@ -372,6 +372,35 @@ footer {
   font-weight: ${TYPOGRAPHY.fontWeight.medium};
 }
 .contact-info a:hover { text-decoration: underline; }
+
+/* Glass Box inspector tooltip */
+.gb-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 2px 0;
+  gap: ${SPACING.scale[3]};
+}
+.gb-label {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.gb-value {
+  font-size: 11px;
+  color: var(--primary);
+  font-weight: ${TYPOGRAPHY.fontWeight.semibold};
+  text-align: right;
+  word-break: break-all;
+}
+.gb-explainer {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  line-height: ${TYPOGRAPHY.lineHeight.body};
+  margin: 0;
+}
 `
 
   return tokenCSS + studioCSS
