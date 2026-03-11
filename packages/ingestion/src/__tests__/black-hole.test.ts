@@ -12,7 +12,8 @@ function makeValidPayloadJson (count: number = 1): string {
     type: 'CLICK',
     targetDOMNode: `#btn-${i}`,
     x_coord: 100 + i,
-    y_coord: 200 + i
+    y_coord: 200 + i,
+    schema_version: 1
   }))
   return JSON.stringify(intents)
 }

@@ -16,6 +16,7 @@ export interface ValidatedIntent {
   readonly targetDOMNode: string
   readonly x_coord: number
   readonly y_coord: number
+  readonly schema_version: number
 }
 
 export type ValidatedTelemetryPayload = ReadonlyArray<ValidatedIntent>
@@ -37,7 +38,8 @@ const intentSchema = z.object({
   type: z.enum(INTENT_TYPES),
   targetDOMNode: z.string(),
   x_coord: finiteNumber,
-  y_coord: finiteNumber
+  y_coord: finiteNumber,
+  schema_version: z.literal(1)
 })
 
 const telemetryPayloadSchema = z.array(intentSchema)
