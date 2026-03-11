@@ -1,6 +1,13 @@
 import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js'
+import { fetchSessionSummary, fetchEventSummary, fetchConversionSummary } from '../data/fetch-summaries.js'
+import type { HudPeriod } from '../types.js'
+import { formatNumber } from '../data/format-number.js'
 
 export class ClientDashboard extends HTMLElement {
+  private _visitorsMetric: HTMLElement | null = null
+  private _leadsMetric: HTMLElement | null = null
+  private _periodChangeHandler: ((e: Event) => void) | null = null
+
   connectedCallback (): void {
     this.style.display = 'block'
     this.style.backgroundColor = HUD_COLORS.bg
@@ -103,14 +110,55 @@ export class ClientDashboard extends HTMLElement {
     this.appendChild(header)
     this.appendChild(grid)
     this.appendChild(bottomGrid)
+
+    // Store references for data updates
+    this._visitorsMetric = visitorsMetric
+    this._leadsMetric = leadsMetric
+
+    // Listen for period changes
+    this._periodChangeHandler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { period: string }
+      this.refreshData(detail.period as HudPeriod)
+    }
+    this.addEventListener('hud-period-change', this._periodChangeHandler)
+
+    // Initial data fetch
+    this.refreshData('7D')
   }
 
   disconnectedCallback (): void {
-    // Intentional no-op
+    if (this._periodChangeHandler) {
+      this.removeEventListener('hud-period-change', this._periodChangeHandler)
+    }
   }
 
   connectedMoveCallback (): void {
     // Intentional no-op — signals move-awareness to router
+  }
+
+  private refreshData (period: HudPeriod): void {
+    fetchSessionSummary('', period).match(
+      (data) => {
+        if (this._visitorsMetric) {
+          this._visitorsMetric.setAttribute('value', formatNumber(data.total_sessions))
+        }
+      },
+      () => {} // Hold placeholders on error
+    )
+
+    fetchEventSummary('', period).match(
+      (data) => {
+        if (this._leadsMetric) {
+          this._leadsMetric.setAttribute('value', formatNumber(data.total_count))
+        }
+      },
+      () => {} // Hold placeholders on error
+    )
+
+    fetchConversionSummary('', period).match(
+      () => {},
+      () => {} // Hold placeholders on error
+    )
   }
 }
 

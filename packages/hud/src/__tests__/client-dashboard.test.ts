@@ -160,14 +160,14 @@ describe('ClientDashboard data fetching', () => {
     mockFetch()
     attach(createElement())
     // Allow microtasks to settle
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise(resolve => setTimeout(resolve, 50))
     expect(globalThis.fetch).toHaveBeenCalled()
   })
 
   it('updates visitor metric after fetch', async () => {
     mockFetch()
     const el = attach(createElement())
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise(resolve => setTimeout(resolve, 50))
     const panels = el.querySelectorAll('hud-panel')
     const visitors = Array.from(panels).find(p => p.getAttribute('label') === 'Visitors')
     const metric = visitors?.querySelector('hud-metric')
@@ -177,7 +177,7 @@ describe('ClientDashboard data fetching', () => {
   it('updates leads metric after fetch', async () => {
     mockFetch()
     const el = attach(createElement())
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise(resolve => setTimeout(resolve, 50))
     const panels = el.querySelectorAll('hud-panel')
     const leads = Array.from(panels).find(p => p.getAttribute('label') === 'Leads')
     const metric = leads?.querySelector('hud-metric')
@@ -187,7 +187,7 @@ describe('ClientDashboard data fetching', () => {
   it('holds placeholders on fetch error', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
     const el = attach(createElement())
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise(resolve => setTimeout(resolve, 50))
     const panels = el.querySelectorAll('hud-panel')
     const visitors = Array.from(panels).find(p => p.getAttribute('label') === 'Visitors')
     const metric = visitors?.querySelector('hud-metric')
@@ -197,13 +197,13 @@ describe('ClientDashboard data fetching', () => {
   it('refreshes data on hud-period-change', async () => {
     mockFetch()
     const el = attach(createElement())
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise(resolve => setTimeout(resolve, 50))
     const callCount = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length
     // Dispatch period change
     el.querySelector('hud-timerange')?.dispatchEvent(
       new CustomEvent('hud-period-change', { detail: { period: '30D' }, bubbles: true })
     )
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise(resolve => setTimeout(resolve, 50))
     expect((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(callCount)
   })
 })
