@@ -80,6 +80,23 @@ describe('renderShell', () => {
     expect(html).toContain('INERTIA')
   })
 
+  it('includes deferred boot script', () => {
+    const html = renderShell(defaultOptions)
+    expect(html).toMatch(/\/js\/boot\.js\?v=/)
+    expect(html).toMatch(/<script[^>]*defer/)
+  })
+
+  it('does not use inline event handlers on script', () => {
+    const html = renderShell(defaultOptions)
+    expect(html).not.toContain('onload=')
+  })
+
+  it('includes Glass Box elements before closing body', () => {
+    const html = renderShell(defaultOptions)
+    expect(html).toContain('<inertia-buffer-strip')
+    expect(html).toContain('<inertia-telemetry-infobox')
+  })
+
   it('uses dark class on html element', () => {
     const html = renderShell(defaultOptions)
     expect(html).toContain('class="dark"')
