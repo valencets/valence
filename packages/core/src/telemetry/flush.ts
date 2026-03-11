@@ -39,15 +39,21 @@ export function flushTelemetry (
 export function scheduleAutoFlush (
   buffer: TelemetryRingBuffer,
   endpointUrl: string,
-  intervalMs: number = 30000
+  intervalMs: number = 30000,
+  onFlush?: (count: number) => void
 ): FlushHandle {
-  const intervalId = setInterval(() => {
-    flushTelemetry(buffer, endpointUrl)
-  }, intervalMs)
+  function flushAndNotify (): void {
+    const result = flushTelemetry(buffer, endpointUrl)
+    if (result.isOk() && onFlush) {
+      onFlush(result.value)
+    }
+  }
+
+  const intervalId = setInterval(flushAndNotify, intervalMs)
 
   function onVisibilityChange (): void {
     if (document.visibilityState === 'hidden') {
-      flushTelemetry(buffer, endpointUrl)
+      flushAndNotify()
     }
   }
 
