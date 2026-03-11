@@ -224,8 +224,7 @@ CREATE TABLE sessions (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   referrer         TEXT,
   device_type      VARCHAR(50) NOT NULL,
-  operating_system VARCHAR(50),
-  is_active        BOOLEAN DEFAULT TRUE
+  operating_system VARCHAR(50)
 );
 
 CREATE TABLE events (
@@ -254,7 +253,7 @@ Run a nightly cron: `jsonb_object_keys()` aggregation to detect threshold crossi
 
 ### Immutability Enforcement
 
-Application service account: `INSERT` + `SELECT` only. `UPDATE`, `DELETE`, `TRUNCATE` revoked at engine level. Corrections are appended as compensating events, never mutations.
+Application service account: `INSERT` + `SELECT` only. `UPDATE`, `DELETE`, `TRUNCATE` revoked at engine level. Corrections are appended as compensating events, never mutations. Session liveness is derived from the last event timestamp — a pure read against existing data, not a stored `is_active` column.
 
 ### Aggregation
 
