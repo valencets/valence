@@ -204,4 +204,12 @@ describe('getStudioCSS', () => {
     const css = getStudioCSS()
     expect(css).toContain('.contact-info')
   })
+
+  it('contains glass-box inspector styles', () => {
+    const css = getStudioCSS()
+    expect(css).toContain('.gb-row')
+    expect(css).toContain('.gb-label')
+    expect(css).toContain('.gb-value')
+    expect(css).toContain('.gb-explainer')
+  })
 })
