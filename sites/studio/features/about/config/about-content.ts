@@ -2,7 +2,7 @@ export const ABOUT = {
   headline: 'About Inertia Web Solutions',
   intro: 'We build websites the way aerospace engineers build flight systems — deterministic, testable, and entirely within your control.',
   founder: {
-    name: 'Forrest Carlton',
+    name: 'Forrest Blade',
     bio: 'Software engineer who got tired of watching local businesses pay monthly ransoms for websites they would never own. Inertia exists because your dentist, your plumber, and your local bakery deserve the same engineering standards as a fighter jet.',
     philosophy: 'Every website we build runs on hardware we hand-deliver to you. A Raspberry Pi 5 or ZimaBoard sitting in your office, serving your site to the world through Cloudflare. You own it. You control it. We just build it.'
   },

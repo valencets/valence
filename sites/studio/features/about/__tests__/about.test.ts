@@ -19,6 +19,12 @@ describe('renderAbout', () => {
     expect(html).toContain('Software engineer')
   })
 
+  it('says Forrest Blade, not Forrest Carlton', () => {
+    const html = renderAbout()
+    expect(html).toContain('Forrest Blade')
+    expect(html).not.toContain('Forrest Carlton')
+  })
+
   it('contains hardware section', () => {
     const html = renderAbout()
     expect(html).toContain(ABOUT.hardware.headline)
