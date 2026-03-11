@@ -7,6 +7,13 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "echo 'no tests yet'"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.3.6",
+    "neverthrow": "^8.2.0",
+    "tailwind-variants": "^0.3.0",
+    "tailwind-merge": "^3.0.0",
+    "clsx": "^2.1.0"
   }
 }
