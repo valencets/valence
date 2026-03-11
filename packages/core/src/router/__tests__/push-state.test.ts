@@ -372,6 +372,80 @@ describe('initRouter', () => {
     pushStateSpy.mockRestore()
   })
 
+  it('dispatches inertia:before-swap before fragment swap', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Swap</title></head><body><main><p>Swapped</p></main></body></html>')
+    const beforeSwapHandler = vi.fn()
+
+    document.addEventListener('inertia:before-swap', beforeSwapHandler)
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const link = createAnchor('/swap')
+    clickAnchor(link)
+
+    await new Promise(resolve => { setTimeout(resolve, 50) })
+
+    expect(beforeSwapHandler).toHaveBeenCalledTimes(1)
+    // Before-swap fires before content changes, so by the time the handler is called,
+    // the old content should still be in the DOM
+    document.removeEventListener('inertia:before-swap', beforeSwapHandler)
+  })
+
+  it('dispatches inertia:after-swap after fragment swap', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Swap</title></head><body><main><p>Swapped</p></main></body></html>')
+    const afterSwapHandler = vi.fn()
+    let contentAtSwap = ''
+
+    document.addEventListener('inertia:after-swap', () => {
+      contentAtSwap = document.querySelector('main p')?.textContent ?? ''
+      afterSwapHandler()
+    })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const link = createAnchor('/swap-after')
+    clickAnchor(link)
+
+    await new Promise(resolve => { setTimeout(resolve, 50) })
+
+    expect(afterSwapHandler).toHaveBeenCalledTimes(1)
+    // After-swap fires after content is replaced
+    expect(contentAtSwap).toBe('Swapped')
+  })
+
+  it('before-swap fires before content changes', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Order</title></head><body><main><p>New content</p></main></body></html>')
+    let contentDuringBeforeSwap = ''
+
+    document.addEventListener('inertia:before-swap', () => {
+      contentDuringBeforeSwap = document.querySelector('main p')?.textContent ?? ''
+    }, { once: true })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Old content</p>'
+    document.body.appendChild(main)
+
+    const link = createAnchor('/order')
+    clickAnchor(link)
+
+    await new Promise(resolve => { setTimeout(resolve, 50) })
+
+    expect(contentDuringBeforeSwap).toBe('Old content')
+  })
+
   it('navigation scrolls to top', async () => {
     const mockFetch = createMockFetch('<html><head><title>Scroll</title></head><body><main><p>Scrolled</p></main></body></html>')
     const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})

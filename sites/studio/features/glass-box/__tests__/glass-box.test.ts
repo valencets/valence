@@ -111,6 +111,83 @@ describe('GlassBoxInspector overlay mode', () => {
   })
 })
 
+describe('GlassBoxInspector route lifecycle', () => {
+  beforeAll(async () => {
+    if (customElements.get('inertia-telemetry-infobox') === undefined) {
+      await import('../components/GlassBoxInspector.js')
+    }
+  })
+
+  function setup (): { inspector: HTMLElement; target: HTMLElement } {
+    const target = document.createElement('button')
+    target.setAttribute('data-telemetry-type', 'CLICK')
+    target.setAttribute('data-telemetry-target', 'lifecycle-btn')
+    document.body.appendChild(target)
+
+    const inspector = document.createElement('inertia-telemetry-infobox')
+    document.body.appendChild(inspector)
+
+    return { inspector, target }
+  }
+
+  function teardown (): void {
+    document.body.innerHTML = ''
+  }
+
+  it('tears down overlay labels on inertia:before-swap', () => {
+    setup()
+    // Activate overlay
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.querySelectorAll('[data-overlay-label]').length).toBeGreaterThanOrEqual(1)
+
+    // Simulate router before-swap
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+    expect(document.querySelectorAll('[data-overlay-label]').length).toBe(0)
+    teardown()
+  })
+
+  it('re-renders overlay labels on inertia:after-swap when overlay was active', () => {
+    setup()
+    // Activate overlay
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.querySelectorAll('[data-overlay-label]').length).toBeGreaterThanOrEqual(1)
+
+    // Simulate route swap
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+    expect(document.querySelectorAll('[data-overlay-label]').length).toBe(0)
+
+    // Add new route content with telemetry targets
+    const newTarget = document.createElement('a')
+    newTarget.setAttribute('data-telemetry-type', 'INTENT_NAVIGATE')
+    newTarget.setAttribute('data-telemetry-target', 'new-link')
+    document.body.appendChild(newTarget)
+
+    document.dispatchEvent(new CustomEvent('inertia:after-swap'))
+    expect(document.querySelectorAll('[data-overlay-label]').length).toBeGreaterThanOrEqual(1)
+    teardown()
+  })
+
+  it('does NOT re-render overlay on after-swap when overlay was inactive', () => {
+    setup()
+    // Do NOT activate overlay — just dispatch swap events
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+    document.dispatchEvent(new CustomEvent('inertia:after-swap'))
+    expect(document.querySelectorAll('[data-overlay-label]').length).toBe(0)
+    teardown()
+  })
+
+  it('cleans up swap listeners on disconnectedCallback', () => {
+    const { inspector } = setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    // Remove inspector from DOM
+    inspector.remove()
+    // Dispatch swap event — should NOT throw or create labels
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+    document.dispatchEvent(new CustomEvent('inertia:after-swap'))
+    teardown()
+  })
+})
+
 describe('GlassBoxStrip', () => {
   let GlassBoxStrip: typeof import('../components/GlassBoxStrip.js').GlassBoxStrip
 
