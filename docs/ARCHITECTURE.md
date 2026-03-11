@@ -5,14 +5,17 @@ Complete architectural reference for the Inertia deterministic web framework. Re
 ## Table of Contents
 
 1. [Engineering Philosophy](#engineering-philosophy)
-2. [Telemetry Engine](#telemetry-engine)
-3. [Ingestion Node](#ingestion-node)
-4. [HTML-over-the-Wire Router](#html-over-the-wire-router)
-5. [Web Component Primitives](#web-component-primitives)
-6. [PostgreSQL Schema](#postgresql-schema)
-7. [Offline Conversion Tracking](#offline-conversion-tracking)
-8. [Analytics Viewer (HUD)](#analytics-viewer)
-9. [14kB Critical Path](#14kb-critical-path)
+2. [Infrastructure Model](#infrastructure-model)
+3. [Telemetry Engine](#telemetry-engine)
+4. [Ingestion Node](#ingestion-node)
+5. [HTML-over-the-Wire Router](#html-over-the-wire-router)
+6. [Web Component Primitives](#web-component-primitives)
+7. [PostgreSQL Schema](#postgresql-schema)
+8. [Multi-Tenant Aggregation](#multi-tenant-aggregation)
+9. [Offline Conversion Tracking](#offline-conversion-tracking)
+10. [Analytics Viewer (HUD) & Fleet Dashboard](#analytics-viewer)
+11. [Content Management (Payload CMS)](#content-management)
+12. [14kB Critical Path](#14kb-critical-path)
 
 ---
 
@@ -27,7 +30,78 @@ In C++, dynamic heap allocation causes fragmentation and unpredictable execution
 The Ariane 5 rocket exploded because a 64-bit float converted to a 16-bit int threw an unhandled exception. Exceptions create unpredictable control flow. Solution: every function returns a `Result<Ok, Err>` type. The compiler forces explicit handling of both branches.
 
 **AV Rule 3 — Cyclomatic Complexity < 20**
-Formula: `V(G) = E - N + 2P` where E=edges, N=nodes, P=connected components. Every `if`, `for`, `while`, `&&`, `||` adds a decision path. Above 20, exhaustive testing becomes mathematically impossible. Solution: early returns, dictionary maps, micro-componentization.
+Formula: `V(G) = E - N + 2P` where E=edges, N=nodes, P=connected components. Every `if`, `for`, `while`, `&&`, `||` adds a decision path. Above 20, exhaustive testing becomes mathematically impossible. Solution: early returns, dictionary maps, micro-componentization. No switch statements. No enums (const unions only).
+
+---
+
+## Infrastructure Model
+
+### Hardware Appliance
+
+Each client deployment runs on a dedicated fanless x86 mini-PC:
+
+```
+CPU:       Intel N100 quad-core @ 3.4GHz (x86-64, fanless)
+RAM:       8GB+ DDR4/DDR5
+Storage:   WD Red SN700 500GB NVMe (NAS-grade, high TBW for PostgreSQL WAL)
+Power:     12V barrel + inline DC mini-UPS (survives power blips)
+Network:   Dual NIC preferred (LAN + WireGuard tunnel)
+Noise:     Zero (fanless passive cooling)
+Cost:      ~$350-400 all-in per unit
+```
+
+Why not Raspberry Pi: SD cards corrupt under PostgreSQL write-ahead log pressure. ARM Docker ecosystem has quirks. The N100 is x86-64, runs stock Debian, and every package works without ARM compatibility concerns.
+
+Why not ZimaBoard: Cost/margin ratio doesn't work for the pricing model. The N100 fanless boxes from AliExpress (Topton/CWWK) deliver more performance for less money.
+
+### Network Routing (Disposable Infrastructure)
+
+The appliance never exposes ports to the public internet. Instead:
+
+```
+[Client's browser]
+       ↓ HTTPS
+[Stateless VPS: $4/mo Hetzner/DigitalOcean]
+  - Caddy reverse proxy (SSL termination, Brotli, HTTP/2)
+  - Public IP + client's domain DNS
+       ↓ WireGuard tunnel (encrypted, outbound-initiated by appliance)
+[Client's appliance: behind their router, no port forwarding]
+  - Node.js serving Inertia site
+  - PostgreSQL with all data
+  - Payload CMS admin
+```
+
+The VPS is stateless and disposable. It holds no data, no application logic, no database. If it dies, spin a new one, point DNS, restore the WireGuard peer config. 60 seconds to recovery. The site's authoritative data lives on the appliance, never on the VPS.
+
+Why not Cloudflare Tunnels: Surrenders traffic routing control to a Big Tech intermediary. Violates the ownership thesis. The client should own their network path, not rent it from Cloudflare's infrastructure.
+
+### Gliding Failover
+
+The appliance maintains a static HTML snapshot of the entire site on the VPS:
+
+```
+1. Client edits content in Payload CMS → publishes
+2. Payload webhook triggers static export on the appliance
+3. Appliance compiles full static HTML snapshot of every page
+4. rsync pushes the snapshot to the VPS via the WireGuard tunnel
+5. Caddy on the VPS is configured with two upstreams:
+   - Primary: reverse proxy to appliance (via tunnel)
+   - Fallback: serve static HTML from /var/www/fallback/
+```
+
+If the appliance goes offline (power outage, ISP down, hardware failure):
+- Caddy health check fails on the tunnel upstream
+- Caddy automatically serves the static snapshot
+- Visitors see the last-published version of the site
+- Dynamic telemetry pauses (ring buffer can't flush, ingestion endpoint is unreachable)
+- The public storefront never goes dark
+
+When the appliance reconnects:
+- WireGuard tunnel re-establishes automatically
+- Caddy health check passes, live serving resumes
+- Telemetry resumes from where the ring buffer left off
+
+This means a local business website on Inertia has higher uptime than most cloud-hosted WordPress sites, because the fallback is pre-compiled HTML served from a CDN-adjacent VPS.
 
 ---
 
@@ -40,15 +114,17 @@ Location: `packages/core/src/telemetry/`
 Every property defined upfront. Identical shape, identical init order. This preserves V8 Inline Cache monomorphism (single hidden class = O(1) property access).
 
 ```typescript
-enum IntentType {
-  CLICK = 'CLICK',
-  SCROLL = 'SCROLL',
-  VIEWPORT_INTERSECT = 'VIEWPORT_INTERSECT',
-  FORM_INPUT = 'FORM_INPUT',
-  INTENT_NAVIGATE = 'INTENT_NAVIGATE',
-  INTENT_CALL = 'INTENT_CALL',
-  INTENT_BOOK = 'INTENT_BOOK'
-}
+const IntentType = [
+  'CLICK', 'SCROLL', 'VIEWPORT_INTERSECT', 'FORM_INPUT',
+  'INTENT_NAVIGATE', 'INTENT_CALL', 'INTENT_BOOK'
+] as const
+type IntentType = typeof IntentType[number]
+
+const BusinessType = [
+  'barbershop', 'legal', 'hvac', 'medical',
+  'restaurant', 'contractor', 'retail', 'other'
+] as const
+type BusinessType = typeof BusinessType[number]
 
 interface GlobalTelemetryIntent {
   id: string
@@ -58,22 +134,25 @@ interface GlobalTelemetryIntent {
   x_coord: number
   y_coord: number
   isDirty: boolean
+  schema_version: number    // Always 1 at launch. Incremented on breaking changes.
+  site_id: string           // Opaque identifier, not the domain name
+  business_type: BusinessType
 }
 ```
 
-If objects have varying shapes at runtime, V8 degrades from monomorphic → polymorphic → megamorphic, falling back to slow dictionary lookups. Never append undocumented fields.
+No enums. Const unions compile to zero runtime code. Enums compile to objects.
 
 ### TelemetryRingBuffer
 
 Fixed capacity `N` (default 1024) allocated at boot as `Array<GlobalTelemetryIntent>`. Each slot initialized with zeroed placeholder data and `isDirty: false`.
 
-**Write path**: Access slot at `head` index → mutate properties in-place → set `isDirty = true` → advance: `head = (head + 1) % capacity`
+**Write path**: Access slot at `head` index → mutate properties in-place → set `isDirty = true` → advance: `head = (head + 1) & mask` (bitmask for power-of-2 capacity)
 
 **Saturation**: When `head === tail`, buffer is full. Oldest un-flushed events are overwritten. Telemetry is non-critical; recency is prioritized.
 
 **Flush path**: Iterate `tail` to `head`, collect slots where `isDirty === true` → serialize → dispatch via `navigator.sendBeacon` or `fetch` → reset `isDirty = false`, zero strings → advance `tail`. Never destroy objects.
 
-**Performance**: Consider offloading serialization (`JSON.stringify`) and `sendBeacon` to a dedicated Web Worker to keep main thread clean.
+**Performance**: Serialization (`JSON.stringify`) and `sendBeacon` offloaded to a dedicated Web Worker to keep the main thread clean.
 
 ### Event Delegation Pattern
 
@@ -89,6 +168,18 @@ Single listener on `document.body`. HTML elements carry tracking metadata via `d
 
 The engine reads `data-*` attrs on event bubbling, formats the intent, writes to the next buffer slot. Components never execute tracking directly.
 
+### Schema Versioning
+
+Every intent includes `schema_version: 1`. The ingestion pipeline routes events through a version-discriminated handler dictionary:
+
+```typescript
+const handlers: Record<number, IntentHandler> = {
+  1: handleV1Intent,
+}
+```
+
+v1 payloads (no site_id) remain valid for backward compatibility. v2 payloads require site_id and business_type. Old events in the immutable ledger remain valid forever. No migration. No rewrite.
+
 ---
 
 ## Ingestion Node
@@ -98,10 +189,8 @@ Location: `packages/ingestion/`
 ### Monadic Pipeline
 
 1. Receive raw request body as string
-2. `safeJsonParse(raw)` → `Result<unknown, ParseFailure>`
-   - This is the ONE permitted `try/catch` in the entire codebase
-   - Wraps native `JSON.parse` SyntaxError into a typed Result
-3. Zod `.safeParse()` against `GlobalTelemetryIntent` schema → `Result<T, ValidationFailure>`
+2. `safeJsonParse(raw)` → `Result<unknown, ParseFailure>` (the ONE permitted try/catch)
+3. Zod `.safeParse()` against version-discriminated schema → `Result<T, ValidationFailure>`
 4. Chain via `neverthrow` `.map()` / `.andThen()`
 5. Final `.match()`:
    - `Ok`: append to PostgreSQL immutable ledger
@@ -109,14 +198,11 @@ Location: `packages/ingestion/`
 
 ### The Black Hole Strategy
 
-Why return 200 on bad data? Because HTTP 4xx/5xx responses trigger automated retry mechanisms in browsers and service workers. If a framework update ships a malformed telemetry schema to thousands of client sites simultaneously, error responses would cause every client to retry infinitely = self-inflicted DDoS.
-
-Returning 200 OK tricks the client into clearing its buffer and advancing the read pointer. The bad data is silently logged for developer auditing. The server remains indestructible.
+Why return 200 on bad data? HTTP 4xx/5xx responses trigger automated retry mechanisms in browsers and service workers. Thousands of concurrent clients retrying simultaneously = self-inflicted DDoS. Return 200 OK. Client clears its buffer. Bad data is silently logged for developer auditing. Server stays indestructible.
 
 ### safeJsonParse Boundary
 
 ```typescript
-// THE boundary. The only try/catch in the codebase.
 function safeJsonParse(raw: string): Result<unknown, ParseFailure> {
   try {
     return ok(JSON.parse(raw))
@@ -125,6 +211,16 @@ function safeJsonParse(raw: string): Result<unknown, ParseFailure> {
   }
 }
 ```
+
+The boundary. The only try/catch in the codebase.
+
+### Aggregation Endpoint
+
+Location: `packages/ingestion/` (receives daily summaries from client appliances)
+
+Pipeline: extract `X-Inertia-Signature` header → verify HMAC-SHA256 with `crypto.timingSafeEqual` → safeJsonParse → Zod .safeParse() against DailySummary schema → persist or Black Hole.
+
+HMAC prevents unauthorized pushes. Timing-safe comparison prevents timing attacks. Black Hole pattern applies: invalid signature returns 200 OK, never reveals auth failures.
 
 ---
 
@@ -152,20 +248,34 @@ When click fires: intercept default navigation → retrieve cached HTML → swap
 4. `newDoc.querySelector('main')` — extract content fragment
 5. `document.querySelector('main').replaceChildren(fragment)` — single synchronous swap
 
+### Fragment Protocol Versioning
+
+```
+Request header:   X-Inertia-Fragment: 1
+Response header:  X-Inertia-Fragment: 1
+```
+
+Version increments when the fragment format changes. Router and server negotiate compatibility.
+
+### beforeSwap / afterSwap Lifecycle Hooks
+
+The router emits lifecycle events during fragment swaps:
+
+```typescript
+router.on('beforeSwap', () => {
+  // Tear down any page-scoped state (e.g., backtick overlay, animations)
+})
+
+router.on('afterSwap', () => {
+  // Rebuild page-scoped state for new route context
+})
+```
+
+This is critical for the Glass Box backtick overlay: the overlay controller must tear down before the swap and rebuild after, because `disconnectedCallback()` does not reliably fire when nodes are moved rather than destroyed during fragment replacement.
+
 ### popstate Handling
 
 Listen for `window.onpopstate` (back/forward buttons). Retrieve cached HTML or fetch if cache miss. Same fragment swap logic.
-
-### McMaster-Carr Lessons Applied
-
-- Server-rendered HTML, not client-side SPA
-- Aggressive CDN + Service Worker caching
-- Critical CSS inlined in `<style>` before `<body>`
-- Per-page JS dependency injection (only load what the page needs)
-- Fixed `width`/`height` on all images (zero layout shift)
-- Image sprites where applicable
-- `<link rel="preload">` for fonts and critical assets
-- `<link rel="dns-prefetch">` for external domains
 
 ---
 
@@ -177,36 +287,11 @@ Location: `packages/components/`
 
 Standard problem: `replaceChildren()` destroys components. `disconnectedCallback()` fires, state lost.
 
-Solution: `Element.moveBefore()` + `connectedMoveCallback()`. When the router identifies persistent elements (media player, multi-step form, telemetry observer), it uses `moveBefore()` instead of `appendChild()`. This atomic operation retains encapsulated JS state, memory references, and avoids teardown.
+Solution: `Element.moveBefore()` + `connectedMoveCallback()`. When the router identifies persistent elements (media player, multi-step form, telemetry observer), it uses `moveBefore()` instead of `appendChild()`. This atomic operation retains encapsulated JS state.
 
 ### Scoped Custom Element Registries
 
 When injecting components from separate HTML payloads, pass a localized `CustomElementRegistry` to `attachShadow()`. Prevents global namespace collisions.
-
-### Component Pattern
-
-```typescript
-class TrackingButton extends HTMLElement {
-  connectedCallback() {
-    this.addEventListener('click', this.handleInteraction)
-  }
-
-  disconnectedCallback() {
-    this.removeEventListener('click', this.handleInteraction)
-  }
-
-  connectedMoveCallback() {
-    // Preserve state across router transitions
-  }
-
-  private handleInteraction = () => {
-    // Dispatch to TelemetryRingBuffer via event delegation
-    // Component does NOT execute tracking directly
-  }
-}
-
-customElements.define('tracking-button', TrackingButton)
-```
 
 ---
 
@@ -236,28 +321,75 @@ CREATE TABLE events (
   payload          JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
+CREATE TABLE daily_summaries (
+  id               BIGSERIAL PRIMARY KEY,
+  site_id          TEXT NOT NULL,
+  date             DATE NOT NULL,
+  business_type    TEXT NOT NULL,
+  schema_version   INTEGER NOT NULL DEFAULT 1,
+  session_count    INTEGER NOT NULL DEFAULT 0,
+  pageview_count   INTEGER NOT NULL DEFAULT 0,
+  conversion_count INTEGER NOT NULL DEFAULT 0,
+  top_referrers    JSONB NOT NULL DEFAULT '[]'::jsonb,
+  top_pages        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  intent_counts    JSONB NOT NULL DEFAULT '{}'::jsonb,
+  avg_flush_ms     NUMERIC,
+  rejection_count  INTEGER NOT NULL DEFAULT 0,
+  synced_at        TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(site_id, date)
+);
+
 CREATE INDEX idx_events_session ON events(session_id);
 CREATE INDEX idx_events_time_category ON events(created_at, event_category);
 CREATE INDEX idx_events_payload ON events USING GIN (payload jsonb_path_ops);
+CREATE INDEX idx_summaries_site_date ON daily_summaries(site_id, date);
 ```
 
 ### The 1/80th Rule
 
-If a JSONB key appears in >1/80th of total rows, extract it to a first-class typed column. Prevents TOAST bloat (PostgreSQL forces oversized rows into out-of-line storage at ~2kB) and preserves query planner statistics.
-
-Run a nightly cron: `jsonb_object_keys()` aggregation to detect threshold crossings.
-
-### GIN Index Choice
-
-`jsonb_path_ops` over default GIN: smaller index, faster containment (`@>`) and JSON path (`@?`) queries. Sacrifices key-exists operators (`?`, `?|`) which are not needed for dashboard aggregation patterns.
+If a JSONB key appears in >1/80th of total rows, extract it to a first-class typed column. Prevents TOAST bloat and preserves query planner statistics. Nightly cron runs `jsonb_object_keys()` aggregation to detect threshold crossings.
 
 ### Immutability Enforcement
 
-Application service account: `INSERT` + `SELECT` only. `UPDATE`, `DELETE`, `TRUNCATE` revoked at engine level. Corrections are appended as compensating events, never mutations. Session liveness is derived from the last event timestamp — a pure read against existing data, not a stored `is_active` column.
+Application service account: `INSERT` + `SELECT` only. `UPDATE`, `DELETE`, `TRUNCATE` revoked at engine level. Exception: `daily_summaries.synced_at` column is updateable (narrow column-specific GRANT for marking push completion).
 
-### Aggregation
+---
 
-Background cron crunches raw events → summary tables hourly. Dashboard reads summaries, never raw events. Sub-second load times.
+## Multi-Tenant Aggregation
+
+### Two-Layer Architecture
+
+```
+CLIENT APPLIANCE (their hardware, their building):
+  Visitor → tracking component → ring buffer → sendBeacon
+    → /api/telemetry → ingestion pipeline → events table
+    → hourly cron → summary tables → client HUD
+
+  Daily cron → generateDailySummary → daily_summaries table
+    → pushDailySummary (HMAC-SHA256 signed)
+    → POST to studio's /api/aggregation via WireGuard → VPS → studio
+    → mark synced_at on local row
+
+STUDIO APPLIANCE (your hardware, your office):
+  /api/aggregation → verify HMAC → safeJsonParse → Zod .safeParse()
+    → persist to studio daily_summaries table
+    → or Black Hole (200 OK, log, drop)
+
+  /admin/fleet → FleetDashboard
+    → reads studio daily_summaries
+    → one row per client, health indicators (green/yellow/red)
+    → filterable by business_type
+
+  /admin/fleet/compare → FleetComparison
+    → cross-client analytics by business_type
+```
+
+### Privacy Contract
+
+What leaves the client appliance (daily, anonymized, HMAC-signed): site_id (opaque), business_type, date, session/pageview/conversion counts, top 10 referrers, top 10 pages, intent type counts, system health metrics.
+
+What NEVER leaves: individual session IDs, IP addresses (never collected), timestamps of individual events, raw event payloads, form data, any PII.
 
 ---
 
@@ -266,13 +398,13 @@ Background cron crunches raw events → summary tables hourly. Dashboard reads s
 For service businesses without e-commerce checkout:
 
 ### Click-to-Action Logging
-Intercept `tel:`, `mailto:`, and outbound map clicks. Log `GlobalTelemetryIntent` (type: `INTENT_CALL`, `INTENT_NAVIGATE`, `INTENT_BOOK`) before external navigation fires.
+Intercept `tel:`, `mailto:`, and outbound map clicks. Log `GlobalTelemetryIntent` before external navigation fires.
 
 ### Dynamic Number Insertion (DNI)
-Swap displayed phone numbers based on session origin (organic vs. paid). The number maps to session UUID. When the call reaches the physical location, offline correlation without cookies.
+Swap displayed phone numbers based on session origin. Correlate dialed number to session UUID without cookies.
 
 ### Verified Digital Promo Codes
-Generate unique, time-boxed codes tied to `session_id` (e.g., `SPRING25-XYZ`). Customer provides code at POS → synced back to PostgreSQL → deterministic conversion attribution.
+Unique, time-boxed codes tied to `session_id`. Redeemed at POS, synced back to PostgreSQL.
 
 ---
 
@@ -280,7 +412,29 @@ Generate unique, time-boxed codes tied to `session_id` (e.g., `SPRING25-XYZ`). C
 
 Location: `packages/hud/`
 
-Lives inside the Headless CMS admin console. Single pane of glass: content editing + analytics. Built with Inertia's own Web Component primitives and pure functional charting. Reads from aggregated summary tables. Zero external dependencies means no ad-blocker interference.
+### Client HUD (`/admin/hud`)
+Visible on every appliance. Shows that client's own analytics: sessions, pageviews, conversions, referrers, high-intent actions. Built with Inertia's own Web Components. Pure SVG/CSS charting, zero charting library dependencies.
+
+### Fleet Dashboard (`/admin/fleet`)
+Visible only on the studio appliance. Shows all client sites in one view. Each row: site_id, business_type, metrics, health indicator (green = reported today, yellow = 24-48h stale, red = offline 48h+). Filterable by business_type.
+
+### Fleet Comparison (`/admin/fleet/compare`)
+Cross-client analytics grouped by business_type. Conversion patterns, traffic trends, top performers. 30-day sparkline trends.
+
+---
+
+## Content Management
+
+### Payload CMS 3.x
+
+Self-hosted headless CMS running on the same Node.js process and PostgreSQL instance as the Inertia site. MIT license. No external SaaS dependency.
+
+- Admin UI at `/admin` (React-based, but this is the back-office panel, never public-facing)
+- Content stored in the client's own PostgreSQL database on their own hardware
+- API delivers structured JSON consumed by Inertia's server-side route handlers
+- On publish: webhook triggers static snapshot export for gliding failover
+
+The React in Payload's admin panel does NOT violate the framework's "no React" rule. That rule applies to public-facing pages served to visitors. The admin panel is an authenticated back-office tool behind `/admin`.
 
 ---
 
@@ -295,8 +449,9 @@ TCP slow start: 10 packets × 1460 bytes = ~14kB. The server must flush a usable
 3. `<link rel="preload">` for fonts and critical assets
 4. `<link rel="dns-prefetch">` for external domains
 5. Fixed `width`/`height` on all above-fold images
-6. Defer all non-critical JS
+6. Defer all non-critical JS (Glass Box components are fully deferred)
 7. Per-page JS dependency injection (server determines what each page needs)
+8. System font stack only. Zero web font downloads.
 
 ### The Math
 
