@@ -30,6 +30,7 @@ export interface GlobalTelemetryIntent {
   x_coord: number
   y_coord: number
   isDirty: boolean
+  schema_version: number
 }
 
 export interface TelemetryError {
@@ -45,6 +46,7 @@ export function createEmptyIntent (id: string): GlobalTelemetryIntent {
     targetDOMNode: '',
     x_coord: 0,
     y_coord: 0,
-    isDirty: false
+    isDirty: false,
+    schema_version: 1
   }
 }

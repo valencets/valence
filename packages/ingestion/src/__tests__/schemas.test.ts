@@ -9,6 +9,7 @@ function makeIntent (overrides: Record<string, unknown> = {}): Record<string, un
     targetDOMNode: '#cta-button',
     x_coord: 120,
     y_coord: 300,
+    schema_version: 1,
     ...overrides
   }
 }
@@ -58,6 +59,13 @@ describe('validateTelemetryPayload', () => {
     it('accepts empty strings for string fields', () => {
       const result = validateTelemetryPayload([makeIntent({ id: '', targetDOMNode: '' })])
       expect(result.isOk()).toBe(true)
+    })
+
+    it('validates schema_version field as literal 1', () => {
+      const result = validateTelemetryPayload([makeIntent()])
+      expect(result.isOk()).toBe(true)
+      const intent = result._unsafeUnwrap()[0]
+      expect(intent?.schema_version).toBe(1)
     })
   })
 
@@ -118,6 +126,17 @@ describe('validateTelemetryPayload', () => {
 
     it('rejects wrong field types (number for string)', () => {
       const result = validateTelemetryPayload([makeIntent({ id: 123 })])
+      expect(result.isErr()).toBe(true)
+    })
+
+    it('rejects missing schema_version', () => {
+      const { schema_version: _, ...noVersion } = makeIntent()
+      const result = validateTelemetryPayload([noVersion])
+      expect(result.isErr()).toBe(true)
+    })
+
+    it('rejects wrong schema_version value', () => {
+      const result = validateTelemetryPayload([makeIntent({ schema_version: 2 })])
       expect(result.isErr()).toBe(true)
     })
   })
