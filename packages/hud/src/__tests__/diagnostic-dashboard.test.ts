@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 
 beforeAll(async () => {
   if (customElements.get('hud-sparkline') === undefined) {
@@ -105,5 +105,52 @@ describe('DiagnosticDashboard', () => {
 
     el.removeAttribute('gate')
     expect(el.style.display).toBe('none')
+  })
+})
+
+describe('DiagnosticDashboard data fetching', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  function mockFetch (): void {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      return new Response(JSON.stringify({
+        period_start: '2026-03-01',
+        payloads_accepted: 5200,
+        payloads_rejected: 48,
+        avg_processing_ms: 3.2,
+        buffer_saturation_pct: 12
+      }))
+    })
+  }
+
+  it('fetches ingestion health on connectedCallback', async () => {
+    mockFetch()
+    attach(createElement({ gate: 'open' }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(globalThis.fetch).toHaveBeenCalled()
+  })
+
+  it('updates ingestion metric after fetch', async () => {
+    mockFetch()
+    const el = attach(createElement({ gate: 'open' }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const ingestion = Array.from(panels).find(p => p.getAttribute('label') === 'Ingestion')
+    const metric = ingestion?.querySelector('hud-metric')
+    // Should show payloads_accepted as the ingestion rate
+    expect(metric?.getAttribute('value')).not.toBe('--/hr')
+  })
+
+  it('holds placeholders on fetch error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
+    const el = attach(createElement({ gate: 'open' }))
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const ingestion = Array.from(panels).find(p => p.getAttribute('label') === 'Ingestion')
+    const metric = ingestion?.querySelector('hud-metric')
+    expect(metric?.getAttribute('value')).toBe('--/hr')
   })
 })
