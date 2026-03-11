@@ -90,8 +90,9 @@ export class GlassBoxStrip extends HTMLElement {
   }
 
   private _onDemoFlood (): void {
-    const buf = (window as unknown as WindowWithBuffer).__inertiaBuffer ?? this._buffer
-    if (!buf || !('write' in buf)) return
+    const win = window as unknown as WindowWithBuffer
+    const buf = win.__inertiaBuffer
+    if (!buf) return
 
     let written = 0
     const max = 50
