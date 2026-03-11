@@ -1,4 +1,4 @@
-import { ok, err } from 'neverthrow'
+import { fromThrowable } from 'neverthrow'
 import type { Result } from 'neverthrow'
 
 export interface ParseFailure {
@@ -7,18 +7,12 @@ export interface ParseFailure {
   readonly raw: string
 }
 
-export function safeJsonParse (raw: string): Result<unknown, ParseFailure> {
-  try {
-    return ok(JSON.parse(raw))
-  } catch (e: unknown) {
-    const message = e instanceof SyntaxError
-      ? e.message
-      : 'Unknown parse error'
+const parseJson = fromThrowable(JSON.parse)
 
-    return err({
-      code: 'PARSE_FAILURE',
-      message,
-      raw
-    })
-  }
+export function safeJsonParse (raw: string): Result<unknown, ParseFailure> {
+  return parseJson(raw).mapErr((e: unknown): ParseFailure => ({
+    code: 'PARSE_FAILURE',
+    message: e instanceof SyntaxError ? e.message : 'Unknown parse error',
+    raw
+  }))
 }

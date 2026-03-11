@@ -2,9 +2,9 @@
 
 Server-side telemetry ingestion node. Receives payloads from client ring buffers.
 
-## The One Rule
+## The Zero Rule
 
-`safeJsonParse()` in `safe-json-parse.ts` is the ONLY `try/catch` in the entire Inertia codebase. Every other function returns `Result<Ok, Err>` via `neverthrow`.
+Zero `try/catch` in the codebase. `safeJsonParse()` uses `neverthrow.fromThrowable()` to wrap `JSON.parse` — the throw boundary lives inside neverthrow, not our code. Every function returns `Result<Ok, Err>`.
 
 ## Pipeline Flow
 
@@ -54,7 +54,7 @@ Tests should be ~1.5x the implementation LOC.
 
 ```
 src/
-├── safe-json-parse.ts   # The ONE try/catch boundary in the codebase
+├── safe-json-parse.ts   # JSON.parse via fromThrowable() — zero try/catch
 ├── schemas.ts           # Zod schemas for GlobalTelemetryIntent validation
 ├── pipeline.ts          # Monadic chain: parse → validate → persist
 ├── black-hole.ts        # HTTP handler, always returns 200
