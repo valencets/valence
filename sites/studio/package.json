@@ -15,6 +15,7 @@
     "@inertia/tokens": "workspace:*",
     "@inertia/components": "workspace:*",
     "@inertia/hud": "workspace:*",
+    "@inertia/critical-css": "workspace:*",
     "neverthrow": "^8.2.0",
     "zod": "^4.3.6",
     "postgres": "^3.4.8"
