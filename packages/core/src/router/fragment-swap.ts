@@ -5,7 +5,7 @@ import type { RouterError } from './router-types.js'
 
 export const supportsMoveBefore: boolean =
   typeof Element !== 'undefined' &&
-  typeof (Element.prototype as Record<string, unknown>).moveBefore === 'function'
+  typeof (Element.prototype as unknown as Record<string, unknown>).moveBefore === 'function'
 
 const parser = new DOMParser()
 
@@ -39,7 +39,7 @@ export function extractTitle (doc: Document): string | null {
 }
 
 export function swapContent (liveContainer: Element, newFragment: Element): Result<void, RouterError> {
-  const hasMoveBeforeMethod = typeof (liveContainer as Record<string, unknown>).moveBefore === 'function'
+  const hasMoveBeforeMethod = typeof (liveContainer as unknown as Record<string, unknown>).moveBefore === 'function'
 
   if (hasMoveBeforeMethod) {
     const newChildren = Array.from(newFragment.childNodes)
