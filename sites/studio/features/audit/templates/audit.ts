@@ -8,7 +8,7 @@ export function renderAuditForm (error?: AuditError, url?: string): string {
   return `
 <section class="section container">
   <h1>Free Website Audit</h1>
-  <p class="prose">Enter a URL and we'll run a Lighthouse audit right here on our Pi 5. No third-party services — the analysis happens on our hardware.</p>
+  <p class="prose">Enter a URL and we'll run a Lighthouse audit right here on our dedicated server. No third-party services — the analysis happens on our hardware.</p>
 
   <form method="POST" action="/audit" class="audit-form" data-telemetry-type="FORM_INPUT" data-telemetry-target="audit-form">
     <div class="form-group">

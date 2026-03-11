@@ -25,6 +25,6 @@ export const PRINCIPLES = [
     title: '14kB Protocol Limit',
     origin: 'TCP slow start delivers roughly 10 packets (~14kB) before waiting for acknowledgment. If your critical shell fits in that window, the browser can start rendering before the server even confirms the connection.',
     explanation: 'We inline critical CSS directly into the HTML document. No external stylesheet blocking render. The full CSS loads asynchronously after first paint. The result: your website renders from the very first server response.',
-    benefit: 'First Contentful Paint on the first TCP round trip. On a Pi 5 behind Cloudflare, that means sub-100ms perceived load times even on mobile connections.'
+    benefit: 'First Contentful Paint on the first TCP round trip. On a dedicated server appliance behind a secure tunnel, that means sub-100ms perceived load times even on mobile connections.'
   }
 ] as const

@@ -176,6 +176,23 @@ describe('GlassBoxInspector route lifecycle', () => {
     teardown()
   })
 
+  it('cleans up overlay when inspector node is moved without destroying', () => {
+    const { inspector } = setup()
+    // Activate overlay
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.querySelectorAll('[data-overlay-label]').length).toBeGreaterThanOrEqual(1)
+
+    // Move the inspector to a new parent (simulates fragment swap moveBefore)
+    const newParent = document.createElement('div')
+    document.body.appendChild(newParent)
+    newParent.appendChild(inspector) // move, not destroy
+
+    // Simulate swap — overlay should still tear down via event listener
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+    expect(document.querySelectorAll('[data-overlay-label]').length).toBe(0)
+    teardown()
+  })
+
   it('cleans up swap listeners on disconnectedCallback', () => {
     const { inspector } = setup()
     document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
