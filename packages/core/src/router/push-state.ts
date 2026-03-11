@@ -75,8 +75,12 @@ function performNavigation (
       })
     }
 
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+
     const swapResult = swapContent(liveContainer, fragmentResult.value)
     if (swapResult.isErr()) return err(swapResult.error)
+
+    document.dispatchEvent(new CustomEvent('inertia:after-swap'))
 
     const title = extractTitle(doc)
     if (title !== null) {

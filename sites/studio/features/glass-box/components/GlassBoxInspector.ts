@@ -14,6 +14,8 @@ export class GlassBoxInspector extends HTMLElement {
   private _boundMouseOver: ((e: Event) => void) | null = null
   private _boundMouseOut: ((e: Event) => void) | null = null
   private _boundKeyDown: ((e: Event) => void) | null = null
+  private _boundBeforeSwap: (() => void) | null = null
+  private _boundAfterSwap: (() => void) | null = null
 
   static get observedAttributes (): string[] {
     return ['visible']
@@ -42,9 +44,13 @@ export class GlassBoxInspector extends HTMLElement {
     this._boundMouseOver = this._onMouseOver.bind(this)
     this._boundMouseOut = this._onMouseOut.bind(this)
     this._boundKeyDown = this._onKeyDown.bind(this)
+    this._boundBeforeSwap = this._onBeforeSwap.bind(this)
+    this._boundAfterSwap = this._onAfterSwap.bind(this)
     document.addEventListener('mouseover', this._boundMouseOver)
     document.addEventListener('mouseout', this._boundMouseOut)
     document.addEventListener('keydown', this._boundKeyDown)
+    document.addEventListener('inertia:before-swap', this._boundBeforeSwap)
+    document.addEventListener('inertia:after-swap', this._boundAfterSwap)
   }
 
   disconnectedCallback (): void {
@@ -53,6 +59,8 @@ export class GlassBoxInspector extends HTMLElement {
     if (this._boundMouseOver) document.removeEventListener('mouseover', this._boundMouseOver)
     if (this._boundMouseOut) document.removeEventListener('mouseout', this._boundMouseOut)
     if (this._boundKeyDown) document.removeEventListener('keydown', this._boundKeyDown)
+    if (this._boundBeforeSwap) document.removeEventListener('inertia:before-swap', this._boundBeforeSwap)
+    if (this._boundAfterSwap) document.removeEventListener('inertia:after-swap', this._boundAfterSwap)
   }
 
   private _onMouseOver (e: Event): void {
@@ -135,6 +143,17 @@ export class GlassBoxInspector extends HTMLElement {
       this._showOverlayLabels()
     } else {
       this._removeOverlayLabels()
+    }
+  }
+
+  private _onBeforeSwap (): void {
+    this._removeOverlayLabels()
+    this._hide()
+  }
+
+  private _onAfterSwap (): void {
+    if (this._overlayActive) {
+      this._showOverlayLabels()
     }
   }
 
