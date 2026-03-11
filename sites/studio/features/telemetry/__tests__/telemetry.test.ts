@@ -6,8 +6,12 @@ describe('TELEMETRY_CONFIG', () => {
     expect(TELEMETRY_CONFIG.bufferCapacity).toBe(1024)
   })
 
-  it('has 30s flush interval', () => {
-    expect(TELEMETRY_CONFIG.flushIntervalMs).toBe(30000)
+  it('has 10s flush interval', () => {
+    expect(TELEMETRY_CONFIG.flushIntervalMs).toBe(10000)
+  })
+
+  it('has 64-slot high-water mark', () => {
+    expect(TELEMETRY_CONFIG.highWaterMark).toBe(64)
   })
 
   it('has correct endpoint', () => {
