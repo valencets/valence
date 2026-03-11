@@ -15,7 +15,8 @@ const INTENT_CATEGORY_MAP: Record<string, string> = {
   FORM_INPUT: 'FORM_INPUT',
   INTENT_NAVIGATE: 'INTENT_NAVIGATE',
   INTENT_CALL: 'INTENT_CALL',
-  INTENT_BOOK: 'INTENT_BOOK'
+  INTENT_BOOK: 'INTENT_BOOK',
+  INTENT_LEAD: 'INTENT_LEAD'
 }
 
 export function transformIntentToEvent (

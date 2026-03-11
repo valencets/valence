@@ -57,7 +57,7 @@ export function renderAuditResults (result: LighthouseResult): string {
 <section class="section container cta-section">
   <h2>Want scores like this — or better?</h2>
   <div style="display: flex; gap: 1rem; justify-content: center;">
-    <a href="/audit" class="btn btn-secondary">Run Another Audit</a>
+    <a href="/audit" class="btn btn-secondary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="audit-run-another">Run Another Audit</a>
     <a href="/about#contact" class="btn btn-primary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="audit-results-cta">Get In Touch</a>
   </div>
 </section>`

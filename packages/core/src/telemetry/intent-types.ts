@@ -5,7 +5,8 @@ export const IntentType = {
   FORM_INPUT: 'FORM_INPUT',
   INTENT_NAVIGATE: 'INTENT_NAVIGATE',
   INTENT_CALL: 'INTENT_CALL',
-  INTENT_BOOK: 'INTENT_BOOK'
+  INTENT_BOOK: 'INTENT_BOOK',
+  INTENT_LEAD: 'INTENT_LEAD'
 } as const
 
 export type IntentType = typeof IntentType[keyof typeof IntentType]
