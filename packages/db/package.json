@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "neverthrow": "^8.2.0",
-    "postgres": "^3.4.8"
+    "postgres": "^3.4.8",
+    "zod": "^4.3.6"
   }
 }
