@@ -15,10 +15,13 @@ const MAX_ROWS = 5
 export class HudTable extends HTMLElement {
   static observedAttributes = ['columns', 'rows']
 
+  private _initialized = false
   private thead: HTMLTableSectionElement | null = null
   private tbody: HTMLTableSectionElement | null = null
 
   connectedCallback (): void {
+    if (this._initialized) return
+    this._initialized = true
     this.setAttribute('role', 'grid')
 
     const table = document.createElement('table')

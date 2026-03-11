@@ -112,6 +112,45 @@ describe('ClientDashboard', () => {
     expect(el.querySelectorAll('hud-panel').length).toBe(5)
   })
 
+  it('hud-bar inside hud-panel renders DOM only once', () => {
+    const panel = document.createElement('hud-panel') as HTMLElement
+    panel.setAttribute('label', 'Test')
+    const bar = document.createElement('hud-bar') as HTMLElement
+    bar.setAttribute('label', 'Phone')
+    bar.setAttribute('value', '10')
+    bar.setAttribute('percent', '50')
+    panel.appendChild(bar)
+    document.body.appendChild(panel)
+
+    // Bar should have exactly 2 direct children: header div + track div
+    expect(bar.children.length).toBe(2)
+  })
+
+  it('hud-metric inside hud-panel renders DOM only once', () => {
+    const panel = document.createElement('hud-panel') as HTMLElement
+    panel.setAttribute('label', 'Test')
+    const metric = document.createElement('hud-metric') as HTMLElement
+    metric.setAttribute('value', '42')
+    panel.appendChild(metric)
+    document.body.appendChild(panel)
+
+    // Metric should have exactly 4 children: label, value, sparkline, delta
+    expect(metric.children.length).toBe(4)
+  })
+
+  it('hud-table inside hud-panel renders single table', () => {
+    const panel = document.createElement('hud-panel') as HTMLElement
+    panel.setAttribute('label', 'Test')
+    const table = document.createElement('hud-table') as HTMLElement
+    table.setAttribute('columns', JSON.stringify([{ label: 'Page', key: 'path' }]))
+    table.setAttribute('rows', '[]')
+    panel.appendChild(table)
+    document.body.appendChild(panel)
+
+    expect(table.querySelectorAll('table').length).toBe(1)
+    expect(table.querySelectorAll('thead').length).toBe(1)
+  })
+
   it('responds to hud-period-change event', () => {
     const el = attach(createElement())
     const timerange = el.querySelector('hud-timerange')

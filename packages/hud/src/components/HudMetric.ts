@@ -3,12 +3,15 @@ import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js
 export class HudMetric extends HTMLElement {
   static observedAttributes = ['label', 'value', 'delta', 'delta-direction', 'sparkline-data']
 
+  private _initialized = false
   private labelEl: HTMLSpanElement | null = null
   private valueEl: HTMLSpanElement | null = null
   private deltaEl: HTMLSpanElement | null = null
   private sparkline: HTMLElement | null = null
 
   connectedCallback (): void {
+    if (this._initialized) return
+    this._initialized = true
     this.style.display = 'flex'
     this.style.flexDirection = 'column'
     this.style.gap = HUD_SPACING.sm

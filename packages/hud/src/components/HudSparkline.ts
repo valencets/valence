@@ -5,10 +5,13 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 export class HudSparkline extends HTMLElement {
   static observedAttributes = ['data', 'width', 'height']
 
+  private _initialized = false
   private svg: SVGSVGElement | null = null
   private polyline: SVGPolylineElement | null = null
 
   connectedCallback (): void {
+    if (this._initialized) return
+    this._initialized = true
     const w = this.getWidth()
     const h = this.getHeight()
 

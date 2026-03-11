@@ -11,10 +11,13 @@ const STATE_COLORS: Record<StatusState, string> = {
 export class HudStatus extends HTMLElement {
   static observedAttributes = ['state', 'label']
 
+  private _initialized = false
   private dot: HTMLSpanElement | null = null
   private labelEl: HTMLSpanElement | null = null
 
   connectedCallback (): void {
+    if (this._initialized) return
+    this._initialized = true
     this.style.display = 'inline-flex'
     this.style.alignItems = 'center'
     this.style.gap = HUD_SPACING.xs

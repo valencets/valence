@@ -11,10 +11,13 @@ const PERIODS: ReadonlyArray<{ value: HudPeriod; label: string }> = [
 export class HudTimeRange extends HTMLElement {
   static observedAttributes = ['period']
 
+  private _initialized = false
   private buttons: HTMLButtonElement[] = []
   private handleClick: ((e: Event) => void) | null = null
 
   connectedCallback (): void {
+    if (this._initialized) return
+    this._initialized = true
     this.setAttribute('role', 'group')
     this.setAttribute('aria-label', 'Time range')
     this.style.display = 'inline-flex'
