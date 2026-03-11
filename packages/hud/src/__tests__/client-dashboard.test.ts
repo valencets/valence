@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 
 beforeAll(async () => {
   if (customElements.get('hud-sparkline') === undefined) {
@@ -113,5 +113,97 @@ describe('ClientDashboard', () => {
     const btn = timerange?.querySelector('button')
     btn?.click()
     expect(eventFired).toBe(true)
+  })
+})
+
+describe('ClientDashboard data fetching', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  function mockFetch (): void {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/summaries/sessions')) {
+        return new Response(JSON.stringify({
+          period_start: '2026-03-01',
+          period_end: '2026-03-08',
+          total_sessions: 142,
+          unique_referrers: 5,
+          device_breakdown: { mobile: 80, desktop: 50, tablet: 12 }
+        }))
+      }
+      if (url.includes('/api/summaries/events')) {
+        return new Response(JSON.stringify({
+          period_start: '2026-03-01',
+          period_end: '2026-03-08',
+          event_category: 'INTENT_LEAD',
+          total_count: 23,
+          unique_sessions: 18
+        }))
+      }
+      if (url.includes('/api/summaries/conversions')) {
+        return new Response(JSON.stringify({
+          period_start: '2026-03-01',
+          period_end: '2026-03-08',
+          intent_type: 'INTENT_LEAD',
+          total_count: 23,
+          top_sources: [{ referrer: 'google', count: 15 }]
+        }))
+      }
+      return new Response('{}')
+    })
+  }
+
+  it('fetches data on connectedCallback', async () => {
+    mockFetch()
+    attach(createElement())
+    // Allow microtasks to settle
+    await new Promise(r => setTimeout(r, 50))
+    expect(globalThis.fetch).toHaveBeenCalled()
+  })
+
+  it('updates visitor metric after fetch', async () => {
+    mockFetch()
+    const el = attach(createElement())
+    await new Promise(r => setTimeout(r, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const visitors = Array.from(panels).find(p => p.getAttribute('label') === 'Visitors')
+    const metric = visitors?.querySelector('hud-metric')
+    expect(metric?.getAttribute('value')).toBe('142')
+  })
+
+  it('updates leads metric after fetch', async () => {
+    mockFetch()
+    const el = attach(createElement())
+    await new Promise(r => setTimeout(r, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const leads = Array.from(panels).find(p => p.getAttribute('label') === 'Leads')
+    const metric = leads?.querySelector('hud-metric')
+    expect(metric?.getAttribute('value')).toBe('23')
+  })
+
+  it('holds placeholders on fetch error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
+    const el = attach(createElement())
+    await new Promise(r => setTimeout(r, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const visitors = Array.from(panels).find(p => p.getAttribute('label') === 'Visitors')
+    const metric = visitors?.querySelector('hud-metric')
+    expect(metric?.getAttribute('value')).toBe('--')
+  })
+
+  it('refreshes data on hud-period-change', async () => {
+    mockFetch()
+    const el = attach(createElement())
+    await new Promise(r => setTimeout(r, 50))
+    const callCount = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length
+    // Dispatch period change
+    el.querySelector('hud-timerange')?.dispatchEvent(
+      new CustomEvent('hud-period-change', { detail: { period: '30D' }, bubbles: true })
+    )
+    await new Promise(r => setTimeout(r, 50))
+    expect((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(callCount)
   })
 })
