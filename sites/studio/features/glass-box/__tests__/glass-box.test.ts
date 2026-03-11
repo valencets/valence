@@ -146,4 +146,16 @@ describe('GlassBoxStrip', () => {
     // No error thrown
     expect(true).toBe(true)
   })
+
+  it('renders demo flood button on desktop', async () => {
+    const el = document.createElement('inertia-buffer-strip') as InstanceType<typeof GlassBoxStrip>
+    const mockBuffer = { count: 5, capacity: 1024, head: 5, slotAt: () => ({ isDirty: false }) }
+    el.buffer = mockBuffer
+    document.body.appendChild(el)
+    // Wait for rAF tick to render
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    const demoBtn = el.querySelector('[data-demo-flood]')
+    expect(demoBtn).not.toBeNull()
+    el.remove()
+  })
 })

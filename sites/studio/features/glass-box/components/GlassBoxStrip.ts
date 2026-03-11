@@ -7,12 +7,17 @@ interface BufferLike {
   slotAt (index: number): { isDirty: boolean } | undefined
 }
 
+interface WindowWithBuffer {
+  __inertiaBuffer?: BufferLike & { write: (intent: Record<string, unknown>) => void }
+}
+
 export class GlassBoxStrip extends HTMLElement {
   private _buffer: BufferLike | null = null
   private _rafId: number = 0
   private _lastCount: number = -1
   private _flushMessageTimeout: ReturnType<typeof setTimeout> | null = null
   private _hardwareLabel: string = 'PI5'
+  private _demoInterval: ReturnType<typeof setInterval> | null = null
 
   static get observedAttributes (): string[] {
     return ['hardware-label']
@@ -63,6 +68,9 @@ export class GlassBoxStrip extends HTMLElement {
     if (this._flushMessageTimeout) {
       clearTimeout(this._flushMessageTimeout)
     }
+    if (this._demoInterval) {
+      clearInterval(this._demoInterval)
+    }
   }
 
   showFlushMessage (count: number): void {
@@ -79,6 +87,30 @@ export class GlassBoxStrip extends HTMLElement {
         ;(msgEl as HTMLElement).style.opacity = '0'
       }, GLASS_BOX_CONFIG.flushMessageDurationMs)
     }
+  }
+
+  private _onDemoFlood (): void {
+    const buf = (window as unknown as WindowWithBuffer).__inertiaBuffer ?? this._buffer
+    if (!buf || !('write' in buf)) return
+
+    let written = 0
+    const max = 50
+    this._demoInterval = setInterval(() => {
+      if (written >= max || buf.count >= Math.floor(buf.capacity * 0.8)) {
+        if (this._demoInterval) {
+          clearInterval(this._demoInterval)
+          this._demoInterval = null
+        }
+        return
+      }
+      buf.write({
+        type: 'CLICK',
+        target: `demo-${written}`,
+        timestamp: Date.now(),
+        schema_version: 1
+      })
+      written++
+    }, 50)
   }
 
   private _startRaf (): void {
@@ -129,8 +161,16 @@ export class GlassBoxStrip extends HTMLElement {
       <span class="gb-head">▶${head}</span>
       <span class="gb-slots" style="display:flex;gap:1px;flex:1;">${slots.join('')}</span>
       <span class="gb-count">${count}/${capacity}</span>
+      <button data-demo-flood style="background:transparent;border:1px solid var(--border,#333);color:var(--muted-foreground,#888);font-family:inherit;font-size:10px;padding:1px 6px;border-radius:2px;cursor:pointer;opacity:0;transition:opacity 0.2s;">DEMO</button>
       <span class="gb-flush-msg" style="opacity: 0; transition: opacity 0.3s;"></span>
     `
+
+    const demoBtn = this.querySelector('[data-demo-flood]') as HTMLElement | null
+    if (demoBtn) {
+      this.addEventListener('mouseenter', () => { demoBtn.style.opacity = '1' })
+      this.addEventListener('mouseleave', () => { demoBtn.style.opacity = '0' })
+      demoBtn.addEventListener('click', () => this._onDemoFlood())
+    }
   }
 }
 
