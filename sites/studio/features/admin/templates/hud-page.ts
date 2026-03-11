@@ -10,5 +10,6 @@ export function renderHudPage (diagnostics: boolean): string {
         ${dashboard}
       </div>
     </section>
+    <script src="/js/admin.js" defer></script>
   `
 }

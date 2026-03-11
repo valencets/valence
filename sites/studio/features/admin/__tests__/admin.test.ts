@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { checkAuth } from '../server/auth-middleware.js'
 import { renderHudPage } from '../templates/hud-page.js'
+import { renderLoginForm } from '../templates/login-form.js'
 
 describe('checkAuth', () => {
   it('returns ok for valid bearer token', () => {
@@ -30,6 +31,26 @@ describe('checkAuth', () => {
   })
 })
 
+describe('renderLoginForm', () => {
+  it('renders a form with token input', () => {
+    const html = renderLoginForm()
+    expect(html).toContain('<form')
+    expect(html).toContain('type="password"')
+    expect(html).toContain('name="token"')
+  })
+
+  it('has a submit button', () => {
+    const html = renderLoginForm()
+    expect(html).toContain('type="submit"')
+  })
+
+  it('posts to /admin/hud', () => {
+    const html = renderLoginForm()
+    expect(html).toContain('action="/admin/hud"')
+    expect(html).toContain('method="POST"')
+  })
+})
+
 describe('renderHudPage', () => {
   it('returns HTML with hud-client-dashboard', () => {
     const html = renderHudPage(false)
@@ -45,5 +66,10 @@ describe('renderHudPage', () => {
     const html = renderHudPage(false)
     expect(html).toContain('/api/summaries/sessions')
     expect(html).toContain('/api/summaries/events')
+  })
+
+  it('includes admin JS bundle script', () => {
+    const html = renderHudPage(false)
+    expect(html).toContain('/js/admin.js')
   })
 })
