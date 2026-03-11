@@ -11,8 +11,10 @@ describe('auditBudget', () => {
   })
 
   it('large bloated content exceeds budget', () => {
-    const bigHTML = '<div>' + 'x'.repeat(20_000) + '</div>'
-    const bigCSS = '.a { ' + 'padding: 10px; '.repeat(2000) + '}'
+    // Generate high-entropy content that gzip cannot compress below 14kB
+    const classes = Array.from({ length: 3000 }, (_, i) => `.cls-${i}-${Math.random().toString(36).slice(2, 8)}`)
+    const bigCSS = classes.map((c) => `${c} { padding: ${Math.random()}px; }`).join('\n')
+    const bigHTML = '<div>' + classes.map((c) => `<span class="${c.slice(1)}">x</span>`).join('') + '</div>'
     const result = auditBudget(bigHTML, bigCSS)
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
