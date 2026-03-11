@@ -7,3 +7,5 @@ export { createIngestionPipeline, createAsyncIngestionPipeline } from './pipelin
 export type { PersistFn, AsyncPersistFn, PersistFailure, IngestionError, PipelineResult } from './pipeline.js'
 export { createIngestionHandler, createAsyncIngestionHandler } from './black-hole.js'
 export type { IngestionResponse, AuditEntry, AuditFn } from './black-hole.js'
+export { transformIntentToEvent, transformIntentsToEvents } from './transform.js'
+export type { InsertableEvent as TransformableEvent } from './transform.js'
