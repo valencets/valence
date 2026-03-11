@@ -1,4 +1,7 @@
 import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js'
+import { fetchIngestionHealth } from '../data/fetch-summaries.js'
+import type { HudPeriod } from '../types.js'
+import { formatNumber } from '../data/format-number.js'
 
 const DIAGNOSTIC_PANELS: ReadonlyArray<{ label: string; defaultValue: string }> = [
   { label: 'Ingestion', defaultValue: '--/hr' },
@@ -11,6 +14,7 @@ const DIAGNOSTIC_PANELS: ReadonlyArray<{ label: string; defaultValue: string }> 
 
 export class DiagnosticDashboard extends HTMLElement {
   static observedAttributes = ['gate']
+  private _metrics: HTMLElement[] = []
 
   connectedCallback (): void {
     this.style.backgroundColor = HUD_COLORS.bg
@@ -57,10 +61,13 @@ export class DiagnosticDashboard extends HTMLElement {
       panel.appendChild(metric)
       panel.appendChild(status)
       grid.appendChild(panel)
+      this._metrics.push(metric)
     }
 
     this.appendChild(header)
     this.appendChild(grid)
+
+    this.refreshData('7D')
   }
 
   disconnectedCallback (): void {
@@ -81,6 +88,33 @@ export class DiagnosticDashboard extends HTMLElement {
   private updateGate (): void {
     const gate = this.getAttribute('gate')
     this.style.display = gate === 'open' ? 'block' : 'none'
+  }
+
+  private refreshData (period: HudPeriod): void {
+    fetchIngestionHealth('', period).match(
+      (data) => {
+        if (typeof data.payloads_accepted !== 'number') return
+        // Ingestion rate
+        if (this._metrics[0]) {
+          this._metrics[0].setAttribute('value', `${formatNumber(data.payloads_accepted)}/hr`)
+        }
+        // Rejection rate
+        if (this._metrics[1]) {
+          const total = data.payloads_accepted + data.payloads_rejected
+          const pct = total > 0 ? ((data.payloads_rejected / total) * 100).toFixed(1) : '0'
+          this._metrics[1].setAttribute('value', `${pct}%`)
+        }
+        // Pipeline latency
+        if (this._metrics[2] && typeof data.avg_processing_ms === 'number') {
+          this._metrics[2].setAttribute('value', `${data.avg_processing_ms.toFixed(1)} ms`)
+        }
+        // Buffer saturation
+        if (this._metrics[3] && typeof data.buffer_saturation_pct === 'number') {
+          this._metrics[3].setAttribute('value', `${data.buffer_saturation_pct}%`)
+        }
+      },
+      () => {} // Hold placeholders on error
+    )
   }
 }
 

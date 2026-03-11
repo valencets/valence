@@ -139,7 +139,7 @@ export class ClientDashboard extends HTMLElement {
   private refreshData (period: HudPeriod): void {
     fetchSessionSummary('', period).match(
       (data) => {
-        if (this._visitorsMetric) {
+        if (this._visitorsMetric && typeof data.total_sessions === 'number') {
           this._visitorsMetric.setAttribute('value', formatNumber(data.total_sessions))
         }
       },
@@ -148,7 +148,7 @@ export class ClientDashboard extends HTMLElement {
 
     fetchEventSummary('', period).match(
       (data) => {
-        if (this._leadsMetric) {
+        if (this._leadsMetric && typeof data.total_count === 'number') {
           this._leadsMetric.setAttribute('value', formatNumber(data.total_count))
         }
       },
