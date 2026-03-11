@@ -180,7 +180,10 @@ footer {
 
 /* Hero */
 .hero {
-  padding-block: ${SPACING.scale[20]};
+  height: clamp(600px, 100vh, 900px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   text-align: center;
 }
 .hero h1 {
