@@ -59,6 +59,58 @@ describe('GlassBoxInspector', () => {
   })
 })
 
+describe('GlassBoxInspector overlay mode', () => {
+  beforeAll(async () => {
+    if (customElements.get('inertia-telemetry-infobox') === undefined) {
+      await import('../components/GlassBoxInspector.js')
+    }
+  })
+
+  function setup (): { inspector: HTMLElement; target: HTMLElement } {
+    const target = document.createElement('button')
+    target.setAttribute('data-telemetry-type', 'CLICK')
+    target.setAttribute('data-telemetry-target', 'test-btn')
+    document.body.appendChild(target)
+
+    const inspector = document.createElement('inertia-telemetry-infobox')
+    document.body.appendChild(inspector)
+
+    return { inspector, target }
+  }
+
+  function teardown (): void {
+    document.body.innerHTML = ''
+  }
+
+  it('toggles overlay labels on backtick keydown', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    const labels = document.querySelectorAll('[data-overlay-label]')
+    expect(labels.length).toBeGreaterThanOrEqual(1)
+    teardown()
+  })
+
+  it('removes overlay labels on second backtick press', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    const labels = document.querySelectorAll('[data-overlay-label]')
+    expect(labels.length).toBe(0)
+    teardown()
+  })
+
+  it('ignores backtick when input is focused', () => {
+    setup()
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    const labels = document.querySelectorAll('[data-overlay-label]')
+    expect(labels.length).toBe(0)
+    teardown()
+  })
+})
+
 describe('GlassBoxStrip', () => {
   let GlassBoxStrip: typeof import('../components/GlassBoxStrip.js').GlassBoxStrip
 
