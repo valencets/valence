@@ -102,6 +102,9 @@ importers:
       '@inertia/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@inertia/critical-css':
+        specifier: workspace:*
+        version: link:../../tools/critical-css
       '@inertia/db':
         specifier: workspace:*
         version: link:../../packages/db
