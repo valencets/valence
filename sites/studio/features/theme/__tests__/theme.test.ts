@@ -72,8 +72,16 @@ describe('getResolvedTheme', () => {
 
   it('overrides base theme with studio values', () => {
     const resolved = getResolvedTheme()
-    // Studio dark bg is different from base
-    expect(resolved.colors.dark.background).toBe('hsl(220, 13%, 6%)')
+    // Studio dark bg should be softer gunmetal (8-12% lightness range)
+    expect(resolved.colors.dark.background).toBe('hsl(220, 13%, 9%)')
+  })
+
+  it('has body background lightness in comfortable range', () => {
+    const bg = studioTheme.colors?.dark?.background ?? ''
+    const lightnessMatch = /(\d+)%\)/.exec(bg)
+    const lightness = lightnessMatch ? Number(lightnessMatch[1]) : 0
+    expect(lightness).toBeGreaterThanOrEqual(8)
+    expect(lightness).toBeLessThanOrEqual(12)
   })
 })
 
