@@ -7,6 +7,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "echo 'no tests yet'"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "neverthrow": "^8.2.0"
   }
 }

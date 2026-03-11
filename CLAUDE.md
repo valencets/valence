@@ -80,6 +80,15 @@ Logical semantic micro-commits using conventional format:
 
 Enforced via Husky pre-commit hooks.
 
+## Post-Commit Indexing
+
+After every commit, re-index the codebase and docs so search tools stay current:
+
+1. `mcp__jcodemunch__index_folder` with `path: "/home/forrest/dev/inertia"` and `incremental: true`
+2. `mcp__jdocmunch__index_local` with `path: "/home/forrest/dev/inertia"` and `incremental: true`
+
+Always use `incremental: true` to avoid full re-index on every commit.
+
 ## Banned Patterns
 
 These will fail code review. No exceptions.
