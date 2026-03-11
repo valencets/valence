@@ -1,3 +1,6 @@
+// Boot timestamp for cache busting — changes each server restart
+const BOOT_VERSION = Date.now().toString(36)
+
 export interface ShellOptions {
   readonly title: string
   readonly description: string
@@ -24,7 +27,10 @@ function renderNav (currentPath: string): string {
 
   return `<nav aria-label="Main navigation">
       <div class="nav-inner">
-        <a href="/" class="nav-brand" aria-label="Inertia Web Solutions home">Inertia</a>
+        <a href="/" class="nav-brand" aria-label="Inertia Web Solutions home">
+          <img src="/img/mark-light.svg" alt="" width="24" height="24" class="nav-mark">
+          INERTIA
+        </a>
         ${links}
       </div>
     </nav>`
@@ -38,9 +44,9 @@ export function renderShell (options: ShellOptions): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${options.title} | Inertia Web Solutions</title>
   <meta name="description" content="${options.description}">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <style>${options.criticalCSS}</style>
-  <link rel="stylesheet" href="${options.deferredCSSPath}" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="${options.deferredCSSPath}"></noscript>
+  <link rel="stylesheet" href="${options.deferredCSSPath}?v=${BOOT_VERSION}">
 </head>
 <body>
   <header>
@@ -55,7 +61,7 @@ export function renderShell (options: ShellOptions): string {
       <p class="footer-hardware">Served from a Raspberry Pi 5 — your website can too.</p>
     </div>
   </footer>
-  <script type="module" src="/js/boot.js" defer></script>
+
 </body>
 </html>`
 }

@@ -11,12 +11,72 @@ export function getResolvedTheme (): ThemeConfig {
   return resolveTheme(studioTheme, baseTheme)
 }
 
+// Strip Tailwind-only directives from token CSS, keeping browser-valid blocks
+function stripTailwindDirectives (css: string): string {
+  let result = css
+  // Remove @custom-variant lines
+  result = result.replace(/^@custom-variant[^\n]*\n?/gm, '')
+  // Remove @theme inline { ... } blocks (nested braces)
+  result = removeBlock(result, '@theme inline')
+  // Remove @layer base { ... } blocks (nested braces)
+  result = removeBlock(result, '@layer base')
+  // Collapse excessive blank lines
+  result = result.replace(/\n{3,}/g, '\n\n').trim()
+  return result
+}
+
+// Remove a top-level block by tracking brace depth
+function removeBlock (css: string, marker: string): string {
+  const idx = css.indexOf(marker)
+  if (idx === -1) return css
+  const braceStart = css.indexOf('{', idx)
+  if (braceStart === -1) return css
+  let depth = 1
+  let i = braceStart + 1
+  while (i < css.length && depth > 0) {
+    if (css[i] === '{') depth++
+    if (css[i] === '}') depth--
+    i++
+  }
+  return css.substring(0, idx) + css.substring(i)
+}
+
 export function getStudioCSS (): string {
   const resolved = getResolvedTheme()
-  const tokenCSS = generateCSS(resolved)
+  const rawTokenCSS = generateCSS(resolved)
+  const tokenCSS = stripTailwindDirectives(rawTokenCSS)
 
   // Append studio-specific utility CSS
   const studioCSS = `
+/* Dank Mono web font */
+@font-face {
+  font-family: "Dank Mono";
+  src: url("/fonts/DankMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Dank Mono";
+  src: url("/fonts/DankMono-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Dank Mono";
+  src: url("/fonts/DankMono-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Base styles */
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
 /* Studio layout utilities */
 .container {
   max-width: ${SPACING.grid.maxWidth};
@@ -67,12 +127,18 @@ nav {
   .nav-inner { padding-inline: ${SPACING.grid.gutter}; }
 }
 .nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: ${TYPOGRAPHY.fontWeight.bold};
   font-size: ${TYPOGRAPHY.scale.lg};
   color: var(--foreground);
   text-decoration: none;
   margin-right: auto;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
+.nav-mark { display: block; width: 24px; height: 24px; }
 nav a {
   color: var(--muted-foreground);
   text-decoration: none;
@@ -125,6 +191,7 @@ footer {
 /* Cards */
 .card {
   background: var(--card);
+  color: var(--card-foreground);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: ${SPACING.scale[6]};
@@ -196,7 +263,7 @@ footer {
 }
 .form-textarea { min-height: 8rem; resize: vertical; }
 .form-error { color: var(--destructive); font-size: ${TYPOGRAPHY.scale.sm}; margin-top: ${TYPOGRAPHY.scale.xs}; }
-.form-success { color: oklch(0.72 0.17 142); font-size: ${TYPOGRAPHY.scale.sm}; }
+.form-success { color: hsl(142, 60%, 50%); font-size: ${TYPOGRAPHY.scale.sm}; }
 
 /* Utility */
 .sr-only {

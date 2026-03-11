@@ -27,10 +27,18 @@ describe('renderShell', () => {
     expect(html).toContain('<style>body{margin:0}</style>')
   })
 
-  it('includes deferred CSS with print media trick', () => {
+  it('loads deferred CSS without inline event handlers (CSP-safe)', () => {
     const html = renderShell(defaultOptions)
-    expect(html).toContain('media="print"')
-    expect(html).toContain("onload=\"this.media='all'\"")
+    expect(html).toContain('/css/studio.css')
+    // Must NOT use onload inline handler — blocked by script-src 'self' CSP
+    expect(html).not.toContain('onload=')
+    expect(html).not.toContain('media="print"')
+  })
+
+  it('appends cache-busting query param to CSS path', () => {
+    const html = renderShell(defaultOptions)
+    // CSS link should have ?v= param to bust browser cache on content change
+    expect(html).toMatch(/\/css\/studio\.css\?v=/)
   })
 
   it('includes main content', () => {
@@ -56,9 +64,20 @@ describe('renderShell', () => {
     expect(html).toContain('Raspberry Pi 5')
   })
 
-  it('includes deferred boot script', () => {
+  it('includes favicon link', () => {
     const html = renderShell(defaultOptions)
-    expect(html).toContain('src="/js/boot.js"')
+    expect(html).toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg">')
+  })
+
+  it('includes mark SVG in nav brand', () => {
+    const html = renderShell(defaultOptions)
+    expect(html).toContain('mark-light.svg')
+    expect(html).toContain('class="nav-mark"')
+  })
+
+  it('has uppercase INERTIA brand text', () => {
+    const html = renderShell(defaultOptions)
+    expect(html).toContain('INERTIA')
   })
 
   it('uses dark class on html element', () => {
