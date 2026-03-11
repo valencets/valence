@@ -1,0 +1,22 @@
+{
+  "name": "inertia",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "lint": "eslint .",
+    "dev": "pnpm --filter",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "eslint": "^9.22.0",
+    "husky": "^9.1.7",
+    "neostandard": "^0.13.0",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

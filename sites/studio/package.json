@@ -1,0 +1,11 @@
+{
+  "name": "@inertia/studio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo 'studio build not configured yet'",
+    "dev": "echo 'studio dev not configured yet'",
+    "test": "echo 'no tests yet'"
+  }
+}
