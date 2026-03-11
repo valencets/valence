@@ -8,8 +8,10 @@ Telemetry engine and HTML-over-the-wire router. The two most critical subsystems
 src/
 ├── telemetry/
 │   ├── intent-types.ts       # IntentType const union, GlobalTelemetryIntent, TelemetryError
-│   ├── ring-buffer.ts        # TelemetryRingBuffer + TelemetryObjectPool (pre-allocated slots)
-│   ├── flush-worker.ts       # sendBeacon dispatch, scheduleAutoFlush, event delegation
+│   ├── object-pool.ts        # TelemetryObjectPool (pre-allocated slots, getSlot/resetSlot)
+│   ├── ring-buffer.ts        # TelemetryRingBuffer (circular buffer, modulo pointer math)
+│   ├── event-delegation.ts   # Single click listener on root, data-* attribute reading
+│   ├── flush.ts              # sendBeacon dispatch, scheduleAutoFlush, visibilitychange
 │   └── index.ts
 ├── router/
 │   ├── push-state.ts         # history.pushState() navigation, <a> click interception
@@ -60,8 +62,10 @@ Write tests BEFORE implementation. Every feature follows red-green-refactor:
 | Module | Estimated LOC | Test LOC |
 |---|---|---|
 | `telemetry/intent-types.ts` | ~50 | ~75 |
-| `telemetry/ring-buffer.ts` | ~170 | ~560 |
-| `telemetry/flush-worker.ts` | ~120 | ~365 |
+| `telemetry/object-pool.ts` | ~60 | ~200 |
+| `telemetry/ring-buffer.ts` | ~110 | ~360 |
+| `telemetry/event-delegation.ts` | ~60 | ~150 |
+| `telemetry/flush.ts` | ~65 | ~215 |
 | `router/push-state.ts` | ~100 | ~150 |
 | `router/fragment-swap.ts` | ~80 | ~120 |
 | `router/prefetch.ts` | ~70 | ~100 |
