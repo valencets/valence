@@ -15,9 +15,19 @@ Native Web Component primitives. Zero framework runtime. Browser-native encapsul
 
 Follow Radix UI patterns adapted for Web Components: proper ARIA attributes, keyboard navigation, focus management. Accessibility is not optional.
 
+## Module Map
+
+```
+src/
+├── tracking-button.ts   # <inertia-button> — CTA tracking with data-* delegation
+├── tracking-link.ts     # <inertia-link> — Navigation intent tracking
+├── tracking-form.ts     # <inertia-form> — Form submission capture
+└── index.ts
+```
+
 ## Naming
 
-- File: `PascalCase.ts` (e.g., `TrackingButton.ts`)
+- File: `kebab-case.ts` (e.g., `tracking-button.ts`)
 - Tag: `kebab-case` with `inertia-` prefix (e.g., `<inertia-button>`)
 - Class: `PascalCase` (e.g., `class TrackingButton extends HTMLElement`)
 
@@ -42,13 +52,12 @@ Write tests BEFORE implementation. Every feature follows red-green-refactor:
 
 | Module | Estimated LOC | Test LOC |
 |---|---|---|
-| `BaseComponent.ts` | ~60 | ~100 |
-| `TrackingButton.ts` | ~40 | ~80 |
-| `PhoneLink.ts` (DNI) | ~50 | ~80 |
-| `FormCapture.ts` | ~70 | ~100 |
+| `tracking-button.ts` | ~40 | ~80 |
+| `tracking-link.ts` (DNI) | ~50 | ~80 |
+| `tracking-form.ts` | ~70 | ~100 |
 
 Tests should be ~1.5x the implementation LOC.
 
 ## Development Order
 
-Build base component first, then concrete components in priority order: tracking button → phone link (DNI) → form capture. Each component is test-driven and merged only when all tests pass.
+Build concrete components in priority order: tracking-button → tracking-link (DNI) → tracking-form. Each component is test-driven and merged only when all tests pass.

@@ -44,12 +44,23 @@ Write tests BEFORE implementation. Every feature follows red-green-refactor:
 | Module | Estimated LOC | Test LOC |
 |---|---|---|
 | `safe-json-parse.ts` | ~30 | ~80 |
-| `validate.ts` (Zod schemas) | ~60 | ~100 |
+| `schemas.ts` (Zod schemas) | ~60 | ~100 |
 | `pipeline.ts` (monadic chain) | ~80 | ~120 |
-| `handler.ts` (HTTP endpoint) | ~50 | ~80 |
+| `black-hole.ts` (HTTP endpoint) | ~50 | ~80 |
 
 Tests should be ~1.5x the implementation LOC.
 
+## Module Map
+
+```
+src/
+├── safe-json-parse.ts   # The ONE try/catch boundary in the codebase
+├── schemas.ts           # Zod schemas for GlobalTelemetryIntent validation
+├── pipeline.ts          # Monadic chain: parse → validate → persist
+├── black-hole.ts        # HTTP handler, always returns 200
+└── index.ts
+```
+
 ## Development Order
 
-Build bottom-up: `safe-json-parse` → Zod validation schemas → monadic pipeline composition → HTTP handler. Each module is test-driven and merged only when all tests pass.
+Build bottom-up: `safe-json-parse` → Zod validation schemas → monadic pipeline composition → black-hole handler. Each module is test-driven and merged only when all tests pass.

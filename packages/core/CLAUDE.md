@@ -2,6 +2,23 @@
 
 Telemetry engine and HTML-over-the-wire router. The two most critical subsystems in Inertia.
 
+## Module Map
+
+```
+src/
+├── telemetry/
+│   ├── intent-types.ts       # IntentType const union, GlobalTelemetryIntent, TelemetryError
+│   ├── ring-buffer.ts        # TelemetryRingBuffer + TelemetryObjectPool (pre-allocated slots)
+│   ├── flush-worker.ts       # sendBeacon dispatch, scheduleAutoFlush, event delegation
+│   └── index.ts
+├── router/
+│   ├── push-state.ts         # history.pushState() navigation, <a> click interception
+│   ├── prefetch.ts           # Hover-intent prefetch (velocity + trajectory)
+│   ├── fragment-swap.ts      # DOMParser fragment extraction, replaceChildren(), moveBefore()
+│   └── index.ts
+└── index.ts
+```
+
 ## Telemetry Rules
 
 - All `GlobalTelemetryIntent` objects are pre-allocated at boot. Never use `new` at runtime.
@@ -42,11 +59,10 @@ Write tests BEFORE implementation. Every feature follows red-green-refactor:
 
 | Module | Estimated LOC | Test LOC |
 |---|---|---|
-| `telemetry/ring-buffer.ts` | ~120 | ~200 |
-| `telemetry/object-pool.ts` | ~80 | ~120 |
-| `telemetry/event-delegation.ts` | ~60 | ~100 |
-| `telemetry/flush.ts` | ~50 | ~80 |
-| `router/navigator.ts` | ~100 | ~150 |
+| `telemetry/intent-types.ts` | ~50 | ~75 |
+| `telemetry/ring-buffer.ts` | ~170 | ~560 |
+| `telemetry/flush-worker.ts` | ~120 | ~365 |
+| `router/push-state.ts` | ~100 | ~150 |
 | `router/fragment-swap.ts` | ~80 | ~120 |
 | `router/prefetch.ts` | ~70 | ~100 |
 
@@ -54,4 +70,4 @@ Tests should be ~1.5x the implementation LOC.
 
 ## Development Order
 
-Build telemetry first (ring buffer → object pool → event delegation → flush), then router (navigator → fragment swap → prefetch). Each module is test-driven and merged only when all tests pass.
+Build telemetry first (intent-types → ring-buffer → flush-worker), then router (push-state → fragment-swap → prefetch). Each module is test-driven and merged only when all tests pass.

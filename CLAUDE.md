@@ -38,21 +38,71 @@ For full architectural details, read `docs/ARCHITECTURE.md`. It covers:
 ```
 inertia/
 ├── packages/
-│   ├── core/           # Telemetry engine, router, event delegation
-│   ├── components/     # Web Component primitives
-│   ├── tokens/         # Design token engine
-│   ├── ingestion/      # Server-side monadic pipeline
-│   ├── db/             # PostgreSQL schema, migrations, RBAC
-│   └── hud/            # Analytics dashboard components
+│   ├── core/                   # Telemetry engine, ring buffer, event delegation
+│   │   └── src/
+│   │       ├── telemetry/
+│   │       │   ├── intent-types.ts
+│   │       │   ├── ring-buffer.ts
+│   │       │   ├── flush-worker.ts
+│   │       │   └── index.ts
+│   │       ├── router/
+│   │       │   ├── push-state.ts
+│   │       │   ├── prefetch.ts
+│   │       │   ├── fragment-swap.ts
+│   │       │   └── index.ts
+│   │       └── index.ts
+│   ├── components/             # Web Component primitives
+│   │   └── src/
+│   │       ├── tracking-button.ts
+│   │       ├── tracking-link.ts
+│   │       ├── tracking-form.ts
+│   │       └── index.ts
+│   ├── tokens/                 # Design token engine
+│   │   ├── base.json
+│   │   ├── themes/
+│   │   └── index.ts
+│   ├── ingestion/              # Server-side monadic pipeline
+│   │   └── src/
+│   │       ├── safe-json-parse.ts
+│   │       ├── schemas.ts
+│   │       ├── pipeline.ts
+│   │       ├── black-hole.ts
+│   │       └── index.ts
+│   ├── db/                     # PostgreSQL schema, migrations, RBAC
+│   │   ├── migrations/
+│   │   └── seed/
+│   └── hud/                    # Analytics viewer components
+│       └── src/
 ├── sites/
-│   └── studio/         # Studio website (first Inertia deployment)
+│   └── studio/                 # The studio website (first Inertia deployment)
+│       ├── features/           # Feature modules (see Adding a Feature)
+│       ├── server/
+│       ├── public/
+│       └── pages/
 ├── tools/
-│   ├── critical-css/   # CSS extraction pipeline
-│   └── build/          # Build tooling
-├── docs/               # Architecture docs, specs, research
-├── .husky/             # Git hooks
-└── CLAUDE.md           # You are here
+│   ├── critical-css/           # CSS extraction pipeline
+│   └── build/                  # Build tooling
+├── .husky/
+├── tsconfig.json               # Strict mode, no any, no implicit returns
+└── package.json                # Monorepo root (pnpm workspaces)
 ```
+
+## Adding a Feature
+
+Features live in `sites/<site-name>/features/<feature-name>/` with this structure:
+
+```
+features/<feature-name>/
+  components/    Web Components (Custom Elements)
+  templates/     HTML fragments returned by server routes
+  server/        Server-side route handlers (return HTML, not JSON)
+  types/         TypeScript interfaces (monomorphic, explicit)
+  schemas/       Zod schemas (.safeParse() only)
+  telemetry/     Feature-specific IntentType definitions and data-* contracts
+  config/        Constants and static dictionary maps
+```
+
+Not every feature needs all of these. Only create what you use. No feature should ever contain `try/catch`, `switch`, framework imports, or direct DOM mutation outside the router's fragment swap cycle. If a feature needs shared state, it coordinates through the telemetry ring buffer or server-delivered HTML, not client-side stores.
 
 ## Commands
 
