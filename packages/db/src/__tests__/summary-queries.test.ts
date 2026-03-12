@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { getSessionSummaries, getEventSummaries, getConversionSummaries, getIngestionHealth, insertIngestionHealth } from '../summary-queries.js'
+import { DbErrorCode } from '../types.js'
 import type { DbPool } from '../connection.js'
 import type { SummaryPeriod } from '../summary-types.js'
 
@@ -87,7 +88,7 @@ describe('insertIngestionHealth', () => {
     expect(typeof insertIngestionHealth).toBe('function')
   })
 
-  it('returns error on empty result', async () => {
+  it('returns error on empty result with NO_ROWS code', async () => {
     const pool = makeMockPool([])
     const result = await insertIngestionHealth(pool, {
       period_start: new Date(),
@@ -97,6 +98,7 @@ describe('insertIngestionHealth', () => {
       buffer_saturation_pct: 0.3
     })
     expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().code).toBe(DbErrorCode.NO_ROWS)
   })
 
   it('returns error on database failure', async () => {

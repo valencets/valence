@@ -1,4 +1,5 @@
-import { ResultAsync } from 'neverthrow'
+import { okAsync, errAsync, ResultAsync } from 'neverthrow'
+import { DbErrorCode } from './types.js'
 import type { DbError } from './types.js'
 import type { DbPool } from './connection.js'
 import { mapPostgresError } from './connection.js'
@@ -15,17 +16,14 @@ export function getSessionSummaries (
   period: SummaryPeriod
 ): ResultAsync<ReadonlyArray<SessionSummaryRow>, DbError> {
   return ResultAsync.fromPromise(
-    (async () => {
-      const rows = await pool.sql<SessionSummaryRow[]>`
-        SELECT *
-        FROM session_summaries
-        WHERE period_start >= ${period.start} AND period_end <= ${period.end}
-        ORDER BY period_start DESC
-      `
-      return rows as ReadonlyArray<SessionSummaryRow>
-    })(),
+    pool.sql<SessionSummaryRow[]>`
+      SELECT *
+      FROM session_summaries
+      WHERE period_start >= ${period.start} AND period_end <= ${period.end}
+      ORDER BY period_start DESC
+    `,
     mapPostgresError
-  )
+  ).map((rows) => rows as ReadonlyArray<SessionSummaryRow>)
 }
 
 export function getEventSummaries (
@@ -33,17 +31,14 @@ export function getEventSummaries (
   period: SummaryPeriod
 ): ResultAsync<ReadonlyArray<EventSummaryRow>, DbError> {
   return ResultAsync.fromPromise(
-    (async () => {
-      const rows = await pool.sql<EventSummaryRow[]>`
-        SELECT *
-        FROM event_summaries
-        WHERE period_start >= ${period.start} AND period_end <= ${period.end}
-        ORDER BY period_start DESC
-      `
-      return rows as ReadonlyArray<EventSummaryRow>
-    })(),
+    pool.sql<EventSummaryRow[]>`
+      SELECT *
+      FROM event_summaries
+      WHERE period_start >= ${period.start} AND period_end <= ${period.end}
+      ORDER BY period_start DESC
+    `,
     mapPostgresError
-  )
+  ).map((rows) => rows as ReadonlyArray<EventSummaryRow>)
 }
 
 export function getConversionSummaries (
@@ -51,17 +46,14 @@ export function getConversionSummaries (
   period: SummaryPeriod
 ): ResultAsync<ReadonlyArray<ConversionSummaryRow>, DbError> {
   return ResultAsync.fromPromise(
-    (async () => {
-      const rows = await pool.sql<ConversionSummaryRow[]>`
-        SELECT *
-        FROM conversion_summaries
-        WHERE period_start >= ${period.start} AND period_end <= ${period.end}
-        ORDER BY period_start DESC
-      `
-      return rows as ReadonlyArray<ConversionSummaryRow>
-    })(),
+    pool.sql<ConversionSummaryRow[]>`
+      SELECT *
+      FROM conversion_summaries
+      WHERE period_start >= ${period.start} AND period_end <= ${period.end}
+      ORDER BY period_start DESC
+    `,
     mapPostgresError
-  )
+  ).map((rows) => rows as ReadonlyArray<ConversionSummaryRow>)
 }
 
 export function getIngestionHealth (
@@ -69,17 +61,14 @@ export function getIngestionHealth (
   period: SummaryPeriod
 ): ResultAsync<ReadonlyArray<IngestionHealthRow>, DbError> {
   return ResultAsync.fromPromise(
-    (async () => {
-      const rows = await pool.sql<IngestionHealthRow[]>`
-        SELECT *
-        FROM ingestion_health
-        WHERE period_start >= ${period.start}
-        ORDER BY period_start DESC
-      `
-      return rows as ReadonlyArray<IngestionHealthRow>
-    })(),
+    pool.sql<IngestionHealthRow[]>`
+      SELECT *
+      FROM ingestion_health
+      WHERE period_start >= ${period.start}
+      ORDER BY period_start DESC
+    `,
     mapPostgresError
-  )
+  ).map((rows) => rows as ReadonlyArray<IngestionHealthRow>)
 }
 
 export function insertIngestionHealth (
@@ -93,18 +82,15 @@ export function insertIngestionHealth (
   }
 ): ResultAsync<IngestionHealthRow, DbError> {
   return ResultAsync.fromPromise(
-    (async () => {
-      const rows = await pool.sql<IngestionHealthRow[]>`
-        INSERT INTO ingestion_health (period_start, payloads_accepted, payloads_rejected, avg_processing_ms, buffer_saturation_pct)
-        VALUES (${record.period_start}, ${record.payloads_accepted}, ${record.payloads_rejected}, ${record.avg_processing_ms}, ${record.buffer_saturation_pct})
-        RETURNING *
-      `
-      const row = rows[0]
-      if (!row) {
-        throw new Error('INSERT returned no rows')
-      }
-      return row
-    })(),
+    pool.sql<IngestionHealthRow[]>`
+      INSERT INTO ingestion_health (period_start, payloads_accepted, payloads_rejected, avg_processing_ms, buffer_saturation_pct)
+      VALUES (${record.period_start}, ${record.payloads_accepted}, ${record.payloads_rejected}, ${record.avg_processing_ms}, ${record.buffer_saturation_pct})
+      RETURNING *
+    `,
     mapPostgresError
-  )
+  ).andThen((rows) => {
+    const row = rows[0]
+    if (!row) return errAsync({ code: DbErrorCode.NO_ROWS, message: 'INSERT returned no rows' })
+    return okAsync(row)
+  })
 }
