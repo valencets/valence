@@ -4,11 +4,11 @@ import { PAGE_META } from '../config/page-meta.js'
 const MAX_DESCRIPTION_LENGTH = 155
 
 describe('PAGE_META', () => {
-  it('has meta for all five public pages', () => {
+  it('has meta for all five public pages with new route keys', () => {
     expect(PAGE_META).toHaveProperty('home')
-    expect(PAGE_META).toHaveProperty('principles')
-    expect(PAGE_META).toHaveProperty('services')
-    expect(PAGE_META).toHaveProperty('audit')
+    expect(PAGE_META).toHaveProperty('how-it-works')
+    expect(PAGE_META).toHaveProperty('pricing')
+    expect(PAGE_META).toHaveProperty('free-site-audit')
     expect(PAGE_META).toHaveProperty('about')
   })
 

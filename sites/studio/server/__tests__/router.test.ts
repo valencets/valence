@@ -156,7 +156,46 @@ describe('sendJson', () => {
 })
 
 describe('registerRoutes', () => {
-  it('registers the /audit route', async () => {
+  it('registers new route paths', async () => {
+    const { registerRoutes } = await import('../register-routes.js')
+    const router = createRouter()
+    registerRoutes(router)
+
+    for (const path of ['/how-it-works', '/pricing', '/free-site-audit']) {
+      const req = mockReq(path)
+      const res = mockRes()
+      await router.handle(req, res, mockCtx)
+      expect(res._status).not.toBe(404)
+    }
+  })
+
+  it('301 redirects from old /principles to /how-it-works', async () => {
+    const { registerRoutes } = await import('../register-routes.js')
+    const router = createRouter()
+    registerRoutes(router)
+
+    const req = mockReq('/principles')
+    const res = mockRes()
+    await router.handle(req, res, mockCtx)
+
+    expect(res._status).toBe(301)
+    expect(res._headers['Location']).toBe('/how-it-works')
+  })
+
+  it('301 redirects from old /services to /pricing', async () => {
+    const { registerRoutes } = await import('../register-routes.js')
+    const router = createRouter()
+    registerRoutes(router)
+
+    const req = mockReq('/services')
+    const res = mockRes()
+    await router.handle(req, res, mockCtx)
+
+    expect(res._status).toBe(301)
+    expect(res._headers['Location']).toBe('/pricing')
+  })
+
+  it('301 redirects from old /audit to /free-site-audit', async () => {
     const { registerRoutes } = await import('../register-routes.js')
     const router = createRouter()
     registerRoutes(router)
@@ -165,7 +204,8 @@ describe('registerRoutes', () => {
     const res = mockRes()
     await router.handle(req, res, mockCtx)
 
-    expect(res._status).not.toBe(404)
+    expect(res._status).toBe(301)
+    expect(res._headers['Location']).toBe('/free-site-audit')
   })
 
   it('registers the /admin/hud route', async () => {
