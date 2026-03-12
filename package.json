@@ -8,6 +8,7 @@
     "test:ci": "pnpm -r --workspace-concurrency=4 run test",
     "lint": "eslint .",
     "dev": "pnpm --filter",
+    "audit:patterns": "tsx tools/audit/run-audit.ts --all",
     "prepare": "husky"
   },
   "devDependencies": {
