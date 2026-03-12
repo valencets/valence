@@ -28,9 +28,10 @@ function mapFetchError (e: unknown): HudError {
   }
 }
 
-export function fetchFleetSites (baseUrl: string): ResultAsync<ReadonlyArray<FleetSiteData>, HudError> {
+export function fetchFleetSites (baseUrl: string, period?: string): ResultAsync<ReadonlyArray<FleetSiteData>, HudError> {
+  const query = period !== undefined ? `?period=${period}` : ''
   return ResultAsync.fromPromise(
-    fetch(`${baseUrl}/api/fleet/sites`)
+    fetch(`${baseUrl}/api/fleet/sites${query}`)
       .then(r => r.json() as Promise<ReadonlyArray<FleetSiteData>>),
     mapFetchError
   )
@@ -42,9 +43,10 @@ export interface FleetAggregateData {
   readonly total_conversions: number
 }
 
-export function fetchFleetAggregates (baseUrl: string): ResultAsync<FleetAggregateData, HudError> {
+export function fetchFleetAggregates (baseUrl: string, period?: string): ResultAsync<FleetAggregateData, HudError> {
+  const query = period !== undefined ? `?period=${period}` : ''
   return ResultAsync.fromPromise(
-    fetch(`${baseUrl}/api/fleet/aggregates`)
+    fetch(`${baseUrl}/api/fleet/aggregates${query}`)
       .then(r => r.json() as Promise<FleetAggregateData>),
     mapFetchError
   )

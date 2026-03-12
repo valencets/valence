@@ -9,6 +9,7 @@ export class FleetDashboard extends HTMLElement {
   private _offlineMetric: HTMLElement | null = null
   private _sessionsMetric: HTMLElement | null = null
   private _conversionsMetric: HTMLElement | null = null
+  private _periodChangeHandler: ((e: Event) => void) | null = null
 
   connectedCallback (): void {
     if (this._initialized) return
@@ -18,6 +19,25 @@ export class FleetDashboard extends HTMLElement {
     this.style.color = HUD_COLORS.textPrimary
     this.style.fontFamily = HUD_TYPOGRAPHY.fontPrimary
     this.style.padding = HUD_SPACING.lg
+
+    // Header with title and time range
+    const header = document.createElement('div')
+    header.style.display = 'flex'
+    header.style.justifyContent = 'space-between'
+    header.style.alignItems = 'center'
+    header.style.marginBottom = HUD_SPACING.lg
+
+    const title = document.createElement('span')
+    title.style.fontSize = HUD_TYPOGRAPHY.scale.lg
+    title.style.fontWeight = '600'
+    title.style.color = HUD_COLORS.textPrimary
+    title.textContent = 'FLEET OVERVIEW'
+
+    const timerange = document.createElement('hud-timerange')
+    timerange.setAttribute('period', '7D')
+
+    header.appendChild(title)
+    header.appendChild(timerange)
 
     // Summary grid — 5 metric panels
     const grid = document.createElement('div')
@@ -100,6 +120,7 @@ export class FleetDashboard extends HTMLElement {
     ]))
     sitesTable.setAttribute('rows', '[]')
 
+    this.appendChild(header)
     this.appendChild(grid)
     this.appendChild(tableHeader)
     this.appendChild(sitesTable)
@@ -125,20 +146,29 @@ export class FleetDashboard extends HTMLElement {
       }
     })
 
+    // Listen for period changes
+    this._periodChangeHandler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { period: string }
+      this.refreshData(detail.period)
+    }
+    this.addEventListener('hud-period-change', this._periodChangeHandler)
+
     // Fetch data
-    this.refreshData()
+    this.refreshData('7D')
   }
 
   disconnectedCallback (): void {
-    // No listeners to clean up
+    if (this._periodChangeHandler) {
+      this.removeEventListener('hud-period-change', this._periodChangeHandler)
+    }
   }
 
   connectedMoveCallback (): void {
     // Intentional no-op — signals move-awareness to router
   }
 
-  private refreshData (): void {
-    fetchFleetSites('').match(
+  private refreshData (period: string): void {
+    fetchFleetSites('', period).match(
       (sites) => {
         const table = this.querySelector('hud-table')
         if (table === null) return
@@ -166,7 +196,7 @@ export class FleetDashboard extends HTMLElement {
       () => {} // Hold placeholders on error
     )
 
-    fetchFleetAggregates('').match(
+    fetchFleetAggregates('', period).match(
       (agg) => {
         if (this._sessionsMetric !== null) {
           this._sessionsMetric.setAttribute('value', formatNumber(agg.total_sessions))
