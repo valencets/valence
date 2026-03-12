@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { getFleetSites, getFleetComparison, getFleetSiteHistory, getFleetAggregates } from '../fleet-queries.js'
+import { getFleetSites, getFleetComparison, getFleetSiteHistory, getFleetAggregates, getFleetAlerts } from '../fleet-queries.js'
 import type { FleetFilter, FleetSort } from '../fleet-queries.js'
 import type { DbPool } from '../connection.js'
 
@@ -126,6 +126,41 @@ describe('getFleetAggregates', () => {
   it('returns error on database failure', async () => {
     const pool = makeErrorPool(new Error('connection refused'))
     const result = await getFleetAggregates(pool)
+    expect(result.isErr()).toBe(true)
+  })
+})
+
+describe('getFleetAlerts', () => {
+  it('is a function', () => {
+    expect(typeof getFleetAlerts).toBe('function')
+  })
+
+  it('returns offline sites as alerts', async () => {
+    const pool = makeMockPool([{
+      site_id: 'site_acme',
+      synced_at: null,
+      rejection_count: 0,
+      conversion_count: 0,
+      tier: 'managed'
+    }])
+    const result = await getFleetAlerts(pool)
+    expect(result.isOk()).toBe(true)
+    const alerts = result._unsafeUnwrap()
+    expect(alerts.length).toBeGreaterThanOrEqual(1)
+    expect(alerts[0].severity).toBe('red')
+    expect(alerts[0].type).toBe('offline')
+  })
+
+  it('returns empty array when no alerts', async () => {
+    const pool = makeMockPool([])
+    const result = await getFleetAlerts(pool)
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toEqual([])
+  })
+
+  it('returns error on database failure', async () => {
+    const pool = makeErrorPool(new Error('connection refused'))
+    const result = await getFleetAlerts(pool)
     expect(result.isErr()).toBe(true)
   })
 })
