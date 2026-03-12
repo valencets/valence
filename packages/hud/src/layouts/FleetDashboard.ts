@@ -3,6 +3,9 @@ import { fetchFleetSites } from '../data/fetch-fleet.js'
 
 export class FleetDashboard extends HTMLElement {
   private _initialized = false
+  private _totalMetric: HTMLElement | null = null
+  private _healthyMetric: HTMLElement | null = null
+  private _offlineMetric: HTMLElement | null = null
 
   connectedCallback (): void {
     if (this._initialized) return
@@ -11,25 +14,63 @@ export class FleetDashboard extends HTMLElement {
     this.style.backgroundColor = HUD_COLORS.bg
     this.style.color = HUD_COLORS.textPrimary
     this.style.fontFamily = HUD_TYPOGRAPHY.fontPrimary
-    this.style.padding = HUD_SPACING.lg
+    this.style.padding = `${HUD_SPACING.md} 0` // Only vertical padding, container handles horizontal
 
-    // Header
-    const header = document.createElement('div')
-    header.style.marginBottom = HUD_SPACING.lg
+    // Summary grid — 3 metric panels
+    const grid = document.createElement('div')
+    grid.style.display = 'grid'
+    grid.style.gridTemplateColumns = '1fr 1fr 1fr'
+    grid.style.gap = HUD_SPACING.md
+    grid.style.marginBottom = HUD_SPACING.xl
 
-    const title = document.createElement('span')
-    title.style.fontSize = HUD_TYPOGRAPHY.scale.lg
-    title.style.fontWeight = '600'
-    title.style.color = HUD_COLORS.textPrimary
-    title.textContent = 'FLEET OVERVIEW'
+    const totalPanel = document.createElement('hud-panel')
+    totalPanel.setAttribute('label', 'Total Sites')
+    const totalMetric = document.createElement('hud-metric')
+    totalMetric.setAttribute('value', '--')
+    totalMetric.setAttribute('label', 'registered')
+    totalPanel.appendChild(totalMetric)
 
-    header.appendChild(title)
+    const healthyPanel = document.createElement('hud-panel')
+    healthyPanel.setAttribute('label', 'Healthy')
+    const healthyMetric = document.createElement('hud-metric')
+    healthyMetric.setAttribute('value', '--')
+    healthyMetric.setAttribute('label', 'last 24h')
+    healthyPanel.appendChild(healthyMetric)
 
-    // Sites panel with table
-    const sitesPanel = document.createElement('hud-panel')
-    sitesPanel.setAttribute('label', 'Sites')
+    const offlinePanel = document.createElement('hud-panel')
+    offlinePanel.setAttribute('label', 'Offline')
+    const offlineMetric = document.createElement('hud-metric')
+    offlineMetric.setAttribute('value', '--')
+    offlineMetric.setAttribute('label', 'no sync')
+    offlinePanel.appendChild(offlineMetric)
 
+    grid.appendChild(totalPanel)
+    grid.appendChild(healthyPanel)
+    grid.appendChild(offlinePanel)
+
+    // Table section header
+    const tableHeader = document.createElement('div')
+    tableHeader.style.display = 'flex'
+    tableHeader.style.justifyContent = 'space-between'
+    tableHeader.style.alignItems = 'baseline'
+    tableHeader.style.marginBottom = HUD_SPACING.md
+    tableHeader.style.paddingBottom = HUD_SPACING.sm
+    tableHeader.style.borderBottom = `1px solid ${HUD_COLORS.border}`
+
+    const tableLabel = document.createElement('span')
+    tableLabel.style.fontFamily = HUD_TYPOGRAPHY.fontPrimary
+    tableLabel.style.fontSize = HUD_TYPOGRAPHY.scale.xs
+    tableLabel.style.fontWeight = '600'
+    tableLabel.style.color = HUD_COLORS.textSecondary
+    tableLabel.style.textTransform = 'uppercase'
+    tableLabel.style.letterSpacing = '0.05em'
+    tableLabel.textContent = 'Active Fleet Sites'
+
+    tableHeader.appendChild(tableLabel)
+
+    // Table — no panel wrapper
     const sitesTable = document.createElement('hud-table')
+    sitesTable.setAttribute('max-rows', '50')
     sitesTable.setAttribute('columns', JSON.stringify([
       { label: 'Status', key: 'status', align: 'left' },
       { label: 'Site', key: 'site_id', align: 'left' },
@@ -40,10 +81,13 @@ export class FleetDashboard extends HTMLElement {
     ]))
     sitesTable.setAttribute('rows', '[]')
 
-    sitesPanel.appendChild(sitesTable)
+    this.appendChild(grid)
+    this.appendChild(tableHeader)
+    this.appendChild(sitesTable)
 
-    this.appendChild(header)
-    this.appendChild(sitesPanel)
+    this._totalMetric = totalMetric
+    this._healthyMetric = healthyMetric
+    this._offlineMetric = offlineMetric
 
     // Fetch data
     this.refreshData()
@@ -73,6 +117,15 @@ export class FleetDashboard extends HTMLElement {
         }))
 
         table.setAttribute('rows', JSON.stringify(rows))
+
+        // Update summary metrics
+        const total = sites.length
+        const healthy = sites.filter(s => s.status === 'healthy').length
+        const offline = sites.filter(s => s.status === 'offline').length
+
+        if (this._totalMetric !== null) this._totalMetric.setAttribute('value', String(total))
+        if (this._healthyMetric !== null) this._healthyMetric.setAttribute('value', String(healthy))
+        if (this._offlineMetric !== null) this._offlineMetric.setAttribute('value', String(offline))
       },
       () => {} // Hold placeholders on error
     )

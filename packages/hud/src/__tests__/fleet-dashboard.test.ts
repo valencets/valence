@@ -34,11 +34,6 @@ describe('FleetDashboard', () => {
     expect(customElements.get('hud-fleet-dashboard')).toBeDefined()
   })
 
-  it('renders a header with FLEET OVERVIEW text', () => {
-    const el = attach(createElement())
-    expect(el.textContent).toContain('FLEET OVERVIEW')
-  })
-
   it('contains 3 hud-panels for summary metrics', () => {
     const el = attach(createElement())
     const panels = el.querySelectorAll('hud-panel')
