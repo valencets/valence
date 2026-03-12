@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote } from '../daily-summary-queries.js'
+import { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote, getDailyBreakdowns } from '../daily-summary-queries.js'
 import type { DbPool } from '../connection.js'
 
 function makeMockPool (returnValue: unknown = []): DbPool {
@@ -132,6 +132,38 @@ describe('insertDailySummaryFromRemote', () => {
       avg_flush_ms: 2.8,
       rejection_count: 5
     })
+    expect(result.isErr()).toBe(true)
+  })
+})
+
+describe('getDailyBreakdowns', () => {
+  it('is a function', () => {
+    expect(typeof getDailyBreakdowns).toBe('function')
+  })
+
+  it('returns breakdowns with top_pages, top_referrers, and intent_counts', async () => {
+    const pool = makeMockPool([mockRow])
+    const result = await getDailyBreakdowns(pool, 'site_acme', new Date('2026-03-10'), new Date('2026-03-11'))
+    expect(result.isOk()).toBe(true)
+    const data = result._unsafeUnwrap()
+    expect(data.top_pages).toBeDefined()
+    expect(data.top_referrers).toBeDefined()
+    expect(data.intent_counts).toBeDefined()
+  })
+
+  it('returns empty breakdowns when no data', async () => {
+    const pool = makeMockPool([])
+    const result = await getDailyBreakdowns(pool, 'site_acme', new Date('2026-03-10'), new Date('2026-03-11'))
+    expect(result.isOk()).toBe(true)
+    const data = result._unsafeUnwrap()
+    expect(data.top_pages).toEqual([])
+    expect(data.top_referrers).toEqual([])
+    expect(data.intent_counts).toEqual({})
+  })
+
+  it('returns error on database failure', async () => {
+    const pool = makeErrorPool(new Error('connection refused'))
+    const result = await getDailyBreakdowns(pool, 'site_acme', new Date('2026-03-10'), new Date('2026-03-11'))
     expect(result.isErr()).toBe(true)
   })
 })
