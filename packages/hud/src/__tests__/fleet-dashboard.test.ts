@@ -39,14 +39,23 @@ describe('FleetDashboard', () => {
     expect(el.textContent).toContain('FLEET OVERVIEW')
   })
 
-  it('contains a hud-panel', () => {
+  it('contains 3 hud-panels for summary metrics', () => {
     const el = attach(createElement())
-    expect(el.querySelector('hud-panel')).not.toBeNull()
+    const panels = el.querySelectorAll('hud-panel')
+    expect(panels.length).toBe(3)
   })
 
-  it('contains a hud-table for site listing', () => {
+  it('contains a hud-table for site listing directly on the dashboard', () => {
     const el = attach(createElement())
-    expect(el.querySelector('hud-table')).not.toBeNull()
+    const table = el.querySelector('hud-table')
+    expect(table).not.toBeNull()
+    // Table should not be wrapped in a hud-panel to avoid gray end caps
+    expect(table?.closest('hud-panel')).toBeNull()
+  })
+
+  it('renders a section header for the table', () => {
+    const el = attach(createElement())
+    expect(el.textContent).toContain('Active Fleet Sites')
   })
 
   it('does not duplicate DOM on disconnect + reconnect', () => {
