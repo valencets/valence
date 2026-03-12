@@ -205,6 +205,98 @@ describe('GlassBoxInspector route lifecycle', () => {
   })
 })
 
+describe('GlassBoxInspector overlay layout', () => {
+  beforeAll(async () => {
+    if (customElements.get('inertia-telemetry-infobox') === undefined) {
+      await import('../components/GlassBoxInspector.js')
+    }
+  })
+
+  function setup (): { inspector: HTMLElement; target: HTMLElement } {
+    const target = document.createElement('button')
+    target.setAttribute('data-telemetry-type', 'CLICK')
+    target.setAttribute('data-telemetry-target', 'layout-btn')
+    document.body.appendChild(target)
+
+    const inspector = document.createElement('inertia-telemetry-infobox')
+    document.body.appendChild(inspector)
+
+    return { inspector, target }
+  }
+
+  function teardown (): void {
+    document.body.removeAttribute('data-glass-box-active')
+    document.body.innerHTML = ''
+  }
+
+  it('adds data-glass-box-active attribute to body when overlay activates', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.body.hasAttribute('data-glass-box-active')).toBe(true)
+    teardown()
+  })
+
+  it('removes data-glass-box-active attribute when overlay deactivates', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.body.hasAttribute('data-glass-box-active')).toBe(false)
+    teardown()
+  })
+
+  it('adds marginTop to telemetry targets when overlay activates', () => {
+    const { target } = setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    const margin = parseInt(target.style.marginTop, 10)
+    expect(margin).toBeGreaterThan(0)
+    teardown()
+  })
+
+  it('restores original marginTop when overlay deactivates', () => {
+    const { target } = setup()
+    target.style.marginTop = '8px'
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    // Should have increased margin
+    const activeMargin = parseInt(target.style.marginTop, 10)
+    expect(activeMargin).toBeGreaterThan(8)
+    // Deactivate
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(target.style.marginTop).toBe('8px')
+    teardown()
+  })
+
+  it('cleans up margins and body attribute on before-swap', () => {
+    const { target } = setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.body.hasAttribute('data-glass-box-active')).toBe(true)
+
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+    expect(document.body.hasAttribute('data-glass-box-active')).toBe(false)
+    expect(target.style.marginTop).toBe('')
+    teardown()
+  })
+
+  it('re-applies margins on after-swap when overlay was active', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+
+    // Add new content
+    const newTarget = document.createElement('a')
+    newTarget.setAttribute('data-telemetry-type', 'INTENT_NAVIGATE')
+    newTarget.setAttribute('data-telemetry-target', 'new-link')
+    document.body.appendChild(newTarget)
+
+    document.dispatchEvent(new CustomEvent('inertia:after-swap'))
+
+    expect(document.body.hasAttribute('data-glass-box-active')).toBe(true)
+    const margin = parseInt(newTarget.style.marginTop, 10)
+    expect(margin).toBeGreaterThan(0)
+    teardown()
+  })
+})
+
 describe('GlassBoxStrip', () => {
   let GlassBoxStrip: typeof import('../components/GlassBoxStrip.js').GlassBoxStrip
 
