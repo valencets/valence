@@ -4,12 +4,21 @@ import { renderShell, renderFragment } from '../../../server/shell.js'
 import { checkAuth } from './auth-middleware.js'
 import { renderFleetPage } from '../templates/fleet-page.js'
 import type { FleetPageMode } from '../templates/fleet-page.js'
+import { renderLoginForm } from '../templates/login-form.js'
 
 const SHELL_BASE = {
   description: 'Fleet dashboard',
   criticalCSS: '',
   deferredCSSPath: '/css/studio.css',
   currentPath: '/admin/fleet'
+}
+
+function showLogin (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, error?: string): void {
+  const content = renderLoginForm(error)
+  const html = isFragmentRequest(req)
+    ? renderFragment(content)
+    : renderShell({ ...SHELL_BASE, title: 'Admin Login', mainContent: content })
+  sendHtml(res, html, 401)
 }
 
 function extractTokenFromCookie (cookieHeader: string | undefined): string | undefined {
@@ -30,7 +39,7 @@ function createFleetPageHandler (adminToken: string, mode: FleetPageMode): Route
     }
 
     if (authResult.isErr()) {
-      sendHtml(res, 'Unauthorized', 401)
+      showLogin(req, res)
       return
     }
 
