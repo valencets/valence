@@ -1,4 +1,4 @@
-import { GLASS_BOX_CONFIG, EXPLAINER_MAP } from '../config/glass-box-config.js'
+import { GLASS_BOX_CONFIG, EXPLAINER_MAP, OVERLAY_TYPE_COLORS } from '../config/glass-box-config.js'
 
 const IGNORED_TAGS: Record<string, boolean> = {
   INPUT: true,
@@ -159,19 +159,8 @@ export class GlassBoxInspector extends HTMLElement {
   }
 
   private _showOverlayLabels (): void {
-    const OVERLAY_MARGIN_PX = 24
     const LABEL_HEIGHT = 20
     const GAP = 4
-    const TYPE_COLORS: Record<string, string> = {
-      CLICK: 'hsl(215, 60%, 55%)',
-      SCROLL: 'hsl(280, 50%, 55%)',
-      VIEWPORT_INTERSECT: 'hsl(180, 50%, 45%)',
-      FORM_INPUT: 'hsl(45, 80%, 50%)',
-      INTENT_NAVIGATE: 'hsl(150, 50%, 45%)',
-      INTENT_CALL: 'hsl(340, 60%, 55%)',
-      INTENT_BOOK: 'hsl(25, 70%, 50%)',
-      INTENT_LEAD: 'hsl(100, 50%, 45%)'
-    }
 
     document.body.setAttribute('data-glass-box-active', '')
 
@@ -182,7 +171,7 @@ export class GlassBoxInspector extends HTMLElement {
       const el = target as HTMLElement
       this._savedMargins.set(target, el.style.marginTop)
       const current = parseFloat(getComputedStyle(el).marginTop) || 0
-      el.style.marginTop = `${current + OVERLAY_MARGIN_PX}px`
+      el.style.marginTop = `${current + GLASS_BOX_CONFIG.overlayMarginPx}px`
     }
 
     // Create labels and position after layout settles
@@ -193,7 +182,7 @@ export class GlassBoxInspector extends HTMLElement {
       const label = document.createElement('span')
       label.setAttribute('data-overlay-label', '')
       label.textContent = tgt
-      const borderColor = TYPE_COLORS[type] ?? 'hsl(215, 60%, 55%)'
+      const borderColor = OVERLAY_TYPE_COLORS[type] ?? 'hsl(215, 60%, 55%)'
       label.style.cssText = `position:absolute;z-index:10000;font-family:var(--font-mono,monospace);font-size:10px;background:hsl(215,60%,55%/0.85);color:white;padding:2px 6px;border-radius:3px;pointer-events:none;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;border-left:2px solid ${borderColor};`
 
       document.body.appendChild(label)

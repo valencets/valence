@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { GLASS_BOX_CONFIG, EXPLAINER_MAP } from '../config/glass-box-config.js'
+import { GLASS_BOX_CONFIG, EXPLAINER_MAP, OVERLAY_TYPE_COLORS } from '../config/glass-box-config.js'
 
 describe('GLASS_BOX_CONFIG', () => {
   it('has 400ms hover delay', () => {
@@ -17,11 +17,25 @@ describe('GLASS_BOX_CONFIG', () => {
   it('has 2s flush message duration', () => {
     expect(GLASS_BOX_CONFIG.flushMessageDurationMs).toBe(2000)
   })
+
+  it('has 24px overlay margin', () => {
+    expect(GLASS_BOX_CONFIG.overlayMarginPx).toBe(24)
+  })
+})
+
+describe('OVERLAY_TYPE_COLORS', () => {
+  it('has colors for all telemetry types including INTENT_LEAD', () => {
+    const types = ['CLICK', 'SCROLL', 'VIEWPORT_INTERSECT', 'FORM_INPUT', 'INTENT_NAVIGATE', 'INTENT_CALL', 'INTENT_BOOK', 'INTENT_LEAD']
+    for (const type of types) {
+      expect(OVERLAY_TYPE_COLORS[type]).toBeDefined()
+      expect(OVERLAY_TYPE_COLORS[type]).toMatch(/^hsl/)
+    }
+  })
 })
 
 describe('EXPLAINER_MAP', () => {
   it('has explainers for all intent types', () => {
-    const types = ['CLICK', 'SCROLL', 'VIEWPORT_INTERSECT', 'FORM_INPUT', 'INTENT_NAVIGATE', 'INTENT_CALL', 'INTENT_BOOK']
+    const types = ['CLICK', 'SCROLL', 'VIEWPORT_INTERSECT', 'FORM_INPUT', 'INTENT_NAVIGATE', 'INTENT_CALL', 'INTENT_BOOK', 'INTENT_LEAD']
     for (const type of types) {
       expect(EXPLAINER_MAP[type]).toBeDefined()
       expect(EXPLAINER_MAP[type]!.length).toBeGreaterThan(0)
