@@ -61,6 +61,21 @@ describe('validateTelemetryPayload', () => {
       expect(result.isOk()).toBe(true)
     })
 
+    it('accepts path and referrer fields', () => {
+      const result = validateTelemetryPayload([makeIntent({ path: '/about', referrer: 'https://google.com' })])
+      expect(result.isOk()).toBe(true)
+      const intent = result._unsafeUnwrap()[0]
+      expect(intent?.path).toBe('/about')
+      expect(intent?.referrer).toBe('https://google.com')
+    })
+
+    it('accepts intents without path and referrer (backward compat)', () => {
+      const result = validateTelemetryPayload([makeIntent()])
+      expect(result.isOk()).toBe(true)
+      const intent = result._unsafeUnwrap()[0]
+      expect(intent).not.toHaveProperty('path')
+    })
+
     it('validates schema_version field as literal 1', () => {
       const result = validateTelemetryPayload([makeIntent()])
       expect(result.isOk()).toBe(true)
