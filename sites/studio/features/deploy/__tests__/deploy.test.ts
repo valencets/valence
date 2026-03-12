@@ -15,15 +15,14 @@ describe('deployment files', () => {
   it('provision.sh has version-locked installs', () => {
     const content = readFileSync(resolve(DEPLOY_DIR, 'provision.sh'), 'utf-8')
     expect(content).toContain('NODE_MAJOR=')
-    expect(content).toContain('POSTGRES_VERSION=')
     expect(content).toContain('CADDY_VERSION=')
-    expect(content).toContain('CLOUDFLARED_VERSION=')
+    expect(content).toContain('wireguard-tools')
   })
 
   it('systemd service exists with correct ExecStart', () => {
     const content = readFileSync(resolve(DEPLOY_DIR, 'inertia-studio.service'), 'utf-8')
     expect(content).toContain('ExecStart=')
-    expect(content).toContain('server/entry.ts')
+    expect(content).toContain('dist/server/entry.js')
     expect(content).toContain('Restart=on-failure')
   })
 
@@ -38,11 +37,5 @@ describe('deployment files', () => {
     const content = readFileSync(resolve(DEPLOY_DIR, 'Caddyfile'), 'utf-8')
     expect(content).toContain('localhost:5173')
     expect(content).toContain(':8443')
-  })
-
-  it('cloudflared config routes to localhost:5173', () => {
-    const content = readFileSync(resolve(DEPLOY_DIR, 'cloudflared-config.yml'), 'utf-8')
-    expect(content).toContain('http://localhost:5173')
-    expect(content).toContain('inertiawebsolutions.com')
   })
 })
