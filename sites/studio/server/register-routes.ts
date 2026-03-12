@@ -14,9 +14,13 @@ import { createFleetOverviewHandler, createFleetCompareHandler } from '../featur
 import { fleetSitesHandler, fleetComparisonHandler } from '../features/admin/server/fleet-routes.js'
 import { aggregationHandler } from '../features/admin/server/aggregation-handler.js'
 import { loadConfig } from './config.js'
+import { sendHtml } from './router.js'
 
 export function registerRoutes (router: Router): void {
   const config = loadConfig()
+
+  // Infrastructure
+  router.register('/health', { GET: (_req, res) => sendHtml(res, 'OK') })
 
   // Content pages
   router.register('/', { GET: homeHandler })
