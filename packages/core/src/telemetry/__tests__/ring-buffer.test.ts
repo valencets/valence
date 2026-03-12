@@ -38,7 +38,10 @@ describe('TelemetryRingBuffer', () => {
       if (result.isOk()) {
         const buf = result.value
         for (let i = 0; i < 8; i++) {
-          expect(buf.slotAt(i)!.isDirty).toBe(false)
+          const slot = buf.slotAt(i)!
+          expect(slot.isDirty).toBe(false)
+          expect(slot.site_id).toBe('')
+          expect(slot.business_type).toBe('other')
         }
       }
     })
@@ -275,6 +278,12 @@ describe('TelemetryRingBuffer', () => {
       if (result.isOk()) {
         const buf = result.value
         buf.write(IntentType.CLICK, 'target', 10, 20, 1000)
+
+        // Mutate site_id and business_type to test reset
+        const slotBeforeFlush = buf.slotAt(0)!
+        slotBeforeFlush.site_id = 'test-site'
+        slotBeforeFlush.business_type = 'barbershop'
+
         buf.markFlushed(1)
 
         const slot = buf.slotAt(0)!
@@ -282,6 +291,8 @@ describe('TelemetryRingBuffer', () => {
         expect(slot.targetDOMNode).toBe('')
         expect(slot.isDirty).toBe(false)
         expect(slot.timestamp).toBe(0)
+        expect(slot.site_id).toBe('')
+        expect(slot.business_type).toBe('other')
       }
     })
 
