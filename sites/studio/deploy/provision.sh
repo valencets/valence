@@ -10,7 +10,6 @@ echo ""
 
 # ----- Version locks -----
 NODE_MAJOR=22
-POSTGRES_VERSION=16
 CADDY_VERSION="2.8.4"
 
 # ----- 1. System packages -----
@@ -36,10 +35,14 @@ node --version
 npm install -g pnpm@latest
 
 # ----- 3. PostgreSQL -----
-echo "[3/7] Installing PostgreSQL ${POSTGRES_VERSION}..."
+echo "[3/7] Installing PostgreSQL..."
 if ! command -v psql &>/dev/null; then
-  apt-get install -y -qq "postgresql-${POSTGRES_VERSION}" "postgresql-contrib-${POSTGRES_VERSION}"
+  apt-get install -y -qq postgresql postgresql-contrib
 fi
+
+# Dynamically detect installed version for config paths
+POSTGRES_VERSION=$(ls /etc/postgresql/ | head -1)
+
 systemctl enable postgresql
 systemctl start postgresql
 
