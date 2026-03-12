@@ -58,6 +58,14 @@ describe('classifyReferrer', () => {
   it('handles full URLs', () => {
     expect(classifyReferrer('https://www.google.com/search?q=test')).toBe('Search')
   })
+
+  it('returns Direct for undefined input (JSONB gap)', () => {
+    expect(classifyReferrer(undefined as unknown as string)).toBe('Direct')
+  })
+
+  it('returns Direct for null input (JSONB gap)', () => {
+    expect(classifyReferrer(null as unknown as string)).toBe('Direct')
+  })
 })
 
 describe('aggregateByCategory', () => {
