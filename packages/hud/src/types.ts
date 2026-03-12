@@ -67,3 +67,19 @@ export interface IngestionHealth {
 }
 
 export type ReferrerCategory = 'Search' | 'Direct' | 'Social' | 'Referral' | 'Paid' | 'Other'
+
+export interface TopPagesData {
+  readonly pages: ReadonlyArray<{ readonly path: string; readonly count: number }>
+}
+
+export interface TrafficSourcesData {
+  readonly sources: ReadonlyArray<{
+    readonly category: ReferrerCategory
+    readonly count: number
+    readonly percent: number
+  }>
+}
+
+export interface LeadActionsData {
+  readonly actions: ReadonlyArray<{ readonly action: string; readonly count: number }>
+}
