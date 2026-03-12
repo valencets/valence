@@ -13,7 +13,7 @@ export const servicesHandler: RouteHandler = async (req, res) => {
 
   const html = renderShell({
     title: 'Services',
-    description: 'Web development services from Inertia — build & deploy, managed webmaster, and analytics & conversion packages.',
+    description: 'Project-based web development from Inertia — custom websites on dedicated server appliances with self-hosted analytics included in every build.',
     criticalCSS: '',
     deferredCSSPath: '/css/studio.css',
     mainContent,

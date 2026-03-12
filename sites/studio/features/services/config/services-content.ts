@@ -5,43 +5,48 @@ export const APPLIANCE_MODEL = {
 
 export const SERVICE_TIERS = [
   {
-    id: 'build-deploy',
-    name: 'Build & Deploy',
-    description: 'We design and build your website using the Inertia framework, install it on a dedicated server appliance, and deliver the hardware. You own everything.',
+    id: 'build-own',
+    name: 'Build, Deploy & Own',
+    estimate: '~$3,500 – $4,800 one-time',
+    description: 'We design and build your website on the Inertia framework, install it on a dedicated server appliance, and deliver the hardware to your business. You own everything.',
     includes: [
       'Custom website built on Inertia framework',
       'Dedicated server appliance hardware',
-      'PostgreSQL database, self-hosted',
-      'Secure tunnel to disposable relay (~$5/mo)',
-      'First-party analytics dashboard',
+      'First-party analytics dashboard (HUD)',
+      'Custom telemetry event definitions',
+      'Conversion funnel tracking',
+      'Dynamic Number Insertion (DNI) for call tracking',
+      'Cookieless attribution',
+      'Verified digital promo codes for walk-in tracking',
+      'Private PostgreSQL analytics ledger on your hardware',
       'Source code handover',
       '30-day post-launch support'
     ]
   },
   {
-    id: 'managed',
-    name: 'Managed Webmaster',
-    description: 'Everything in Build & Deploy, plus ongoing content updates, monitoring, and quarterly performance reviews.',
+    id: 'infrastructure',
+    name: 'The Infrastructure Pipe',
+    estimate: '~$49 – $79/mo',
+    description: 'The internet doorway: a managed network relay so visitors can reach your server. Cancel anytime — you keep the hardware, the data, and the code. You just manage your own network routing.',
     includes: [
-      'Everything in Build & Deploy',
-      'Monthly content updates (up to 4 pages)',
-      'Uptime monitoring and alerts',
-      'Security patches and OS updates',
-      'Quarterly performance report',
-      'Priority support via email'
+      'Disposable VPS relay (~$5/mo actual cost, we manage it)',
+      'SSL certificate management',
+      'Automated OS and security patching',
+      'Domain DNS management',
+      'Uptime monitoring and alerts'
     ]
   },
   {
-    id: 'analytics',
-    name: 'Analytics & Conversion',
-    description: 'Deep-dive analytics setup with conversion tracking, custom event telemetry, and actionable reporting.',
+    id: 'managed',
+    name: 'Managed Webmaster',
+    estimate: '~$199 – $299/mo',
+    description: 'Everything in The Infrastructure Pipe, plus ongoing content updates, performance tuning, and quarterly analytics reviews. Your website stays current without you thinking about it.',
     includes: [
-      'Custom telemetry event definitions',
-      'Conversion funnel tracking',
-      'Dynamic Number Insertion (DNI) for call tracking',
-      'HUD dashboard customization',
-      'Monthly analytics review',
-      'A/B test infrastructure'
+      'Everything in The Infrastructure Pipe',
+      'Monthly content updates',
+      'Security patches and dependency updates',
+      'Quarterly analytics review',
+      'Priority support via email'
     ]
   }
 ] as const
@@ -50,9 +55,9 @@ export const OWNERSHIP_LIST = [
   'You own the server hardware',
   'You own the database and all customer data',
   'You own the source code',
-  'You own the analytics data',
+  'You own the analytics — every visitor interaction stored on your hardware, viewable in your private dashboard. No Google. No Adobe. No third-party tracking. Ever.',
   'You own the domain and DNS',
-  'No monthly hosting fees',
+  'No monthly hosting fees beyond the relay',
   'No vendor lock-in',
   'Full data portability'
 ] as const

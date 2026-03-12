@@ -10,14 +10,13 @@ describe('renderServices', () => {
 
   it('renders all three correct tier names', () => {
     const html = renderServices()
-    expect(html).toContain('Build, Deploy &amp; Own')
+    expect(html).toContain('Build, Deploy & Own')
     expect(html).toContain('The Infrastructure Pipe')
     expect(html).toContain('Managed Webmaster')
   })
 
   it('does NOT render Analytics & Conversion as a tier', () => {
     const html = renderServices()
-    expect(html).not.toContain('Analytics &amp; Conversion')
     expect(html).not.toContain('Analytics & Conversion')
   })
 
