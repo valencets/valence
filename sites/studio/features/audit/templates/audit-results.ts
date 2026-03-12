@@ -16,7 +16,8 @@ export function renderAuditResults (result: LighthouseResult): string {
 
   const scoreCards = scores.map((s) => `
     <div class="card" style="text-align: center;">
-      <hud-metric label="${s.label}" value="${s.value}" max="100" style="--metric-color: ${scoreColor(s.value)}"></hud-metric>
+      <div style="font-size: 2.5rem; font-weight: 700; color: ${scoreColor(s.value)}; line-height: 1;">${s.value}</div>
+      <div style="font-size: 0.875rem; color: var(--muted-foreground); margin-top: 0.25rem;">${s.label}</div>
     </div>`).join('')
 
   const metricRows = result.metrics.map((m) => `
@@ -24,7 +25,9 @@ export function renderAuditResults (result: LighthouseResult): string {
       <td>${m.title}</td>
       <td style="font-variant-numeric: tabular-nums;">${m.displayValue}</td>
       <td>
-        <hud-bar value="${Math.min(m.numericValue, 10000)}" max="10000" style="width: 120px;"></hud-bar>
+        <div style="width: 120px; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+          <div style="width: ${Math.min(m.numericValue / 10000 * 100, 100)}%; height: 100%; background: var(--primary); border-radius: 4px;"></div>
+        </div>
       </td>
     </tr>`).join('')
 
