@@ -12,5 +12,8 @@
   "dependencies": {
     "neverthrow": "^8.2.0",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0"
   }
 }
