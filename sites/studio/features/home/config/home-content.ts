@@ -43,7 +43,7 @@ export const ELIMINATES = [
 
 export const OWNERSHIP = {
   headline: 'Total Ownership',
-  body: 'When we hand you a Pi, you own your entire stack. The server hardware. The database. The analytics. The code. No subscriptions. No vendor dependencies. If we got hit by a bus tomorrow, your website keeps running.',
+  body: 'When we deliver your server, you own your entire stack. The hardware. The database. The analytics. The code. No vendor dependencies. If we got hit by a bus tomorrow, your website keeps running.',
   proof: [
     { metric: '<14kB', label: 'First paint payload' },
     { metric: '0', label: 'Third-party scripts' },
