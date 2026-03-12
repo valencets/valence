@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { aggregateSessionSummary, aggregateEventSummary, aggregateConversionSummary } from '../aggregation.js'
+import { DbErrorCode } from '../types.js'
 import type { DbPool } from '../connection.js'
 import type { SummaryPeriod } from '../summary-types.js'
 
@@ -39,10 +40,11 @@ describe('aggregateSessionSummary', () => {
     expect(typeof result.andThen).toBe('function')
   })
 
-  it('returns error on empty result', async () => {
+  it('returns error on empty result with NO_ROWS code', async () => {
     const pool = makeMockPool([])
     const result = await aggregateSessionSummary(pool, period)
     expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().code).toBe(DbErrorCode.NO_ROWS)
   })
 
   it('returns error on database failure', async () => {
