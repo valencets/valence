@@ -30,9 +30,7 @@ export function renderAbout (): string {
 
 <section class="section container" data-telemetry-type="VIEWPORT_INTERSECT" data-telemetry-target="proof-section">
   <h2>${ABOUT.proof.headline}</h2>
-  <ul class="proof-list">
-    ${proofItems}
-  </ul>
+  <ul>${proofItems}</ul>
 </section>
 
 <section class="section container" data-telemetry-type="VIEWPORT_INTERSECT" data-telemetry-target="hardware-section">
@@ -59,7 +57,7 @@ export function renderAbout (): string {
 
     <div class="form-group">
       <label for="business" class="form-label">Business Name</label>
-      <input type="text" id="business" name="business" class="form-input" autocomplete="organization">
+      <input type="text" id="business" name="business" class="form-input">
     </div>
 
     <div class="form-group">
@@ -79,7 +77,7 @@ export function renderAbout (): string {
   </form>
 
   <div class="contact-info">
-    <span>Prefer to talk? Reach out directly.</span>
+    <span>Reach out directly.</span>
     <a href="tel:+19728157910" data-telemetry-type="INTENT_CALL" data-telemetry-target="contact-phone">972-815-7910</a>
     <a href="mailto:mail@forrestblade.com" data-telemetry-type="INTENT_LEAD" data-telemetry-target="contact-email">mail@forrestblade.com</a>
   </div>

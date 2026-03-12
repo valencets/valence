@@ -127,6 +127,7 @@ nav {
   display: flex;
   align-items: center;
   gap: ${SPACING.scale[6]};
+  overflow-x: auto;
 }
 @media (min-width: 768px) {
   .nav-inner { padding-inline: ${SPACING.grid.gutter}; }
@@ -142,6 +143,7 @@ nav {
   margin-right: auto;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 .nav-mark { display: block; width: 24px; height: 24px; }
 nav a {
@@ -149,6 +151,7 @@ nav a {
   text-decoration: none;
   font-size: ${TYPOGRAPHY.scale.sm};
   transition: color 0.15s;
+  white-space: nowrap;
 }
 nav a:hover, nav a.nav-active {
   color: var(--foreground);
