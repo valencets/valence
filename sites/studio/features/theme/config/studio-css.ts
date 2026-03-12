@@ -176,10 +176,9 @@ footer {
 }
 .footer-hardware a {
   color: var(--primary);
-  text-decoration: none;
+  text-decoration: underline;
   margin-left: ${SPACING.scale[2]};
 }
-.footer-hardware a:hover { text-decoration: underline; }
 
 /* Hero */
 .hero {
