@@ -10,6 +10,7 @@ import { applySecurityHeaders, tryServeStatic } from './middleware.js'
 import { registerRoutes } from './register-routes.js'
 import { getStudioCSS } from '../features/theme/config/studio-css.js'
 import { bundleClientJS, bundleAdminJS } from '../features/client/bundle-client.js'
+import { createCriticalCSSPipeline } from '../features/budget/critical-css-pipeline.js'
 import { startAggregationCron } from '../features/admin/server/aggregation-cron.js'
 import { seedDemoSummaries } from '@inertia/db/seed'
 
@@ -68,9 +69,13 @@ async function boot (): Promise<void> {
   await bundleAdminJS(studioRoot)
   console.log('Generated public/js/admin.js')
 
+  // Build critical CSS pipeline
+  const cssPipeline = createCriticalCSSPipeline()
+  console.log('Critical CSS pipeline cached')
+
   // Build router
   const router = createServerRouter<RouteContext>()
-  const ctx: RouteContext = { pool, config }
+  const ctx: RouteContext = { pool, config, cssPipeline }
 
   registerRoutes(router)
 

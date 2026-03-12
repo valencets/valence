@@ -1,5 +1,6 @@
 import type { DbPool } from '@inertia/db'
 import type { RouteHandler as CoreRouteHandler } from '@inertia/core/server'
+import type { CriticalCSSCache } from '../features/budget/critical-css-pipeline.js'
 
 export interface ServerConfig {
   readonly port: number
@@ -25,6 +26,7 @@ export interface ServerConfig {
 export interface RouteContext {
   readonly pool: DbPool
   readonly config: ServerConfig
+  readonly cssPipeline: CriticalCSSCache
 }
 
 // Bound RouteHandler for Studio — all handlers import this

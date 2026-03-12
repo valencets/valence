@@ -8,7 +8,7 @@ import { renderAbout } from '../about/templates/about.js'
 import { renderContactForm } from '../contact/templates/contact.js'
 import { getStudioCSS } from '../theme/config/studio-css.js'
 
-interface CriticalCSSCache {
+export interface CriticalCSSCache {
   getCriticalCSS: (route: string) => string | undefined
   getDeferredCSS: (route: string) => string | undefined
 }
