@@ -258,6 +258,50 @@ describe('ClientDashboard data fetching', () => {
   })
 })
 
+describe('ClientDashboard site param', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  it('passes site query param to fetch calls', async () => {
+    // Simulate ?site=site_acme in the URL
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, search: '?site=site_acme', pathname: '/admin/hud' },
+      writable: true,
+      configurable: true
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify({}))
+    )
+    attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(c => String(c[0]))
+    expect(calls.some(u => u.includes('site=site_acme'))).toBe(true)
+    // Reset location
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, search: '', pathname: '/' },
+      writable: true,
+      configurable: true
+    })
+  })
+
+  it('does not add site param when no site in URL', async () => {
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, search: '', pathname: '/admin/hud' },
+      writable: true,
+      configurable: true
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify({}))
+    )
+    attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(c => String(c[0]))
+    expect(calls.some(u => u.includes('site='))).toBe(false)
+  })
+})
+
 describe('ClientDashboard breakdown wiring', () => {
   afterEach(() => {
     document.body.innerHTML = ''
