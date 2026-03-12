@@ -33,6 +33,10 @@ export interface ServerConfig {
   }
   readonly adminToken: string
   readonly contactEmail: string
+  readonly siteId: string
+  readonly businessType: string
+  readonly siteSecret: string
+  readonly studioEndpoint: string
 }
 
 export interface RouteContext {

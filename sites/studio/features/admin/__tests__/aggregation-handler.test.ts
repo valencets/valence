@@ -11,14 +11,24 @@ function mockReq (body: string, signature?: string): IncomingMessage {
   if (signature !== undefined) {
     headers['x-inertia-signature'] = signature
   }
-  return {
+
+  const listeners: Record<string, Array<(...args: unknown[]) => void>> = {}
+  const req = {
     headers,
-    on: vi.fn((event: string, cb: (data?: unknown) => void) => {
-      if (event === 'data') cb(body)
-      if (event === 'end') cb()
-      return mockReq(body, signature)
-    })
+    on (event: string, cb: (...args: unknown[]) => void) {
+      if (!listeners[event]) listeners[event] = []
+      listeners[event]?.push(cb)
+      return req
+    }
   } as unknown as IncomingMessage
+
+  // Emit data + end asynchronously to simulate stream
+  queueMicrotask(() => {
+    for (const cb of listeners['data'] ?? []) cb(Buffer.from(body))
+    for (const cb of listeners['end'] ?? []) cb()
+  })
+
+  return req
 }
 
 function mockRes (): { writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; body: () => unknown; statusCode: () => number } {
@@ -58,7 +68,6 @@ describe('aggregationHandler', () => {
       rejection_count: 5
     })
 
-    // Import signPayload to generate valid signature
     const { signPayload } = await import('@inertia/ingestion')
     const sig = signPayload('test-secret', body)
 

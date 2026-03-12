@@ -15,6 +15,10 @@ export function loadConfig (): ServerConfig {
       connect_timeout: 10
     },
     adminToken: process.env['ADMIN_TOKEN'] ?? '',
-    contactEmail: 'mail@forrestblade.com'
+    contactEmail: 'mail@forrestblade.com',
+    siteId: process.env['SITE_ID'] ?? 'studio',
+    businessType: process.env['BUSINESS_TYPE'] ?? 'studio',
+    siteSecret: process.env['SITE_SECRET'] ?? '',
+    studioEndpoint: process.env['STUDIO_ENDPOINT'] ?? ''
   }
 }
