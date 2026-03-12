@@ -3,9 +3,10 @@ import { ok, err } from 'neverthrow'
 import type { Result } from 'neverthrow'
 
 export const SUBJECTS = [
-  'Build & Deploy',
+  'Build & Own',
+  'Infrastructure Pipe',
   'Managed Webmaster',
-  'Analytics & Conversion',
+  'Free Audit',
   'General Inquiry'
 ] as const
 
