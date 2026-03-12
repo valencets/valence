@@ -9,7 +9,7 @@ export function extractTokenFromCookie (cookieHeader: string | undefined): strin
 }
 
 export function authenticateRequest (
-  headers: { readonly authorization: string | undefined; readonly cookie: string | undefined },
+  headers: { readonly authorization?: string | undefined; readonly cookie?: string | undefined },
   adminToken: string
 ): Result<true, AuthError> {
   const headerResult = checkAuth(headers.authorization, adminToken)
