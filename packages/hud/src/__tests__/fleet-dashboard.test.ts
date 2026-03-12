@@ -69,6 +69,84 @@ describe('FleetDashboard', () => {
   })
 })
 
+describe('FleetDashboard aggregate panels', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  it('contains 5 hud-panels for all metrics', () => {
+    const el = attach(createElement())
+    const panels = el.querySelectorAll('hud-panel')
+    expect(panels.length).toBe(5)
+  })
+
+  it('has a Sessions panel', () => {
+    const el = attach(createElement())
+    const panels = el.querySelectorAll('hud-panel')
+    const labels = Array.from(panels).map(p => p.getAttribute('label'))
+    expect(labels).toContain('Sessions')
+  })
+
+  it('has a Conversions panel', () => {
+    const el = attach(createElement())
+    const panels = el.querySelectorAll('hud-panel')
+    const labels = Array.from(panels).map(p => p.getAttribute('label'))
+    expect(labels).toContain('Conversions')
+  })
+})
+
+describe('FleetDashboard drill-down', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  it('navigates to /admin/hud?site=slug on table row click', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/fleet/sites')) {
+        return new Response(JSON.stringify([
+          {
+            site_id: 'site_acme',
+            business_type: 'barbershop',
+            date: '2026-03-10',
+            session_count: 247,
+            pageview_count: 1200,
+            conversion_count: 45,
+            status: 'healthy',
+            last_synced: '2026-03-10T12:00:00Z'
+          }
+        ]))
+      }
+      if (url.includes('/api/fleet/aggregates')) {
+        return new Response(JSON.stringify({
+          total_sites: 1,
+          total_sessions: 247,
+          total_conversions: 45
+        }))
+      }
+      return new Response('[]')
+    })
+
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const table = el.querySelector('hud-table')
+    const row = table?.querySelector('tbody tr')
+    expect(row).not.toBeNull()
+
+    // Mock pushState
+    const pushStateSpy = vi.spyOn(window.history, 'pushState').mockImplementation(() => {})
+    row?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(pushStateSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      '',
+      expect.stringContaining('/admin/hud?site=')
+    )
+  })
+})
+
 describe('FleetDashboard data fetching', () => {
   afterEach(() => {
     document.body.innerHTML = ''
