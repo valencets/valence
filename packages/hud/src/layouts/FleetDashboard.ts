@@ -14,7 +14,7 @@ export class FleetDashboard extends HTMLElement {
     this.style.backgroundColor = HUD_COLORS.bg
     this.style.color = HUD_COLORS.textPrimary
     this.style.fontFamily = HUD_TYPOGRAPHY.fontPrimary
-    this.style.padding = `${HUD_SPACING.md} 0` // Only vertical padding, container handles horizontal
+    this.style.padding = HUD_SPACING.lg
 
     // Summary grid — 3 metric panels
     const grid = document.createElement('div')
