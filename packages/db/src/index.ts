@@ -26,3 +26,5 @@ export type {
   TopReferrerEntry,
   TopPageEntry
 } from './daily-summary-types.js'
+export { generateDailySummary } from './daily-summary-aggregation.js'
+export { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote } from './daily-summary-queries.js'
