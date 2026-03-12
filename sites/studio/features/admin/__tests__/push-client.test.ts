@@ -29,49 +29,61 @@ const pushConfig = {
   siteSecret: 'test-secret-key'
 }
 
+let lastFetchUrl: string | undefined
+let lastFetchOpts: RequestInit | undefined
+
+function mockFetchSuccess (): ReturnType<typeof vi.fn> {
+  lastFetchUrl = undefined
+  lastFetchOpts = undefined
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    lastFetchUrl = String(input)
+    lastFetchOpts = init
+    return new Response('{"ok":true}', { status: 200 })
+  })
+}
+
 describe('pushDailySummary', () => {
   it('is a function', () => {
     expect(typeof pushDailySummary).toBe('function')
   })
 
   it('returns a ResultAsync', () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"ok":true}', { status: 200 }))
+    mockFetchSuccess()
     const result = pushDailySummary(pushConfig, mockRow)
     expect(typeof result.andThen).toBe('function')
   })
 
   it('sends POST with X-Inertia-Signature header', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"ok":true}', { status: 200 }))
+    mockFetchSuccess()
     await pushDailySummary(pushConfig, mockRow)
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-    const call = fetchSpy.mock.calls[0]
-    const url = call?.[0]
-    const opts = call?.[1] as RequestInit
-    expect(url).toBe('https://studio.example.com/api/aggregation')
-    expect(opts.method).toBe('POST')
-    expect((opts.headers as Record<string, string>)['X-Inertia-Signature']).toBeDefined()
-    expect((opts.headers as Record<string, string>)['Content-Type']).toBe('application/json')
+    expect(lastFetchUrl).toBe('https://studio.example.com/api/aggregation')
+    expect(lastFetchOpts?.method).toBe('POST')
+    const headers = lastFetchOpts?.headers as Record<string, string>
+    expect(headers['X-Inertia-Signature']).toBeDefined()
+    expect(headers['Content-Type']).toBe('application/json')
   })
 
   it('returns Ok on successful push', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"ok":true}', { status: 200 }))
+    mockFetchSuccess()
     const result = await pushDailySummary(pushConfig, mockRow)
     expect(result.isOk()).toBe(true)
   })
 
   it('returns Err on network failure', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      throw new Error('Network error')
+    })
     const result = await pushDailySummary(pushConfig, mockRow)
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr().code).toBe('PUSH_FAILED')
   })
 
   it('serializes DailySummaryRow to payload with ISO date', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"ok":true}', { status: 200 }))
+    mockFetchSuccess()
     await pushDailySummary(pushConfig, mockRow)
 
-    const body = fetchSpy.mock.calls[0]?.[1]?.body as string
+    const body = lastFetchOpts?.body as string
     const parsed = JSON.parse(body) as Record<string, unknown>
     expect(typeof parsed.date).toBe('string')
     expect(parsed.site_id).toBe('site_acme')
