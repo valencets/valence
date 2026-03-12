@@ -119,6 +119,20 @@ describe('HudTable', () => {
     expect(typeof (el as unknown as { connectedMoveCallback: unknown }).connectedMoveCallback).toBe('function')
   })
 
+  it('mutates DOM in-place on rows update without re-creating elements', () => {
+    const el = attach(createElement({ columns: COLS, rows: ROWS }))
+    const firstRowBefore = el.querySelector('tbody tr')
+    expect(firstRowBefore).not.toBeNull()
+
+    // Update rows with new data
+    const newRows = JSON.stringify([{ path: '/updated', count: 999 }])
+    el.setAttribute('rows', newRows)
+
+    const firstRowAfter = el.querySelector('tbody tr')
+    // The TR element instance must be exactly the same (mutated in place)
+    expect(firstRowAfter).toBe(firstRowBefore)
+  })
+
   it('handles empty columns gracefully', () => {
     const el = attach(createElement())
     expect(el.querySelectorAll('th').length).toBe(0)
