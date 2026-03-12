@@ -50,8 +50,12 @@ export function initPrefetch (
 
     inFlight.add(url)
 
+    const fetchPromise = config.enableFragmentProtocol
+      ? fetchFn(url, { headers: { 'X-Inertia-Fragment': '1' } })
+      : fetchFn(url)
+
     return ResultAsync.fromPromise(
-      fetchFn(url),
+      fetchPromise,
       (): RouterError => ({
         code: RouterErrorCode.PREFETCH_FAILED,
         message: `Prefetch failed for ${url}`

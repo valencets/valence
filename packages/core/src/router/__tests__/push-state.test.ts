@@ -5,11 +5,11 @@ import {
 } from '../push-state.js'
 import type { RouterHandle } from '../push-state.js'
 
-function createMockFetch (html: string): typeof fetch {
+function createMockFetch (html: string, extraHeaders?: Record<string, string>): typeof fetch {
   return vi.fn<typeof fetch>().mockImplementation(() =>
     Promise.resolve(new Response(html, {
       status: 200,
-      headers: { 'Content-Type': 'text/html' }
+      headers: { 'Content-Type': 'text/html', ...extraHeaders }
     }))
   )
 }
@@ -325,7 +325,7 @@ describe('initRouter', () => {
 
     await new Promise(resolve => { setTimeout(resolve, 50) })
 
-    expect(mockFetch).toHaveBeenCalledWith('/previous')
+    expect(mockFetch).toHaveBeenCalledWith('/previous', expect.anything())
     expect(document.querySelector('main p')?.textContent).toBe('Previous page')
   })
 
@@ -444,6 +444,63 @@ describe('initRouter', () => {
     await new Promise(resolve => { setTimeout(resolve, 50) })
 
     expect(contentDuringBeforeSwap).toBe('Old content')
+  })
+
+  it('sends X-Inertia-Fragment header on navigation', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Frag</title></head><body><main><p>Fragment</p></main></body></html>')
+
+    const result = initRouter({ enableFragmentProtocol: true }, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/frag')
+
+    expect(mockFetch).toHaveBeenCalledWith('/frag', expect.objectContaining({
+      headers: expect.objectContaining({ 'X-Inertia-Fragment': '1' })
+    }))
+  })
+
+  it('does not send fragment header when protocol disabled', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Full</title></head><body><main><p>Full</p></main></body></html>')
+
+    const result = initRouter({ enableFragmentProtocol: false }, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/full')
+
+    expect(mockFetch).toHaveBeenCalledWith('/full')
+  })
+
+  it('inertia:navigated event includes performance metadata', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Perf</title></head><body><main><p>Perf</p></main></body></html>')
+    let eventDetail: unknown = null
+
+    document.addEventListener('inertia:navigated', ((e: CustomEvent) => {
+      eventDetail = e.detail
+    }) as EventListener, { once: true })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/perf')
+
+    expect(eventDetail).toBeDefined()
+    const detail = eventDetail as { source: string; durationMs: number; fromUrl: string; toUrl: string }
+    expect(detail.source).toBe('network')
+    expect(typeof detail.durationMs).toBe('number')
+    expect(detail.durationMs).toBeGreaterThanOrEqual(0)
+    expect(detail.toUrl).toBe('/perf')
   })
 
   it('navigation scrolls to top', async () => {

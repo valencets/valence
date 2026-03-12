@@ -127,6 +127,28 @@ describe('prefetchUrl', () => {
     }
   })
 
+  it('sends X-Inertia-Fragment header when fragment protocol enabled', async () => {
+    const fragmentConfig = resolveConfig({ enableFragmentProtocol: true })
+    const mockFetch = createMockFetch('<p>Fragment</p>')
+    const result = initPrefetch(fragmentConfig, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    await handle!.prefetchUrl('/frag')
+    expect(mockFetch).toHaveBeenCalledWith('/frag', expect.objectContaining({
+      headers: expect.objectContaining({ 'X-Inertia-Fragment': '1' })
+    }))
+  })
+
+  it('does not send fragment header when protocol disabled', async () => {
+    const noFragConfig = resolveConfig({ enableFragmentProtocol: false })
+    const mockFetch = createMockFetch('<main>Full</main>')
+    const result = initPrefetch(noFragConfig, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    await handle!.prefetchUrl('/full')
+    expect(mockFetch).toHaveBeenCalledWith('/full')
+  })
+
   it('returns Err on network failure', async () => {
     const mockFetch = createFailingFetch()
     const result = initPrefetch(config, mockFetch)
@@ -297,7 +319,7 @@ describe('hover intent', () => {
 
     // Wait for fetch to complete
     await new Promise(resolve => { setTimeout(resolve, 50) })
-    expect(mockFetch).toHaveBeenCalledWith('/target')
+    expect(mockFetch).toHaveBeenCalledWith('/target', expect.anything())
   })
 
   it('fast mouse movement does not trigger prefetch', async () => {
