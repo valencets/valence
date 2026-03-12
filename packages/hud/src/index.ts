@@ -31,6 +31,8 @@ export { HudPanel } from './components/HudPanel.js'
 // Layouts
 export { ClientDashboard } from './layouts/ClientDashboard.js'
 export { DiagnosticDashboard } from './layouts/DiagnosticDashboard.js'
+export { FleetDashboard } from './layouts/FleetDashboard.js'
+export { FleetComparison } from './layouts/FleetComparison.js'
 
 // Data utilities
 export { formatDelta } from './data/format-delta.js'
