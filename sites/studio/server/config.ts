@@ -17,7 +17,7 @@ export function loadConfig (): ServerConfig {
     adminToken: process.env['ADMIN_TOKEN'] ?? '',
     contactEmail: 'mail@forrestblade.com',
     siteId: process.env['SITE_ID'] ?? 'studio',
-    businessType: process.env['BUSINESS_TYPE'] ?? 'studio',
+    businessType: process.env['BUSINESS_TYPE'] ?? 'other',
     siteSecret: process.env['SITE_SECRET'] ?? '',
     studioEndpoint: process.env['STUDIO_ENDPOINT'] ?? ''
   }

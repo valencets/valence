@@ -20,7 +20,7 @@ const dbConfig: DbConfig = {
 }
 
 const siteId = process.env['SITE_ID'] ?? 'studio'
-const businessType = process.env['BUSINESS_TYPE'] ?? 'studio'
+const businessType = process.env['BUSINESS_TYPE'] ?? 'other'
 const siteSecret = process.env['SITE_SECRET'] ?? ''
 const studioEndpoint = process.env['STUDIO_ENDPOINT'] ?? ''
 
