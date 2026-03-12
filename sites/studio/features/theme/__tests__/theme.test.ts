@@ -62,6 +62,13 @@ describe('SPACING', () => {
 })
 
 describe('getResolvedTheme', () => {
+  it('loads base theme data successfully', () => {
+    // This will trigger the import in studio-css.js
+    const resolved = getResolvedTheme()
+    expect(resolved).toBeDefined()
+    expect(resolved.colors).toBeDefined()
+  })
+
   it('returns a full ThemeConfig', () => {
     const resolved = getResolvedTheme()
     expect(resolved.colors.dark.background).toContain('hsl')

@@ -11,7 +11,6 @@ describe('deployment files', () => {
     const content = readFileSync(path, 'utf-8')
     expect(content.startsWith('#!/usr/bin/env bash')).toBe(true)
   })
-
   it('provision.sh has version-locked installs', () => {
     const content = readFileSync(resolve(DEPLOY_DIR, 'provision.sh'), 'utf-8')
     expect(content).toContain('NODE_MAJOR=')
