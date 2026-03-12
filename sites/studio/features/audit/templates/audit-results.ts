@@ -54,11 +54,12 @@ export function renderAuditResults (result: LighthouseResult): string {
   </table>
 </section>
 
-<section class="section container cta-section">
-  <h2>Want scores like this — or better?</h2>
+<section class="section container audit-cta">
+  <h3>${result.scores.performance < 90 ? 'Your site is leaving money on the table.' : 'Want these numbers to be perfect?'}</h3>
+  <p>${result.scores.performance < 90 ? "Let's fix that." : "We build sites that score 100 across the board. Let's talk about what yours could look like."}</p>
   <div style="display: flex; gap: 1rem; justify-content: center;">
     <a href="/audit" class="btn btn-secondary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="audit-run-another">Run Another Audit</a>
-    <a href="/about#contact" class="btn btn-primary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="audit-results-cta">Get In Touch</a>
+    <a href="/about#contact" class="btn btn-primary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="audit-results-cta">Request a Free Consultation</a>
   </div>
 </section>`
 }
