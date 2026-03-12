@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createSession, getSessionById, insertEvents, insertEvent, getEventsBySession, getEventsByTimeRange } from '../queries.js'
+import { DbErrorCode } from '../types.js'
 import type { DbPool } from '../connection.js'
 import type { InsertableSession, InsertableEvent } from '../types.js'
 
@@ -95,6 +96,30 @@ describe('error mapping', () => {
     const result = await insertEvent(pool, sampleEvent)
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr().code).toBe('QUERY_FAILED')
+  })
+})
+
+describe('NO_ROWS error on empty results', () => {
+  it('createSession returns Err with NO_ROWS when INSERT returns empty', async () => {
+    const pool = makeMockPool([])
+    const result = await createSession(pool, sampleSession)
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().code).toBe(DbErrorCode.NO_ROWS)
+  })
+
+  it('getSessionById returns Err with NO_ROWS when session not found', async () => {
+    const pool = makeMockPool([])
+    const result = await getSessionById(pool, 'nonexistent')
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().code).toBe(DbErrorCode.NO_ROWS)
+  })
+
+  it('insertEvent returns Err with NO_ROWS when INSERT returns empty', async () => {
+    const pool = makeMockPool([])
+    ;(pool.sql as unknown as Record<string, unknown>).json = (v: unknown) => v
+    const result = await insertEvent(pool, sampleEvent)
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().code).toBe(DbErrorCode.NO_ROWS)
   })
 })
 
