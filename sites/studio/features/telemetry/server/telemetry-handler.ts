@@ -1,4 +1,4 @@
-import { ResultAsync } from 'neverthrow'
+import type { ResultAsync } from 'neverthrow'
 import { createAsyncIngestionHandler } from '@inertia/ingestion'
 import type { AuditEntry } from '@inertia/ingestion'
 import { transformIntentsToEvents } from '@inertia/ingestion'
@@ -7,22 +7,11 @@ import type { DbPool } from '@inertia/db'
 import type { RouteHandler } from '../../../server/types.js'
 import { readBody, sendJson } from '../../../server/router.js'
 
-function createPersistFn (pool: DbPool, sessionId: string) {
+export function createPersistFn (pool: DbPool, sessionId: string) {
   return (payload: import('@inertia/ingestion').ValidatedTelemetryPayload): ResultAsync<number, { code: 'PERSIST_FAILURE'; message: string }> => {
     const events = transformIntentsToEvents(payload, sessionId)
-    return ResultAsync.fromPromise(
-      (async () => {
-        const insertResult = await insertEvents(pool, events)
-        if (insertResult.isErr()) {
-          throw new Error(insertResult.error.message)
-        }
-        return insertResult.value
-      })(),
-      (e: unknown): { code: 'PERSIST_FAILURE'; message: string } => ({
-        code: 'PERSIST_FAILURE',
-        message: e instanceof Error ? e.message : 'Persist failed'
-      })
-    )
+    return insertEvents(pool, events)
+      .mapErr((dbErr) => ({ code: 'PERSIST_FAILURE' as const, message: dbErr.message }))
   }
 }
 

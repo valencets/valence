@@ -74,30 +74,24 @@ export function insertEvents (pool: DbPool, events: ReadonlyArray<InsertableEven
 
 export function getEventsBySession (pool: DbPool, sessionId: string): ResultAsync<ReadonlyArray<EventRow>, DbError> {
   return ResultAsync.fromPromise(
-    (async () => {
-      const rows = await pool.sql<EventRow[]>`
-        SELECT event_id, session_id, created_at, event_category, dom_target, payload
-        FROM events
-        WHERE session_id = ${sessionId}
-        ORDER BY created_at ASC
-      `
-      return rows as ReadonlyArray<EventRow>
-    })(),
+    pool.sql<EventRow[]>`
+      SELECT event_id, session_id, created_at, event_category, dom_target, payload
+      FROM events
+      WHERE session_id = ${sessionId}
+      ORDER BY created_at ASC
+    `,
     mapPostgresError
-  )
+  ).map((rows) => rows as ReadonlyArray<EventRow>)
 }
 
 export function getEventsByTimeRange (pool: DbPool, start: Date, end: Date): ResultAsync<ReadonlyArray<EventRow>, DbError> {
   return ResultAsync.fromPromise(
-    (async () => {
-      const rows = await pool.sql<EventRow[]>`
-        SELECT event_id, session_id, created_at, event_category, dom_target, payload
-        FROM events
-        WHERE created_at >= ${start} AND created_at <= ${end}
-        ORDER BY created_at ASC
-      `
-      return rows as ReadonlyArray<EventRow>
-    })(),
+    pool.sql<EventRow[]>`
+      SELECT event_id, session_id, created_at, event_category, dom_target, payload
+      FROM events
+      WHERE created_at >= ${start} AND created_at <= ${end}
+      ORDER BY created_at ASC
+    `,
     mapPostgresError
-  )
+  ).map((rows) => rows as ReadonlyArray<EventRow>)
 }
