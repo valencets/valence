@@ -9,6 +9,7 @@ export function renderAuditForm (error?: AuditError, url?: string): string {
 <section class="section container">
   <h1>Free Website Audit</h1>
   <p class="prose">Enter a URL and we'll run a Lighthouse audit right here on our dedicated server. No third-party services — the analysis happens on our hardware.</p>
+  <p class="prose">We measure performance, accessibility, best practices, and SEO against industry standards and show you exactly where your current site falls short.</p>
 
   <form method="POST" action="/audit" class="audit-form" data-telemetry-type="FORM_INPUT" data-telemetry-target="audit-form">
     <div class="form-group">
