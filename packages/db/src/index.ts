@@ -33,3 +33,8 @@ export { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySumm
 // Fleet queries
 export { getFleetSites, getFleetComparison, getFleetSiteHistory, FleetSiteStatus } from './fleet-queries.js'
 export type { FleetSiteRow, FleetComparisonRow } from './fleet-queries.js'
+
+// Sites registry
+export { Vertical, Tier } from './site-types.js'
+export type { SiteRow, InsertableSite } from './site-types.js'
+export { getSites, getSiteBySlug, upsertSite } from './site-queries.js'
