@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, beforeAll } from 'vitest'
 import { GLASS_BOX_CONFIG, EXPLAINER_MAP, OVERLAY_TYPE_COLORS } from '../config/glass-box-config.js'
 
