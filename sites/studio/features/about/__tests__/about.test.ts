@@ -53,6 +53,24 @@ describe('renderAbout', () => {
     expect(html).toContain('data-telemetry-target="hardware-section"')
   })
 
+  it('hardware section links to /services for full details', () => {
+    const html = renderAbout()
+    const hwStart = html.indexOf('hardware-section')
+    const hwEnd = html.indexOf('<section', hwStart + 1)
+    const hwHtml = html.substring(hwStart, hwEnd > -1 ? hwEnd : undefined)
+    expect(hwHtml).toContain('href="/services"')
+  })
+
+  it('hardware section is concise (under 80 words visible)', () => {
+    const html = renderAbout()
+    const hwStart = html.indexOf('hardware-section')
+    const hwEnd = html.indexOf('<section', hwStart + 1)
+    const hwHtml = html.substring(hwStart, hwEnd > -1 ? hwEnd : undefined)
+    const text = hwHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const wordCount = text.split(' ').length
+    expect(wordCount).toBeLessThan(80)
+  })
+
   it('renders data-copy-technical attributes on spec values', () => {
     const html = renderAbout()
     expect(html).toContain('data-copy-technical=')
