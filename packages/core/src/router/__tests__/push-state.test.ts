@@ -503,6 +503,91 @@ describe('initRouter', () => {
     expect(detail.toUrl).toBe('/perf')
   })
 
+  it('stores visited pages in page cache', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Cached</title></head><body><main><p>Cached</p></main></body></html>')
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/cached')
+    expect(handle!.pageCacheSize()).toBe(1)
+  })
+
+  it('cache hit skips network fetch on second visit', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Cached</title></head><body><main><p>Cached</p></main></body></html>')
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/cached2')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+
+    await handle!.navigate('/cached2')
+    // Should not fetch again — served from page cache
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('cache hit reports source as cache in navigated event', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Src</title></head><body><main><p>Source</p></main></body></html>')
+    let lastSource = ''
+
+    document.addEventListener('inertia:navigated', ((e: CustomEvent) => {
+      lastSource = e.detail.source
+    }) as EventListener)
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/src-test')
+    expect(lastSource).toBe('network')
+
+    await handle!.navigate('/src-test')
+    expect(lastSource).toBe('cache')
+  })
+
+  it('admin paths are not cached', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Admin</title></head><body><main><p>Admin</p></main></body></html>')
+
+    const result = initRouter({ noCachePaths: ['/admin'] }, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/admin/hud')
+    expect(handle!.pageCacheSize()).toBe(0)
+  })
+
+  it('clearPageCache empties the cache', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Clear</title></head><body><main><p>Clear</p></main></body></html>')
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/clear-test')
+    expect(handle!.pageCacheSize()).toBe(1)
+
+    handle!.clearPageCache()
+    expect(handle!.pageCacheSize()).toBe(0)
+  })
+
   it('navigation scrolls to top', async () => {
     const mockFetch = createMockFetch('<html><head><title>Scroll</title></head><body><main><p>Scrolled</p></main></body></html>')
     const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})

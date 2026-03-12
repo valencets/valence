@@ -5,11 +5,15 @@ import type { RouterConfig, RouterError, NavigationDetail, ResolvedRouterConfig,
 import { parseHtml, extractFragment, extractTitle, swapContent } from './fragment-swap.js'
 import { initPrefetch } from './prefetch.js'
 import type { PrefetchHandle } from './prefetch.js'
+import { initPageCache } from './page-cache.js'
+import type { PageCacheHandle } from './page-cache.js'
 
 export interface RouterHandle {
   readonly destroy: () => void
   readonly navigate: (url: string) => ResultAsync<void, RouterError>
   readonly prefetch: (url: string) => ResultAsync<void, RouterError>
+  readonly clearPageCache: () => void
+  readonly pageCacheSize: () => number
 }
 
 export function shouldIntercept (event: MouseEvent, anchor: HTMLAnchorElement): boolean {
@@ -42,27 +46,57 @@ interface NavigationResult {
   readonly title: string | null
 }
 
+function isNoCachePath (url: string, noCachePaths: ReadonlyArray<string>): boolean {
+  for (const prefix of noCachePaths) {
+    if (url.startsWith(prefix)) return true
+  }
+  return false
+}
+
 function performNavigation (
   url: string,
   config: ResolvedRouterConfig,
   fetchFn: typeof fetch,
-  prefetchHandle: PrefetchHandle
+  prefetchHandle: PrefetchHandle,
+  pageCacheHandle: PageCacheHandle
 ): ResultAsync<NavigationResult, RouterError> {
-  // Check prefetch cache first
-  const cached = prefetchHandle.getCached(url)
-  let source: NavigationPerformance['source'] = 'network'
+  const skipCache = isNoCachePath(url, config.noCachePaths)
 
-  if (cached.isOk()) {
-    source = 'prefetch'
-    const result = processHtml(cached.value.html, config.contentSelector)
-    return ResultAsync.fromSafePromise<NavigationResult, RouterError>(
-      Promise.resolve(result.isOk()
-        ? { source, version: null, title: result.value }
-        : result as unknown as NavigationResult
-      )
-    ).andThen(() => result.isErr() ? err(result.error) : ok({ source, version: null, title: result.value }))
+  // 1. Check page cache first
+  if (!skipCache) {
+    const pageCached = pageCacheHandle.get(url)
+    if (pageCached.isOk()) {
+      const result = processHtml(pageCached.value.html, config.contentSelector)
+      if (result.isOk()) {
+        return ResultAsync.fromSafePromise(
+          Promise.resolve({ source: 'cache' as const, version: pageCached.value.version, title: result.value })
+        )
+      }
+    }
   }
 
+  // 2. Check prefetch cache
+  const prefetched = prefetchHandle.getCached(url)
+  if (prefetched.isOk()) {
+    const result = processHtml(prefetched.value.html, config.contentSelector)
+    if (result.isOk()) {
+      // Promote to page cache
+      if (!skipCache) {
+        pageCacheHandle.set(url, {
+          url,
+          html: prefetched.value.html,
+          timestamp: Date.now(),
+          version: pageCacheHandle.getVersion(),
+          title: result.value
+        })
+      }
+      return ResultAsync.fromSafePromise(
+        Promise.resolve({ source: 'prefetch' as const, version: null, title: result.value })
+      )
+    }
+  }
+
+  // 3. Network fetch
   const fetchPromise = config.enableFragmentProtocol
     ? fetchFn(url, { headers: { 'X-Inertia-Fragment': '1' } })
     : fetchFn(url)
@@ -85,6 +119,23 @@ function performNavigation (
     if (result.isErr()) return err(result.error)
 
     const title = titleHeader ?? result.value
+
+    // Store in page cache (unless admin path)
+    if (!skipCache) {
+      pageCacheHandle.set(url, {
+        url,
+        html,
+        timestamp: Date.now(),
+        version,
+        title
+      })
+    }
+
+    // Update version tracking
+    if (version !== null) {
+      pageCacheHandle.setVersion(version)
+    }
+
     return ok({ source: 'network' as const, version, title })
   })
 }
@@ -130,6 +181,14 @@ export function initRouter (
   if (prefetchResult.isErr()) return err(prefetchResult.error)
   const prefetchHandle = prefetchResult.value
 
+  const pageCacheHandle = initPageCache(resolved)
+
+  // Seed version from DOM if available
+  const versionAttr = document.documentElement.getAttribute('data-inertia-version')
+  if (versionAttr !== null) {
+    pageCacheHandle.setVersion(versionAttr)
+  }
+
   function navigate (url: string): ResultAsync<void, RouterError> {
     const fromUrl = window.location.href
     const detail: NavigationDetail = { fromUrl, toUrl: url }
@@ -141,11 +200,20 @@ export function initRouter (
 
     const startTime = performance.now()
 
-    return performNavigation(url, resolved, fetchFn, prefetchHandle)
+    return performNavigation(url, resolved, fetchFn, prefetchHandle, pageCacheHandle)
       .map((navResult) => {
         const durationMs = Math.round(performance.now() - startTime)
         window.history.pushState({ url }, '', url)
         window.scrollTo(0, 0)
+
+        // Version mismatch detection — also clear prefetch cache
+        if (navResult.version !== null) {
+          const currentVer = pageCacheHandle.getVersion()
+          if (currentVer !== null && currentVer !== navResult.version) {
+            prefetchHandle.clearCache()
+          }
+          pageCacheHandle.setVersion(navResult.version)
+        }
 
         const perfDetail: NavigationPerformance = {
           source: navResult.source,
@@ -168,7 +236,7 @@ export function initRouter (
 
     const startTime = performance.now()
 
-    performNavigation(url, resolved, fetchFn, prefetchHandle)
+    performNavigation(url, resolved, fetchFn, prefetchHandle, pageCacheHandle)
       .map((navResult) => {
         const durationMs = Math.round(performance.now() - startTime)
         const perfDetail: NavigationPerformance = {
@@ -209,9 +277,16 @@ export function initRouter (
       document.body.removeEventListener('click', onClick)
       window.removeEventListener('popstate', onPopstate)
       prefetchHandle.destroy()
+      pageCacheHandle.invalidateAll()
     },
     navigate,
-    prefetch: prefetchHandle.prefetchUrl
+    prefetch: prefetchHandle.prefetchUrl,
+    clearPageCache () {
+      pageCacheHandle.invalidateAll()
+    },
+    pageCacheSize () {
+      return pageCacheHandle.size()
+    }
   }
 
   return ok(handle)
