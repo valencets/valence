@@ -23,7 +23,7 @@ async function boot (): Promise<void> {
   pool = createPool(config.db)
 
   // Run migrations
-  const migrationsDir = join(import.meta.dirname ?? '.', '..', '..', '..', 'packages', 'db', 'migrations')
+  const migrationsDir = join(import.meta.dirname ?? '.', '..', '..', '..', '..', 'packages', 'db', 'migrations')
   const migrationsResult = await loadMigrations(migrationsDir)
 
   if (migrationsResult.isOk()) {
@@ -54,13 +54,13 @@ async function boot (): Promise<void> {
   }
 
   // Generate CSS to public directory
-  const publicCSS = join(import.meta.dirname ?? '.', '..', 'public', 'css')
+  const publicCSS = join(import.meta.dirname ?? '.', '..', '..', 'public', 'css')
   await mkdir(publicCSS, { recursive: true })
   await writeFile(join(publicCSS, 'studio.css'), getStudioCSS())
   console.log('Generated public/css/studio.css')
 
   // Generate client JS bundles
-  const studioRoot = join(import.meta.dirname ?? '.', '..')
+  const studioRoot = join(import.meta.dirname ?? '.', '..', '..')
   const publicJS = join(studioRoot, 'public', 'js')
   await mkdir(publicJS, { recursive: true })
   await bundleClientJS(studioRoot)
