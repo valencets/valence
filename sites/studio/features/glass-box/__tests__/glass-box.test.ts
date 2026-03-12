@@ -311,6 +311,101 @@ describe('GlassBoxInspector overlay layout', () => {
   })
 })
 
+describe('GlassBoxInspector engineer mode copy swap', () => {
+  beforeAll(async () => {
+    if (customElements.get('inertia-telemetry-infobox') === undefined) {
+      await import('../components/GlassBoxInspector.js')
+    }
+  })
+
+  function setup (): { inspector: HTMLElement; copyEl: HTMLElement } {
+    const copyEl = document.createElement('p')
+    copyEl.setAttribute('data-copy-default', 'Plain language text')
+    copyEl.setAttribute('data-copy-technical', 'Technical jargon text')
+    copyEl.textContent = 'Plain language text'
+    document.body.appendChild(copyEl)
+
+    const inspector = document.createElement('inertia-telemetry-infobox')
+    document.body.appendChild(inspector)
+
+    return { inspector, copyEl }
+  }
+
+  function teardown (): void {
+    document.body.removeAttribute('data-engineer-mode')
+    document.body.innerHTML = ''
+  }
+
+  it('swaps textContent to technical on backtick activate', () => {
+    const { copyEl } = setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(copyEl.textContent).toBe('Technical jargon text')
+    teardown()
+  })
+
+  it('restores textContent to default on backtick deactivate', () => {
+    const { copyEl } = setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(copyEl.textContent).toBe('Plain language text')
+    teardown()
+  })
+
+  it('sets data-engineer-mode on body when active', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.body.hasAttribute('data-engineer-mode')).toBe(true)
+    teardown()
+  })
+
+  it('removes data-engineer-mode on body when deactivated', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.body.hasAttribute('data-engineer-mode')).toBe(false)
+    teardown()
+  })
+
+  it('reapplies technical copy after navigation when active', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+
+    // Simulate navigation
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+
+    // Add new content with data-copy-* attributes
+    const newEl = document.createElement('span')
+    newEl.setAttribute('data-copy-default', 'New default')
+    newEl.setAttribute('data-copy-technical', 'New technical')
+    newEl.textContent = 'New default'
+    document.body.appendChild(newEl)
+
+    document.dispatchEvent(new CustomEvent('inertia:after-swap'))
+    expect(newEl.textContent).toBe('New technical')
+    teardown()
+  })
+})
+
+describe('GlassBoxStrip engineer mode indicator', () => {
+  beforeAll(async () => {
+    if (customElements.get('inertia-buffer-strip') === undefined) {
+      await import('../components/GlassBoxStrip.js')
+    }
+  })
+
+  it('shows ENGINEER MODE label when engineer-mode attribute is set', async () => {
+    const el = document.createElement('inertia-buffer-strip') as HTMLElement
+    const mockBuffer = { count: 5, capacity: 64, head: 5, slotAt: () => ({ isDirty: false }) }
+    ;(el as unknown as { buffer: unknown }).buffer = mockBuffer
+    el.setAttribute('engineer-mode', '')
+    document.body.appendChild(el)
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+    expect(el.textContent).toContain('ENGINEER MODE')
+    el.remove()
+  })
+})
+
 describe('GlassBoxStrip', () => {
   let GlassBoxStrip: typeof import('../components/GlassBoxStrip.js').GlassBoxStrip
 
