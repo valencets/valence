@@ -12,6 +12,7 @@ import { createHudHandler, createHudPostHandler } from '../features/admin/server
 import { sessionSummaryHandler, eventSummaryHandler, conversionSummaryHandler, ingestionHealthHandler } from '../features/admin/server/summary-routes.js'
 import { createFleetOverviewHandler, createFleetCompareHandler } from '../features/admin/server/fleet-handler.js'
 import { fleetSitesHandler, fleetComparisonHandler } from '../features/admin/server/fleet-routes.js'
+import { breakdownPagesHandler, breakdownSourcesHandler, breakdownActionsHandler } from '../features/admin/server/breakdown-routes.js'
 import { aggregationHandler } from '../features/admin/server/aggregation-handler.js'
 import type { RouteHandler } from './types.js'
 import { loadConfig } from './config.js'
@@ -54,6 +55,11 @@ export function registerRoutes (router: Router): void {
 
   // Aggregation API (HMAC-verified, not cookie-auth)
   router.register('/api/aggregation', { POST: aggregationHandler })
+
+  // Breakdown APIs
+  router.register('/api/breakdowns/pages', { GET: breakdownPagesHandler })
+  router.register('/api/breakdowns/sources', { GET: breakdownSourcesHandler })
+  router.register('/api/breakdowns/actions', { GET: breakdownActionsHandler })
 
   // Summary APIs
   router.register('/api/summaries/sessions', { GET: sessionSummaryHandler })
