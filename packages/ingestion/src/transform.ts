@@ -16,7 +16,10 @@ const INTENT_CATEGORY_MAP: Record<string, string> = {
   INTENT_NAVIGATE: 'INTENT_NAVIGATE',
   INTENT_CALL: 'INTENT_CALL',
   INTENT_BOOK: 'INTENT_BOOK',
-  INTENT_LEAD: 'INTENT_LEAD'
+  INTENT_LEAD: 'INTENT_LEAD',
+  LEAD_PHONE: 'LEAD_PHONE',
+  LEAD_EMAIL: 'LEAD_EMAIL',
+  LEAD_FORM: 'LEAD_FORM'
 }
 
 export function transformIntentToEvent (
@@ -31,7 +34,9 @@ export function transformIntentToEvent (
       id: intent.id,
       timestamp: intent.timestamp,
       x_coord: intent.x_coord,
-      y_coord: intent.y_coord
+      y_coord: intent.y_coord,
+      ...(intent.path !== undefined && { path: intent.path }),
+      ...(intent.referrer !== undefined && { referrer: intent.referrer })
     }
   }
 }

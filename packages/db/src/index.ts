@@ -23,12 +23,18 @@ export type {
   DailySummaryRow,
   InsertableDailySummary,
   DailySummaryPayload,
+  DailyBreakdowns,
   TopReferrerEntry,
   TopPageEntry
 } from './daily-summary-types.js'
 export { generateDailySummary } from './daily-summary-aggregation.js'
-export { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote } from './daily-summary-queries.js'
+export { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote, getDailyBreakdowns } from './daily-summary-queries.js'
 
 // Fleet queries
-export { getFleetSites, getFleetComparison, getFleetSiteHistory, FleetSiteStatus } from './fleet-queries.js'
-export type { FleetSiteRow, FleetComparisonRow } from './fleet-queries.js'
+export { getFleetSites, getFleetComparison, getFleetSiteHistory, getFleetAggregates, getFleetAlerts, FleetSiteStatus, FleetAlertSeverity, FleetAlertType } from './fleet-queries.js'
+export type { FleetSiteRow, FleetComparisonRow, FleetFilter, FleetSort, FleetAggregateRow, FleetAlertRow } from './fleet-queries.js'
+
+// Sites registry
+export { Vertical, Tier } from './site-types.js'
+export type { SiteRow, InsertableSite } from './site-types.js'
+export { getSites, getSiteBySlug, upsertSite } from './site-queries.js'

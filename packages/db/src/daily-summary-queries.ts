@@ -2,7 +2,7 @@ import { ResultAsync } from 'neverthrow'
 import type { DbError } from './types.js'
 import type { DbPool } from './connection.js'
 import { mapPostgresError } from './connection.js'
-import type { DailySummaryRow, DailySummaryPayload } from './daily-summary-types.js'
+import type { DailySummaryRow, DailySummaryPayload, DailyBreakdowns } from './daily-summary-types.js'
 
 export function getDailySummary (
   pool: DbPool,
@@ -93,6 +93,63 @@ export function insertDailySummaryFromRemote (
         return Promise.reject(new Error('INSERT returned no rows'))
       }
       return row
+    })(),
+    mapPostgresError
+  )
+}
+
+export function getDailyBreakdowns (
+  pool: DbPool,
+  siteId: string,
+  start: Date,
+  end: Date
+): ResultAsync<DailyBreakdowns, DbError> {
+  return ResultAsync.fromPromise(
+    (async () => {
+      const rows = await pool.sql<DailySummaryRow[]>`
+        SELECT top_pages, top_referrers, intent_counts
+        FROM daily_summaries
+        WHERE site_id = ${siteId} AND date >= ${start} AND date < ${end}
+        ORDER BY date DESC
+      `
+      if (rows.length === 0) {
+        return { top_pages: [], top_referrers: [], intent_counts: {} }
+      }
+
+      // Merge breakdowns across multiple days
+      const pageMap = new Map<string, number>()
+      const referrerMap = new Map<string, number>()
+      const intentMap: Record<string, number> = {}
+
+      for (const row of rows) {
+        if (row.top_pages) {
+          for (const p of row.top_pages) {
+            pageMap.set(p.path, (pageMap.get(p.path) ?? 0) + p.count)
+          }
+        }
+        if (row.top_referrers) {
+          for (const r of row.top_referrers) {
+            referrerMap.set(r.referrer, (referrerMap.get(r.referrer) ?? 0) + r.count)
+          }
+        }
+        if (row.intent_counts) {
+          for (const [key, count] of Object.entries(row.intent_counts)) {
+            intentMap[key] = (intentMap[key] ?? 0) + count
+          }
+        }
+      }
+
+      const topPages = [...pageMap.entries()]
+        .map(([path, count]) => ({ path, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+
+      const topReferrers = [...referrerMap.entries()]
+        .map(([referrer, count]) => ({ referrer, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+
+      return { top_pages: topPages, top_referrers: topReferrers, intent_counts: intentMap }
     })(),
     mapPostgresError
   )

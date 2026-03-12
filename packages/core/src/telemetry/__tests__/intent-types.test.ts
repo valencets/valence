@@ -15,6 +15,9 @@ describe('IntentType', () => {
     expect(IntentType.INTENT_NAVIGATE).toBe('INTENT_NAVIGATE')
     expect(IntentType.INTENT_CALL).toBe('INTENT_CALL')
     expect(IntentType.INTENT_BOOK).toBe('INTENT_BOOK')
+    expect(IntentType.LEAD_PHONE).toBe('LEAD_PHONE')
+    expect(IntentType.LEAD_EMAIL).toBe('LEAD_EMAIL')
+    expect(IntentType.LEAD_FORM).toBe('LEAD_FORM')
   })
 
   it('all values are strings', () => {
@@ -43,7 +46,7 @@ describe('TelemetryErrorCode', () => {
 })
 
 describe('createEmptyIntent', () => {
-  it('returns an intent with all 10 properties and correct defaults', () => {
+  it('returns an intent with all 12 properties and correct defaults', () => {
     const intent = createEmptyIntent('test-0')
     expect(intent.id).toBe('test-0')
     expect(intent.timestamp).toBe(0)
@@ -68,7 +71,7 @@ describe('createEmptyIntent', () => {
     expect(keys).toEqual([
       'id', 'timestamp', 'type', 'targetDOMNode',
       'x_coord', 'y_coord', 'isDirty', 'schema_version',
-      'site_id', 'business_type'
+      'site_id', 'business_type', 'path', 'referrer'
     ])
   })
 
@@ -77,5 +80,21 @@ describe('createEmptyIntent', () => {
     expect(intent.id).toBe('typed-0')
     expect(typeof intent.site_id).toBe('string')
     expect(typeof intent.business_type).toBe('string')
+  })
+
+  it('includes path and referrer fields with empty defaults', () => {
+    const intent = createEmptyIntent('path-0')
+    expect(intent.path).toBe('')
+    expect(intent.referrer).toBe('')
+  })
+
+  it('has property order matching interface declaration including path and referrer', () => {
+    const intent = createEmptyIntent('order-0')
+    const keys = Object.keys(intent)
+    expect(keys).toEqual([
+      'id', 'timestamp', 'type', 'targetDOMNode',
+      'x_coord', 'y_coord', 'isDirty', 'schema_version',
+      'site_id', 'business_type', 'path', 'referrer'
+    ])
   })
 })

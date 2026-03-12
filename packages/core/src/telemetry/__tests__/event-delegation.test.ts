@@ -171,4 +171,56 @@ describe('initEventDelegation', () => {
     const dirty = buffer.collectDirty()
     expect(dirty).toHaveLength(10)
   })
+
+  it('sets path to current pathname on intent', () => {
+    const result = initEventDelegation(buffer)
+    if (result.isOk()) handle = result.value
+
+    const el = createTrackedElement('CLICK', 'nav')
+    clickElement(el)
+
+    const dirty = buffer.collectDirty()
+    expect(dirty[0]!.path).toBe(window.location.pathname)
+  })
+
+  it('sets referrer to document.referrer on intent', () => {
+    const result = initEventDelegation(buffer)
+    if (result.isOk()) handle = result.value
+
+    const el = createTrackedElement('CLICK', 'nav')
+    clickElement(el)
+
+    const dirty = buffer.collectDirty()
+    expect(typeof dirty[0]!.referrer).toBe('string')
+  })
+
+  it('fires LEAD_PHONE for tel: link clicks', () => {
+    const result = initEventDelegation(buffer)
+    if (result.isOk()) handle = result.value
+
+    const link = document.createElement('a')
+    link.href = 'tel:+15551234567'
+    link.textContent = 'Call us'
+    document.body.appendChild(link)
+    clickElement(link)
+
+    const dirty = buffer.collectDirty()
+    expect(dirty).toHaveLength(1)
+    expect(dirty[0]!.type).toBe(IntentType.LEAD_PHONE)
+  })
+
+  it('fires LEAD_EMAIL for mailto: link clicks', () => {
+    const result = initEventDelegation(buffer)
+    if (result.isOk()) handle = result.value
+
+    const link = document.createElement('a')
+    link.href = 'mailto:hello@example.com'
+    link.textContent = 'Email us'
+    document.body.appendChild(link)
+    clickElement(link)
+
+    const dirty = buffer.collectDirty()
+    expect(dirty).toHaveLength(1)
+    expect(dirty[0]!.type).toBe(IntentType.LEAD_EMAIL)
+  })
 })

@@ -257,3 +257,168 @@ describe('ClientDashboard data fetching', () => {
     expect((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(callCount)
   })
 })
+
+describe('ClientDashboard site param', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  it('passes site query param to fetch calls', async () => {
+    // Simulate ?site=site_acme in the URL
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, search: '?site=site_acme', pathname: '/admin/hud' },
+      writable: true,
+      configurable: true
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify({}))
+    )
+    attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(c => String(c[0]))
+    expect(calls.some(u => u.includes('site=site_acme'))).toBe(true)
+    // Reset location
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, search: '', pathname: '/' },
+      writable: true,
+      configurable: true
+    })
+  })
+
+  it('does not add site param when no site in URL', async () => {
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, search: '', pathname: '/admin/hud' },
+      writable: true,
+      configurable: true
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify({}))
+    )
+    attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(c => String(c[0]))
+    expect(calls.some(u => u.includes('site='))).toBe(false)
+  })
+})
+
+describe('ClientDashboard breakdown wiring', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  function mockFetchWithBreakdowns (): void {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/summaries/sessions')) {
+        return new Response(JSON.stringify({
+          period_start: '2026-03-01',
+          period_end: '2026-03-08',
+          total_sessions: 142,
+          unique_referrers: 5,
+          device_breakdown: {
+            mobile: 80,
+            desktop: 50,
+            tablet: 12
+          }
+        }))
+      }
+      if (url.includes('/api/summaries/events')) {
+        return new Response(JSON.stringify({
+          period_start: '2026-03-01',
+          period_end: '2026-03-08',
+          event_category: 'INTENT_LEAD',
+          total_count: 23,
+          unique_sessions: 18
+        }))
+      }
+      if (url.includes('/api/summaries/conversions')) {
+        return new Response(JSON.stringify({
+          period_start: '2026-03-01',
+          period_end: '2026-03-08',
+          intent_type: 'INTENT_LEAD',
+          total_count: 23,
+          top_sources: [{
+            referrer: 'google',
+            count: 15
+          }]
+        }))
+      }
+      if (url.includes('/api/breakdowns/pages')) {
+        return new Response(JSON.stringify({
+          pages: [
+            { path: '/', count: 500 },
+            { path: '/about', count: 120 },
+            { path: '/pricing', count: 80 }
+          ]
+        }))
+      }
+      if (url.includes('/api/breakdowns/sources')) {
+        return new Response(JSON.stringify({
+          sources: [
+            { category: 'Search', count: 200, percent: 67 },
+            { category: 'Direct', count: 100, percent: 33 }
+          ]
+        }))
+      }
+      if (url.includes('/api/breakdowns/actions')) {
+        return new Response(JSON.stringify({
+          actions: [
+            { action: 'LEAD_PHONE', count: 12 },
+            { action: 'LEAD_EMAIL', count: 8 }
+          ]
+        }))
+      }
+      return new Response('{}')
+    })
+  }
+
+  it('populates Top Pages table after fetch', async () => {
+    mockFetchWithBreakdowns()
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const topPages = Array.from(panels).find(p => p.getAttribute('label') === 'Top Pages')
+    const table = topPages?.querySelector('hud-table')
+    const rows = table?.getAttribute('rows')
+    expect(rows).not.toBe('[]')
+    const parsed = JSON.parse(rows ?? '[]')
+    expect(parsed.length).toBeGreaterThanOrEqual(1)
+    expect(parsed[0].path).toBe('/')
+  })
+
+  it('updates Traffic Sources bars after fetch', async () => {
+    mockFetchWithBreakdowns()
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const sources = Array.from(panels).find(p => p.getAttribute('label') === 'Traffic Sources')
+    const bars = sources?.querySelectorAll('hud-bar')
+    const searchBar = Array.from(bars ?? []).find(b => b.getAttribute('label') === 'Search')
+    expect(searchBar).toBeDefined()
+    expect(searchBar?.getAttribute('value')).not.toBe('--')
+  })
+
+  it('updates Lead Actions bars after fetch', async () => {
+    mockFetchWithBreakdowns()
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const actions = Array.from(panels).find(p => p.getAttribute('label') === 'Lead Actions')
+    const bars = actions?.querySelectorAll('hud-bar')
+    const phoneBar = Array.from(bars ?? []).find(b => b.getAttribute('label') === 'Phone')
+    expect(phoneBar).toBeDefined()
+    expect(phoneBar?.getAttribute('value')).not.toBe('--')
+  })
+
+  it('calls breakdown API endpoints', async () => {
+    mockFetchWithBreakdowns()
+    attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(c => String(c[0]))
+    expect(calls.some(u => u.includes('/api/breakdowns/pages'))).toBe(true)
+    expect(calls.some(u => u.includes('/api/breakdowns/sources'))).toBe(true)
+    expect(calls.some(u => u.includes('/api/breakdowns/actions'))).toBe(true)
+  })
+})

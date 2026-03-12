@@ -4,7 +4,8 @@ import { z } from 'zod'
 
 export const INTENT_TYPES = [
   'CLICK', 'SCROLL', 'VIEWPORT_INTERSECT', 'FORM_INPUT',
-  'INTENT_NAVIGATE', 'INTENT_CALL', 'INTENT_BOOK', 'INTENT_LEAD'
+  'INTENT_NAVIGATE', 'INTENT_CALL', 'INTENT_BOOK', 'INTENT_LEAD',
+  'LEAD_PHONE', 'LEAD_EMAIL', 'LEAD_FORM'
 ] as const
 
 export type IntentTypeValue = typeof INTENT_TYPES[number]
@@ -17,6 +18,8 @@ export interface ValidatedIntent {
   readonly x_coord: number
   readonly y_coord: number
   readonly schema_version: number
+  readonly path?: string
+  readonly referrer?: string
 }
 
 export type ValidatedTelemetryPayload = ReadonlyArray<ValidatedIntent>
@@ -39,7 +42,9 @@ const intentSchema = z.object({
   targetDOMNode: z.string(),
   x_coord: finiteNumber,
   y_coord: finiteNumber,
-  schema_version: z.literal(1)
+  schema_version: z.literal(1),
+  path: z.string().optional(),
+  referrer: z.string().optional()
 })
 
 const telemetryPayloadSchema = z.array(intentSchema)

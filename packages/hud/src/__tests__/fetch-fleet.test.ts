@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { fetchFleetSites, fetchFleetComparison } from '../data/fetch-fleet.js'
+import { fetchFleetSites, fetchFleetComparison, fetchFleetAggregates } from '../data/fetch-fleet.js'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -34,6 +34,38 @@ describe('fetchFleetSites', () => {
       throw new Error('Network error')
     })
     const result = await fetchFleetSites('')
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().code).toBe('FETCH_FAILED')
+  })
+})
+
+describe('fetchFleetAggregates', () => {
+  it('is a function', () => {
+    expect(typeof fetchFleetAggregates).toBe('function')
+  })
+
+  it('fetches from /api/fleet/aggregates', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      expect(String(input)).toContain('/api/fleet/aggregates')
+      return new Response(JSON.stringify({
+        total_sites: 5,
+        total_sessions: 1200,
+        total_conversions: 85
+      }))
+    })
+    const result = await fetchFleetAggregates('')
+    expect(result.isOk()).toBe(true)
+    const data = result._unsafeUnwrap()
+    expect(data.total_sites).toBe(5)
+    expect(data.total_sessions).toBe(1200)
+    expect(data.total_conversions).toBe(85)
+  })
+
+  it('returns Err on fetch failure', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      throw new Error('Network error')
+    })
+    const result = await fetchFleetAggregates('')
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr().code).toBe('FETCH_FAILED')
   })

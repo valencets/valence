@@ -44,6 +44,12 @@ export interface InsertableDailySummary {
   readonly synced_at: Date | null
 }
 
+export interface DailyBreakdowns {
+  readonly top_pages: ReadonlyArray<TopPageEntry>
+  readonly top_referrers: ReadonlyArray<TopReferrerEntry>
+  readonly intent_counts: Readonly<Record<string, number>>
+}
+
 export interface DailySummaryPayload {
   readonly site_id: string
   readonly date: string

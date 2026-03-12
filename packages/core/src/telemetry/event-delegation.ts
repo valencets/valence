@@ -15,7 +15,10 @@ const intentTypeMap: Record<string, IntentType | undefined> = {
   FORM_INPUT: IntentType.FORM_INPUT,
   INTENT_NAVIGATE: IntentType.INTENT_NAVIGATE,
   INTENT_CALL: IntentType.INTENT_CALL,
-  INTENT_BOOK: IntentType.INTENT_BOOK
+  INTENT_BOOK: IntentType.INTENT_BOOK,
+  LEAD_PHONE: IntentType.LEAD_PHONE,
+  LEAD_EMAIL: IntentType.LEAD_EMAIL,
+  LEAD_FORM: IntentType.LEAD_FORM
 }
 
 export function initEventDelegation (
@@ -24,11 +27,50 @@ export function initEventDelegation (
 ): Result<EventDelegationHandle, TelemetryError> {
   const root = rootElement ?? document.body
 
+  // Detect lead action links by href prefix
+  const leadHrefMap: Record<string, IntentType> = {
+    'tel:': IntentType.LEAD_PHONE,
+    'mailto:': IntentType.LEAD_EMAIL
+  }
+
+  function detectLeadAction (el: Element): IntentType | null {
+    const anchor = el.closest('a')
+    if (anchor === null) return null
+    const href = anchor.getAttribute('href') ?? ''
+    for (const prefix in leadHrefMap) {
+      if (href.startsWith(prefix)) return leadHrefMap[prefix]!
+    }
+    return null
+  }
+
+  function writeIntent (intentType: IntentType, targetDOMNode: string, mouseEvent: MouseEvent): void {
+    const writeResult = buffer.write(
+      intentType,
+      targetDOMNode,
+      mouseEvent.clientX,
+      mouseEvent.clientY,
+      Date.now()
+    )
+    if (writeResult.isOk()) {
+      writeResult.value.path = window.location.pathname
+      writeResult.value.referrer = document.referrer
+    }
+  }
+
   function handleClick (event: Event): void {
     const mouseEvent = event as MouseEvent
     const target = mouseEvent.target as Element | null
     if (target === null) return
 
+    // Check for lead action links (tel:, mailto:)
+    const leadType = detectLeadAction(target)
+    if (leadType !== null) {
+      const anchor = target.closest('a')
+      writeIntent(leadType, anchor?.getAttribute('href') ?? '', mouseEvent)
+      return
+    }
+
+    // Standard data-telemetry-type delegation
     const tracked = target.closest('[data-telemetry-type]')
     if (tracked === null) return
 
@@ -37,14 +79,7 @@ export function initEventDelegation (
     if (intentType === undefined) return
 
     const targetDOMNode = tracked.getAttribute('data-telemetry-target') ?? ''
-
-    buffer.write(
-      intentType,
-      targetDOMNode,
-      mouseEvent.clientX,
-      mouseEvent.clientY,
-      Date.now()
-    )
+    writeIntent(intentType, targetDOMNode, mouseEvent)
   }
 
   root.addEventListener('click', handleClick)

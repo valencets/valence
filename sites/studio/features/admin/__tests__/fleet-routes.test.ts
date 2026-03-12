@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { fleetSitesHandler, fleetComparisonHandler } from '../server/fleet-routes.js'
+import { fleetSitesHandler, fleetComparisonHandler, fleetAggregatesHandler } from '../server/fleet-routes.js'
 import { renderFleetPage } from '../templates/fleet-page.js'
 
 function mockRes (): { writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; body: () => unknown } {
@@ -41,6 +41,28 @@ describe('fleetComparisonHandler', () => {
     await fleetComparisonHandler(req as never, res as never, ctx as never)
     const body = res.body()
     expect(Array.isArray(body)).toBe(true)
+  })
+})
+
+describe('fleetAggregatesHandler', () => {
+  it('is a function', () => {
+    expect(typeof fleetAggregatesHandler).toBe('function')
+  })
+
+  it('returns JSON with aggregate totals', async () => {
+    const res = mockRes()
+    const ctx = { pool: mockPool([{ total_sites: 5, total_sessions: 1200, total_conversions: 85 }]), config: {} }
+    await fleetAggregatesHandler({} as never, res as never, ctx as never)
+    const body = res.body() as { total_sites: number; total_sessions: number; total_conversions: number }
+    expect(body.total_sites).toBe(5)
+  })
+
+  it('returns zeros for no data', async () => {
+    const res = mockRes()
+    const ctx = { pool: mockPool([]), config: {} }
+    await fleetAggregatesHandler({} as never, res as never, ctx as never)
+    const body = res.body() as { total_sites: number }
+    expect(body.total_sites).toBe(0)
   })
 })
 

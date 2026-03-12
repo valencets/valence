@@ -8,7 +8,8 @@ const sampleIntent: ValidatedIntent = {
   type: 'CLICK',
   targetDOMNode: '#cta-hero',
   x_coord: 512,
-  y_coord: 300
+  y_coord: 300,
+  schema_version: 1
 }
 
 const sessionId = 'session-abc-123'
@@ -52,6 +53,19 @@ describe('transformIntentToEvent', () => {
       const result = transformIntentToEvent(intent, sessionId)
       expect(result.event_category).toBe(type)
     }
+  })
+
+  it('includes path and referrer in payload when present', () => {
+    const intent: ValidatedIntent = { ...sampleIntent, path: '/pricing', referrer: 'https://google.com' }
+    const result = transformIntentToEvent(intent, sessionId)
+    expect(result.payload.path).toBe('/pricing')
+    expect(result.payload.referrer).toBe('https://google.com')
+  })
+
+  it('omits path and referrer from payload when absent', () => {
+    const result = transformIntentToEvent(sampleIntent, sessionId)
+    expect(result.payload).not.toHaveProperty('path')
+    expect(result.payload).not.toHaveProperty('referrer')
   })
 })
 
