@@ -8,7 +8,9 @@ import type {
   RouterConfig,
   ResolvedRouterConfig,
   CachedResponse,
-  NavigationDetail
+  NavigationDetail,
+  PageCacheEntry,
+  NavigationPerformance
 } from '../router-types.js'
 
 describe('RouterErrorCode', () => {
@@ -20,6 +22,8 @@ describe('RouterErrorCode', () => {
     expect(RouterErrorCode.CACHE_MISS).toBe('CACHE_MISS')
     expect(RouterErrorCode.PREFETCH_FAILED).toBe('PREFETCH_FAILED')
     expect(RouterErrorCode.NOT_HTML_RESPONSE).toBe('NOT_HTML_RESPONSE')
+    expect(RouterErrorCode.CACHE_STALE).toBe('CACHE_STALE')
+    expect(RouterErrorCode.VERSION_MISMATCH).toBe('VERSION_MISMATCH')
   })
 
   it('all values are strings', () => {
@@ -43,6 +47,10 @@ describe('resolveConfig', () => {
     expect(config.prefetchTtlMs).toBe(30_000)
     expect(config.velocityThreshold).toBe(0.3)
     expect(config.intentDurationMs).toBe(80)
+    expect(config.pageCacheCapacity).toBe(16)
+    expect(config.pageCacheTtlMs).toBe(300_000)
+    expect(config.enableFragmentProtocol).toBe(true)
+    expect(config.noCachePaths).toEqual(['/admin'])
   })
 
   it('returns all defaults when called with empty object', () => {
@@ -52,6 +60,10 @@ describe('resolveConfig', () => {
     expect(config.prefetchTtlMs).toBe(30_000)
     expect(config.velocityThreshold).toBe(0.3)
     expect(config.intentDurationMs).toBe(80)
+    expect(config.pageCacheCapacity).toBe(16)
+    expect(config.pageCacheTtlMs).toBe(300_000)
+    expect(config.enableFragmentProtocol).toBe(true)
+    expect(config.noCachePaths).toEqual(['/admin'])
   })
 
   it('merges partial overrides correctly', () => {
@@ -119,5 +131,54 @@ describe('resolveConfig', () => {
     }
     expect(detail.fromUrl).toBe('/home')
     expect(detail.toUrl).toBe('/about')
+  })
+
+  it('PageCacheEntry satisfies interface shape', () => {
+    const entry: PageCacheEntry = {
+      url: '/about',
+      html: '<p>About</p>',
+      timestamp: Date.now(),
+      version: 'abc123',
+      title: 'About'
+    }
+    expect(entry.url).toBe('/about')
+    expect(entry.version).toBe('abc123')
+    expect(entry.title).toBe('About')
+  })
+
+  it('PageCacheEntry accepts null version and title', () => {
+    const entry: PageCacheEntry = {
+      url: '/',
+      html: '<p>Home</p>',
+      timestamp: Date.now(),
+      version: null,
+      title: null
+    }
+    expect(entry.version).toBeNull()
+    expect(entry.title).toBeNull()
+  })
+
+  it('NavigationPerformance satisfies interface shape', () => {
+    const perf: NavigationPerformance = {
+      source: 'cache',
+      durationMs: 2,
+      fromUrl: '/',
+      toUrl: '/about'
+    }
+    expect(perf.source).toBe('cache')
+    expect(perf.durationMs).toBe(2)
+  })
+
+  it('resolveConfig merges page cache overrides', () => {
+    const config = resolveConfig({
+      pageCacheCapacity: 32,
+      pageCacheTtlMs: 600_000,
+      enableFragmentProtocol: false,
+      noCachePaths: ['/admin', '/api']
+    })
+    expect(config.pageCacheCapacity).toBe(32)
+    expect(config.pageCacheTtlMs).toBe(600_000)
+    expect(config.enableFragmentProtocol).toBe(false)
+    expect(config.noCachePaths).toEqual(['/admin', '/api'])
   })
 })
