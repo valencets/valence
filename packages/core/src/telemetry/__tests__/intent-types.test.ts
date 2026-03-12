@@ -78,4 +78,20 @@ describe('createEmptyIntent', () => {
     expect(typeof intent.site_id).toBe('string')
     expect(typeof intent.business_type).toBe('string')
   })
+
+  it('includes path and referrer fields with empty defaults', () => {
+    const intent = createEmptyIntent('path-0')
+    expect(intent.path).toBe('')
+    expect(intent.referrer).toBe('')
+  })
+
+  it('has property order matching interface declaration including path and referrer', () => {
+    const intent = createEmptyIntent('order-0')
+    const keys = Object.keys(intent)
+    expect(keys).toEqual([
+      'id', 'timestamp', 'type', 'targetDOMNode',
+      'x_coord', 'y_coord', 'isDirty', 'schema_version',
+      'site_id', 'business_type', 'path', 'referrer'
+    ])
+  })
 })
