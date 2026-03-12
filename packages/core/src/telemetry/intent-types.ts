@@ -11,6 +11,19 @@ export const IntentType = {
 
 export type IntentType = typeof IntentType[keyof typeof IntentType]
 
+export const BusinessType = [
+  'barbershop',
+  'legal',
+  'hvac',
+  'medical',
+  'restaurant',
+  'contractor',
+  'retail',
+  'other'
+] as const
+
+export type BusinessType = typeof BusinessType[number]
+
 export const TelemetryErrorCode = {
   BUFFER_FULL: 'BUFFER_FULL',
   POOL_EXHAUSTED: 'POOL_EXHAUSTED',
@@ -32,6 +45,8 @@ export interface GlobalTelemetryIntent {
   y_coord: number
   isDirty: boolean
   schema_version: number
+  site_id: string
+  business_type: BusinessType
 }
 
 export interface TelemetryError {
@@ -48,6 +63,8 @@ export function createEmptyIntent (id: string): GlobalTelemetryIntent {
     x_coord: 0,
     y_coord: 0,
     isDirty: false,
-    schema_version: 1
+    schema_version: 1,
+    site_id: '',
+    business_type: 'other'
   }
 }
