@@ -1,4 +1,4 @@
-import { aggregateSessionSummary, aggregateEventSummary, aggregateConversionSummary } from '@inertia/db'
+import { aggregateSessionSummary, aggregateEventSummary, aggregateConversionSummary, generateDailySummary } from '@inertia/db'
 import type { DbPool, SummaryPeriod } from '@inertia/db'
 
 const ONE_HOUR_MS = 3_600_000
@@ -10,12 +10,13 @@ function todayPeriod (): SummaryPeriod {
   return { start, end }
 }
 
-export function startAggregationCron (pool: DbPool): { stop: () => void } {
+export function startAggregationCron (pool: DbPool, siteId: string, businessType: string): { stop: () => void } {
   const run = async (): Promise<void> => {
     const period = todayPeriod()
     await aggregateSessionSummary(pool, period)
     await aggregateEventSummary(pool, period)
     await aggregateConversionSummary(pool, period)
+    await generateDailySummary(pool, siteId, businessType, new Date())
   }
 
   // Run once on boot

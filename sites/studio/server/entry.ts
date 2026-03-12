@@ -41,7 +41,7 @@ async function boot (): Promise<void> {
   }
 
   // Start aggregation cron
-  cronHandle = startAggregationCron(pool)
+  cronHandle = startAggregationCron(pool, config.siteId, config.businessType)
   console.log('Aggregation cron started')
 
   // Seed demo data if enabled
