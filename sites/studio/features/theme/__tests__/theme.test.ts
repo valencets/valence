@@ -152,6 +152,21 @@ describe('getStudioCSS', () => {
     expect(css).toContain('.nav-active')
   })
 
+  it('nav-inner has overflow-x auto for mobile scroll', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/\.nav-inner\s*\{[^}]*overflow-x:\s*auto/)
+  })
+
+  it('nav-brand has flex-shrink 0 to prevent squishing', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/\.nav-brand\s*\{[^}]*flex-shrink:\s*0/)
+  })
+
+  it('nav links have white-space nowrap to prevent wrapping', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/nav a\s*\{[^}]*white-space:\s*nowrap/)
+  })
+
   it('contains grid system', () => {
     const css = getStudioCSS()
     expect(css).toContain('.grid-2')
