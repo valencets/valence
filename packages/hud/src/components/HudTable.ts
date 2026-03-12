@@ -10,14 +10,15 @@ export interface HudColumnDef {
   readonly numeric?: boolean
 }
 
-const MAX_ROWS = 5
+const DEFAULT_MAX_ROWS = 5
 
 export class HudTable extends HTMLElement {
-  static observedAttributes = ['columns', 'rows']
+  static observedAttributes = ['columns', 'rows', 'max-rows']
 
   private _initialized = false
   private thead: HTMLTableSectionElement | null = null
   private tbody: HTMLTableSectionElement | null = null
+  private _domAllocated = false
 
   connectedCallback (): void {
     if (this._initialized) return
@@ -29,6 +30,7 @@ export class HudTable extends HTMLElement {
     table.style.borderCollapse = 'collapse'
     table.style.fontFamily = HUD_TYPOGRAPHY.fontPrimary
     table.style.fontSize = HUD_TYPOGRAPHY.scale.sm
+    table.style.lineHeight = '1.4'
 
     this.thead = document.createElement('thead')
     this.tbody = document.createElement('tbody')
@@ -37,8 +39,8 @@ export class HudTable extends HTMLElement {
     table.appendChild(this.tbody)
     this.appendChild(table)
 
-    this.renderHeaders()
-    this.renderRows()
+    this.allocateDom()
+    this.updateData()
   }
 
   disconnectedCallback (): void {
@@ -50,11 +52,27 @@ export class HudTable extends HTMLElement {
   }
 
   attributeChangedCallback (name: string, _old: string | null, _value: string | null): void {
+    if (!this._initialized) return
+
     const handlers: Record<string, () => void> = {
-      columns: () => this.renderHeaders(),
-      rows: () => this.renderRows()
+      columns: () => {
+        this.allocateDom()
+        this.updateData()
+      },
+      'max-rows': () => {
+        this.allocateDom()
+        this.updateData()
+      },
+      rows: () => this.updateData()
     }
     handlers[name]?.()
+  }
+
+  private getMaxRows (): number {
+    const attr = this.getAttribute('max-rows')
+    if (attr === null) return DEFAULT_MAX_ROWS
+    const parsed = parseInt(attr, 10)
+    return isNaN(parsed) ? DEFAULT_MAX_ROWS : parsed
   }
 
   private getColumns (): ReadonlyArray<HudColumnDef> {
@@ -72,17 +90,21 @@ export class HudTable extends HTMLElement {
     const result = parseJson(raw)
     if (result.isErr()) return []
     if (!Array.isArray(result.value)) return []
-    return (result.value as ReadonlyArray<Record<string, string | number>>).slice(0, MAX_ROWS)
+    return (result.value as ReadonlyArray<Record<string, string | number>>).slice(0, this.getMaxRows())
   }
 
-  private renderHeaders (): void {
-    if (this.thead === null) return
+  private allocateDom (): void {
+    if (this.thead === null || this.tbody === null) return
+
     this.thead.innerHTML = ''
+    this.tbody.innerHTML = ''
+    this._domAllocated = false
 
     const columns = this.getColumns()
     if (columns.length === 0) return
 
-    const tr = document.createElement('tr')
+    // Pre-allocate header
+    const trHead = document.createElement('tr')
     for (const col of columns) {
       const th = document.createElement('th')
       th.textContent = col.label
@@ -92,25 +114,19 @@ export class HudTable extends HTMLElement {
       th.style.fontSize = HUD_TYPOGRAPHY.scale.xs
       th.style.paddingBottom = HUD_SPACING.sm
       th.style.borderBottom = `1px solid ${HUD_COLORS.border}`
-      tr.appendChild(th)
+      trHead.appendChild(th)
     }
-    this.thead.appendChild(tr)
-  }
+    this.thead.appendChild(trHead)
 
-  private renderRows (): void {
-    if (this.tbody === null) return
-    this.tbody.innerHTML = ''
-
-    const columns = this.getColumns()
-    const rows = this.getRows()
-
-    for (let i = 0; i < MAX_ROWS; i++) {
+    // Pre-allocate body rows (padding is applied here, text is left empty)
+    const maxRows = this.getMaxRows()
+    for (let i = 0; i < maxRows; i++) {
       const tr = document.createElement('tr')
-      const row = rows[i]
 
       for (const col of columns) {
         const td = document.createElement('td')
-        td.style.padding = `${HUD_SPACING.xs} 0`
+        // Using HUD_SPACING.xs vertically and HUD_SPACING.sm horizontally
+        td.style.padding = `${HUD_SPACING.xs} ${HUD_SPACING.sm}`
         td.style.textAlign = col.align ?? 'left'
         td.style.color = HUD_COLORS.textPrimary
 
@@ -119,10 +135,35 @@ export class HudTable extends HTMLElement {
           td.style.fontVariantNumeric = 'tabular-nums'
         }
 
-        td.textContent = row !== undefined ? String(row[col.key] ?? '') : ''
         tr.appendChild(td)
       }
       this.tbody.appendChild(tr)
+    }
+
+    this._domAllocated = true
+  }
+
+  private updateData (): void {
+    if (this.tbody === null || !this._domAllocated) return
+
+    const columns = this.getColumns()
+    const rows = this.getRows()
+    const trs = this.tbody.children
+
+    for (let i = 0; i < trs.length; i++) {
+      const tr = trs[i]
+      if (tr === undefined) continue
+
+      const rowData = rows[i]
+      const tds = tr.children
+
+      for (let j = 0; j < columns.length; j++) {
+        const td = tds[j]
+        const col = columns[j]
+        if (td === undefined || col === undefined) continue
+
+        td.textContent = rowData !== undefined ? String(rowData[col.key] ?? '') : ''
+      }
     }
   }
 }
