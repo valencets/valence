@@ -43,7 +43,7 @@ describe('TelemetryErrorCode', () => {
 })
 
 describe('createEmptyIntent', () => {
-  it('returns an intent with all 8 properties and correct defaults', () => {
+  it('returns an intent with all 10 properties and correct defaults', () => {
     const intent = createEmptyIntent('test-0')
     expect(intent.id).toBe('test-0')
     expect(intent.timestamp).toBe(0)
@@ -53,6 +53,8 @@ describe('createEmptyIntent', () => {
     expect(intent.y_coord).toBe(0)
     expect(intent.isDirty).toBe(false)
     expect(intent.schema_version).toBe(1)
+    expect(intent.site_id).toBe('')
+    expect(intent.business_type).toBe('other')
   })
 
   it('returns isDirty as false', () => {
@@ -65,12 +67,15 @@ describe('createEmptyIntent', () => {
     const keys = Object.keys(intent)
     expect(keys).toEqual([
       'id', 'timestamp', 'type', 'targetDOMNode',
-      'x_coord', 'y_coord', 'isDirty', 'schema_version'
+      'x_coord', 'y_coord', 'isDirty', 'schema_version',
+      'site_id', 'business_type'
     ])
   })
 
-  it('satisfies GlobalTelemetryIntent type', () => {
+  it('satisfies GlobalTelemetryIntent type including site_id and business_type', () => {
     const intent: GlobalTelemetryIntent = createEmptyIntent('typed-0')
     expect(intent.id).toBe('typed-0')
+    expect(typeof intent.site_id).toBe('string')
+    expect(typeof intent.business_type).toBe('string')
   })
 })
