@@ -10,6 +10,12 @@ beforeAll(async () => {
   if (customElements.get('hud-table') === undefined) {
     await import('../components/HudTable.js')
   }
+  if (customElements.get('hud-metric') === undefined) {
+    await import('../components/HudMetric.js')
+  }
+  if (customElements.get('hud-timerange') === undefined) {
+    await import('../components/HudTimeRange.js')
+  }
   if (customElements.get('hud-fleet-dashboard') === undefined) {
     await import('../layouts/FleetDashboard.js')
   }
@@ -87,6 +93,46 @@ describe('FleetDashboard aggregate panels', () => {
     const panels = el.querySelectorAll('hud-panel')
     const labels = Array.from(panels).map(p => p.getAttribute('label'))
     expect(labels).toContain('Conversions')
+  })
+})
+
+describe('FleetDashboard time range', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  it('contains a hud-timerange component', () => {
+    const el = attach(createElement())
+    expect(el.querySelector('hud-timerange')).not.toBeNull()
+  })
+
+  it('refreshes data on hud-period-change', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify([]))
+    )
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const initialCalls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length
+    el.querySelector('hud-timerange')?.dispatchEvent(
+      new CustomEvent('hud-period-change', { detail: { period: '30D' }, bubbles: true })
+    )
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(initialCalls)
+  })
+
+  it('passes period as query parameter to fleet sites endpoint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify([]))
+    )
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    el.querySelector('hud-timerange')?.dispatchEvent(
+      new CustomEvent('hud-period-change', { detail: { period: '30D' }, bubbles: true })
+    )
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(c => String(c[0]))
+    expect(calls.some(u => u.includes('/api/fleet/sites') && u.includes('period=30D'))).toBe(true)
   })
 })
 
