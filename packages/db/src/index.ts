@@ -17,3 +17,12 @@ export type {
 } from './summary-types.js'
 export { aggregateSessionSummary, aggregateEventSummary, aggregateConversionSummary } from './aggregation.js'
 export { getSessionSummaries, getEventSummaries, getConversionSummaries, getIngestionHealth, insertIngestionHealth } from './summary-queries.js'
+
+// Daily summaries (fleet aggregation)
+export type {
+  DailySummaryRow,
+  InsertableDailySummary,
+  DailySummaryPayload,
+  TopReferrerEntry,
+  TopPageEntry
+} from './daily-summary-types.js'
