@@ -23,6 +23,10 @@ describe('DbErrorCode', () => {
     expect(DbErrorCode.CONSTRAINT_VIOLATION).toBe('CONSTRAINT_VIOLATION')
   })
 
+  it('has NO_ROWS code', () => {
+    expect(DbErrorCode.NO_ROWS).toBe('NO_ROWS')
+  })
+
   it('all codes are unique string literals', () => {
     const values = Object.values(DbErrorCode)
     const unique = new Set(values)
