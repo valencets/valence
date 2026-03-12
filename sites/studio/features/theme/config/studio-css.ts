@@ -3,7 +3,7 @@ import type { ThemeConfig } from '@inertia/tokens'
 import { studioTheme } from './studio-theme.js'
 import { TYPOGRAPHY } from './studio-typography.js'
 import { SPACING } from './studio-spacing.js'
-import baseThemeData from '../../../../../packages/tokens/base.json' with { type: 'json' }
+import baseThemeData from '@inertia/tokens/base.json' with { type: 'json' }
 
 const baseTheme = baseThemeData as unknown as ThemeConfig
 
