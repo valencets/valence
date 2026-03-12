@@ -15,6 +15,9 @@ describe('IntentType', () => {
     expect(IntentType.INTENT_NAVIGATE).toBe('INTENT_NAVIGATE')
     expect(IntentType.INTENT_CALL).toBe('INTENT_CALL')
     expect(IntentType.INTENT_BOOK).toBe('INTENT_BOOK')
+    expect(IntentType.LEAD_PHONE).toBe('LEAD_PHONE')
+    expect(IntentType.LEAD_EMAIL).toBe('LEAD_EMAIL')
+    expect(IntentType.LEAD_FORM).toBe('LEAD_FORM')
   })
 
   it('all values are strings', () => {
