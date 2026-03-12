@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join, extname } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-const STATIC_ROOT = join(import.meta.dirname ?? '.', '..', 'public')
+const STATIC_ROOT = join(import.meta.dirname ?? '.', '..', '..', 'public')
 
 const MIME_MAP: Record<string, string> = {
   '.html': 'text/html',
