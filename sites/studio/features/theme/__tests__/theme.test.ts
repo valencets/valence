@@ -299,7 +299,7 @@ describe('mobile CSS: hamburger nav', () => {
   it('shows nav-hamburger below 768px', () => {
     const css = getStudioCSS()
     expect(css).toContain('.nav-hamburger')
-    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.nav-hamburger\s*\{[^}]*display:\s*block/)
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.nav-hamburger\s*\{[^}]*display:\s*flex/)
   })
 
   it('nav-links.open displays as vertical flex below 768px', () => {

@@ -49,8 +49,11 @@ export class GlassBoxInspector extends HTMLElement {
     this._boundBeforeSwap = this._onBeforeSwap.bind(this)
     this._boundAfterSwap = this._onAfterSwap.bind(this)
     this._boundEngineerToggle = this._onEngineerToggle.bind(this)
-    document.addEventListener('mouseover', this._boundMouseOver)
-    document.addEventListener('mouseout', this._boundMouseOut)
+    const isMobile = window.innerWidth < 768
+    if (!isMobile) {
+      document.addEventListener('mouseover', this._boundMouseOver)
+      document.addEventListener('mouseout', this._boundMouseOut)
+    }
     document.addEventListener('keydown', this._boundKeyDown)
     document.addEventListener('inertia:before-swap', this._boundBeforeSwap)
     document.addEventListener('inertia:after-swap', this._boundAfterSwap)

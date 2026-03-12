@@ -6,9 +6,27 @@ import { initNavActive } from './nav-active.js'
 import '../glass-box/components/GlassBoxStrip.js'
 import '../glass-box/components/GlassBoxInspector.js'
 
+function initHamburgerNav (): void {
+  const btn = document.querySelector('.nav-hamburger') as HTMLElement | null
+  const links = document.querySelector('.nav-links') as HTMLElement | null
+  if (!btn || !links) return
+
+  btn.addEventListener('click', () => {
+    const isOpen = links.classList.toggle('open')
+    btn.setAttribute('aria-expanded', String(isOpen))
+  })
+
+  // Close menu on navigation
+  document.addEventListener('inertia:before-swap', () => {
+    links.classList.remove('open')
+    btn.setAttribute('aria-expanded', 'false')
+  })
+}
+
 function boot (): void {
   bootTelemetry()
   initNavActive()
+  initHamburgerNav()
 
   const routerResult = initRouter({ contentSelector: '#main-content' })
   routerResult.match(
