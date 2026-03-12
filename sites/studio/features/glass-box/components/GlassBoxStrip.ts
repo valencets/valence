@@ -18,14 +18,20 @@ export class GlassBoxStrip extends HTMLElement {
   private _flushMessageTimeout: ReturnType<typeof setTimeout> | null = null
   private _hardwareLabel: string = 'PI5'
   private _demoInterval: ReturnType<typeof setInterval> | null = null
+  private _engineerMode: boolean = false
+  private _longPressTimeout: ReturnType<typeof setTimeout> | null = null
 
   static get observedAttributes (): string[] {
-    return ['hardware-label']
+    return ['hardware-label', 'engineer-mode']
   }
 
   attributeChangedCallback (name: string, _old: string | null, value: string | null): void {
     const handlers: Record<string, () => void> = {
-      'hardware-label': () => { this._hardwareLabel = value ?? 'PI5' }
+      'hardware-label': () => { this._hardwareLabel = value ?? 'PI5' },
+      'engineer-mode': () => {
+        this._engineerMode = value !== null
+        this._lastCount = -1
+      }
     }
     handlers[name]?.()
   }
@@ -59,6 +65,9 @@ export class GlassBoxStrip extends HTMLElement {
       color: var(--muted-foreground, #888);
     `
     this._startRaf()
+    this.addEventListener('touchstart', this._onTouchStart.bind(this))
+    this.addEventListener('touchend', this._onTouchEnd.bind(this))
+    this.addEventListener('touchcancel', this._onTouchEnd.bind(this))
   }
 
   disconnectedCallback (): void {
@@ -70,6 +79,9 @@ export class GlassBoxStrip extends HTMLElement {
     }
     if (this._demoInterval) {
       clearInterval(this._demoInterval)
+    }
+    if (this._longPressTimeout) {
+      clearTimeout(this._longPressTimeout)
     }
   }
 
@@ -86,6 +98,20 @@ export class GlassBoxStrip extends HTMLElement {
       this._flushMessageTimeout = setTimeout(() => {
         ;(msgEl as HTMLElement).style.opacity = '0'
       }, GLASS_BOX_CONFIG.flushMessageDurationMs)
+    }
+  }
+
+  private _onTouchStart (): void {
+    this._longPressTimeout = setTimeout(() => {
+      document.dispatchEvent(new CustomEvent('engineer-mode-toggle'))
+      this._longPressTimeout = null
+    }, 300)
+  }
+
+  private _onTouchEnd (): void {
+    if (this._longPressTimeout) {
+      clearTimeout(this._longPressTimeout)
+      this._longPressTimeout = null
     }
   }
 
@@ -135,11 +161,16 @@ export class GlassBoxStrip extends HTMLElement {
     // On mobile: minimal view
     const isMobile = window.innerWidth < 768
 
+    const engineerBadge = this._engineerMode
+      ? '<span class="gb-engineer" style="color:hsl(142,60%,50%);font-weight:600;margin-left:auto;">ENGINEER MODE</span>'
+      : ''
+
     if (isMobile) {
       this.innerHTML = `
         <span class="gb-hw">${this._hardwareLabel}</span>
         <span class="gb-count">${count}/${capacity}</span>
-        <span class="gb-flush-msg" style="opacity: 0; transition: opacity 0.3s; margin-left: auto;"></span>
+        ${engineerBadge}
+        <span class="gb-flush-msg" style="opacity: 0; transition: opacity 0.3s; margin-left: ${this._engineerMode ? '8px' : 'auto'};"></span>
       `
       return
     }
@@ -162,6 +193,7 @@ export class GlassBoxStrip extends HTMLElement {
       <span class="gb-head">▶${head}</span>
       <span class="gb-slots" style="display:flex;gap:1px;flex:1;">${slots.join('')}</span>
       <span class="gb-count">${count}/${capacity}</span>
+      ${engineerBadge}
       <button data-demo-flood style="background:transparent;border:1px solid var(--border,#333);color:var(--muted-foreground,#888);font-family:inherit;font-size:10px;padding:1px 6px;border-radius:2px;cursor:pointer;opacity:0;transition:opacity 0.2s;">DEMO</button>
       <span class="gb-flush-msg" style="opacity: 0; transition: opacity 0.3s;"></span>
     `

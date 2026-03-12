@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { ok } from 'neverthrow'
+import { ok, err } from 'neverthrow'
+import type { DbError } from '@inertia/db'
 
 vi.mock('@inertia/db', () => ({
   aggregateSessionSummary: vi.fn(async () => ok(undefined)),
@@ -51,6 +52,29 @@ describe('startAggregationCron', () => {
     expect(aggregateEventSummary).toHaveBeenCalled()
     expect(aggregateConversionSummary).toHaveBeenCalled()
 
+    handle.stop()
+  })
+
+  it('logs errors when aggregation fails', async () => {
+    const { aggregateSessionSummary } = await import('@inertia/db')
+    const sessionMock = aggregateSessionSummary as ReturnType<typeof vi.fn>
+    const dbError: DbError = { code: 'QUERY_FAILED', message: 'table does not exist' }
+    sessionMock.mockImplementation(async () => err(dbError))
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { startAggregationCron } = await import('../server/aggregation-cron.js')
+    const pool = {} as never
+    const handle = startAggregationCron(pool, 'studio', 'other')
+
+    await new Promise((resolve) => { setTimeout(resolve, 50) })
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[aggregation]'),
+      expect.anything()
+    )
+
+    errorSpy.mockRestore()
     handle.stop()
   })
 })

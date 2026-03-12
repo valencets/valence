@@ -30,7 +30,12 @@ function renderNav (currentPath: string): string {
           <img src="/img/mark-light.svg" alt="" width="24" height="24" class="nav-mark">
           INERTIA
         </a>
-        ${links}
+        <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="nav-links">
+          ${links}
+        </div>
       </div>
     </nav>`
 }
@@ -53,6 +58,7 @@ export function renderShell (options: ShellOptions): string {
   <meta name="twitter:title" content="${options.title} | Inertia Web Solutions">
   <meta name="twitter:description" content="${options.description}">
   <meta name="twitter:image" content="https://inertiawebsolutions.com/img/og-card.png">
+  <link rel="canonical" href="https://inertiawebsolutions.com${options.currentPath}">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <style>${options.criticalCSS}</style>
   <link rel="stylesheet" href="${options.deferredCSSPath}?v=${BOOT_VERSION}">

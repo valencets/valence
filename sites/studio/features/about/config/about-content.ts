@@ -8,16 +8,8 @@ export const ABOUT = {
   },
   hardware: {
     headline: 'The Appliance Model',
-    body: 'Traditional web hosting is a subscription trap. You pay monthly for a fraction of a shared server, your data lives on someone else\'s hardware, and if you stop paying, everything disappears.',
-    pitch: 'We flip this. We build your website, install it on a dedicated server appliance, and deliver the physical hardware to you. Your PostgreSQL database runs on your hardware. Your analytics are self-hosted. Your website runs from your office. We charge for the build, not the electricity.',
-    specs: [
-      { label: 'Server', value: 'Industrial-grade x86 edge server' },
-      { label: 'OS', value: 'Debian-based, hardened' },
-      { label: 'Database', value: 'PostgreSQL, client-owned' },
-      { label: 'Network', value: 'Secure tunnel to disposable relay' },
-      { label: 'Analytics', value: 'Self-hosted, first-party only' },
-      { label: 'Monthly Cost', value: '~$5/mo relay + electricity' }
-    ]
+    summary: 'We build your website, install it on a dedicated server appliance, and hand-deliver the hardware to your business. You own the server, the database, and the code. No monthly hosting trap.',
+    cta: { label: 'See full specs and pricing', href: '/services' }
   },
   proof: {
     headline: 'Why Inertia Exists',

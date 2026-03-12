@@ -28,7 +28,6 @@ describe('renderAbout', () => {
   it('contains hardware section without brand names', () => {
     const html = renderAbout()
     expect(html).toContain(ABOUT.hardware.headline)
-    // Must NOT contain hardware brand names on public-facing pages
     expect(html).not.toContain('Raspberry Pi')
     expect(html).not.toContain('ZimaBoard')
     expect(html).not.toContain('N100')
@@ -37,17 +36,27 @@ describe('renderAbout', () => {
     expect(html).not.toContain('Cloudflare')
   })
 
-  it('renders all hardware specs', () => {
-    const html = renderAbout()
-    for (const spec of ABOUT.hardware.specs) {
-      expect(html).toContain(spec.label)
-      expect(html).toContain(spec.value)
-    }
-  })
-
   it('has telemetry on hardware section', () => {
     const html = renderAbout()
     expect(html).toContain('data-telemetry-target="hardware-section"')
+  })
+
+  it('hardware section links to /services for full details', () => {
+    const html = renderAbout()
+    const hwStart = html.indexOf('hardware-section')
+    const hwEnd = html.indexOf('<section', hwStart + 1)
+    const hwHtml = html.substring(hwStart, hwEnd > -1 ? hwEnd : undefined)
+    expect(hwHtml).toContain('href="/services"')
+  })
+
+  it('hardware section is concise (under 80 words visible)', () => {
+    const html = renderAbout()
+    const hwStart = html.indexOf('hardware-section')
+    const hwEnd = html.indexOf('<section', hwStart + 1)
+    const hwHtml = html.substring(hwStart, hwEnd > -1 ? hwEnd : undefined)
+    const text = hwHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const wordCount = text.split(' ').length
+    expect(wordCount).toBeLessThan(80)
   })
 })
 

@@ -35,6 +35,38 @@ describe('getFleetSites', () => {
     const result = await getFleetSites(pool)
     expect(result.isErr()).toBe(true)
   })
+
+  it('marks site as healthy when synced_at is recent', async () => {
+    const pool = makeMockPool([{
+      site_id: 'studio',
+      business_type: 'other',
+      date: new Date(),
+      session_count: 5,
+      pageview_count: 10,
+      conversion_count: 1,
+      synced_at: new Date()
+    }])
+    const result = await getFleetSites(pool)
+    expect(result.isOk()).toBe(true)
+    const sites = result._unsafeUnwrap()
+    expect(sites[0]?.status).toBe('healthy')
+  })
+
+  it('marks site as offline when synced_at is null', async () => {
+    const pool = makeMockPool([{
+      site_id: 'studio',
+      business_type: 'other',
+      date: new Date(),
+      session_count: 5,
+      pageview_count: 10,
+      conversion_count: 1,
+      synced_at: null
+    }])
+    const result = await getFleetSites(pool)
+    expect(result.isOk()).toBe(true)
+    const sites = result._unsafeUnwrap()
+    expect(sites[0]?.status).toBe('offline')
+  })
 })
 
 describe('getFleetComparison', () => {

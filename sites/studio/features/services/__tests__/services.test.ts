@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderServices } from '../templates/services.js'
 import { SERVICE_TIERS, OWNERSHIP_LIST } from '../config/services-content.js'
+import { SERVICES_COPY_MAP } from '../config/services-copy-map.js'
 
 describe('renderServices', () => {
   it('returns non-empty HTML', () => {
@@ -67,15 +68,17 @@ describe('renderServices', () => {
     expect(html).toContain('/about#contact')
   })
 
-  it('uses internet doorway analogy, no hardware brand names', () => {
+  it('uses internet doorway analogy, no hardware brand names in visible copy', () => {
     const html = renderServices()
-    expect(html).toContain('doorway')
-    expect(html).not.toContain('Cloudflare')
-    expect(html).not.toContain('Raspberry Pi')
-    expect(html).not.toContain('ZimaBoard')
-    expect(html).not.toContain('N100')
-    expect(html).not.toContain('NVMe')
-    expect(html).not.toContain('WD Red')
+    // Strip data-copy-technical attributes (technical copy is hidden by default)
+    const visible = html.replace(/\s*data-copy-technical="[^"]*"/g, '')
+    expect(visible).toContain('doorway')
+    expect(visible).not.toContain('Cloudflare')
+    expect(visible).not.toContain('Raspberry Pi')
+    expect(visible).not.toContain('ZimaBoard')
+    expect(visible).not.toContain('N100')
+    expect(visible).not.toContain('NVMe')
+    expect(visible).not.toContain('WD Red')
   })
 
   it('renders tier estimates with tier-estimate class', () => {
@@ -88,5 +91,18 @@ describe('renderServices', () => {
     expect(SERVICE_TIERS[0].id).toBe('build-own')
     expect(SERVICE_TIERS[1].id).toBe('infrastructure')
     expect(SERVICE_TIERS[2].id).toBe('managed')
+  })
+
+  it('renders data-copy-technical attributes for dual-layer copy', () => {
+    const html = renderServices()
+    expect(html).toContain('data-copy-technical=')
+    expect(html).toContain('data-copy-default=')
+  })
+
+  it('swappable tier includes match copy map defaults', () => {
+    const allIncludes = SERVICE_TIERS.flatMap(t => t.includes)
+    for (const entry of SERVICES_COPY_MAP) {
+      expect(allIncludes).toContain(entry.default)
+    }
   })
 })

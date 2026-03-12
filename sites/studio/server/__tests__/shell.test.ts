@@ -134,6 +134,44 @@ describe('renderShell', () => {
   })
 })
 
+describe('renderShell hamburger nav', () => {
+  it('has a hamburger toggle button hidden on desktop', () => {
+    const html = renderShell(defaultOptions)
+    expect(html).toContain('nav-hamburger')
+    expect(html).toContain('aria-label="Toggle menu"')
+    expect(html).toContain('aria-expanded="false"')
+  })
+
+  it('wraps nav links in a nav-links container', () => {
+    const html = renderShell(defaultOptions)
+    expect(html).toContain('class="nav-links"')
+  })
+
+  it('nav links container holds all 5 page links', () => {
+    const html = renderShell(defaultOptions)
+    const navLinksMatch = html.match(/class="nav-links"[\s\S]*?<\/div>/)
+    expect(navLinksMatch).not.toBeNull()
+    const navLinksHtml = navLinksMatch![0]
+    expect(navLinksHtml).toContain('Home')
+    expect(navLinksHtml).toContain('Principles')
+    expect(navLinksHtml).toContain('Services')
+    expect(navLinksHtml).toContain('Audit')
+    expect(navLinksHtml).toContain('About')
+  })
+})
+
+describe('renderShell canonical URL', () => {
+  it('includes canonical link tag', () => {
+    const html = renderShell(defaultOptions)
+    expect(html).toContain('<link rel="canonical"')
+  })
+
+  it('canonical URL uses currentPath', () => {
+    const html = renderShell({ ...defaultOptions, currentPath: '/about' })
+    expect(html).toContain('href="https://inertiawebsolutions.com/about"')
+  })
+})
+
 describe('renderFragment', () => {
   it('returns just the main content', () => {
     const fragment = renderFragment('<h1>Hello</h1>')

@@ -73,6 +73,45 @@ describe('GlassBoxInspector', () => {
   })
 })
 
+describe('GlassBoxInspector mobile behavior', () => {
+  beforeAll(async () => {
+    if (customElements.get('inertia-telemetry-infobox') === undefined) {
+      await import('../components/GlassBoxInspector.js')
+    }
+  })
+
+  it('does NOT show infobox on hover after delay on mobile', async () => {
+    const originalWidth = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { value: 375, writable: true, configurable: true })
+
+    const el = document.createElement('inertia-telemetry-infobox')
+
+    const target = document.createElement('a')
+    target.setAttribute('data-telemetry-type', 'CLICK')
+    target.setAttribute('data-telemetry-target', 'mobile-link')
+    document.body.appendChild(target)
+    document.body.appendChild(el)
+
+    let opacity = '0'
+    try {
+      // Hover over a telemetry target
+      target.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+
+      // Wait past the 400ms hover delay
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // On mobile, the infobox should remain hidden (opacity 0)
+      opacity = el.style.opacity
+    } finally {
+      el.remove()
+      target.remove()
+      Object.defineProperty(window, 'innerWidth', { value: originalWidth, writable: true, configurable: true })
+    }
+
+    expect(opacity).toBe('0')
+  })
+})
+
 describe('GlassBoxInspector overlay mode', () => {
   beforeAll(async () => {
     if (customElements.get('inertia-telemetry-infobox') === undefined) {
@@ -308,6 +347,145 @@ describe('GlassBoxInspector overlay layout', () => {
     const margin = parseInt(newTarget.style.marginTop, 10)
     expect(margin).toBeGreaterThan(0)
     teardown()
+  })
+})
+
+describe('GlassBoxInspector engineer mode copy swap', () => {
+  beforeAll(async () => {
+    if (customElements.get('inertia-telemetry-infobox') === undefined) {
+      await import('../components/GlassBoxInspector.js')
+    }
+  })
+
+  function setup (): { inspector: HTMLElement; copyEl: HTMLElement } {
+    const copyEl = document.createElement('p')
+    copyEl.setAttribute('data-copy-default', 'Plain language text')
+    copyEl.setAttribute('data-copy-technical', 'Technical jargon text')
+    copyEl.textContent = 'Plain language text'
+    document.body.appendChild(copyEl)
+
+    const inspector = document.createElement('inertia-telemetry-infobox')
+    document.body.appendChild(inspector)
+
+    return { inspector, copyEl }
+  }
+
+  function teardown (): void {
+    document.body.removeAttribute('data-engineer-mode')
+    document.body.innerHTML = ''
+  }
+
+  it('swaps textContent to technical on backtick activate', () => {
+    const { copyEl } = setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(copyEl.textContent).toBe('Technical jargon text')
+    teardown()
+  })
+
+  it('restores textContent to default on backtick deactivate', () => {
+    const { copyEl } = setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(copyEl.textContent).toBe('Plain language text')
+    teardown()
+  })
+
+  it('sets data-engineer-mode on body when active', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.body.hasAttribute('data-engineer-mode')).toBe(true)
+    teardown()
+  })
+
+  it('removes data-engineer-mode on body when deactivated', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+    expect(document.body.hasAttribute('data-engineer-mode')).toBe(false)
+    teardown()
+  })
+
+  it('reapplies technical copy after navigation when active', () => {
+    setup()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`' }))
+
+    // Simulate navigation
+    document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+
+    // Add new content with data-copy-* attributes
+    const newEl = document.createElement('span')
+    newEl.setAttribute('data-copy-default', 'New default')
+    newEl.setAttribute('data-copy-technical', 'New technical')
+    newEl.textContent = 'New default'
+    document.body.appendChild(newEl)
+
+    document.dispatchEvent(new CustomEvent('inertia:after-swap'))
+    expect(newEl.textContent).toBe('New technical')
+    teardown()
+  })
+})
+
+describe('GlassBoxStrip mobile long-press toggle', () => {
+  beforeAll(async () => {
+    if (customElements.get('inertia-buffer-strip') === undefined) {
+      await import('../components/GlassBoxStrip.js')
+    }
+  })
+
+  it('dispatches engineer-mode-toggle on 300ms long-press', async () => {
+    const el = document.createElement('inertia-buffer-strip') as HTMLElement
+    const mockBuffer = { count: 1, capacity: 64, head: 1, slotAt: () => ({ isDirty: false }) }
+    ;(el as unknown as { buffer: unknown }).buffer = mockBuffer
+    document.body.appendChild(el)
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+    let toggled = false
+    document.addEventListener('engineer-mode-toggle', () => { toggled = true }, { once: true })
+
+    el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 350))
+    el.dispatchEvent(new TouchEvent('touchend', { bubbles: true }))
+
+    expect(toggled).toBe(true)
+    el.remove()
+  })
+
+  it('does NOT dispatch on short tap (< 300ms)', async () => {
+    const el = document.createElement('inertia-buffer-strip') as HTMLElement
+    const mockBuffer = { count: 1, capacity: 64, head: 1, slotAt: () => ({ isDirty: false }) }
+    ;(el as unknown as { buffer: unknown }).buffer = mockBuffer
+    document.body.appendChild(el)
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+    let toggled = false
+    document.addEventListener('engineer-mode-toggle', () => { toggled = true }, { once: true })
+
+    el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true }))
+    await new Promise(resolve => setTimeout(resolve, 100))
+    el.dispatchEvent(new TouchEvent('touchend', { bubbles: true }))
+
+    expect(toggled).toBe(false)
+    el.remove()
+  })
+})
+
+describe('GlassBoxStrip engineer mode indicator', () => {
+  beforeAll(async () => {
+    if (customElements.get('inertia-buffer-strip') === undefined) {
+      await import('../components/GlassBoxStrip.js')
+    }
+  })
+
+  it('shows ENGINEER MODE label when engineer-mode attribute is set', async () => {
+    const el = document.createElement('inertia-buffer-strip') as HTMLElement
+    const mockBuffer = { count: 5, capacity: 64, head: 5, slotAt: () => ({ isDirty: false }) }
+    ;(el as unknown as { buffer: unknown }).buffer = mockBuffer
+    el.setAttribute('engineer-mode', '')
+    document.body.appendChild(el)
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+    expect(el.textContent).toContain('ENGINEER MODE')
+    el.remove()
   })
 })
 

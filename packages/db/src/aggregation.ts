@@ -22,6 +22,12 @@ export function aggregateSessionSummary (
           COUNT(*) FILTER (WHERE device_type = 'tablet')::int AS device_tablet
         FROM sessions
         WHERE created_at >= ${period.start} AND created_at < ${period.end}
+        ON CONFLICT (period_start, period_end) DO UPDATE SET
+          total_sessions = EXCLUDED.total_sessions,
+          unique_referrers = EXCLUDED.unique_referrers,
+          device_mobile = EXCLUDED.device_mobile,
+          device_desktop = EXCLUDED.device_desktop,
+          device_tablet = EXCLUDED.device_tablet
         RETURNING *
       `
       const row = rows[0]
@@ -51,6 +57,9 @@ export function aggregateEventSummary (
         FROM events
         WHERE created_at >= ${period.start} AND created_at < ${period.end}
         GROUP BY event_category
+        ON CONFLICT (period_start, period_end, event_category) DO UPDATE SET
+          total_count = EXCLUDED.total_count,
+          unique_sessions = EXCLUDED.unique_sessions
         RETURNING *
       `
       return rows as ReadonlyArray<EventSummaryRow>
@@ -92,6 +101,9 @@ export function aggregateConversionSummary (
         WHERE e.created_at >= ${period.start} AND e.created_at < ${period.end}
           AND e.event_category IN ('INTENT_CALL', 'INTENT_BOOK', 'INTENT_NAVIGATE')
         GROUP BY e.event_category
+        ON CONFLICT (period_start, period_end, intent_type) DO UPDATE SET
+          total_count = EXCLUDED.total_count,
+          top_sources = EXCLUDED.top_sources
         RETURNING *
       `
       return rows as ReadonlyArray<ConversionSummaryRow>

@@ -148,13 +148,13 @@ export function generateDailySummary (
           site_id, date, business_type, schema_version,
           session_count, pageview_count, conversion_count,
           top_referrers, top_pages, intent_counts,
-          avg_flush_ms, rejection_count
+          avg_flush_ms, rejection_count, synced_at
         )
         VALUES (
           ${siteId}, ${dateOnly}, ${businessType}, ${1},
           ${sessionCount}, ${pageviewCount}, ${conversionCount},
           ${JSON.stringify(topReferrers)}::jsonb, ${JSON.stringify(topPages)}::jsonb, ${JSON.stringify(intentCounts)}::jsonb,
-          ${health.avg_flush_ms}, ${health.rejection_count}
+          ${health.avg_flush_ms}, ${health.rejection_count}, NOW()
         )
         ON CONFLICT (site_id, date) DO UPDATE SET
           business_type = EXCLUDED.business_type,
@@ -165,7 +165,8 @@ export function generateDailySummary (
           top_pages = EXCLUDED.top_pages,
           intent_counts = EXCLUDED.intent_counts,
           avg_flush_ms = EXCLUDED.avg_flush_ms,
-          rejection_count = EXCLUDED.rejection_count
+          rejection_count = EXCLUDED.rejection_count,
+          synced_at = NOW()
         RETURNING *
       `
 

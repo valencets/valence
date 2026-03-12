@@ -1,6 +1,6 @@
 export const HERO = {
-  headline: 'Your website should load in one TCP round trip.',
-  subhead: 'We build deterministic websites on dedicated hardware you own. No shared hosting. No bloated frameworks. No monthly ransom.',
+  headline: 'Your website should load before you can blink.',
+  subhead: 'We build websites on dedicated hardware you own. No shared hosting. No bloated frameworks. No monthly ransom.',
   cta: { label: 'See Our Principles', href: '/principles' },
   ctaSecondary: { label: 'Get In Touch', href: '/about#contact' }
 } as const
@@ -9,25 +9,25 @@ export const PILLARS = [
   {
     id: 'no-dynamic-alloc',
     title: 'No Dynamic Allocation',
-    summary: 'Pre-allocated buffers. Monomorphic interfaces. Zero garbage collection jank at runtime.',
+    summary: 'Pre-allocated buffers. Zero garbage collection jank at runtime.',
     icon: '⬡'
   },
   {
     id: 'no-exceptions',
     title: 'No Exceptions',
-    summary: 'Result monads replace try/catch everywhere. Every code path is explicitly handled.',
+    summary: 'Every code path is explicitly handled. No silent failures.',
     icon: '⬢'
   },
   {
     id: 'low-complexity',
     title: 'Low Complexity',
-    summary: 'Every function under 20 cyclomatic complexity. Early returns. Dictionary maps. No spaghetti.',
+    summary: 'Every function is small enough to reason about. Bugs have fewer places to hide.',
     icon: '◇'
   },
   {
     id: '14kb-protocol',
-    title: '14kB Protocol',
-    summary: 'Your critical shell fits in the first 10 TCP packets. First paint before the server even knows you arrived.',
+    title: 'Instant First Paint',
+    summary: 'Your website renders from the very first server response.',
     icon: '△'
   }
 ] as const
@@ -48,6 +48,6 @@ export const OWNERSHIP = {
     { metric: '<14kB', label: 'First paint payload' },
     { metric: '0', label: 'Third-party scripts' },
     { metric: '100%', label: 'Client-owned infrastructure' },
-    { metric: '∞', label: 'Uptime without us' }
+    { metric: '24/7', label: 'Your site runs with or without us' }
   ]
 } as const

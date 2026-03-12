@@ -4,6 +4,54 @@ import { TYPOGRAPHY } from '../config/studio-typography.js'
 import { SPACING } from '../config/studio-spacing.js'
 import { getResolvedTheme, getStudioCSS } from '../config/studio-css.js'
 
+// WCAG 2.1 contrast ratio helpers
+function parseHSL (hsl: string): [number, number, number] {
+  const match = /hsl\(\s*(\d+),\s*(\d+)%,\s*(\d+)%\s*\)/.exec(hsl)
+  if (!match) return [0, 0, 0]
+  return [Number(match[1]), Number(match[2]) / 100, Number(match[3]) / 100]
+}
+
+function hslToLinearRGB (h: number, s: number, l: number): [number, number, number] {
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = l - c / 2
+  let r1 = 0
+  let g1 = 0
+  let b1 = 0
+  if (h < 60) {
+    r1 = c; g1 = x
+  } else if (h < 120) {
+    r1 = x; g1 = c
+  } else if (h < 180) {
+    g1 = c; b1 = x
+  } else if (h < 240) {
+    g1 = x; b1 = c
+  } else if (h < 300) {
+    r1 = x; b1 = c
+  } else {
+    r1 = c; b1 = x
+  }
+  return [r1 + m, g1 + m, b1 + m]
+}
+
+function sRGBtoLinear (c: number): number {
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+}
+
+function relativeLuminance (r: number, g: number, b: number): number {
+  return 0.2126 * sRGBtoLinear(r) + 0.7152 * sRGBtoLinear(g) + 0.0722 * sRGBtoLinear(b)
+}
+
+function contrastRatio (hsl1: string, hsl2: string): number {
+  const [h1, s1, l1] = parseHSL(hsl1)
+  const [h2, s2, l2] = parseHSL(hsl2)
+  const lum1 = relativeLuminance(...hslToLinearRGB(h1, s1, l1))
+  const lum2 = relativeLuminance(...hslToLinearRGB(h2, s2, l2))
+  const lighter = Math.max(lum1, lum2)
+  const darker = Math.min(lum1, lum2)
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
 describe('studioTheme', () => {
   it('has dark color palette with gunmetal tones', () => {
     expect(studioTheme.colors?.dark?.background).toContain('hsl')
@@ -238,5 +286,73 @@ describe('getStudioCSS', () => {
     expect(css).toContain('.gb-label')
     expect(css).toContain('.gb-value')
     expect(css).toContain('.gb-explainer')
+  })
+})
+
+describe('mobile CSS: hamburger nav', () => {
+  it('hides nav-links below 768px', () => {
+    const css = getStudioCSS()
+    expect(css).toContain('.nav-links')
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.nav-links\s*\{[^}]*display:\s*none/)
+  })
+
+  it('shows nav-hamburger below 768px', () => {
+    const css = getStudioCSS()
+    expect(css).toContain('.nav-hamburger')
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.nav-hamburger\s*\{[^}]*display:\s*flex/)
+  })
+
+  it('nav-links.open displays as vertical flex below 768px', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.nav-links\.open\s*\{[^}]*display:\s*flex/)
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.nav-links\.open\s*\{[^}]*flex-direction:\s*column/)
+  })
+})
+
+describe('mobile CSS: contact form', () => {
+  it('increases form input font-size to 16px on mobile to prevent iOS zoom', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.form-input[\s\S]*font-size:\s*16px/)
+  })
+
+  it('stacks contact-info vertically on mobile', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.contact-info\s*\{[^}]*flex-direction:\s*column/)
+  })
+})
+
+describe('mobile CSS: hero responsive text', () => {
+  it('hero h1 uses clamp() or reduces font-size on mobile', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.hero h1\s*\{[^}]*font-size/)
+  })
+})
+
+describe('mobile CSS: footer strip clearance', () => {
+  it('footer has bottom padding to clear buffer strip', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/footer\s*\{[^}]*padding-bottom/)
+  })
+})
+
+describe('a11y contrast compliance', () => {
+  it('primary-foreground on primary meets WCAG AA 4.5:1 for dark mode', () => {
+    const primary = studioTheme.colors?.dark?.primary ?? ''
+    const fg = studioTheme.colors?.dark?.['primary-foreground'] ?? ''
+    const ratio = contrastRatio(primary, fg)
+    expect(ratio).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('primary-foreground on primary meets WCAG AA 4.5:1 for light mode', () => {
+    const primary = studioTheme.colors?.light?.primary ?? ''
+    const fg = studioTheme.colors?.light?.['primary-foreground'] ?? ''
+    const ratio = contrastRatio(primary, fg)
+    expect(ratio).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('footer link has text-decoration underline by default (not hover-only)', () => {
+    const css = getStudioCSS()
+    // The non-hover rule should set underline, not "none"
+    expect(css).toMatch(/\.footer-hardware a\s*\{[^}]*text-decoration:\s*underline/)
   })
 })

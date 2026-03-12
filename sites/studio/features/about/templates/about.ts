@@ -2,12 +2,6 @@ import { ABOUT } from '../config/about-content.js'
 import { SUBJECTS } from '../../contact/schemas/contact-schema.js'
 
 export function renderAbout (): string {
-  const specs = ABOUT.hardware.specs.map((s) => `
-    <div class="spec-row">
-      <dt>${s.label}</dt>
-      <dd>${s.value}</dd>
-    </div>`).join('')
-
   const proofItems = ABOUT.proof.points.map((p) =>
     `<li>${p}</li>`
   ).join('')
@@ -35,11 +29,8 @@ export function renderAbout (): string {
 
 <section class="section container" data-telemetry-type="VIEWPORT_INTERSECT" data-telemetry-target="hardware-section">
   <h2>${ABOUT.hardware.headline}</h2>
-  <p class="prose">${ABOUT.hardware.body}</p>
-  <p class="prose">${ABOUT.hardware.pitch}</p>
-  <dl class="spec-list card">
-    ${specs}
-  </dl>
+  <p class="prose">${ABOUT.hardware.summary}</p>
+  <a href="${ABOUT.hardware.cta.href}" class="btn btn-secondary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="about-services-link">${ABOUT.hardware.cta.label}</a>
 </section>
 
 <section class="section container" id="contact">
