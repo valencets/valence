@@ -1,6 +1,12 @@
 import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js'
-import { fetchFleetSites, fetchFleetAggregates } from '../data/fetch-fleet.js'
+import { fetchFleetSites, fetchFleetAggregates, fetchFleetAlerts } from '../data/fetch-fleet.js'
 import { formatNumber } from '../data/format-number.js'
+
+const ALERT_BG: Record<string, string> = {
+  red: 'hsla(0, 70%, 40%, 0.15)',
+  amber: 'hsla(35, 70%, 40%, 0.15)',
+  blue: 'hsla(210, 70%, 40%, 0.15)'
+}
 
 export class FleetDashboard extends HTMLElement {
   private _initialized = false
@@ -10,6 +16,7 @@ export class FleetDashboard extends HTMLElement {
   private _sessionsMetric: HTMLElement | null = null
   private _conversionsMetric: HTMLElement | null = null
   private _periodChangeHandler: ((e: Event) => void) | null = null
+  private _alertsContainer: HTMLElement | null = null
 
   connectedCallback (): void {
     if (this._initialized) return
@@ -120,8 +127,14 @@ export class FleetDashboard extends HTMLElement {
     ]))
     sitesTable.setAttribute('rows', '[]')
 
+    // Alerts container (populated from API)
+    const alertsContainer = document.createElement('div')
+    alertsContainer.setAttribute('data-alerts', '')
+    alertsContainer.style.marginBottom = HUD_SPACING.md
+
     this.appendChild(header)
     this.appendChild(grid)
+    this.appendChild(alertsContainer)
     this.appendChild(tableHeader)
     this.appendChild(sitesTable)
 
@@ -130,6 +143,7 @@ export class FleetDashboard extends HTMLElement {
     this._offlineMetric = offlineMetric
     this._sessionsMetric = sessionsMetric
     this._conversionsMetric = conversionsMetric
+    this._alertsContainer = alertsContainer
 
     // Drill-down: click table row to navigate to site HUD
     sitesTable.addEventListener('click', (e: Event) => {
@@ -203,6 +217,28 @@ export class FleetDashboard extends HTMLElement {
         }
         if (this._conversionsMetric !== null) {
           this._conversionsMetric.setAttribute('value', formatNumber(agg.total_conversions))
+        }
+      },
+      () => {} // Hold placeholders on error
+    )
+
+    fetchFleetAlerts('').match(
+      (alerts) => {
+        if (this._alertsContainer === null) return
+        // Clear previous alerts
+        this._alertsContainer.innerHTML = ''
+        for (const alert of alerts) {
+          const row = document.createElement('div')
+          row.setAttribute('data-alert', '')
+          row.style.padding = `${HUD_SPACING.sm} ${HUD_SPACING.md}`
+          row.style.marginBottom = HUD_SPACING.xs
+          row.style.borderRadius = '4px'
+          row.style.fontSize = HUD_TYPOGRAPHY.scale.sm
+          row.style.fontFamily = HUD_TYPOGRAPHY.fontPrimary
+          row.style.backgroundColor = ALERT_BG[alert.severity] ?? HUD_COLORS.surface
+          row.style.color = HUD_COLORS.textPrimary
+          row.textContent = alert.message
+          this._alertsContainer.appendChild(row)
         }
       },
       () => {} // Hold placeholders on error

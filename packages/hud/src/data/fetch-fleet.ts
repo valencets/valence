@@ -52,6 +52,21 @@ export function fetchFleetAggregates (baseUrl: string, period?: string): ResultA
   )
 }
 
+export interface FleetAlertData {
+  readonly site_id: string
+  readonly severity: string
+  readonly type: string
+  readonly message: string
+}
+
+export function fetchFleetAlerts (baseUrl: string): ResultAsync<ReadonlyArray<FleetAlertData>, HudError> {
+  return ResultAsync.fromPromise(
+    fetch(`${baseUrl}/api/fleet/alerts`)
+      .then(r => r.json() as Promise<ReadonlyArray<FleetAlertData>>),
+    mapFetchError
+  )
+}
+
 export function fetchFleetComparison (baseUrl: string, businessType: string): ResultAsync<ReadonlyArray<FleetComparisonData>, HudError> {
   return ResultAsync.fromPromise(
     fetch(`${baseUrl}/api/fleet/compare?type=${businessType}`)

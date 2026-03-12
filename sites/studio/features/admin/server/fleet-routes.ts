@@ -1,4 +1,4 @@
-import { getFleetSites, getFleetComparison, getFleetAggregates } from '@inertia/db'
+import { getFleetSites, getFleetComparison, getFleetAggregates, getFleetAlerts } from '@inertia/db'
 import type { RouteHandler } from '../../../server/types.js'
 import { sendJson } from '../../../server/router.js'
 
@@ -20,6 +20,15 @@ export const fleetAggregatesHandler: RouteHandler = async (_req, res, ctx) => {
     return
   }
   sendJson(res, EMPTY_AGGREGATES, 500)
+}
+
+export const fleetAlertsHandler: RouteHandler = async (_req, res, ctx) => {
+  const result = await getFleetAlerts(ctx.pool)
+  if (result.isOk()) {
+    sendJson(res, result.value)
+    return
+  }
+  sendJson(res, [], 500)
 }
 
 export const fleetComparisonHandler: RouteHandler = async (req, res, ctx) => {

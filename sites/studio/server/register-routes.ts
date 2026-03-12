@@ -11,7 +11,7 @@ import { auditGetHandler, auditPostHandler } from '../features/audit/server/audi
 import { createHudHandler, createHudPostHandler } from '../features/admin/server/hud-handler.js'
 import { sessionSummaryHandler, eventSummaryHandler, conversionSummaryHandler, ingestionHealthHandler } from '../features/admin/server/summary-routes.js'
 import { createFleetOverviewHandler, createFleetCompareHandler } from '../features/admin/server/fleet-handler.js'
-import { fleetSitesHandler, fleetComparisonHandler, fleetAggregatesHandler } from '../features/admin/server/fleet-routes.js'
+import { fleetSitesHandler, fleetComparisonHandler, fleetAggregatesHandler, fleetAlertsHandler } from '../features/admin/server/fleet-routes.js'
 import { breakdownPagesHandler, breakdownSourcesHandler, breakdownActionsHandler } from '../features/admin/server/breakdown-routes.js'
 import { aggregationHandler } from '../features/admin/server/aggregation-handler.js'
 import type { RouteHandler } from './types.js'
@@ -52,6 +52,7 @@ export function registerRoutes (router: Router): void {
   // Fleet APIs
   router.register('/api/fleet/sites', { GET: fleetSitesHandler })
   router.register('/api/fleet/aggregates', { GET: fleetAggregatesHandler })
+  router.register('/api/fleet/alerts', { GET: fleetAlertsHandler })
   router.register('/api/fleet/compare', { GET: fleetComparisonHandler })
 
   // Aggregation API (HMAC-verified, not cookie-auth)

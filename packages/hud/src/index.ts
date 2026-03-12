@@ -44,5 +44,5 @@ export { classifyReferrer, aggregateByCategory } from './data/classify-referrer.
 export type { CategoryCount } from './data/classify-referrer.js'
 export { fetchSessionSummary, fetchEventSummary, fetchConversionSummary, fetchIngestionHealth } from './data/fetch-summaries.js'
 export { fetchTopPages, fetchTrafficSources, fetchLeadActions } from './data/fetch-breakdowns.js'
-export { fetchFleetSites, fetchFleetAggregates, fetchFleetComparison } from './data/fetch-fleet.js'
-export type { FleetSiteData, FleetAggregateData, FleetComparisonData } from './data/fetch-fleet.js'
+export { fetchFleetSites, fetchFleetAggregates, fetchFleetAlerts, fetchFleetComparison } from './data/fetch-fleet.js'
+export type { FleetSiteData, FleetAggregateData, FleetAlertData, FleetComparisonData } from './data/fetch-fleet.js'
