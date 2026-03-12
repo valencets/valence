@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createRouter, isFragmentRequest, sendHtml, sendJson, readBody } from '../router.js'
+import { createServerRouter, isFragmentRequest, sendHtml, sendJson, readBody } from '../router.js'
 import type { RouteContext } from '../types.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
@@ -46,15 +46,15 @@ const mockCtx: RouteContext = {
   }
 }
 
-describe('createRouter', () => {
+describe('createServerRouter', () => {
   it('returns an object with register and handle', () => {
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     expect(typeof router.register).toBe('function')
     expect(typeof router.handle).toBe('function')
   })
 
   it('routes GET request to registered handler', async () => {
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     const handler = vi.fn(async (_req, res) => {
       sendHtml(res, '<h1>Home</h1>')
     })
@@ -69,7 +69,7 @@ describe('createRouter', () => {
   })
 
   it('returns 404 for unregistered route', async () => {
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     const req = mockReq('/nonexistent')
     const res = mockRes()
     await router.handle(req, res, mockCtx)
@@ -78,7 +78,7 @@ describe('createRouter', () => {
   })
 
   it('returns 405 for wrong method', async () => {
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     router.register('/only-get', { GET: vi.fn() })
 
     const req = mockReq('/only-get', 'POST')
@@ -89,7 +89,7 @@ describe('createRouter', () => {
   })
 
   it('uses /404 handler when registered', async () => {
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     const notFoundHandler = vi.fn(async (_req, res) => {
       sendHtml(res, '<h1>Not Found</h1>', 404)
     })
@@ -158,7 +158,7 @@ describe('sendJson', () => {
 describe('registerRoutes', () => {
   it('registers new route paths', async () => {
     const { registerRoutes } = await import('../register-routes.js')
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     registerRoutes(router)
 
     for (const path of ['/how-it-works', '/pricing', '/free-site-audit']) {
@@ -171,7 +171,7 @@ describe('registerRoutes', () => {
 
   it('301 redirects from old /principles to /how-it-works', async () => {
     const { registerRoutes } = await import('../register-routes.js')
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     registerRoutes(router)
 
     const req = mockReq('/principles')
@@ -184,7 +184,7 @@ describe('registerRoutes', () => {
 
   it('301 redirects from old /services to /pricing', async () => {
     const { registerRoutes } = await import('../register-routes.js')
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     registerRoutes(router)
 
     const req = mockReq('/services')
@@ -197,7 +197,7 @@ describe('registerRoutes', () => {
 
   it('301 redirects from old /audit to /free-site-audit', async () => {
     const { registerRoutes } = await import('../register-routes.js')
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     registerRoutes(router)
 
     const req = mockReq('/audit')
@@ -210,7 +210,7 @@ describe('registerRoutes', () => {
 
   it('registers the /admin/hud route', async () => {
     const { registerRoutes } = await import('../register-routes.js')
-    const router = createRouter()
+    const router = createServerRouter<RouteContext>()
     registerRoutes(router)
 
     const req = mockReq('/admin/hud')

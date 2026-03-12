@@ -1,22 +1,5 @@
-import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { DbPool } from '@inertia/db'
-
-export const ServerErrorCode = {
-  NOT_FOUND: 'NOT_FOUND',
-  METHOD_NOT_ALLOWED: 'METHOD_NOT_ALLOWED',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  UNAUTHORIZED: 'UNAUTHORIZED',
-  RATE_LIMITED: 'RATE_LIMITED'
-} as const
-
-export type ServerErrorCode = typeof ServerErrorCode[keyof typeof ServerErrorCode]
-
-export interface ServerError {
-  readonly code: ServerErrorCode
-  readonly message: string
-  readonly statusCode: number
-}
+import type { RouteHandler as CoreRouteHandler } from '@inertia/core/server'
 
 export interface ServerConfig {
   readonly port: number
@@ -44,13 +27,8 @@ export interface RouteContext {
   readonly config: ServerConfig
 }
 
-export type RouteHandler = (
-  req: IncomingMessage,
-  res: ServerResponse,
-  ctx: RouteContext
-) => Promise<void>
+// Bound RouteHandler for Studio — all handlers import this
+export type RouteHandler = CoreRouteHandler<RouteContext>
 
-export interface RouteEntry {
-  readonly GET?: RouteHandler
-  readonly POST?: RouteHandler
-}
+// Explicit alias for clarity in new code
+export type StudioRouteHandler = RouteHandler

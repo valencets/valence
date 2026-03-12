@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { createPool, closePool, loadMigrations, runMigrations } from '@inertia/db'
 import type { DbPool } from '@inertia/db'
 import { loadConfig } from './config.js'
-import { createRouter } from './router.js'
+import { createServerRouter } from './router.js'
 import type { RouteContext } from './types.js'
 import { applySecurityHeaders, tryServeStatic } from './middleware.js'
 import { registerRoutes } from './register-routes.js'
@@ -69,7 +69,7 @@ async function boot (): Promise<void> {
   console.log('Generated public/js/admin.js')
 
   // Build router
-  const router = createRouter()
+  const router = createServerRouter<RouteContext>()
   const ctx: RouteContext = { pool, config }
 
   registerRoutes(router)

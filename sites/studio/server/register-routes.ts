@@ -1,4 +1,4 @@
-import type { Router } from './router.js'
+import type { ServerRouter } from './router.js'
 import { homeHandler } from '../features/home/server/home-handler.js'
 import { principlesHandler } from '../features/principles/server/principles-handler.js'
 import { aboutHandler } from '../features/about/server/about-handler.js'
@@ -14,18 +14,19 @@ import { createFleetOverviewHandler, createFleetCompareHandler } from '../featur
 import { fleetSitesHandler, fleetComparisonHandler, fleetAggregatesHandler, fleetAlertsHandler } from '../features/admin/server/fleet-routes.js'
 import { breakdownPagesHandler, breakdownSourcesHandler, breakdownActionsHandler } from '../features/admin/server/breakdown-routes.js'
 import { aggregationHandler } from '../features/admin/server/aggregation-handler.js'
-import type { RouteHandler } from './types.js'
+import type { RouteHandler } from '@inertia/core/server'
+import type { RouteContext } from './types.js'
 import { loadConfig } from './config.js'
 import { sendHtml } from './router.js'
 
-function redirect301 (location: string): RouteHandler {
+function redirect301 (location: string): RouteHandler<RouteContext> {
   return async (_req, res) => {
     res.writeHead(301, { Location: location })
     res.end()
   }
 }
 
-export function registerRoutes (router: Router): void {
+export function registerRoutes (router: ServerRouter<RouteContext>): void {
   const config = loadConfig()
 
   // Infrastructure
