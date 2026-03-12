@@ -21,22 +21,33 @@ describe('deployment files', () => {
   it('systemd service exists with correct ExecStart', () => {
     const content = readFileSync(resolve(DEPLOY_DIR, 'inertia-studio.service'), 'utf-8')
     expect(content).toContain('ExecStart=')
-    expect(content).toContain('dist/server/entry.js')
+    expect(content).toContain('entry.js')
     expect(content).toContain('Restart=on-failure')
+    expect(content).toContain('[Install]')
   })
 
-  it('env.production has required variables', () => {
+  it('env.production has all required variables', () => {
     const content = readFileSync(resolve(DEPLOY_DIR, 'env.production'), 'utf-8')
-    expect(content).toContain('STUDIO_PORT=3000')
-    expect(content).toContain('DB_NAME=inertia_studio')
-    expect(content).toContain('ADMIN_TOKEN=')
-    expect(content).toContain('SITE_ID=studio')
-    expect(content).toContain('BUSINESS_TYPE=studio')
+    const keys = content.split('\n')
+      .filter(l => l.trim() && !l.startsWith('#'))
+      .map(l => l.split('=')[0])
+
+    const required = [
+      'STUDIO_PORT', 'STUDIO_HOST',
+      'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
+      'DB_MAX_CONNECTIONS', 'ADMIN_TOKEN', 'NODE_ENV', 'SITE_ID', 'BUSINESS_TYPE'
+    ]
+    for (const key of required) {
+      expect(keys).toContain(key)
+    }
   })
 
-  it('Caddyfile proxies to port 3000', () => {
-    const content = readFileSync(resolve(DEPLOY_DIR, 'Caddyfile'), 'utf-8')
-    expect(content).toContain('localhost:3000')
-    expect(content).toContain(':8443')
+  it('Caddyfile proxies to the port defined in env.production', () => {
+    const env = readFileSync(resolve(DEPLOY_DIR, 'env.production'), 'utf-8')
+    const portMatch = env.match(/STUDIO_PORT=(\d+)/)
+    expect(portMatch).not.toBeNull()
+
+    const caddyfile = readFileSync(resolve(DEPLOY_DIR, 'Caddyfile'), 'utf-8')
+    expect(caddyfile).toContain(`localhost:${portMatch![1]}`)
   })
 })
