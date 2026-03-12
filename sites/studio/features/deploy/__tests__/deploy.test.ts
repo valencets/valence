@@ -27,14 +27,16 @@ describe('deployment files', () => {
 
   it('env.production has required variables', () => {
     const content = readFileSync(resolve(DEPLOY_DIR, 'env.production'), 'utf-8')
-    expect(content).toContain('STUDIO_PORT=5173')
+    expect(content).toContain('STUDIO_PORT=3000')
     expect(content).toContain('DB_NAME=inertia_studio')
     expect(content).toContain('ADMIN_TOKEN=')
+    expect(content).toContain('SITE_ID=studio')
+    expect(content).toContain('BUSINESS_TYPE=studio')
   })
 
-  it('Caddyfile proxies to port 5173', () => {
+  it('Caddyfile proxies to port 3000', () => {
     const content = readFileSync(resolve(DEPLOY_DIR, 'Caddyfile'), 'utf-8')
-    expect(content).toContain('localhost:5173')
+    expect(content).toContain('localhost:3000')
     expect(content).toContain(':8443')
   })
 })
