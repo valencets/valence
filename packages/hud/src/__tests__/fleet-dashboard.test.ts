@@ -34,10 +34,10 @@ describe('FleetDashboard', () => {
     expect(customElements.get('hud-fleet-dashboard')).toBeDefined()
   })
 
-  it('contains 3 hud-panels for summary metrics', () => {
+  it('contains 5 hud-panels for summary metrics', () => {
     const el = attach(createElement())
     const panels = el.querySelectorAll('hud-panel')
-    expect(panels.length).toBe(3)
+    expect(panels.length).toBe(5)
   })
 
   it('contains a hud-table for site listing directly on the dashboard', () => {
@@ -73,12 +73,6 @@ describe('FleetDashboard aggregate panels', () => {
   afterEach(() => {
     document.body.innerHTML = ''
     vi.restoreAllMocks()
-  })
-
-  it('contains 5 hud-panels for all metrics', () => {
-    const el = attach(createElement())
-    const panels = el.querySelectorAll('hud-panel')
-    expect(panels.length).toBe(5)
   })
 
   it('has a Sessions panel', () => {

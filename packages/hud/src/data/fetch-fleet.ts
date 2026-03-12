@@ -36,6 +36,20 @@ export function fetchFleetSites (baseUrl: string): ResultAsync<ReadonlyArray<Fle
   )
 }
 
+export interface FleetAggregateData {
+  readonly total_sites: number
+  readonly total_sessions: number
+  readonly total_conversions: number
+}
+
+export function fetchFleetAggregates (baseUrl: string): ResultAsync<FleetAggregateData, HudError> {
+  return ResultAsync.fromPromise(
+    fetch(`${baseUrl}/api/fleet/aggregates`)
+      .then(r => r.json() as Promise<FleetAggregateData>),
+    mapFetchError
+  )
+}
+
 export function fetchFleetComparison (baseUrl: string, businessType: string): ResultAsync<ReadonlyArray<FleetComparisonData>, HudError> {
   return ResultAsync.fromPromise(
     fetch(`${baseUrl}/api/fleet/compare?type=${businessType}`)
