@@ -17,6 +17,8 @@ export interface ValidatedIntent {
   readonly x_coord: number
   readonly y_coord: number
   readonly schema_version: number
+  readonly path?: string
+  readonly referrer?: string
 }
 
 export type ValidatedTelemetryPayload = ReadonlyArray<ValidatedIntent>
@@ -39,7 +41,9 @@ const intentSchema = z.object({
   targetDOMNode: z.string(),
   x_coord: finiteNumber,
   y_coord: finiteNumber,
-  schema_version: z.literal(1)
+  schema_version: z.literal(1),
+  path: z.string().optional(),
+  referrer: z.string().optional()
 })
 
 const telemetryPayloadSchema = z.array(intentSchema)
