@@ -347,6 +347,28 @@ describe('GlassBoxStrip', () => {
     expect(true).toBe(true)
   })
 
+  it('renders minimal view on mobile (no demo button, no slots)', async () => {
+    const originalWidth = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { value: 375, writable: true, configurable: true })
+
+    const el = document.createElement('inertia-buffer-strip') as InstanceType<typeof GlassBoxStrip>
+    const mockBuffer = { count: 5, capacity: 64, head: 5, slotAt: () => ({ isDirty: false }) }
+    el.buffer = mockBuffer
+    document.body.appendChild(el)
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+    const demoBtn = el.querySelector('[data-demo-flood]')
+    expect(demoBtn).toBeNull()
+    const slots = el.querySelector('.gb-slots')
+    expect(slots).toBeNull()
+    const count = el.querySelector('.gb-count')
+    expect(count).not.toBeNull()
+    expect(count!.textContent).toBe('5/64')
+
+    el.remove()
+    Object.defineProperty(window, 'innerWidth', { value: originalWidth, writable: true, configurable: true })
+  })
+
   it('renders demo flood button on desktop', async () => {
     const el = document.createElement('inertia-buffer-strip') as InstanceType<typeof GlassBoxStrip>
     const mockBuffer = { count: 5, capacity: 1024, head: 5, slotAt: () => ({ isDirty: false }) }
