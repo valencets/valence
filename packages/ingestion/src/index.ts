@@ -13,3 +13,7 @@ export type { InsertableEvent as TransformableEvent } from './transform.js'
 // Daily summary validation (fleet aggregation)
 export { validateDailySummary } from './daily-summary-schema.js'
 export type { DailySummaryPayload } from './daily-summary-schema.js'
+
+// HMAC (fleet push authentication)
+export { signPayload, verifySignature, HmacErrorCode } from './hmac.js'
+export type { HmacError } from './hmac.js'
