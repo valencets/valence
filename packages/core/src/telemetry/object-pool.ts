@@ -47,6 +47,8 @@ export class TelemetryObjectPool {
     slot.x_coord = 0
     slot.y_coord = 0
     slot.isDirty = false
+    slot.site_id = ''
+    slot.business_type = 'other'
     return ok(undefined)
   }
 
@@ -59,6 +61,8 @@ export class TelemetryObjectPool {
       slot.x_coord = 0
       slot.y_coord = 0
       slot.isDirty = false
+      slot.site_id = ''
+      slot.business_type = 'other'
     }
   }
 }
