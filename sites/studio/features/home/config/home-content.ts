@@ -2,7 +2,7 @@ export const HERO = {
   headline: 'Your website should load in one TCP round trip.',
   subhead: 'We build deterministic websites on dedicated hardware you own. No shared hosting. No bloated frameworks. No monthly ransom.',
   cta: { label: 'See Our Principles', href: '/principles' },
-  ctaSecondary: { label: 'Get In Touch', href: '/contact' }
+  ctaSecondary: { label: 'Get In Touch', href: '/about#contact' }
 } as const
 
 export const PILLARS = [
