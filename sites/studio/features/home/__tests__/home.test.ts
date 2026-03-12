@@ -48,4 +48,9 @@ describe('renderHome', () => {
     expect(html).toContain('bottom-cta')
     expect(html).toContain('Contact Us')
   })
+
+  it('does NOT link to /contact as a separate page', () => {
+    const html = renderHome()
+    expect(html).not.toContain('href="/contact"')
+  })
 })
