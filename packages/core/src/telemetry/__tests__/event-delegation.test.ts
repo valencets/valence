@@ -193,4 +193,34 @@ describe('initEventDelegation', () => {
     const dirty = buffer.collectDirty()
     expect(typeof dirty[0]!.referrer).toBe('string')
   })
+
+  it('fires LEAD_PHONE for tel: link clicks', () => {
+    const result = initEventDelegation(buffer)
+    if (result.isOk()) handle = result.value
+
+    const link = document.createElement('a')
+    link.href = 'tel:+15551234567'
+    link.textContent = 'Call us'
+    document.body.appendChild(link)
+    clickElement(link)
+
+    const dirty = buffer.collectDirty()
+    expect(dirty).toHaveLength(1)
+    expect(dirty[0]!.type).toBe(IntentType.LEAD_PHONE)
+  })
+
+  it('fires LEAD_EMAIL for mailto: link clicks', () => {
+    const result = initEventDelegation(buffer)
+    if (result.isOk()) handle = result.value
+
+    const link = document.createElement('a')
+    link.href = 'mailto:hello@example.com'
+    link.textContent = 'Email us'
+    document.body.appendChild(link)
+    clickElement(link)
+
+    const dirty = buffer.collectDirty()
+    expect(dirty).toHaveLength(1)
+    expect(dirty[0]!.type).toBe(IntentType.LEAD_EMAIL)
+  })
 })
