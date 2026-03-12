@@ -5,6 +5,10 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" },
+    "./server": { "import": "./dist/server/index.js", "types": "./dist/server/index.d.ts" }
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest run"
