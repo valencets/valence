@@ -19,6 +19,10 @@ describe('renderContactForm', () => {
     }
   })
 
+  it('does NOT include Analytics & Conversion as a subject', () => {
+    expect(SUBJECTS).not.toContain('Analytics & Conversion')
+  })
+
   it('shows validation errors when provided', () => {
     const errors = {
       code: 'CONTACT_VALIDATION_ERROR' as const,

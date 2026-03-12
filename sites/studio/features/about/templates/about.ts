@@ -56,21 +56,21 @@ export function renderAbout (): string {
     </div>
 
     <div class="form-group">
-      <label for="business" class="form-label">Business Name</label>
+      <label for="business" class="form-label">Business</label>
       <input type="text" id="business" name="business" class="form-input">
     </div>
 
     <div class="form-group">
       <label for="subject" class="form-label">Subject *</label>
       <select id="subject" name="subject" class="form-select" required>
-        <option value="">Select a subject...</option>
+        <option value="">Select subject...</option>
         ${subjectOptions}
       </select>
     </div>
 
     <div class="form-group">
       <label for="message" class="form-label">Message *</label>
-      <textarea id="message" name="message" class="form-textarea" required minlength="10"></textarea>
+      <textarea id="message" name="message" class="form-textarea" required></textarea>
     </div>
 
     <button type="submit" class="btn btn-primary" data-telemetry-type="CLICK" data-telemetry-target="contact-submit">Send Message</button>
