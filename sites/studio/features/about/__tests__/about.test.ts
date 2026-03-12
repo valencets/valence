@@ -26,16 +26,18 @@ describe('renderAbout', () => {
     expect(html).not.toContain('Forrest Carlton')
   })
 
-  it('contains hardware section without brand names', () => {
+  it('contains hardware section without brand names in visible copy', () => {
     const html = renderAbout()
-    expect(html).toContain(ABOUT.hardware.headline)
+    // Strip data-copy-technical attributes (technical copy is hidden by default)
+    const visible = html.replace(/\s*data-copy-technical="[^"]*"/g, '')
+    expect(visible).toContain(ABOUT.hardware.headline)
     // Must NOT contain hardware brand names on public-facing pages
-    expect(html).not.toContain('Raspberry Pi')
-    expect(html).not.toContain('ZimaBoard')
-    expect(html).not.toContain('N100')
-    expect(html).not.toContain('NVMe')
-    expect(html).not.toContain('WD Red')
-    expect(html).not.toContain('Cloudflare')
+    expect(visible).not.toContain('Raspberry Pi')
+    expect(visible).not.toContain('ZimaBoard')
+    expect(visible).not.toContain('N100')
+    expect(visible).not.toContain('NVMe')
+    expect(visible).not.toContain('WD Red')
+    expect(visible).not.toContain('Cloudflare')
   })
 
   it('renders all hardware specs', () => {

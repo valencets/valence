@@ -1,8 +1,21 @@
 import { APPLIANCE_MODEL, SERVICE_TIERS, OWNERSHIP_LIST } from '../config/services-content.js'
+import { SERVICES_COPY_MAP } from '../config/services-copy-map.js'
+
+function esc (s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function copyAttrsForText (text: string): string {
+  const entry = SERVICES_COPY_MAP.find(e => e.default === text)
+  if (!entry) return ''
+  return ` data-copy-default="${esc(entry.default)}" data-copy-technical="${esc(entry.technical)}"`
+}
 
 export function renderServices (): string {
   const tiers = SERVICE_TIERS.map((tier) => {
-    const items = tier.includes.map((item) => `<li>${item}</li>`).join('')
+    const items = tier.includes.map((item) =>
+      `<li${copyAttrsForText(item)}>${item}</li>`
+    ).join('')
     return `
     <div class="card service-tier" data-telemetry-type="VIEWPORT_INTERSECT" data-telemetry-target="tier-${tier.id}">
       <h3>${tier.name}</h3>

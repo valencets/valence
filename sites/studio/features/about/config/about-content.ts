@@ -13,7 +13,7 @@ export const ABOUT = {
     specs: [
       { label: 'Server', value: 'Industrial-grade x86 edge server' },
       { label: 'OS', value: 'Debian-based, hardened' },
-      { label: 'Database', value: 'PostgreSQL, client-owned' },
+      { label: 'Database', value: 'Private database, client-owned' },
       { label: 'Network', value: 'Secure tunnel to disposable relay' },
       { label: 'Analytics', value: 'Self-hosted, first-party only' },
       { label: 'Monthly Cost', value: '~$5/mo relay + electricity' }

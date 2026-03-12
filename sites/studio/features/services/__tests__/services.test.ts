@@ -68,15 +68,17 @@ describe('renderServices', () => {
     expect(html).toContain('/about#contact')
   })
 
-  it('uses internet doorway analogy, no hardware brand names', () => {
+  it('uses internet doorway analogy, no hardware brand names in visible copy', () => {
     const html = renderServices()
-    expect(html).toContain('doorway')
-    expect(html).not.toContain('Cloudflare')
-    expect(html).not.toContain('Raspberry Pi')
-    expect(html).not.toContain('ZimaBoard')
-    expect(html).not.toContain('N100')
-    expect(html).not.toContain('NVMe')
-    expect(html).not.toContain('WD Red')
+    // Strip data-copy-technical attributes (technical copy is hidden by default)
+    const visible = html.replace(/\s*data-copy-technical="[^"]*"/g, '')
+    expect(visible).toContain('doorway')
+    expect(visible).not.toContain('Cloudflare')
+    expect(visible).not.toContain('Raspberry Pi')
+    expect(visible).not.toContain('ZimaBoard')
+    expect(visible).not.toContain('N100')
+    expect(visible).not.toContain('NVMe')
+    expect(visible).not.toContain('WD Red')
   })
 
   it('renders tier estimates with tier-estimate class', () => {

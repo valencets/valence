@@ -1,11 +1,22 @@
 import { ABOUT } from '../config/about-content.js'
+import { ABOUT_COPY_MAP } from '../config/about-copy-map.js'
 import { SUBJECTS } from '../../contact/schemas/contact-schema.js'
+
+function esc (s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function copyAttrsForValue (value: string): string {
+  const entry = ABOUT_COPY_MAP.find(e => e.default === value)
+  if (!entry) return ''
+  return ` data-copy-default="${esc(entry.default)}" data-copy-technical="${esc(entry.technical)}"`
+}
 
 export function renderAbout (): string {
   const specs = ABOUT.hardware.specs.map((s) => `
     <div class="spec-row">
       <dt>${s.label}</dt>
-      <dd>${s.value}</dd>
+      <dd${copyAttrsForValue(s.value)}>${s.value}</dd>
     </div>`).join('')
 
   const proofItems = ABOUT.proof.points.map((p) =>

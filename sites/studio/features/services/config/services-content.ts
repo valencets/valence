@@ -18,7 +18,7 @@ export const SERVICE_TIERS = [
       'Dynamic Number Insertion (DNI) for call tracking',
       'Cookieless attribution',
       'Verified digital promo codes for walk-in tracking',
-      'Private PostgreSQL analytics ledger on your hardware',
+      'Private database analytics ledger on your hardware',
       'Source code handover',
       '30-day post-launch support'
     ]
