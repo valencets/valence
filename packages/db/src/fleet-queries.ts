@@ -48,6 +48,29 @@ export interface FleetAggregateRow {
   readonly total_conversions: number
 }
 
+export const FleetAlertSeverity = {
+  RED: 'red',
+  AMBER: 'amber',
+  BLUE: 'blue'
+} as const
+
+export type FleetAlertSeverity = typeof FleetAlertSeverity[keyof typeof FleetAlertSeverity]
+
+export const FleetAlertType = {
+  OFFLINE: 'offline',
+  HIGH_ERRORS: 'high_errors',
+  NO_CONVERSIONS: 'no_conversions'
+} as const
+
+export type FleetAlertType = typeof FleetAlertType[keyof typeof FleetAlertType]
+
+export interface FleetAlertRow {
+  readonly site_id: string
+  readonly severity: FleetAlertSeverity
+  readonly type: FleetAlertType
+  readonly message: string
+}
+
 const TWENTY_FOUR_HOURS = 86_400_000
 const FORTY_EIGHT_HOURS = 172_800_000
 
@@ -187,6 +210,67 @@ export function getFleetAggregates (pool: DbPool): ResultAsync<FleetAggregateRow
         WHERE date >= NOW() - INTERVAL '30 days'
       `
       return rows[0] ?? EMPTY_AGGREGATES
+    })(),
+    mapPostgresError
+  )
+}
+
+interface RawAlertRow {
+  readonly site_id: string
+  readonly synced_at: Date | null
+  readonly rejection_count: number | null
+  readonly conversion_count: number | null
+  readonly tier: string | null
+}
+
+const ONE_HOUR = 3_600_000
+
+export function getFleetAlerts (pool: DbPool): ResultAsync<ReadonlyArray<FleetAlertRow>, DbError> {
+  return ResultAsync.fromPromise(
+    (async () => {
+      const rows = await pool.sql<RawAlertRow[]>`
+        SELECT DISTINCT ON (site_id)
+          site_id, synced_at, rejection_count, conversion_count,
+          (SELECT tier FROM sites s WHERE s.slug = daily_summaries.site_id) AS tier
+        FROM daily_summaries
+        ORDER BY site_id, date DESC
+      `
+      const alerts: FleetAlertRow[] = []
+      const now = Date.now()
+
+      for (const row of rows) {
+        // Offline > 1 hour
+        if (row.synced_at === null || (now - new Date(row.synced_at).getTime()) > ONE_HOUR) {
+          alerts.push({
+            site_id: row.site_id,
+            severity: FleetAlertSeverity.RED,
+            type: FleetAlertType.OFFLINE,
+            message: `${row.site_id} has not synced`
+          })
+        }
+
+        // High error rate
+        if (row.rejection_count !== null && row.rejection_count > 50) {
+          alerts.push({
+            site_id: row.site_id,
+            severity: FleetAlertSeverity.AMBER,
+            type: FleetAlertType.HIGH_ERRORS,
+            message: `${row.site_id} has ${row.rejection_count} rejections`
+          })
+        }
+
+        // No conversions in managed tier
+        if (row.tier === 'managed' && (row.conversion_count === null || row.conversion_count === 0)) {
+          alerts.push({
+            site_id: row.site_id,
+            severity: FleetAlertSeverity.BLUE,
+            type: FleetAlertType.NO_CONVERSIONS,
+            message: `${row.site_id} has no conversions`
+          })
+        }
+      }
+
+      return alerts as ReadonlyArray<FleetAlertRow>
     })(),
     mapPostgresError
   )

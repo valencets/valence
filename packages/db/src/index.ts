@@ -31,8 +31,8 @@ export { generateDailySummary } from './daily-summary-aggregation.js'
 export { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote, getDailyBreakdowns } from './daily-summary-queries.js'
 
 // Fleet queries
-export { getFleetSites, getFleetComparison, getFleetSiteHistory, getFleetAggregates, FleetSiteStatus } from './fleet-queries.js'
-export type { FleetSiteRow, FleetComparisonRow, FleetFilter, FleetSort, FleetAggregateRow } from './fleet-queries.js'
+export { getFleetSites, getFleetComparison, getFleetSiteHistory, getFleetAggregates, getFleetAlerts, FleetSiteStatus, FleetAlertSeverity, FleetAlertType } from './fleet-queries.js'
+export type { FleetSiteRow, FleetComparisonRow, FleetFilter, FleetSort, FleetAggregateRow, FleetAlertRow } from './fleet-queries.js'
 
 // Sites registry
 export { Vertical, Tier } from './site-types.js'
