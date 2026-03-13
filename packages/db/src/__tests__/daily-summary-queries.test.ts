@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote, getDailyBreakdowns } from '../daily-summary-queries.js'
+import { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote, getDailyBreakdowns, getDailyTrend } from '../daily-summary-queries.js'
 import type { DbPool } from '../connection.js'
 
 function makeMockPool (returnValue: unknown = []): DbPool {
@@ -183,5 +183,46 @@ describe('getDailyBreakdowns', () => {
     const query = sqlCalls[0] ?? ''
     expect(query).toContain('date <=')
     expect(query).not.toMatch(/date\s*<\s*\$/)
+  })
+})
+
+describe('getDailyTrend', () => {
+  it('is a function', () => {
+    expect(typeof getDailyTrend).toBe('function')
+  })
+
+  it('returns empty array for no matching rows', async () => {
+    const pool = makeMockPool([])
+    const result = await getDailyTrend(pool, 'site_acme', new Date('2026-03-01'), new Date('2026-03-07'))
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toEqual([])
+  })
+
+  it('returns rows ordered by date ASC', async () => {
+    const rows = [
+      { ...mockRow, date: new Date('2026-03-01'), session_count: 10 },
+      { ...mockRow, date: new Date('2026-03-02'), session_count: 20 }
+    ]
+    const pool = makeMockPool(rows)
+    const result = await getDailyTrend(pool, 'site_acme', new Date('2026-03-01'), new Date('2026-03-02'))
+    expect(result.isOk()).toBe(true)
+    const data = result._unsafeUnwrap()
+    expect(data).toHaveLength(2)
+  })
+
+  it('returns session_count, pageview_count, conversion_count per row', async () => {
+    const pool = makeMockPool([mockRow])
+    const result = await getDailyTrend(pool, 'site_acme', new Date('2026-03-10'), new Date('2026-03-10'))
+    expect(result.isOk()).toBe(true)
+    const data = result._unsafeUnwrap()
+    expect(data[0].session_count).toBe(247)
+    expect(data[0].pageview_count).toBe(1200)
+    expect(data[0].conversion_count).toBe(45)
+  })
+
+  it('returns error on database failure', async () => {
+    const pool = makeErrorPool(new Error('connection refused'))
+    const result = await getDailyTrend(pool, 'site_acme', new Date('2026-03-01'), new Date('2026-03-07'))
+    expect(result.isErr()).toBe(true)
   })
 })
