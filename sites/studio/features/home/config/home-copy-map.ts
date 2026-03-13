@@ -113,7 +113,7 @@ export const HOME_COPY_MAP: readonly CopyMapEntry[] = [
   },
   {
     id: 'pain-card-1-desc',
-    default: 'We build your site, install it on a dedicated server, and hand-deliver the hardware to your business. Your database, your analytics, your code. The internet doorway costs $49/month. Cancel and your site keeps running.',
+    default: 'We build your site, install it on a dedicated server, and hand-deliver the hardware to your business. Your database, your analytics, your code. An optional $49/month relay puts you on the public internet. Cancel and your site keeps running.',
     technical: 'x86 edge appliance with PostgreSQL, Payload CMS, and WireGuard tunnel. Full pg_dump + git clone access. Bus factor: zero.'
   },
   {

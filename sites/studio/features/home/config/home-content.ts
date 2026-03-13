@@ -60,8 +60,8 @@ export const COMPARISON_TABLE = {
   subtitle: 'Most DFW businesses don\u2019t realize how much they\u2019re spending to rent infrastructure they\u2019ll never own.',
   headers: ['', 'Wix / Squarespace', 'Agency Retainer', 'Inertia Web Solutions'],
   rows: [
-    { feature: 'Typical Cost', wix: '$30 - $100/mo forever', agency: '$2,500 - $9,000/mo forever', inertia: '~$3,500 one-time + $49/mo relay', wixMarker: '', agencyMarker: '', inertiaMarker: '', wixClass: 'price-pain', agencyClass: 'price-pain', inertiaClass: 'price-good' },
-    { feature: '3-Year Total', wix: '$1,080 - $3,600', agency: '$90,000 - $324,000', inertia: '~$5,264', wixMarker: '', agencyMarker: '', inertiaMarker: '', wixClass: 'price-pain', agencyClass: 'price-pain', inertiaClass: 'price-good' },
+    { feature: 'Typical Cost', wix: '$30 - $100/mo forever', agency: '$2,500 - $9,000/mo forever', inertia: '$3,500 one-time + optional $49/mo relay', wixMarker: '', agencyMarker: '', inertiaMarker: '', wixClass: 'price-pain', agencyClass: 'price-pain', inertiaClass: 'price-good' },
+    { feature: '3-Year Total', wix: '$1,080 - $3,600', agency: '$90,000 - $324,000', inertia: '$3,500 (+ $1,764 with optional relay)', wixMarker: '', agencyMarker: '', inertiaMarker: '', wixClass: 'price-pain', agencyClass: 'price-pain', inertiaClass: 'price-good' },
     { feature: 'You Own the Code', wix: 'Locked in their platform', agency: 'Usually retained by agency', inertia: 'Full source code handover', wixMarker: 'cross', agencyMarker: 'cross', inertiaMarker: 'check', wixClass: '', agencyClass: '', inertiaClass: '' },
     { feature: 'You Own Your Data', wix: 'Stored on their servers', agency: 'Depends on contract', inertia: 'Database on your hardware', wixMarker: 'cross', agencyMarker: 'warn', inertiaMarker: 'check', wixClass: '', agencyClass: '', inertiaClass: '' },
     { feature: 'Analytics Privacy', wix: 'Google Analytics / third-party', agency: 'Google Analytics / Adobe', inertia: 'Self-hosted, zero third-party scripts', wixMarker: 'cross', agencyMarker: 'cross', inertiaMarker: 'check', wixClass: '', agencyClass: '', inertiaClass: '' },
@@ -77,7 +77,7 @@ export const PAIN_CARDS = [
     variant: 'ours' as const,
     label: 'How We\'re Different',
     title: 'Your server sits in your office',
-    description: 'We build your site, install it on a dedicated server, and hand-deliver the hardware to your business. Your database, your analytics, your code. The internet doorway costs $49/month. Cancel and your site keeps running.',
+    description: 'We build your site, install it on a dedicated server, and hand-deliver the hardware to your business. Your database, your analytics, your code. An optional $49/month relay puts you on the public internet. Cancel and your site keeps running.',
     stat: 'Bus factor: <strong>zero</strong>. If we disappear, your website doesn\'t.'
   },
   {

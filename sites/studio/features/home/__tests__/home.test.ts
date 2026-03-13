@@ -201,6 +201,16 @@ describe('renderHome comparison section', () => {
     expect(html).toContain('Database on your hardware')
     expect(html).toContain('Price is the price. No surprises.')
   })
+
+  it('Inertia pricing marks relay as optional', () => {
+    const typicalCost = COMPARISON_TABLE.rows.find(r => r.feature === 'Typical Cost')!
+    expect(typicalCost.inertia).toContain('optional')
+    expect(typicalCost.inertia).toContain('$49/mo')
+
+    const threeYear = COMPARISON_TABLE.rows.find(r => r.feature === '3-Year Total')!
+    expect(threeYear.inertia).toContain('$3,500')
+    expect(threeYear.inertia).toContain('optional')
+  })
 })
 
 describe('renderHome pain cards', () => {
