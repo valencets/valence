@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest'
+
+let InertiaSpeedShowcase: typeof import('../components/SpeedShowcase.js').InertiaSpeedShowcase
+let resetNavCounters: typeof import('../components/SpeedShowcase.js').resetNavCounters
 
 function fireNavEvent (source: 'cache' | 'prefetch' | 'network', durationMs: number): void {
   document.dispatchEvent(new CustomEvent('inertia:navigated', {
@@ -9,11 +12,14 @@ function fireNavEvent (source: 'cache' | 'prefetch' | 'network', durationMs: num
 }
 
 describe('InertiaSpeedShowcase', () => {
-  let InertiaSpeedShowcase: typeof import('../components/SpeedShowcase.js').InertiaSpeedShowcase
-
   beforeAll(async () => {
     const mod = await import('../components/SpeedShowcase.js')
     InertiaSpeedShowcase = mod.InertiaSpeedShowcase
+    resetNavCounters = mod.resetNavCounters
+  })
+
+  beforeEach(() => {
+    resetNavCounters()
   })
 
   afterEach(() => {
@@ -40,7 +46,8 @@ describe('InertiaSpeedShowcase', () => {
     document.body.appendChild(el)
 
     fireNavEvent('network', 180)
-    expect(el.textContent).toContain('1')
+    const total = el.querySelector('[data-stat="total"]')
+    expect(total?.textContent).toContain('1')
   })
 
   it('tracks cache hit rate correctly', () => {
@@ -51,7 +58,6 @@ describe('InertiaSpeedShowcase', () => {
     fireNavEvent('cache', 2)
     fireNavEvent('cache', 3)
 
-    // 2 cache hits out of 3 total = 67%
     expect(el.textContent).toContain('67%')
   })
 
@@ -62,7 +68,6 @@ describe('InertiaSpeedShowcase', () => {
     fireNavEvent('cache', 2)
     fireNavEvent('cache', 4)
 
-    // Average of 2 and 4 = 3ms
     expect(el.textContent).toContain('3ms')
   })
 
@@ -73,19 +78,29 @@ describe('InertiaSpeedShowcase', () => {
     fireNavEvent('network', 100)
     fireNavEvent('network', 200)
 
-    // Average of 100 and 200 = 150ms
     expect(el.textContent).toContain('150ms')
   })
 
-  it('tracks total navigations', () => {
+  it('accumulates stats while component is detached', () => {
     const el = document.createElement('inertia-speed-showcase')
     document.body.appendChild(el)
 
     fireNavEvent('network', 100)
-    fireNavEvent('cache', 2)
-    fireNavEvent('prefetch', 5)
-    fireNavEvent('cache', 1)
+    const totalBefore = el.querySelector('[data-stat="total"]')?.textContent
+    expect(totalBefore).toContain('1')
 
-    expect(el.textContent).toContain('4')
+    // Detach component (simulates navigation away from homepage)
+    el.remove()
+
+    // Events fire while detached
+    fireNavEvent('cache', 2)
+    fireNavEvent('cache', 3)
+
+    // Re-attach (simulates navigating back to homepage)
+    document.body.appendChild(el)
+
+    // Should show accumulated total including events during detachment
+    const totalAfter = el.querySelector('[data-stat="total"]')?.textContent
+    expect(totalAfter).toContain('3')
   })
 })
