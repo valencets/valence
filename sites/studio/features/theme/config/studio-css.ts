@@ -263,6 +263,7 @@ footer {
 
 /* Grid */
 .grid { display: grid; gap: ${SPACING.grid.gutter}; }
+.grid-2x2 { grid-template-columns: repeat(2, 1fr); }
 .grid-2 { grid-template-columns: 1fr; }
 .grid-3 { grid-template-columns: 1fr; }
 .grid-4 { grid-template-columns: 1fr; }
