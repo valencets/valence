@@ -539,6 +539,9 @@ footer {
   .principle-origin {
     grid-row: 1 / 3;
   }
+  .principle-benefit {
+    grid-column: 1 / -1;
+  }
 }
 .principle-origin h3,
 .principle-how h3,
@@ -563,6 +566,8 @@ footer {
 .audit-status { margin-top: 0.5rem; }
 .audit-status p { color: var(--muted-foreground); }
 .audit-btn-loading { display: inline-flex; align-items: center; gap: 0.5rem; }
+.audit-btn-loading[hidden] { display: none; }
+.audit-btn-label[hidden] { display: none; }
 .spinner {
   display: inline-block;
   width: 1em;

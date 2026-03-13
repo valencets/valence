@@ -14,6 +14,9 @@ export class FleetComparison extends HTMLElement {
     if (this._initialized) return
     this._initialized = true
     this.style.display = 'block'
+    this.style.boxSizing = 'border-box'
+    this.style.maxWidth = '100%'
+    this.style.overflow = 'hidden'
     this.style.backgroundColor = HUD_COLORS.bg
     this.style.color = HUD_COLORS.textPrimary
     this.style.fontFamily = HUD_TYPOGRAPHY.fontPrimary
@@ -96,6 +99,11 @@ export class FleetComparison extends HTMLElement {
     this.style.padding = mobile ? HUD_SPACING.md : HUD_SPACING.lg
     if (this._gridEl !== null) {
       this._gridEl.style.gridTemplateColumns = mobile ? '1fr' : '1fr 1fr 1fr'
+      this._gridEl.style.gap = mobile ? HUD_SPACING.sm : HUD_SPACING.md
+      const panels = this._gridEl.querySelectorAll('hud-panel')
+      for (const panel of panels) {
+        ;(panel as HTMLElement).style.padding = mobile ? HUD_SPACING.sm : HUD_SPACING.lg
+      }
     }
   }
 
