@@ -92,14 +92,14 @@ export class FleetDashboard extends HTMLElement {
     sessionsPanel.setAttribute('label', 'Sessions')
     const sessionsMetric = document.createElement('hud-metric')
     sessionsMetric.setAttribute('value', '--')
-    sessionsMetric.setAttribute('label', '30 days')
+    sessionsMetric.setAttribute('label', '7 days')
     sessionsPanel.appendChild(sessionsMetric)
 
     const conversionsPanel = document.createElement('hud-panel')
     conversionsPanel.setAttribute('label', 'Conversions')
     const conversionsMetric = document.createElement('hud-metric')
     conversionsMetric.setAttribute('value', '--')
-    conversionsMetric.setAttribute('label', '30 days')
+    conversionsMetric.setAttribute('label', '7 days')
     conversionsPanel.appendChild(conversionsMetric)
 
     grid.appendChild(totalPanel)

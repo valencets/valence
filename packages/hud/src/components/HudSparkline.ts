@@ -12,13 +12,17 @@ export class HudSparkline extends HTMLElement {
   connectedCallback (): void {
     if (this._initialized) return
     this._initialized = true
+    this.style.display = 'block'
+    this.style.width = '100%'
+
     const w = this.getWidth()
     const h = this.getHeight()
 
     this.svg = document.createElementNS(SVG_NS, 'svg')
     this.svg.setAttribute('viewBox', `0 0 ${String(w)} ${String(h)}`)
-    this.svg.setAttribute('width', String(w))
+    this.svg.setAttribute('width', '100%')
     this.svg.setAttribute('height', String(h))
+    this.svg.setAttribute('preserveAspectRatio', 'none')
     this.svg.style.display = 'block'
 
     this.polyline = document.createElementNS(SVG_NS, 'polyline')
@@ -90,7 +94,6 @@ export class HudSparkline extends HTMLElement {
     const w = this.getWidth()
     const h = this.getHeight()
     this.svg.setAttribute('viewBox', `0 0 ${String(w)} ${String(h)}`)
-    this.svg.setAttribute('width', String(w))
     this.svg.setAttribute('height', String(h))
     this.renderPoints()
   }

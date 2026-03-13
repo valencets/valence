@@ -110,7 +110,7 @@ describe('HudSparkline', () => {
   it('uses default dimensions when not specified', () => {
     const el = attach(createElement())
     const svg = el.querySelector('svg')
-    expect(svg?.getAttribute('width')).toBe('120')
+    expect(svg?.getAttribute('width')).toBe('100%')
     expect(svg?.getAttribute('height')).toBe('32')
   })
 })
