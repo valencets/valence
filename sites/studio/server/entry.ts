@@ -24,8 +24,9 @@ async function boot (): Promise<void> {
   // Init DB pool
   pool = createPool(config.db)
 
-  // Run migrations
-  const monorepoRoot = join(process.cwd(), '..', '..')
+  // Run migrations — import.meta.dirname = sites/studio/server
+  const studioRoot = join(import.meta.dirname, '..')
+  const monorepoRoot = join(studioRoot, '..', '..')
   const migrationsDir = join(monorepoRoot, 'packages', 'db', 'migrations')
   const migrationsResult = await loadMigrations(migrationsDir)
 
@@ -57,7 +58,6 @@ async function boot (): Promise<void> {
   }
 
   // Generate CSS to public directory
-  const studioRoot = process.cwd()
   const publicCSS = join(studioRoot, 'public', 'css')
   await mkdir(publicCSS, { recursive: true })
   await writeFile(join(publicCSS, 'studio.css'), getStudioCSS())
