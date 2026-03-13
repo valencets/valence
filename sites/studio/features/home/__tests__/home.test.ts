@@ -255,6 +255,21 @@ describe('renderHome pain cards', () => {
     expect(strongCount).toBeGreaterThanOrEqual(6)
   })
 
+  it('alternates green/red: ours, pain, ours, pain, ours, pain', () => {
+    const html = renderHome()
+    const painGrid = html.match(/class="pain-grid">([\s\S]*?)<\/div>\s*<div class="bottom-cta/)
+    expect(painGrid).not.toBeNull()
+    const cards = painGrid![1].match(/class="pain-card[^"]*"/g) || []
+    expect(cards.length).toBe(6)
+    // Odd positions (0, 2, 4) = ours (green), Even positions (1, 3, 5) = pain (red)
+    expect(cards[0]).toContain('ours')
+    expect(cards[1]).not.toContain('ours')
+    expect(cards[2]).toContain('ours')
+    expect(cards[3]).not.toContain('ours')
+    expect(cards[4]).toContain('ours')
+    expect(cards[5]).not.toContain('ours')
+  })
+
   it('renders Built for Speed and True Independence cards', () => {
     const html = renderHome()
     expect(html).toContain('Built for Speed')

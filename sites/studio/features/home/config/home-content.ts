@@ -73,36 +73,20 @@ export const COMPARISON_TABLE = {
 
 export const PAIN_CARDS = [
   {
-    id: 'pain-platform',
-    variant: 'pain' as const,
-    label: 'The Platform Trap',
-    title: 'You don\'t own your Wix site',
-    description: 'Wix and Squarespace market $16/month as affordable. But you can\'t export your site. You can\'t add custom features. When you outgrow the platform, you start over from scratch and write off years of sunk cost.',
-    stat: 'Average 3-year DIY platform cost: <strong>$1,800 - $3,600</strong> for a site you\'ll eventually abandon'
-  },
-  {
-    id: 'pain-agency',
-    variant: 'pain' as const,
-    label: 'The Agency Tax',
-    title: '$60K/year and you still own nothing',
-    description: 'DFW agencies charge $5,000 - $9,000/month for managed digital presence. If you cancel, you lose the website, the content, and the SEO rankings they built on their hosting. You paid $60K and walk away empty-handed.',
-    stat: 'Average mid-tier DFW agency retainer: <strong>$5,000 - $9,000/mo</strong>'
-  },
-  {
-    id: 'pain-outage',
-    variant: 'pain' as const,
-    label: 'The Outage Gamble',
-    title: 'When AWS goes down, your website disappears',
-    description: 'During the 2025 AWS outage, thousands of business websites across Texas went dark. Customers searching for hours, menus, or directions got nothing. One DFW business owner lost a full day of leads because his site was hosted on a server 1,000 miles away.',
-    stat: 'McKinney has experienced <strong>3-day business internet outages</strong> from a single fiber cut'
-  },
-  {
     id: 'ours-different',
     variant: 'ours' as const,
     label: 'How We\'re Different',
     title: 'Your server sits in your office',
     description: 'We build your site, install it on a dedicated server, and hand-deliver the hardware to your business. Your database, your analytics, your code. The internet doorway costs $49/month. Cancel and your site keeps running.',
     stat: 'Bus factor: <strong>zero</strong>. If we disappear, your website doesn\'t.'
+  },
+  {
+    id: 'pain-platform',
+    variant: 'pain' as const,
+    label: 'The Platform Trap',
+    title: 'You don\'t own your Wix site',
+    description: 'Wix and Squarespace market $16/month as affordable. But you can\'t export your site. You can\'t add custom features. When you outgrow the platform, you start over from scratch and write off years of sunk cost.',
+    stat: 'Average 3-year DIY platform cost: <strong>$1,800 - $3,600</strong> for a site you\'ll eventually abandon'
   },
   {
     id: 'ours-speed',
@@ -113,12 +97,28 @@ export const PAIN_CARDS = [
     stat: 'Perfect <strong>100</strong> Lighthouse score'
   },
   {
+    id: 'pain-agency',
+    variant: 'pain' as const,
+    label: 'The Agency Tax',
+    title: '$60K/year and you still own nothing',
+    description: 'DFW agencies charge $5,000 - $9,000/month for managed digital presence. If you cancel, you lose the website, the content, and the SEO rankings they built on their hosting. You paid $60K and walk away empty-handed.',
+    stat: 'Average mid-tier DFW agency retainer: <strong>$5,000 - $9,000/mo</strong>'
+  },
+  {
     id: 'ours-independence',
     variant: 'ours' as const,
     label: 'True Independence',
     title: 'Your site runs with or without us',
     description: 'If we disappeared tomorrow, your website keeps running. You have the server, the database, and every line of code.',
     stat: '<strong>Zero</strong> vendor dependencies'
+  },
+  {
+    id: 'pain-outage',
+    variant: 'pain' as const,
+    label: 'The Outage Gamble',
+    title: 'When AWS goes down, your website disappears',
+    description: 'During the 2025 AWS outage, thousands of business websites across Texas went dark. Customers searching for hours, menus, or directions got nothing. One DFW business owner lost a full day of leads because his site was hosted on a server 1,000 miles away.',
+    stat: 'McKinney has experienced <strong>3-day business internet outages</strong> from a single fiber cut'
   }
 ] as const
 
