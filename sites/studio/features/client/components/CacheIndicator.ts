@@ -27,9 +27,9 @@ export class InertiaCacheIndicator extends HTMLElement {
     this.setAttribute('aria-live', 'polite')
     this.style.cssText = `
       position: fixed;
-      bottom: 16px;
+      bottom: 48px;
       right: 16px;
-      z-index: 50;
+      z-index: 9999;
       padding: 6px 12px;
       border-radius: 999px;
       font-family: monospace;

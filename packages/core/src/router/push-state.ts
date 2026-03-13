@@ -328,7 +328,9 @@ export function initRouter (
 
     mouseEvent.preventDefault()
 
-    const url = anchor.getAttribute('href') ?? anchor.pathname
+    // Use pathname + search (strips hash fragment) so cache keys are consistent
+    // /about#contact and /about resolve to the same server resource
+    const url = anchor.pathname + anchor.search
     navigate(url)
   }
 

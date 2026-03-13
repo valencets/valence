@@ -134,6 +134,9 @@ export function initPrefetch (
       return
     }
 
+    // Normalize to pathname + search (strip hash fragment) for consistent cache keys
+    const normalizedUrl = anchor.pathname + anchor.search
+
     const now = performance.now()
     const velocity = calculateVelocity(lastX, lastY, lastTime, mouseEvent.clientX, mouseEvent.clientY, now)
 
@@ -146,10 +149,10 @@ export function initPrefetch (
       return
     }
 
-    if (intentUrl === href) return
+    if (intentUrl === normalizedUrl) return
 
     clearIntent()
-    intentUrl = href
+    intentUrl = normalizedUrl
     intentTimer = setTimeout(() => {
       if (intentUrl !== null) {
         prefetchUrl(intentUrl)

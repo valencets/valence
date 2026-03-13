@@ -60,7 +60,7 @@ export class InertiaSpeedShowcase extends HTMLElement {
         <div class="speed-showcase-inner" style="font-family:monospace;padding:24px;border:1px solid hsl(215,15%,20%);border-radius:8px;background:hsl(220,13%,8%);">
           <p class="speed-prompt" style="color:hsl(215,20%,60%);margin:0 0 16px;">Navigate between pages. Watch the difference.</p>
           <div class="speed-stats" style="display:none;gap:16px;">
-            <div style="display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;">
               <div><span class="speed-label" style="color:hsl(215,20%,50%);font-size:12px;">Cache hits</span><br><span data-stat="hitRate" style="color:hsl(215,60%,55%);font-size:18px;font-weight:bold;">0%</span></div>
               <div><span class="speed-label" style="color:hsl(215,20%,50%);font-size:12px;">Avg cached</span><br><span data-stat="avgCache" style="color:hsl(160,60%,45%);font-size:18px;font-weight:bold;">0ms</span></div>
               <div><span class="speed-label" style="color:hsl(215,20%,50%);font-size:12px;">Avg network</span><br><span data-stat="avgNetwork" style="color:hsl(200,60%,50%);font-size:18px;font-weight:bold;">0ms</span></div>

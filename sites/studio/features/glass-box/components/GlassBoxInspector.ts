@@ -196,7 +196,9 @@ export class GlassBoxInspector extends HTMLElement {
       el.style.marginTop = `${current + GLASS_BOX_CONFIG.overlayMarginPx}px`
     }
 
-    // Create labels and position after layout settles
+    // Create labels first (hidden), then position after reflow settles
+    const labelTargetPairs: Array<{ label: HTMLElement; target: Element }> = []
+
     for (const target of targets) {
       const type = target.getAttribute('data-telemetry-type') ?? ''
       const tgt = target.getAttribute('data-telemetry-target') ?? type
@@ -205,23 +207,29 @@ export class GlassBoxInspector extends HTMLElement {
       label.setAttribute('data-overlay-label', '')
       label.textContent = tgt
       const borderColor = OVERLAY_TYPE_COLORS[type] ?? 'hsl(215, 60%, 55%)'
-      label.style.cssText = `position:absolute;z-index:10000;font-family:var(--font-mono,monospace);font-size:10px;background:hsl(215,60%,55%/0.85);color:white;padding:2px 6px;border-radius:3px;pointer-events:none;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;border-left:2px solid ${borderColor};`
+      label.style.cssText = `position:absolute;z-index:10000;font-family:var(--font-mono,monospace);font-size:10px;background:hsl(215,60%,55%/0.85);color:white;padding:2px 6px;border-radius:3px;pointer-events:none;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;border-left:2px solid ${borderColor};opacity:0;`
 
       document.body.appendChild(label)
       this._overlayLabels.push(label)
-
-      const rect = target.getBoundingClientRect()
-      const left = rect.left + window.scrollX
-      let top = rect.top + window.scrollY - LABEL_HEIGHT - GAP
-
-      // Flip below if label would go above viewport
-      if (top < window.scrollY) {
-        top = rect.bottom + window.scrollY + GAP
-      }
-
-      label.style.left = `${left}px`
-      label.style.top = `${top}px`
+      labelTargetPairs.push({ label, target })
     }
+
+    // Defer positioning to next frame so margin reflow has settled
+    requestAnimationFrame(() => {
+      for (const { label, target } of labelTargetPairs) {
+        const rect = target.getBoundingClientRect()
+        const left = rect.left + window.scrollX
+        let top = rect.top + window.scrollY - LABEL_HEIGHT - GAP
+
+        if (top < window.scrollY) {
+          top = rect.bottom + window.scrollY + GAP
+        }
+
+        label.style.left = `${left}px`
+        label.style.top = `${top}px`
+        label.style.opacity = '1'
+      }
+    })
   }
 
   private _removeOverlayLabels (): void {
