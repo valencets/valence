@@ -175,6 +175,7 @@ export class ClientDashboard extends HTMLElement {
 
   private _applyResponsive (): void {
     const mobile = isMobile()
+    this.style.padding = mobile ? HUD_SPACING.md : HUD_SPACING.lg
 
     if (this._headerEl !== null) {
       this._headerEl.style.flexDirection = mobile ? 'column' : 'row'

@@ -91,8 +91,10 @@ export class DiagnosticDashboard extends HTMLElement {
   }
 
   private _applyResponsive (): void {
+    const mobile = isMobile()
+    this.style.padding = mobile ? HUD_SPACING.md : HUD_SPACING.lg
     if (this._gridEl !== null) {
-      this._gridEl.style.gridTemplateColumns = isMobile() ? '1fr 1fr' : '1fr 1fr 1fr'
+      this._gridEl.style.gridTemplateColumns = mobile ? '1fr 1fr' : '1fr 1fr 1fr'
     }
   }
 
