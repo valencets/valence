@@ -122,7 +122,9 @@ const ALLOWLIST: ReadonlyArray<{ ruleId: string; filePattern: RegExp }> = [
   // page-cache uses sessionStorage for cache persistence (not critical app state)
   { ruleId: 'no-localstorage', filePattern: /page-cache\.ts$/ },
   // page-cache uses JSON.parse via fromThrowable at system boundary, not Zod
-  { ruleId: 'no-zod-parse', filePattern: /page-cache\.ts$/ }
+  { ruleId: 'no-zod-parse', filePattern: /page-cache\.ts$/ },
+  // Lighthouse tool uses JSON.parse for report parsing, not Zod
+  { ruleId: 'no-zod-parse', filePattern: /run-lighthouse\.ts$/ }
 ]
 
 function isExcluded (filePath: string): boolean {

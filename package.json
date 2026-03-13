@@ -10,8 +10,9 @@
     "dev": "pnpm --filter",
     "audit:patterns": "tsx tools/audit/run-audit.ts --all",
     "audit:budget": "tsx sites/studio/scripts/budget-audit.ts",
+    "audit:lighthouse": "tsx tools/lighthouse/run-lighthouse.ts",
     "typecheck": "pnpm build",
-    "validate": "pnpm typecheck && pnpm lint && pnpm audit:patterns && pnpm audit:budget",
+    "validate": "pnpm typecheck && pnpm lint && pnpm audit:patterns && pnpm audit:budget && pnpm audit:lighthouse",
     "prepare": "husky"
   },
   "devDependencies": {
