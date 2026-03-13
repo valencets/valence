@@ -329,9 +329,14 @@ footer {
 
 /* Comparison section */
 .comparison {
-  padding: 5rem 2rem;
+  padding: 5rem 1rem;
   max-width: 1100px;
   margin: 0 auto;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+@media (min-width: 768px) {
+  .comparison { padding: 5rem 2rem; }
 }
 .comparison-header { text-align: center; margin-bottom: 3.5rem; }
 .comparison-header h2 {
@@ -357,6 +362,7 @@ footer {
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 3rem;
+  table-layout: fixed;
 }
 .comp-table thead th {
   background: var(--card);
@@ -694,10 +700,10 @@ footer {
   .nav-inner { position: relative; overflow-x: visible; }
   .hero { padding: 4rem 1.5rem 3rem; min-height: auto; }
   .hero-stats { grid-template-columns: repeat(2, 1fr); }
-  .comp-table { font-size: 0.75rem; }
+  .comp-table { font-size: 0.7rem; table-layout: auto; }
   .comp-table thead th,
-  .comp-table tbody td { padding: 0.5rem 0.5rem; }
-  .comp-table tbody td:first-child { width: auto; min-width: 80px; }
+  .comp-table tbody td { padding: 0.4rem 0.4rem; word-break: break-word; }
+  .comp-table tbody td:first-child { width: auto; }
   .pain-grid { grid-template-columns: 1fr; }
   inertia-buffer-strip { display: none; }
   .form-input, .form-textarea, .form-select {
