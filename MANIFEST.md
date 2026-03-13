@@ -86,7 +86,9 @@ These will fail code review. Memorize them.
 
 ### Runtime Dependency Audit
 
-Minimal, audited dependency tree. Each dependency is MIT-licensed and chosen for a specific reason. Compare: a typical React/Next.js project installs 1,400+ packages.
+Minimal, audited dependency tree — fewer than 10 runtime dependencies, each MIT-licensed, each chosen for a specific reason. A typical React/Next.js project installs 1,400+ packages. We use 4 in the framework core, and a deployed client appliance (with Payload CMS) uses roughly 8-10 total.
+
+#### Framework Core (4 deps)
 
 | Dependency | Version | Category | Justification | Vendored? |
 |-----------|---------|----------|--------------|-----------|
@@ -94,6 +96,15 @@ Minimal, audited dependency tree. Each dependency is MIT-licensed and chosen for
 | `postgres` | 3.4.8 | Server | PostgreSQL driver with tagged template SQL, zero transitive deps | No — native bindings, actively maintained |
 | `zod` | 4.3.6 | Server | Schema validation (.safeParse() only), zero transitive deps | No — too large to vendor (5.6MB) |
 | `nodemailer` | 8.0.2 | Server | Contact form email delivery, zero transitive deps | No — complex protocol implementation |
+
+#### Deployed Appliance (adds ~4-6 more)
+
+| Dependency | Category | Justification |
+|-----------|----------|--------------|
+| `payload` | Server (CMS) | Headless CMS admin panel, MIT, self-hosted PostgreSQL-backed |
+| `lexical` | Server (CMS) | Rich text editor inside Payload admin, MIT |
+| `sharp` | Server (CMS) | Image processing/optimization, native C++ bindings |
+| React | Admin only | Required by Payload CMS admin panel — never shipped to public visitors |
 
 **Build-time only** (not shipped to production): postcss, tailwindcss, tailwind-variants, tailwind-merge, clsx, vitest, happy-dom, typescript, eslint/neostandard.
 
