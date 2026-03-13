@@ -75,6 +75,44 @@ describe('FleetDashboard', () => {
   })
 })
 
+describe('FleetDashboard mobile layout', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  it('uses 2-column summary grid on narrow viewports', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 375, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+
+    const el = attach(createElement())
+    const grids = el.querySelectorAll('div')
+    const summaryGrid = Array.from(grids).find(d =>
+      d.style.display === 'grid' && d.querySelectorAll('hud-panel').length > 0
+    )
+    expect(summaryGrid?.style.gridTemplateColumns).toBe('1fr 1fr')
+  })
+
+  it('wraps table in horizontal scroll container on mobile', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 375, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+
+    const el = attach(createElement())
+    const table = el.querySelector('hud-table')
+    const wrapper = table?.parentElement
+    expect(wrapper?.style.overflowX).toBe('auto')
+  })
+
+  it('stacks header vertically on narrow viewports', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 375, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+
+    const el = attach(createElement())
+    const header = el.querySelector('div')
+    expect(header?.style.flexDirection).toBe('column')
+  })
+})
+
 describe('FleetDashboard aggregate panels', () => {
   afterEach(() => {
     document.body.innerHTML = ''

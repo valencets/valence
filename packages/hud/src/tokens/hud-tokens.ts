@@ -40,6 +40,19 @@ export const HUD_SPACING = {
   xxl: '48px'
 } as const
 
+export const HUD_BREAKPOINTS = {
+  mobile: 768,
+  tablet: 1024
+} as const
+
+export function isMobile (): boolean {
+  return window.innerWidth < HUD_BREAKPOINTS.mobile
+}
+
+export function isTablet (): boolean {
+  return window.innerWidth >= HUD_BREAKPOINTS.mobile && window.innerWidth < HUD_BREAKPOINTS.tablet
+}
+
 export const HUD_CHART = {
   sparkline: {
     width: 120,

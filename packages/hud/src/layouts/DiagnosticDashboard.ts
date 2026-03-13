@@ -1,4 +1,4 @@
-import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js'
+import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING, isMobile } from '../tokens/hud-tokens.js'
 import { fetchIngestionHealth } from '../data/fetch-summaries.js'
 import type { HudPeriod } from '../types.js'
 import { formatNumber } from '../data/format-number.js'
@@ -16,6 +16,8 @@ export class DiagnosticDashboard extends HTMLElement {
   static observedAttributes = ['gate']
   private _initialized = false
   private _metrics: HTMLElement[] = []
+  private _gridEl: HTMLElement | null = null
+  private _resizeHandler: (() => void) | null = null
 
   connectedCallback (): void {
     if (this._initialized) return
@@ -70,15 +72,28 @@ export class DiagnosticDashboard extends HTMLElement {
     this.appendChild(header)
     this.appendChild(grid)
 
+    this._gridEl = grid
+    this._resizeHandler = () => this._applyResponsive()
+    window.addEventListener('resize', this._resizeHandler)
+    this._applyResponsive()
+
     this.refreshData('7D')
   }
 
   disconnectedCallback (): void {
-    // Intentional no-op
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler)
+    }
   }
 
   connectedMoveCallback (): void {
     // Intentional no-op — signals move-awareness to router
+  }
+
+  private _applyResponsive (): void {
+    if (this._gridEl !== null) {
+      this._gridEl.style.gridTemplateColumns = isMobile() ? '1fr 1fr' : '1fr 1fr 1fr'
+    }
   }
 
   attributeChangedCallback (name: string, _old: string | null, _value: string | null): void {

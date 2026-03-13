@@ -1,4 +1,4 @@
-import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js'
+import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING, isMobile } from '../tokens/hud-tokens.js'
 import { fetchFleetSites, fetchFleetAggregates, fetchFleetAlerts } from '../data/fetch-fleet.js'
 import { formatNumber } from '../data/format-number.js'
 
@@ -17,6 +17,10 @@ export class FleetDashboard extends HTMLElement {
   private _conversionsMetric: HTMLElement | null = null
   private _periodChangeHandler: ((e: Event) => void) | null = null
   private _alertsContainer: HTMLElement | null = null
+  private _headerEl: HTMLElement | null = null
+  private _summaryGrid: HTMLElement | null = null
+  private _tableWrapper: HTMLElement | null = null
+  private _resizeHandler: (() => void) | null = null
 
   connectedCallback (): void {
     if (this._initialized) return
@@ -132,11 +136,15 @@ export class FleetDashboard extends HTMLElement {
     alertsContainer.setAttribute('data-alerts', '')
     alertsContainer.style.marginBottom = HUD_SPACING.md
 
+    // Wrap table in scroll container for mobile
+    const tableWrapper = document.createElement('div')
+    tableWrapper.appendChild(sitesTable)
+
     this.appendChild(header)
     this.appendChild(grid)
     this.appendChild(alertsContainer)
     this.appendChild(tableHeader)
-    this.appendChild(sitesTable)
+    this.appendChild(tableWrapper)
 
     this._totalMetric = totalMetric
     this._healthyMetric = healthyMetric
@@ -144,6 +152,14 @@ export class FleetDashboard extends HTMLElement {
     this._sessionsMetric = sessionsMetric
     this._conversionsMetric = conversionsMetric
     this._alertsContainer = alertsContainer
+    this._headerEl = header
+    this._summaryGrid = grid
+    this._tableWrapper = tableWrapper
+
+    // Responsive layout
+    this._resizeHandler = () => this._applyResponsive()
+    window.addEventListener('resize', this._resizeHandler)
+    this._applyResponsive()
 
     // Drill-down: click table row to navigate to site HUD
     sitesTable.addEventListener('click', (e: Event) => {
@@ -175,10 +191,29 @@ export class FleetDashboard extends HTMLElement {
     if (this._periodChangeHandler) {
       this.removeEventListener('hud-period-change', this._periodChangeHandler)
     }
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler)
+    }
   }
 
   connectedMoveCallback (): void {
     // Intentional no-op — signals move-awareness to router
+  }
+
+  private _applyResponsive (): void {
+    const mobile = isMobile()
+
+    if (this._headerEl !== null) {
+      this._headerEl.style.flexDirection = mobile ? 'column' : 'row'
+      this._headerEl.style.gap = mobile ? HUD_SPACING.sm : '0'
+      this._headerEl.style.alignItems = mobile ? 'flex-start' : 'center'
+    }
+    if (this._summaryGrid !== null) {
+      this._summaryGrid.style.gridTemplateColumns = mobile ? '1fr 1fr' : 'repeat(5, 1fr)'
+    }
+    if (this._tableWrapper !== null) {
+      this._tableWrapper.style.overflowX = mobile ? 'auto' : ''
+    }
   }
 
   private refreshData (period: string): void {

@@ -1,4 +1,4 @@
-import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js'
+import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING, isMobile } from '../tokens/hud-tokens.js'
 import { fetchSessionSummary, fetchEventSummary, fetchConversionSummary } from '../data/fetch-summaries.js'
 import { fetchTopPages, fetchTrafficSources, fetchLeadActions } from '../data/fetch-breakdowns.js'
 import type { HudPeriod } from '../types.js'
@@ -24,6 +24,10 @@ export class ClientDashboard extends HTMLElement {
   private _actionsPanel: HTMLElement | null = null
   private _sourcesPanel: HTMLElement | null = null
   private _periodChangeHandler: ((e: Event) => void) | null = null
+  private _headerEl: HTMLElement | null = null
+  private _gridEl: HTMLElement | null = null
+  private _bottomGridEl: HTMLElement | null = null
+  private _resizeHandler: (() => void) | null = null
 
   connectedCallback (): void {
     if (this._initialized) return
@@ -127,12 +131,20 @@ export class ClientDashboard extends HTMLElement {
     this.appendChild(grid)
     this.appendChild(bottomGrid)
 
-    // Store references for data updates
+    // Store references for data updates and responsive layout
     this._visitorsMetric = visitorsMetric
     this._leadsMetric = leadsMetric
     this._topPagesTable = topPagesTable
     this._actionsPanel = actionsPanel
     this._sourcesPanel = sourcesPanel
+    this._headerEl = header
+    this._gridEl = grid
+    this._bottomGridEl = bottomGrid
+
+    // Responsive layout
+    this._resizeHandler = () => this._applyResponsive()
+    window.addEventListener('resize', this._resizeHandler)
+    this._applyResponsive()
 
     // Listen for period changes
     this._periodChangeHandler = (e: Event) => {
@@ -152,10 +164,29 @@ export class ClientDashboard extends HTMLElement {
     if (this._periodChangeHandler) {
       this.removeEventListener('hud-period-change', this._periodChangeHandler)
     }
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler)
+    }
   }
 
   connectedMoveCallback (): void {
     // Intentional no-op — signals move-awareness to router
+  }
+
+  private _applyResponsive (): void {
+    const mobile = isMobile()
+
+    if (this._headerEl !== null) {
+      this._headerEl.style.flexDirection = mobile ? 'column' : 'row'
+      this._headerEl.style.gap = mobile ? HUD_SPACING.sm : '0'
+      this._headerEl.style.alignItems = mobile ? 'flex-start' : 'center'
+    }
+    if (this._gridEl !== null) {
+      this._gridEl.style.gridTemplateColumns = mobile ? '1fr' : '1fr 1fr 1fr'
+    }
+    if (this._bottomGridEl !== null) {
+      this._bottomGridEl.style.gridTemplateColumns = mobile ? '1fr' : '1fr 1fr'
+    }
   }
 
   private refreshData (period: HudPeriod): void {

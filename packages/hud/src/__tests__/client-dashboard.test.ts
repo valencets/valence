@@ -302,6 +302,47 @@ describe('ClientDashboard site param', () => {
   })
 })
 
+describe('ClientDashboard mobile layout', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('uses single column grid on narrow viewports', () => {
+    // Simulate narrow viewport via matchMedia
+    Object.defineProperty(window, 'innerWidth', { value: 375, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+
+    const el = attach(createElement())
+    const grids = el.querySelectorAll('div')
+    const topGrid = Array.from(grids).find(d => d.style.gridTemplateColumns !== '')
+
+    // On mobile, grid should be single column
+    expect(topGrid?.style.gridTemplateColumns).toBe('1fr')
+  })
+
+  it('stacks header vertically on narrow viewports', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 375, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+
+    const el = attach(createElement())
+    // Find the header (first flex div)
+    const header = el.querySelector('div')
+    expect(header?.style.flexDirection).toBe('column')
+  })
+
+  it('restores multi-column grid on wide viewports', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1200, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+
+    const el = attach(createElement())
+    const grids = el.querySelectorAll('div')
+    const topGrid = Array.from(grids).find(d =>
+      d.style.gridTemplateColumns.includes('1fr 1fr 1fr')
+    )
+    expect(topGrid).toBeDefined()
+  })
+})
+
 describe('ClientDashboard breakdown wiring', () => {
   afterEach(() => {
     document.body.innerHTML = ''

@@ -66,6 +66,25 @@ describe('FleetComparison', () => {
   })
 })
 
+describe('FleetComparison mobile layout', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  it('uses single column grid on narrow viewports', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 375, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+
+    const el = attach(createElement())
+    const grids = el.querySelectorAll('div')
+    const panelGrid = Array.from(grids).find(d =>
+      d.style.display === 'grid' && d.querySelectorAll('hud-panel').length > 0
+    )
+    expect(panelGrid?.style.gridTemplateColumns).toBe('1fr')
+  })
+})
+
 describe('FleetComparison data fetching', () => {
   afterEach(() => {
     document.body.innerHTML = ''

@@ -1,4 +1,4 @@
-import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING } from '../tokens/hud-tokens.js'
+import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING, isMobile } from '../tokens/hud-tokens.js'
 import { fetchFleetComparison } from '../data/fetch-fleet.js'
 import { formatNumber } from '../data/format-number.js'
 
@@ -7,6 +7,8 @@ export class FleetComparison extends HTMLElement {
   private _avgSessionsMetric: HTMLElement | null = null
   private _avgConversionsMetric: HTMLElement | null = null
   private _topPerformerMetric: HTMLElement | null = null
+  private _gridEl: HTMLElement | null = null
+  private _resizeHandler: (() => void) | null = null
 
   connectedCallback (): void {
     if (this._initialized) return
@@ -69,16 +71,30 @@ export class FleetComparison extends HTMLElement {
     this._avgSessionsMetric = avgSessionsMetric
     this._avgConversionsMetric = avgConversionsMetric
     this._topPerformerMetric = topPerformerMetric
+    this._gridEl = grid
+
+    // Responsive layout
+    this._resizeHandler = () => this._applyResponsive()
+    window.addEventListener('resize', this._resizeHandler)
+    this._applyResponsive()
 
     this.refreshData()
   }
 
   disconnectedCallback (): void {
-    // No listeners to clean up
+    if (this._resizeHandler) {
+      window.removeEventListener('resize', this._resizeHandler)
+    }
   }
 
   connectedMoveCallback (): void {
     // Intentional no-op — signals move-awareness to router
+  }
+
+  private _applyResponsive (): void {
+    if (this._gridEl !== null) {
+      this._gridEl.style.gridTemplateColumns = isMobile() ? '1fr' : '1fr 1fr 1fr'
+    }
   }
 
   private refreshData (): void {
