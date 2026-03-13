@@ -183,11 +183,28 @@ footer {
 
 /* Hero */
 .hero {
+  position: relative;
+  overflow: hidden;
   height: clamp(600px, 100vh, 900px);
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
   text-align: center;
+}
+.hero-halftone {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+}
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 740px;
+  padding: ${SPACING.scale[8]};
 }
 .hero h1 {
   font-size: ${TYPOGRAPHY.scale['4xl']};
