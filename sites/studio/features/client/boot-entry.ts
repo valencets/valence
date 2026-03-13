@@ -2,6 +2,7 @@
 import { bootTelemetry } from '../telemetry/telemetry-boot.js'
 import { initRouter } from '@inertia/core'
 import { initNavActive } from './nav-active.js'
+import { initMobileTabs } from './mobile-tabs.js'
 // Side-effect imports: each calls customElements.define()
 import '../glass-box/components/GlassBoxStrip.js'
 import '../glass-box/components/GlassBoxInspector.js'
@@ -93,6 +94,7 @@ function boot (): void {
   initNavActive()
   initNavScroll()
   initHamburgerNav()
+  initMobileTabs()
   initAuditForm()
 
   const routerResult = initRouter({ contentSelector: '#main-content' })
