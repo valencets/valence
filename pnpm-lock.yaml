@@ -45,10 +45,10 @@ importers:
         specifier: workspace:*
         version: link:../neverthrow
       postgres:
-        specifier: ^3.4.8
+        specifier: 3.4.8
         version: 3.4.8
       zod:
-        specifier: ^4.3.6
+        specifier: 4.3.6
         version: 4.3.6
     devDependencies:
       '@types/node':
@@ -74,7 +74,7 @@ importers:
         specifier: workspace:*
         version: link:../neverthrow
       zod:
-        specifier: ^4.3.6
+        specifier: 4.3.6
         version: 4.3.6
     devDependencies:
       '@types/node':
@@ -89,7 +89,7 @@ importers:
         specifier: workspace:*
         version: link:../neverthrow
       zod:
-        specifier: ^4.3.6
+        specifier: 4.3.6
         version: 4.3.6
     devDependencies:
       clsx:
@@ -132,13 +132,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/tokens
       nodemailer:
-        specifier: ^8.0.2
+        specifier: 8.0.2
         version: 8.0.2
       postgres:
-        specifier: ^3.4.8
+        specifier: 3.4.8
         version: 3.4.8
       zod:
-        specifier: ^4.3.6
+        specifier: 4.3.6
         version: 4.3.6
     devDependencies:
       '@types/node':

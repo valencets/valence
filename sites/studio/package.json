@@ -18,9 +18,9 @@
     "@inertia/ingestion": "workspace:*",
     "@inertia/tokens": "workspace:*",
     "@inertia/neverthrow": "workspace:*",
-    "nodemailer": "^8.0.2",
-    "postgres": "^3.4.8",
-    "zod": "^4.3.6"
+    "nodemailer": "8.0.2",
+    "postgres": "3.4.8",
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",

@@ -14,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "zod": "^4.3.6",
+    "zod": "4.3.6",
     "@inertia/neverthrow": "workspace:*"
   },
   "devDependencies": {
