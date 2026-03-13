@@ -446,6 +446,24 @@ describe('initRouter', () => {
     expect(contentDuringBeforeSwap).toBe('Old content')
   })
 
+  it('handles bare fragment response without main wrapper', async () => {
+    const mockFetch = createMockFetch('<section><p>Fragment content</p></section>', {
+      'X-Inertia-Title': 'About | Inertia Web Solutions'
+    })
+
+    const result = initRouter({ enableFragmentProtocol: true }, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/about')
+
+    expect(document.querySelector('main section p')?.textContent).toBe('Fragment content')
+    expect(document.title).toBe('About | Inertia Web Solutions')
+  })
+
   it('sends X-Inertia-Fragment header on navigation', async () => {
     const mockFetch = createMockFetch('<html><head><title>Frag</title></head><body><main><p>Fragment</p></main></body></html>')
 

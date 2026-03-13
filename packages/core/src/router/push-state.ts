@@ -194,7 +194,12 @@ function processHtml (html: string, contentSelector: string): Result<string | nu
 
   const doc = docResult.value
   const fragmentResult = extractFragment(doc, contentSelector)
-  if (fragmentResult.isErr()) return err(fragmentResult.error)
+
+  // If selector miss, this is likely a bare fragment response (no shell).
+  // Fall back to doc.body which contains the fragment content.
+  const fragment = fragmentResult.isOk()
+    ? fragmentResult.value
+    : doc.body
 
   const liveContainer = document.querySelector(contentSelector)
   if (liveContainer === null) {
@@ -206,7 +211,7 @@ function processHtml (html: string, contentSelector: string): Result<string | nu
 
   document.dispatchEvent(new CustomEvent('inertia:before-swap'))
 
-  const swapResult = swapContent(liveContainer, fragmentResult.value)
+  const swapResult = swapContent(liveContainer, fragment)
   if (swapResult.isErr()) return err(swapResult.error)
 
   document.dispatchEvent(new CustomEvent('inertia:after-swap'))
@@ -254,6 +259,11 @@ export function initRouter (
         window.history.pushState({ url }, '', url)
         window.scrollTo(0, 0)
 
+        // Apply title from header (fragment responses) or parsed HTML
+        if (navResult.title !== null) {
+          document.title = navResult.title
+        }
+
         // Version mismatch detection — also clear prefetch cache
         if (navResult.version !== null) {
           const currentVer = pageCacheHandle.getVersion()
@@ -287,6 +297,11 @@ export function initRouter (
     performNavigation(url, resolved, fetchFn, prefetchHandle, pageCacheHandle)
       .map((navResult) => {
         const durationMs = Math.round(performance.now() - startTime)
+
+        if (navResult.title !== null) {
+          document.title = navResult.title
+        }
+
         const perfDetail: NavigationPerformance = {
           source: navResult.source,
           durationMs,
