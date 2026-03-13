@@ -118,7 +118,11 @@ const ALLOWLIST: ReadonlyArray<{ ruleId: string; filePattern: RegExp }> = [
   // Vitest config requires export default (third-party API)
   { ruleId: 'no-default-export', filePattern: /vitest\..*config\.ts$/ },
   // Copy map mentions localStorage in a description string, not usage
-  { ruleId: 'no-localstorage', filePattern: /copy-map\.ts$/ }
+  { ruleId: 'no-localstorage', filePattern: /copy-map\.ts$/ },
+  // page-cache uses sessionStorage for cache persistence (not critical app state)
+  { ruleId: 'no-localstorage', filePattern: /page-cache\.ts$/ },
+  // page-cache uses JSON.parse via fromThrowable at system boundary, not Zod
+  { ruleId: 'no-zod-parse', filePattern: /page-cache\.ts$/ }
 ]
 
 function isExcluded (filePath: string): boolean {

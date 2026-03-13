@@ -1,7 +1,24 @@
-import { ok, err } from 'neverthrow'
+import { ok, err, fromThrowable } from 'neverthrow'
 import type { Result } from 'neverthrow'
 import { RouterErrorCode } from './router-types.js'
 import type { RouterError, ResolvedRouterConfig, PageCacheEntry } from './router-types.js'
+
+const STORAGE_KEY = 'inertia:page-cache'
+
+interface CacheStorageData {
+  readonly version: string | null
+  readonly entries: ReadonlyArray<readonly [string, PageCacheEntry]>
+}
+
+// System boundary: sessionStorage is external input
+const parseJson = fromThrowable(
+  (raw: string): CacheStorageData => JSON.parse(raw) as CacheStorageData,
+  (): RouterError => ({ code: RouterErrorCode.PARSE_FAILED, message: 'Invalid cache storage' })
+)
+
+function hasSessionStorage (): boolean {
+  return typeof sessionStorage !== 'undefined'
+}
 
 export interface PageCacheHandle {
   readonly get: (url: string) => Result<PageCacheEntry, RouterError>
@@ -16,6 +33,32 @@ export interface PageCacheHandle {
 export function initPageCache (config: ResolvedRouterConfig): PageCacheHandle {
   const cache = new Map<string, PageCacheEntry>()
   let currentVersion: string | null = null
+
+  function persist (): void {
+    if (!config.persistPageCache || !hasSessionStorage()) return
+    const data: CacheStorageData = {
+      version: currentVersion,
+      entries: Array.from(cache.entries())
+    }
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  }
+
+  function restore (): void {
+    if (!config.persistPageCache || !hasSessionStorage()) return
+    const raw = sessionStorage.getItem(STORAGE_KEY)
+    if (raw === null) return
+
+    const result = parseJson(raw)
+    if (result.isErr()) return
+    const data = result.value
+
+    if (!Array.isArray(data.entries)) return
+    currentVersion = data.version ?? null
+    for (const [key, entry] of data.entries) {
+      if (cache.size >= config.pageCacheCapacity) break
+      cache.set(key, entry)
+    }
+  }
 
   function evictOldest (): void {
     if (cache.size < config.pageCacheCapacity) return
@@ -63,14 +106,17 @@ export function initPageCache (config: ResolvedRouterConfig): PageCacheHandle {
       evictOldest()
     }
     cache.set(url, entry)
+    persist()
   }
 
   function invalidateAll (): void {
     cache.clear()
+    persist()
   }
 
   function invalidateUrl (url: string): void {
     cache.delete(url)
+    persist()
   }
 
   function size (): number {
@@ -86,7 +132,11 @@ export function initPageCache (config: ResolvedRouterConfig): PageCacheHandle {
       invalidateAll()
     }
     currentVersion = version
+    persist()
   }
+
+  // Restore from sessionStorage on init
+  restore()
 
   return {
     get,

@@ -493,6 +493,113 @@ footer {
   }
   footer { padding-bottom: 16px; }
 }
+
+/* Principles */
+.principles-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+@media (min-width: 768px) {
+  .principles-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+  }
+}
+.principle-section.card {
+  padding: 2rem 1.5rem;
+  border-left: 3px solid var(--primary);
+}
+.principle-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.principle-number {
+  font-family: var(--font-mono);
+  font-size: 2.4rem;
+  color: var(--primary);
+  opacity: 0.4;
+  line-height: 1;
+}
+.principle-section h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+@media (min-width: 768px) {
+  .principle-section h2 { font-size: 1.95rem; }
+}
+.principle-details {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+@media (min-width: 768px) {
+  .principle-details {
+    grid-template-columns: 1fr 1fr;
+  }
+  .principle-origin {
+    grid-row: 1 / 3;
+  }
+  .principle-benefit {
+    grid-column: 1 / -1;
+  }
+}
+.principle-origin h3,
+.principle-how h3,
+.principle-benefit h3 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
+  margin: 0 0 0.5rem;
+}
+.principle-benefit {
+  background: hsl(215,60%,48%,0.06);
+  border: 1px solid hsl(215,60%,48%,0.12);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.principle-benefit h3 {
+  color: var(--primary);
+}
+
+/* Audit loading */
+.audit-status { margin-top: 0.5rem; }
+.audit-status p { color: var(--muted-foreground); }
+.audit-btn-loading { display: inline-flex; align-items: center; gap: 0.5rem; }
+.audit-btn-loading[hidden] { display: none; }
+.audit-btn-label[hidden] { display: none; }
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: -0.15em;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.audit-progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+.audit-progress-fill {
+  height: 100%;
+  width: 30%;
+  background: var(--primary);
+  border-radius: 2px;
+  animation: scan 1.5s ease-in-out infinite;
+}
+@keyframes scan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(433%); }
+}
 `
 
   return tokenCSS + studioCSS

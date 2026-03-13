@@ -19,6 +19,32 @@ describe('renderAuditForm', () => {
   })
 })
 
+describe('renderAuditResults scores', () => {
+  it('renders score values as plain HTML, not hud-metric custom elements', () => {
+    const html = renderAuditResults(makeResult(95))
+    expect(html).not.toContain('<hud-metric')
+    expect(html).toContain('95')
+    expect(html).toContain('Performance')
+  })
+
+  it('renders metric bars as plain HTML, not hud-bar custom elements', () => {
+    const result: LighthouseResult = {
+      url: 'https://example.com',
+      scores: { performance: 90, accessibility: 95, bestPractices: 90, seo: 85 },
+      metrics: [{ title: 'First Contentful Paint', displayValue: '1.2 s', numericValue: 1200 }],
+      fetchedAt: '2026-03-12T00:00:00Z'
+    }
+    const html = renderAuditResults(result)
+    expect(html).not.toContain('<hud-bar')
+    expect(html).toContain('1.2 s')
+  })
+
+  it('applies green color for scores >= 90', () => {
+    const html = renderAuditResults(makeResult(95))
+    expect(html).toContain('hsl(142, 60%, 50%)')
+  })
+})
+
 describe('renderAuditResults CTA', () => {
   it('shows consultation CTA after results', () => {
     const html = renderAuditResults(makeResult(95))

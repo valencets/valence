@@ -27,6 +27,7 @@ export interface RouterConfig {
   readonly pageCacheTtlMs?: number
   readonly enableFragmentProtocol?: boolean
   readonly noCachePaths?: ReadonlyArray<string>
+  readonly persistPageCache?: boolean
 }
 
 export interface ResolvedRouterConfig {
@@ -39,6 +40,7 @@ export interface ResolvedRouterConfig {
   readonly pageCacheTtlMs: number
   readonly enableFragmentProtocol: boolean
   readonly noCachePaths: ReadonlyArray<string>
+  readonly persistPageCache: boolean
 }
 
 export interface CachedResponse {
@@ -76,7 +78,8 @@ const DEFAULT_CONFIG: ResolvedRouterConfig = {
   pageCacheCapacity: 16,
   pageCacheTtlMs: 300_000,
   enableFragmentProtocol: true,
-  noCachePaths: ['/admin']
+  noCachePaths: ['/admin'],
+  persistPageCache: true
 }
 
 export function resolveConfig (partial?: RouterConfig): ResolvedRouterConfig {
@@ -90,6 +93,7 @@ export function resolveConfig (partial?: RouterConfig): ResolvedRouterConfig {
     pageCacheCapacity: partial.pageCacheCapacity ?? DEFAULT_CONFIG.pageCacheCapacity,
     pageCacheTtlMs: partial.pageCacheTtlMs ?? DEFAULT_CONFIG.pageCacheTtlMs,
     enableFragmentProtocol: partial.enableFragmentProtocol ?? DEFAULT_CONFIG.enableFragmentProtocol,
-    noCachePaths: partial.noCachePaths ?? DEFAULT_CONFIG.noCachePaths
+    noCachePaths: partial.noCachePaths ?? DEFAULT_CONFIG.noCachePaths,
+    persistPageCache: partial.persistPageCache ?? DEFAULT_CONFIG.persistPageCache
   }
 }

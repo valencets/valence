@@ -26,6 +26,9 @@ export class FleetDashboard extends HTMLElement {
     if (this._initialized) return
     this._initialized = true
     this.style.display = 'block'
+    this.style.boxSizing = 'border-box'
+    this.style.maxWidth = '100%'
+    this.style.overflow = 'hidden'
     this.style.backgroundColor = HUD_COLORS.bg
     this.style.color = HUD_COLORS.textPrimary
     this.style.fontFamily = HUD_TYPOGRAPHY.fontPrimary
@@ -211,9 +214,15 @@ export class FleetDashboard extends HTMLElement {
     }
     if (this._summaryGrid !== null) {
       this._summaryGrid.style.gridTemplateColumns = mobile ? '1fr 1fr' : 'repeat(5, 1fr)'
+      this._summaryGrid.style.gap = mobile ? HUD_SPACING.sm : HUD_SPACING.md
+      const panels = this._summaryGrid.querySelectorAll('hud-panel')
+      for (const panel of panels) {
+        ;(panel as HTMLElement).style.padding = mobile ? HUD_SPACING.sm : HUD_SPACING.lg
+      }
     }
     if (this._tableWrapper !== null) {
       this._tableWrapper.style.overflowX = mobile ? 'auto' : ''
+      this._tableWrapper.style.maxWidth = '100%'
     }
   }
 

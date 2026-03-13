@@ -17,8 +17,17 @@ export function renderAuditForm (error?: AuditError, url?: string): string {
       <input type="url" id="url" name="url" class="form-input" required placeholder="https://example.com" value="${url ?? ''}">
       ${errorHtml}
     </div>
-    <button type="submit" class="btn btn-primary" data-telemetry-type="CLICK" data-telemetry-target="audit-submit">Run Audit</button>
-    <p class="text-sm" style="color: var(--muted-foreground); margin-top: 0.5rem;">Audits take 30-60 seconds. Limited to one per 5 minutes per visitor.</p>
+    <button type="submit" class="btn btn-primary audit-submit" data-telemetry-type="CLICK" data-telemetry-target="audit-submit">
+      <span class="audit-btn-label">Run Audit</span>
+      <span class="audit-btn-loading" hidden><span class="spinner" aria-hidden="true"></span> Scanning\u2026</span>
+    </button>
+    <div class="audit-status">
+      <p class="audit-status-idle text-sm">Audits take 30-60 seconds. Limited to one per 5 minutes per visitor.</p>
+      <div class="audit-status-loading" hidden>
+        <div class="audit-progress-bar"><div class="audit-progress-fill"></div></div>
+        <p class="text-sm">Scanning site\u2026 this usually takes 30\u201360 seconds</p>
+      </div>
+    </div>
   </form>
 </section>`
 }
