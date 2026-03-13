@@ -159,9 +159,12 @@ describe('renderHome comparison section', () => {
     expect(thMatches.length).toBe(4)
   })
 
-  it('last column header says Inertia Web Solutions', () => {
+  it('Inertia Web Solutions is second column (mobile-first order)', () => {
     const html = renderHome()
-    expect(html).toContain('Inertia Web Solutions')
+    const theadMatch = html.match(/<thead>[\s\S]*?<\/thead>/)!
+    const ths = theadMatch[0].match(/<th[^>]*>[^<]*<\/th>/g) || []
+    expect(ths[1]).toContain('Inertia Web Solutions')
+    expect(ths[1]).toContain('comparison-accent')
   })
 
   it('Inertia column header has accent class', () => {

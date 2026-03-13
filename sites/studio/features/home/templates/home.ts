@@ -58,19 +58,17 @@ export function renderHome (): string {
     </div>`
   ).join('')
 
-  const tableHeaders = COMPARISON_TABLE.headers.map(
-    (h, i) => i === COMPARISON_TABLE.headers.length - 1
-      ? `<th class="comparison-accent">${h}</th>`
-      : `<th>${h}</th>`
-  ).join('')
+  // HTML order: Feature | Inertia | Wix | Agency
+  // Desktop CSS reorders to: Feature | Wix | Agency | Inertia
+  const tableHeaders = `<th></th><th class="comparison-accent">${COMPARISON_TABLE.headers[3]}</th><th>${COMPARISON_TABLE.headers[1]}</th><th>${COMPARISON_TABLE.headers[2]}</th>`
 
   const tableRows = COMPARISON_TABLE.rows.map(
     (row) => `
       <tr>
         <td>${row.feature}</td>
+        ${renderCell(row.inertiaMarker, row.inertia, row.inertiaClass)}
         ${renderCell(row.wixMarker, row.wix, row.wixClass)}
         ${renderCell(row.agencyMarker, row.agency, row.agencyClass)}
-        ${renderCell(row.inertiaMarker, row.inertia, row.inertiaClass)}
       </tr>`
   ).join('')
 

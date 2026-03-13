@@ -369,7 +369,7 @@ footer {
   letter-spacing: 0.08em;
   border-bottom: 1px solid var(--border);
 }
-.comp-table thead th:last-child {
+.comp-table thead th:nth-child(2) {
   background: hsl(215 60% 48% / 0.08);
   color: var(--primary);
   border-left: 2px solid var(--primary);
@@ -388,7 +388,7 @@ footer {
   font-weight: ${TYPOGRAPHY.fontWeight.medium};
   width: 200px;
 }
-.comp-table tbody td:last-child {
+.comp-table tbody td:nth-child(2) {
   border-left: 2px solid var(--primary);
   background: hsl(215 60% 48% / 0.03);
   color: var(--foreground);
@@ -694,44 +694,10 @@ footer {
   .nav-inner { position: relative; overflow-x: visible; }
   .hero { padding: 4rem 1.5rem 3rem; min-height: auto; }
   .hero-stats { grid-template-columns: repeat(2, 1fr); }
-  .comp-table { font-size: 0.8rem; }
-  .comp-table,
-  .comp-table thead,
-  .comp-table tbody { display: block; }
-  .comp-table thead { display: none; }
-  .comp-table tr {
-    display: flex;
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--border);
-    padding: 0.5rem 0;
-  }
-  .comp-table tbody tr:last-child { border-bottom: none; }
-  .comp-table tbody td {
-    padding: 0.4rem 0.75rem;
-    border-bottom: none;
-    border-left: none;
-    background: none;
-  }
-  .comp-table tbody td:first-child {
-    flex: 0 0 100%;
-    width: 100%;
-    font-weight: ${TYPOGRAPHY.fontWeight.bold};
-    font-size: 0.85rem;
-    color: var(--foreground);
-    padding-bottom: 0.35rem;
-  }
-  .comp-table tbody td:nth-child(4) {
-    order: 1;
-    flex: 0 0 100%;
-    color: var(--foreground);
-    font-weight: ${TYPOGRAPHY.fontWeight.medium};
-    background: hsl(215 60% 48% / 0.06);
-    border-radius: var(--radius);
-    padding: 0.5rem 0.75rem;
-    margin-bottom: 0.25rem;
-  }
-  .comp-table tbody td:nth-child(2) { order: 2; flex: 1 1 0; min-width: 0; font-size: 0.75rem; }
-  .comp-table tbody td:nth-child(3) { order: 3; flex: 1 1 0; min-width: 0; font-size: 0.75rem; }
+  .comp-table { font-size: 0.75rem; }
+  .comp-table thead th,
+  .comp-table tbody td { padding: 0.5rem 0.5rem; }
+  .comp-table tbody td:first-child { width: auto; min-width: 80px; }
   .pain-grid { grid-template-columns: 1fr; }
   inertia-buffer-strip { display: none; }
   .form-input, .form-textarea, .form-select {
