@@ -92,12 +92,28 @@ export const PAIN_CARDS = [
     stat: 'Average agency retainer: $2,500/month'
   },
   {
-    id: 'pain-ours',
+    id: 'ours-ownership',
     variant: 'ours' as const,
     label: 'The Inertia Model',
     title: 'One payment. Your server. Your site. Forever.',
     description: 'We hand-deliver a dedicated server appliance to your business. You own the hardware, the code, the data, and the analytics. No monthly ransom.',
     stat: '$0/month after launch'
+  },
+  {
+    id: 'ours-speed',
+    variant: 'ours' as const,
+    label: 'Built for Speed',
+    title: 'Your site loads before they can blink',
+    description: 'No shared servers. No bloated frameworks. Just your code on your hardware, optimized for sub-second page loads.',
+    stat: 'Perfect 100 Lighthouse score'
+  },
+  {
+    id: 'ours-independence',
+    variant: 'ours' as const,
+    label: 'True Independence',
+    title: 'Your site runs with or without us',
+    description: 'If we disappeared tomorrow, your website keeps running. You have the server, the database, and every line of code.',
+    stat: 'Zero vendor dependencies'
   }
 ] as const
 

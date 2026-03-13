@@ -132,7 +132,9 @@ describe('renderHome comparison section', () => {
   it('contains comparison table with 4 column headers', () => {
     const html = renderHome()
     expect(html).toContain('comparison-table')
-    const thMatches = html.match(/<th[^>]*>/g) || []
+    const theadMatch = html.match(/<thead>[\s\S]*?<\/thead>/)
+    expect(theadMatch).not.toBeNull()
+    const thMatches = theadMatch![0].match(/<th[\s>]/g) || []
     expect(thMatches.length).toBe(4)
   })
 
@@ -160,30 +162,32 @@ describe('renderHome comparison section', () => {
 })
 
 describe('renderHome pain cards', () => {
-  it('renders 4 pain cards', () => {
+  it('renders 6 pain cards', () => {
     const html = renderHome()
-    const cardCount = (html.match(/pain-card"/g) || html.match(/pain-card /g) || []).length
-    expect(cardCount).toBe(4)
+    const cardCount = (html.match(/pain-card /g) || []).length
+    expect(cardCount).toBe(6)
   })
 
-  it('renders 3 pain variant and 1 ours variant', () => {
+  it('renders 3 pain variant and 3 ours variant', () => {
     const html = renderHome()
     const painCount = (html.match(/pain-card-pain/g) || []).length
     const oursCount = (html.match(/pain-card-ours/g) || []).length
     expect(painCount).toBe(3)
-    expect(oursCount).toBe(1)
+    expect(oursCount).toBe(3)
   })
 
   it('each pain card has label, title, description, and stat', () => {
     const html = renderHome()
-    const cardMatches = html.match(/class="pain-card[\s\S]*?(?=class="pain-card|<\/div>\s*<\/div>\s*<div class="comparison-cta)/g)
-    expect(cardMatches).not.toBeNull()
-    for (const card of cardMatches!) {
-      expect(card).toContain('pain-label')
-      expect(card).toContain('<h3')
-      expect(card).toContain('<p')
-      expect(card).toContain('pain-stat')
-    }
+    // Verify all pain cards contain required elements
+    expect(html).toContain('pain-label')
+    expect(html).toContain('pain-stat')
+    // Each card should have an h3 and p — count them within pain-cards section
+    const painSection = html.match(/class="pain-cards">([\s\S]*?)<\/div>\s*<div class="comparison-cta/)
+    expect(painSection).not.toBeNull()
+    const h3Count = (painSection![1].match(/<h3/g) || []).length
+    const pCount = (painSection![1].match(/<p[ >]/g) || []).length
+    expect(h3Count).toBe(6)
+    expect(pCount).toBe(6)
   })
 })
 

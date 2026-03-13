@@ -1,8 +1,9 @@
 import {
   HERO,
   PILLARS,
-  ELIMINATES,
-  OWNERSHIP,
+  COMPARISON_TABLE,
+  PAIN_CARDS,
+  COMPARISON_CTA,
 } from '../config/home-content.js'
 import { HOME_COPY_MAP } from '../config/home-copy-map.js'
 import type { CopyMapEntry } from '../config/home-copy-map.js'
@@ -23,7 +24,30 @@ function copyAttrs (id: string): string {
   return ` data-copy-default="${esc(entry.default)}" data-copy-technical="${esc(entry.technical)}"`
 }
 
+const MARKER_CLASS: Record<string, string> = { pass: 'marker-pass', fail: 'marker-fail', partial: 'marker-partial' }
+const MARKER_SYMBOL: Record<string, string> = { pass: '✓', fail: '✗', partial: '~' }
+
+function renderMarker (marker: string, text: string): string {
+  if (!marker) return text
+  return `<span class="${MARKER_CLASS[marker]}">${MARKER_SYMBOL[marker]}</span> ${text}`
+}
+
 export function renderHome (): string {
+  const accentWord = HERO.headlineAccent
+  const headlineParts = HERO.headline.split(accentWord)
+  // Wrap last occurrence of accent word in <em>
+  const accentHeadline = headlineParts.length > 1
+    ? headlineParts.slice(0, -1).join(accentWord) + `<em>${accentWord}</em>` + headlineParts[headlineParts.length - 1]
+    : HERO.headline
+
+  const heroStats = HERO.stats.map(
+    (s, i) => `
+      <div class="hero-stat">
+        <span class="hero-stat-value">${esc(s.value)}</span>
+        <span class="hero-stat-label"${copyAttrs(`hero-stat-${i + 1}-label`)}>${s.label}</span>
+      </div>`
+  ).join('')
+
   const pillarCards = PILLARS.map(
     (p) => `
     <div class="card" data-telemetry-type="VIEWPORT_INTERSECT" data-telemetry-target="pillar-${p.id}">
@@ -33,47 +57,70 @@ export function renderHome (): string {
     </div>`
   ).join('')
 
-  const eliminateItems = ELIMINATES.map(
-    (item, i) => `<li${copyAttrs(`eliminate-${i + 1}`)}>${item}</li>`
+  const tableHeaders = COMPARISON_TABLE.headers.map(
+    (h, i) => i === COMPARISON_TABLE.headers.length - 1
+      ? `<th class="comparison-accent">${h}</th>`
+      : `<th>${h}</th>`
   ).join('')
 
-  const proofMetrics = OWNERSHIP.proof
-    .map(
-      (p, i) => `
-    <div class="proof-metric">
-      <span class="proof-value">${p.metric}</span>
-      <span class="proof-label"${copyAttrs(`proof-${i + 1}-label`)}>${p.label}</span>
+  const tableRows = COMPARISON_TABLE.rows.map(
+    (row) => `
+      <tr>
+        <td>${row.feature}</td>
+        <td>${renderMarker(row.wixMarker, row.wix)}</td>
+        <td>${renderMarker(row.agencyMarker, row.agency)}</td>
+        <td>${renderMarker(row.inertiaMarker, row.inertia)}</td>
+      </tr>`
+  ).join('')
+
+  const painCards = PAIN_CARDS.map(
+    (card) => `
+    <div class="pain-card pain-card-${card.variant}">
+      <span class="pain-label">${card.label}</span>
+      <h3${copyAttrs(`pain-card-${PAIN_CARDS.indexOf(card) + 1}-title`)}>${card.title}</h3>
+      <p${copyAttrs(`pain-card-${PAIN_CARDS.indexOf(card) + 1}-desc`)}>${card.description}</p>
+      <span class="pain-stat">${card.stat}</span>
     </div>`
-    )
-    .join('')
+  ).join('')
+
+  const comparisonCopyEntry = HOME_COPY_MAP.find(e => e.id === 'comparison-header')
+  const comparisonSubEntry = HOME_COPY_MAP.find(e => e.id === 'comparison-subtitle')
 
   return `
 <section class="hero container">
   <div class="hero-content">
-  <h1${copyAttrs('hero-headline')}>${HERO.headline}</h1>
-  <p${copyAttrs('hero-subhead')}>${HERO.subhead}</p>
-  <div class="hero-cta">
-    <a href="${HERO.cta.href}" class="btn btn-primary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="hero-cta-primary">${HERO.cta.label}</a>
-    <a href="${HERO.ctaSecondary.href}" class="btn btn-secondary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="hero-cta-secondary">${HERO.ctaSecondary.label}</a>
-  </div>
+    <span class="hero-eyebrow"${copyAttrs('hero-eyebrow')}><span class="hero-pulse"></span> ${HERO.eyebrow}</span>
+    <h1${copyAttrs('hero-headline')}>${accentHeadline}</h1>
+    <p${copyAttrs('hero-subhead')}>${HERO.subhead}</p>
+    <div class="hero-stats">
+      ${heroStats}
+    </div>
+    <div class="hero-cta">
+      <a href="${HERO.cta.href}" class="btn btn-primary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="hero-cta-primary">${HERO.cta.label}</a>
+      <a href="${HERO.ctaSecondary.href}" class="btn btn-ghost" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="hero-cta-secondary">${HERO.ctaSecondary.label}</a>
+    </div>
   </div>
 </section>
 
-<section class="section container value-proposition">
-  <div class="grid grid-2">
-    <div class="eliminate-section">
-      <h2>What We Eliminate</h2>
-      <ul class="eliminate-list">
-        ${eliminateItems}
-      </ul>
-    </div>
-    <div class="ownership-section">
-      <h2>${OWNERSHIP.headline}</h2>
-      <p class="prose"${copyAttrs('ownership-body')}>${OWNERSHIP.body}</p>
-    </div>
+<section class="section container comparison-section">
+  <div class="comparison-header">
+    <h2${comparisonCopyEntry ? ` data-copy-default="${esc(comparisonCopyEntry.default)}" data-copy-technical="${esc(comparisonCopyEntry.technical)}"` : ''}>How We Compare</h2>
+    <p${comparisonSubEntry ? ` data-copy-default="${esc(comparisonSubEntry.default)}" data-copy-technical="${esc(comparisonSubEntry.technical)}"` : ''}>Most web solutions rent you a website. We build one you own.</p>
   </div>
-  <div class="grid grid-2x2 proof-grid">
-    ${proofMetrics}
+  <div class="comparison-table-wrap">
+    <table class="comparison-table">
+      <thead><tr>${tableHeaders}</tr></thead>
+      <tbody>${tableRows}
+      </tbody>
+    </table>
+  </div>
+  <div class="pain-cards">
+    ${painCards}
+  </div>
+  <div class="comparison-cta">
+    <h3${copyAttrs('comparison-cta-headline')}>${COMPARISON_CTA.headline}</h3>
+    <p>${COMPARISON_CTA.subtitle}</p>
+    <a href="${COMPARISON_CTA.cta.href}" class="btn btn-primary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="comparison-cta">${COMPARISON_CTA.cta.label}</a>
   </div>
 </section>
 
@@ -91,6 +138,6 @@ export function renderHome (): string {
 
 <section class="section container cta-section">
   <h2>Ready to own your web presence?</h2>
-  <a href="/about#contact" class="btn btn-primary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="bottom-cta">Contact Us</a>
+  <a href="/free-site-audit" class="btn btn-primary" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="bottom-cta">Run Free Site Audit</a>
 </section>`
 }

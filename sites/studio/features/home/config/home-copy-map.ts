@@ -142,6 +142,28 @@ export const HOME_COPY_MAP: readonly CopyMapEntry[] = [
     technical: 'x86 edge appliance with PostgreSQL, Payload CMS, and WireGuard tunnel. Full pg_dump + git clone access.'
   },
 
+  // Ours cards (additional)
+  {
+    id: 'pain-card-5-title',
+    default: 'Your site loads before they can blink',
+    technical: 'Sub-200ms TTFB, <14kB critical shell, zero render-blocking external scripts'
+  },
+  {
+    id: 'pain-card-5-desc',
+    default: 'No shared servers. No bloated frameworks. Just your code on your hardware, optimized for sub-second page loads.',
+    technical: 'Dedicated x86 hardware, inline critical CSS, HTML-over-the-wire routing, pre-allocated ring buffer telemetry'
+  },
+  {
+    id: 'pain-card-6-title',
+    default: 'Your site runs with or without us',
+    technical: 'Gliding failover: static HTML snapshot on VPS. Caddy health-check auto-switches. Zero vendor dependency.'
+  },
+  {
+    id: 'pain-card-6-desc',
+    default: 'If we disappeared tomorrow, your website keeps running. You have the server, the database, and every line of code.',
+    technical: 'Client holds full pg_dump + git clone access. Static failover snapshot on VPS serves if appliance offline.'
+  },
+
   // Comparison CTA
   {
     id: 'comparison-cta-headline',
