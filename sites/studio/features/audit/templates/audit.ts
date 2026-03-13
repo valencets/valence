@@ -29,41 +29,5 @@ export function renderAuditForm (error?: AuditError, url?: string): string {
       </div>
     </div>
   </form>
-</section>
-<script>
-document.querySelector('.audit-form').addEventListener('submit', function (e) {
-  e.preventDefault()
-  var form = this
-  var btn = form.querySelector('.audit-submit')
-  btn.disabled = true
-  btn.querySelector('.audit-btn-label').hidden = true
-  btn.querySelector('.audit-btn-loading').hidden = false
-  form.querySelector('.audit-status-idle').hidden = true
-  form.querySelector('.audit-status-loading').hidden = false
-
-  fetch(form.action, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Inertia-Fragment': '1' },
-    body: new URLSearchParams(new FormData(form))
-  }).then(function (res) {
-    return res.text().then(function (html) {
-      var title = res.headers.get('X-Inertia-Title')
-      var main = document.querySelector('#main-content')
-      document.dispatchEvent(new CustomEvent('inertia:before-swap'))
-      var doc = new DOMParser().parseFromString(html, 'text/html')
-      var fragment = doc.querySelector('#main-content') || doc.body
-      main.replaceChildren.apply(main, Array.from(fragment.childNodes))
-      document.dispatchEvent(new CustomEvent('inertia:after-swap'))
-      if (title) document.title = title
-      window.scrollTo(0, 0)
-    })
-  }, function () {
-    btn.disabled = false
-    btn.querySelector('.audit-btn-label').hidden = false
-    btn.querySelector('.audit-btn-loading').hidden = true
-    form.querySelector('.audit-status-idle').hidden = false
-    form.querySelector('.audit-status-loading').hidden = true
-  })
-})
-</script>`
+</section>`
 }

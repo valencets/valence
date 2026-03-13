@@ -25,10 +25,58 @@ function initHamburgerNav (): void {
   })
 }
 
+function initAuditForm (): void {
+  document.body.addEventListener('submit', (e: Event) => {
+    const form = (e.target as Element).closest('.audit-form') as HTMLFormElement | null
+    if (form === null) return
+    e.preventDefault()
+
+    const btn = form.querySelector('.audit-submit') as HTMLButtonElement | null
+    if (btn === null) return
+    btn.disabled = true
+    const label = btn.querySelector('.audit-btn-label') as HTMLElement | null
+    const loading = btn.querySelector('.audit-btn-loading') as HTMLElement | null
+    if (label) label.hidden = true
+    if (loading) loading.hidden = false
+
+    const idle = form.querySelector('.audit-status-idle') as HTMLElement | null
+    const progress = form.querySelector('.audit-status-loading') as HTMLElement | null
+    if (idle) idle.hidden = true
+    if (progress) progress.hidden = false
+
+    fetch(form.action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Inertia-Fragment': '1' },
+      body: new URLSearchParams(new FormData(form) as unknown as Record<string, string>)
+    }).then(
+      (res) => res.text().then((html) => {
+        const title = res.headers.get('X-Inertia-Title')
+        const main = document.querySelector('#main-content')
+        if (main === null) return
+        document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+        const doc = new DOMParser().parseFromString(html, 'text/html')
+        const fragment = doc.querySelector('#main-content') ?? doc.body
+        main.replaceChildren(...fragment.childNodes)
+        document.dispatchEvent(new CustomEvent('inertia:after-swap'))
+        if (title !== null) document.title = title
+        window.scrollTo(0, 0)
+      }),
+      () => {
+        btn.disabled = false
+        if (label) label.hidden = false
+        if (loading) loading.hidden = true
+        if (idle) idle.hidden = false
+        if (progress) progress.hidden = true
+      }
+    )
+  })
+}
+
 function boot (): void {
   bootTelemetry()
   initNavActive()
   initHamburgerNav()
+  initAuditForm()
 
   const routerResult = initRouter({ contentSelector: '#main-content' })
   routerResult.match(

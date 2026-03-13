@@ -496,12 +496,15 @@ footer {
 
 /* Principles */
 .principles-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 2rem;
 }
 @media (min-width: 768px) {
-  .principles-grid { gap: 2.5rem; }
+  .principles-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+  }
 }
 .principle-section.card {
   padding: 2rem 1.5rem;

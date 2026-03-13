@@ -16,12 +16,6 @@ export function renderAbout (): string {
   <p class="prose">${ABOUT.intro}</p>
 </section>
 
-<section class="section container">
-  <h2>${ABOUT.founder.name}</h2>
-  <p class="prose">${ABOUT.founder.bio}</p>
-  <p class="prose">${ABOUT.founder.philosophy}</p>
-</section>
-
 <section class="section container" data-telemetry-type="VIEWPORT_INTERSECT" data-telemetry-target="proof-section">
   <h2>${ABOUT.proof.headline}</h2>
   <ul>${proofItems}</ul>
@@ -72,5 +66,11 @@ export function renderAbout (): string {
     <a href="tel:+19728157910" data-telemetry-type="INTENT_CALL" data-telemetry-target="contact-phone">972-815-7910</a>
     <a href="mailto:mail@forrestblade.com" data-telemetry-type="INTENT_LEAD" data-telemetry-target="contact-email">mail@forrestblade.com</a>
   </div>
+</section>
+
+<section class="section container">
+  <h2>${ABOUT.founder.name}</h2>
+  <p class="prose">${ABOUT.founder.bio}</p>
+  <p class="prose">${ABOUT.founder.philosophy}</p>
 </section>`
 }
