@@ -83,3 +83,14 @@ export interface TrafficSourcesData {
 export interface LeadActionsData {
   readonly actions: ReadonlyArray<{ readonly action: string; readonly count: number }>
 }
+
+export interface TrendDayPoint {
+  readonly date: string
+  readonly session_count: number | null
+  readonly pageview_count: number | null
+  readonly conversion_count: number | null
+}
+
+export interface TrendData {
+  readonly days: ReadonlyArray<TrendDayPoint>
+}

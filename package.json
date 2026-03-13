@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "dev": "pnpm --filter",
     "audit:patterns": "tsx tools/audit/run-audit.ts --all",
+    "audit:budget": "tsx sites/studio/scripts/budget-audit.ts",
+    "typecheck": "pnpm build",
+    "validate": "pnpm typecheck && pnpm lint && pnpm audit:patterns && pnpm audit:budget",
     "prepare": "husky"
   },
   "devDependencies": {

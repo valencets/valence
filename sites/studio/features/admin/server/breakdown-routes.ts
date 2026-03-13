@@ -1,28 +1,8 @@
-import type { IncomingMessage } from 'node:http'
 import { getDailyBreakdowns } from '@inertia/db'
 import { aggregateByCategory } from '@inertia/hud/dist/data/classify-referrer.js'
 import type { RouteHandler } from '../../../server/types.js'
 import { sendJson } from '../../../server/router.js'
-
-const PERIOD_DAYS: Record<string, number> = {
-  TODAY: 1,
-  '7D': 7,
-  '30D': 30,
-  '90D': 90
-}
-
-function parsePeriodRange (req: IncomingMessage): { start: Date; end: Date } {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
-  const periodParam = url.searchParams.get('period') ?? '7D'
-  const days = PERIOD_DAYS[periodParam] ?? 7
-
-  const end = new Date()
-  end.setHours(23, 59, 59, 999)
-  const start = new Date(end.getTime() - days * 86_400_000)
-  start.setHours(0, 0, 0, 0)
-
-  return { start, end }
-}
+import { parsePeriodRange } from './period-utils.js'
 
 const LEAD_PREFIX = 'LEAD_'
 

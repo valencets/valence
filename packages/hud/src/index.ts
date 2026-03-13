@@ -13,7 +13,9 @@ export type {
   ReferrerCategory,
   TopPagesData,
   TrafficSourcesData,
-  LeadActionsData
+  LeadActionsData,
+  TrendDayPoint,
+  TrendData
 } from './types.js'
 export { HudErrorCode, HudPeriod as HudPeriodValues } from './types.js'
 
@@ -44,5 +46,6 @@ export { classifyReferrer, aggregateByCategory } from './data/classify-referrer.
 export type { CategoryCount } from './data/classify-referrer.js'
 export { fetchSessionSummary, fetchEventSummary, fetchConversionSummary, fetchIngestionHealth } from './data/fetch-summaries.js'
 export { fetchTopPages, fetchTrafficSources, fetchLeadActions } from './data/fetch-breakdowns.js'
+export { fetchTrendData } from './data/fetch-trend.js'
 export { fetchFleetSites, fetchFleetAggregates, fetchFleetAlerts, fetchFleetComparison } from './data/fetch-fleet.js'
 export type { FleetSiteData, FleetAggregateData, FleetAlertData, FleetComparisonData } from './data/fetch-fleet.js'

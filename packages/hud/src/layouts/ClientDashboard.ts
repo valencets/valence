@@ -1,8 +1,10 @@
 import { HUD_COLORS, HUD_TYPOGRAPHY, HUD_SPACING, isMobile } from '../tokens/hud-tokens.js'
 import { fetchSessionSummary, fetchEventSummary, fetchConversionSummary } from '../data/fetch-summaries.js'
 import { fetchTopPages, fetchTrafficSources, fetchLeadActions } from '../data/fetch-breakdowns.js'
+import { fetchTrendData } from '../data/fetch-trend.js'
 import type { HudPeriod } from '../types.js'
 import { formatNumber } from '../data/format-number.js'
+import { formatDelta } from '../data/format-delta.js'
 
 const LEAD_ACTION_LABELS: Record<string, string> = {
   LEAD_PHONE: 'Phone',
@@ -247,6 +249,34 @@ export class ClientDashboard extends HTMLElement {
             value: String(a.count),
             percent: String(total > 0 ? Math.round((a.count / total) * 100) : 0)
           })))
+        }
+      },
+      () => {} // Hold placeholders on error
+    )
+
+    fetchTrendData('', period, site).match(
+      (data) => {
+        if (!Array.isArray(data.days)) return
+
+        const sessionCsv = data.days.map(d => d.session_count ?? 0).join(',')
+        if (this._visitorsMetric) {
+          this._visitorsMetric.setAttribute('sparkline-data', sessionCsv)
+        }
+
+        const conversionCsv = data.days.map(d => d.conversion_count ?? 0).join(',')
+        if (this._leadsMetric) {
+          this._leadsMetric.setAttribute('sparkline-data', conversionCsv)
+        }
+
+        if (data.days.length >= 2) {
+          const mid = Math.floor(data.days.length / 2)
+          const currentSum = data.days.slice(mid).reduce((s, d) => s + (d.session_count ?? 0), 0)
+          const priorSum = data.days.slice(0, mid).reduce((s, d) => s + (d.session_count ?? 0), 0)
+          const delta = formatDelta(currentSum, priorSum)
+          if (this._visitorsMetric) {
+            this._visitorsMetric.setAttribute('delta', delta.value)
+            this._visitorsMetric.setAttribute('delta-direction', delta.direction)
+          }
         }
       },
       () => {} // Hold placeholders on error

@@ -99,6 +99,26 @@ export function insertDailySummaryFromRemote (
   )
 }
 
+export function getDailyTrend (
+  pool: DbPool,
+  siteId: string,
+  start: Date,
+  end: Date
+): ResultAsync<ReadonlyArray<DailySummaryRow>, DbError> {
+  return ResultAsync.fromPromise(
+    (async () => {
+      const rows = await pool.sql<DailySummaryRow[]>`
+        SELECT date, session_count, pageview_count, conversion_count
+        FROM daily_summaries
+        WHERE site_id = ${siteId} AND date >= ${start} AND date <= ${end}
+        ORDER BY date ASC
+      `
+      return rows as ReadonlyArray<DailySummaryRow>
+    })(),
+    mapPostgresError
+  )
+}
+
 export function getDailyBreakdowns (
   pool: DbPool,
   siteId: string,

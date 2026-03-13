@@ -28,7 +28,7 @@ export type {
   TopPageEntry
 } from './daily-summary-types.js'
 export { generateDailySummary } from './daily-summary-aggregation.js'
-export { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote, getDailyBreakdowns } from './daily-summary-queries.js'
+export { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote, getDailyBreakdowns, getDailyTrend } from './daily-summary-queries.js'
 
 // Fleet queries
 export { getFleetSites, getFleetComparison, getFleetSiteHistory, getFleetAggregates, getFleetAlerts, FleetSiteStatus, FleetAlertSeverity, FleetAlertType } from './fleet-queries.js'

@@ -469,3 +469,101 @@ describe('ClientDashboard breakdown wiring', () => {
     expect(calls.some(u => u.includes('/api/breakdowns/actions'))).toBe(true)
   })
 })
+
+describe('ClientDashboard trend sparklines', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  function mockFetchWithTrend (): void {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/summaries/trend')) {
+        return new Response(JSON.stringify({
+          days: [
+            { date: '2026-03-01', session_count: 10, pageview_count: 50, conversion_count: 2 },
+            { date: '2026-03-02', session_count: 15, pageview_count: 70, conversion_count: 3 },
+            { date: '2026-03-03', session_count: 20, pageview_count: 90, conversion_count: 5 },
+            { date: '2026-03-04', session_count: 25, pageview_count: 110, conversion_count: 4 }
+          ]
+        }))
+      }
+      if (url.includes('/api/summaries/sessions')) {
+        return new Response(JSON.stringify({
+          period_start: '2026-03-01',
+          period_end: '2026-03-04',
+          total_sessions: 70,
+          unique_referrers: 3,
+          device_breakdown: {
+            mobile: 40,
+            desktop: 25,
+            tablet: 5
+          }
+        }))
+      }
+      if (url.includes('/api/summaries/events')) {
+        return new Response(JSON.stringify({
+          period_start: '2026-03-01',
+          period_end: '2026-03-04',
+          event_category: 'INTENT_LEAD',
+          total_count: 14,
+          unique_sessions: 10
+        }))
+      }
+      return new Response('{}')
+    })
+  }
+
+  it('sets sparkline-data on visitors metric after trend fetch', async () => {
+    mockFetchWithTrend()
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const visitors = Array.from(panels).find(p => p.getAttribute('label') === 'Visitors')
+    const metric = visitors?.querySelector('hud-metric')
+    const sparklineData = metric?.getAttribute('sparkline-data')
+    expect(sparklineData).toBe('10,15,20,25')
+  })
+
+  it('sets sparkline-data on leads metric after trend fetch', async () => {
+    mockFetchWithTrend()
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const leads = Array.from(panels).find(p => p.getAttribute('label') === 'Leads')
+    const metric = leads?.querySelector('hud-metric')
+    const sparklineData = metric?.getAttribute('sparkline-data')
+    expect(sparklineData).toBe('2,3,5,4')
+  })
+
+  it('sets delta and delta-direction on visitors metric', async () => {
+    mockFetchWithTrend()
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const panels = el.querySelectorAll('hud-panel')
+    const visitors = Array.from(panels).find(p => p.getAttribute('label') === 'Visitors')
+    const metric = visitors?.querySelector('hud-metric')
+    // First half: 10+15=25, Second half: 20+25=45 → +80%
+    expect(metric?.getAttribute('delta')).toBe('+80%')
+    expect(metric?.getAttribute('delta-direction')).toBe('up')
+  })
+
+  it('updates sparklines on period change', async () => {
+    mockFetchWithTrend()
+    const el = attach(createElement())
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    // Dispatch period change
+    el.querySelector('hud-timerange')?.dispatchEvent(
+      new CustomEvent('hud-period-change', { detail: { period: '30D' }, bubbles: true })
+    )
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    const panels = el.querySelectorAll('hud-panel')
+    const visitors = Array.from(panels).find(p => p.getAttribute('label') === 'Visitors')
+    const metric = visitors?.querySelector('hud-metric')
+    // After period change, sparkline data should still be set
+    expect(metric?.getAttribute('sparkline-data')).toBe('10,15,20,25')
+  })
+})

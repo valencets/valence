@@ -4,7 +4,8 @@ export default [
   ...neostandard({ ts: true }),
   {
     rules: {
-      '@typescript-eslint/no-redeclare': 'off'
+      '@typescript-eslint/no-redeclare': 'off',
+      complexity: ['error', 20]
     }
   }
 ]

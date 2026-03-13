@@ -13,6 +13,7 @@ import { sessionSummaryHandler, eventSummaryHandler, conversionSummaryHandler, i
 import { createFleetOverviewHandler, createFleetCompareHandler } from '../features/admin/server/fleet-handler.js'
 import { fleetSitesHandler, fleetComparisonHandler, fleetAggregatesHandler, fleetAlertsHandler } from '../features/admin/server/fleet-routes.js'
 import { breakdownPagesHandler, breakdownSourcesHandler, breakdownActionsHandler } from '../features/admin/server/breakdown-routes.js'
+import { trendHandler } from '../features/admin/server/trend-routes.js'
 import { aggregationHandler } from '../features/admin/server/aggregation-handler.js'
 import type { RouteHandler } from '@inertia/core/server'
 import type { RouteContext } from './types.js'
@@ -63,6 +64,9 @@ export function registerRoutes (router: ServerRouter<RouteContext>): void {
   router.register('/api/breakdowns/pages', { GET: breakdownPagesHandler })
   router.register('/api/breakdowns/sources', { GET: breakdownSourcesHandler })
   router.register('/api/breakdowns/actions', { GET: breakdownActionsHandler })
+
+  // Trend API
+  router.register('/api/summaries/trend', { GET: trendHandler })
 
   // Summary APIs
   router.register('/api/summaries/sessions', { GET: sessionSummaryHandler })
