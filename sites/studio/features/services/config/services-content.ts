@@ -1,6 +1,6 @@
 export const APPLIANCE_MODEL = {
   headline: 'The Web Appliance Model',
-  body: 'Your website actually lives on a computer inside your business. The internet just needs a doorway so visitors can reach it. That doorway costs about five dollars a month and it\'s registered in your name. If you ever want to switch providers, your website is still sitting in your office — we just move the doorway.'
+  body: 'Your website actually lives on a computer inside your Dallas-Fort Worth business. The internet just needs a doorway so visitors can reach it. That doorway costs about five dollars a month and it\'s registered in your name. If you ever want to switch providers, your website is still sitting in your office — we just move the doorway.'
 } as const
 
 export const SERVICE_TIERS = [

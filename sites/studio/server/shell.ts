@@ -42,6 +42,46 @@ function renderNav (currentPath: string): string {
     </nav>`
 }
 
+const DFW_SERVICE_AREA = [
+  'McKinney', 'Dallas', 'Fort Worth', 'Plano', 'Frisco',
+  'Allen', 'Richardson', 'Arlington', 'Denton', 'Prosper'
+]
+
+function renderLocalBusinessJsonLd (): string {
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'ProfessionalService',
+    name: 'Inertia Web Solutions',
+    url: 'https://inertiawebsolutions.com',
+    telephone: '+1-972-815-7910',
+    email: 'mail@forrestblade.com',
+    description: 'Web studio building deterministic websites on dedicated server appliances you own. Based in McKinney, serving businesses across Dallas-Fort Worth.',
+    priceRange: '$3,500-$4,800',
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'McKinney',
+      addressRegion: 'TX',
+      addressCountry: 'US'
+    },
+    areaServed: DFW_SERVICE_AREA.map(city => ({
+      '@type': 'City',
+      name: city,
+      containedInPlace: {
+        '@type': 'State',
+        name: 'Texas'
+      }
+    })),
+    founder: {
+      '@type': 'Person',
+      name: 'Forrest Blade'
+    },
+    sameAs: [
+      'https://github.com/forrestblade/inertia'
+    ]
+  }
+  return `\n  <script type="application/ld+json">${JSON.stringify(data)}</script>`
+}
+
 export function renderShell (options: ShellOptions): string {
   return `<!DOCTYPE html>
 <html lang="en" class="dark" data-inertia-version="${BOOT_VERSION}">
@@ -50,7 +90,10 @@ export function renderShell (options: ShellOptions): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${options.title} | Inertia Web Solutions</title>
   <meta name="description" content="${options.description}">
+  <meta name="geo.region" content="US-TX">
+  <meta name="geo.placename" content="McKinney">
   <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_US">
   <meta property="og:site_name" content="Inertia Web Solutions">
   <meta property="og:title" content="${options.title} | Inertia Web Solutions">
   <meta property="og:description" content="${options.description}">
@@ -61,7 +104,7 @@ export function renderShell (options: ShellOptions): string {
   <meta name="twitter:description" content="${options.description}">
   <meta name="twitter:image" content="https://inertiawebsolutions.com/img/og-card.png">
   <link rel="canonical" href="https://inertiawebsolutions.com${options.currentPath}">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">${options.currentPath === '/' ? renderLocalBusinessJsonLd() : ''}
   <style>${options.criticalCSS}</style>
   <link rel="stylesheet" href="${options.deferredCSSPath}?v=${BOOT_VERSION}">
 </head>
@@ -74,7 +117,7 @@ export function renderShell (options: ShellOptions): string {
   </main>
   <footer>
     <div class="footer-inner">
-      <p>&copy; ${new Date().getFullYear()} Inertia Web Solutions. All rights reserved.</p>
+      <p>&copy; ${new Date().getFullYear()} Inertia Web Solutions. McKinney, TX. Serving the Dallas-Fort Worth metroplex.</p>
       <p class="footer-hardware">Served from a dedicated server appliance — your website can too. <a href="https://github.com/forrestblade/inertia" data-telemetry-type="INTENT_NAVIGATE" data-telemetry-target="footer-github">View source on GitHub</a></p>
     </div>
   </footer>

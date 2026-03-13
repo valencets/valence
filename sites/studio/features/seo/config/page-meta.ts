@@ -9,13 +9,13 @@ export const PAGE_META: Record<PageKey, PageMeta> = {
     description: 'Inertia builds deterministic websites on dedicated hardware you own. No shared hosting. No bloated frameworks. McKinney, TX web studio.'
   },
   'how-it-works': {
-    description: 'Engineering principles borrowed from aerospace: pre-allocated memory, explicit error handling, low complexity, and 14kB first-paint budgets.'
+    description: 'Aerospace-grade engineering for local business websites. Pre-allocated memory, explicit error handling, and 14kB first-paint budgets.'
   },
   pricing: {
-    description: 'Website built on the Inertia framework, installed on a server we deliver to your business. You own the hardware, the code, and the data.'
+    description: 'Website on a dedicated server we deliver to your DFW business. You own the hardware, the code, and the data. McKinney, TX web studio.'
   },
   'free-site-audit': {
-    description: 'Free Lighthouse performance audit run on our own hardware. Enter any URL and see your site\'s performance, accessibility, and SEO scores.'
+    description: 'Free Lighthouse audit from a McKinney, TX web studio. Enter any URL and get performance, accessibility, and SEO scores in seconds.'
   },
   about: {
     description: 'Inertia Web Solutions is a solo web studio in McKinney, TX building aerospace-grade websites on hardware you physically own.'

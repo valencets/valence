@@ -1,6 +1,6 @@
 export const HERO = {
   headline: 'Your website should load before you can blink.',
-  subhead: 'We build websites on dedicated hardware you own. No shared hosting. No bloated frameworks. No monthly ransom.',
+  subhead: 'A McKinney web studio building websites on dedicated hardware you own. No shared hosting. No bloated frameworks. Serving businesses across DFW.',
   cta: { label: 'See How It Works', href: '/how-it-works' },
   ctaSecondary: { label: 'Get In Touch', href: '/about#contact' }
 } as const
@@ -43,7 +43,7 @@ export const ELIMINATES = [
 
 export const OWNERSHIP = {
   headline: 'Total Ownership',
-  body: 'When we deliver your server, you own your entire stack. The hardware. The database. The analytics. The code. No vendor dependencies. If we got hit by a bus tomorrow, your website keeps running.',
+  body: 'When we deliver your server to your Dallas-Fort Worth business, you own your entire stack. The hardware. The database. The analytics. The code. No vendor dependencies. If we got hit by a bus tomorrow, your website keeps running.',
   proof: [
     { metric: '<14kB', label: 'First paint payload' },
     { metric: '0', label: 'Third-party scripts' },
