@@ -1,15 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { okAsync } from 'neverthrow'
+import { ok } from 'neverthrow'
+
+let mockReadBody = vi.fn(() => Promise.resolve(''))
 
 beforeEach(() => {
   vi.resetModules()
+  mockReadBody = vi.fn(() => Promise.resolve(''))
+  vi.doMock('../../../server/router.js', () => ({
+    readBody: (...args: unknown[]) => mockReadBody(...args),
+    sendJson: vi.fn((res: { end: (d: string) => void }, data: unknown) => {
+      res.end(JSON.stringify(data))
+    })
+  }))
+  vi.doMock('@inertia/ingestion', () => ({
+    safeJsonParse: (raw: string) => {
+      if (raw.length === 0) return ok(null)
+      const parsed = JSON.parse(raw)
+      return ok(parsed)
+    }
+  }))
 })
 
 function makeRequest (headers: Record<string, string> = {}): import('http').IncomingMessage {
   return { headers } as unknown as import('http').IncomingMessage
 }
 
-function makeResponse (): { res: import('http').ServerResponse; headers: Record<string, string | string[]>; body: unknown; statusCode: number } {
+function makeResponse (): {
+  res: import('http').ServerResponse
+  headers: Record<string, string | string[]>
+  body: unknown
+  statusCode: number
+} {
   const headers: Record<string, string | string[]> = {}
   const state = {
     headers,
@@ -44,7 +66,6 @@ describe('sessionHandler', () => {
 
     await sessionHandler(req, res, ctx as never)
 
-    // Should set both cookies
     const setCookie = headers['set-cookie']
     expect(Array.isArray(setCookie)).toBe(true)
     const cookies = setCookie as string[]
@@ -81,24 +102,17 @@ describe('sessionHandler', () => {
       operating_system: 'Linux'
     }
     vi.doMock('@inertia/db', () => ({
-      createSession: vi.fn((pool: unknown, session: Record<string, unknown>) => {
+      createSession: vi.fn((_pool: unknown, session: Record<string, unknown>) => {
         capturedSession = session
         return okAsync(sessionRow)
       })
     }))
+
+    mockReadBody = vi.fn(() => Promise.resolve(JSON.stringify({ referrer: 'https://google.com' })))
+
     const { sessionHandler } = await import('../server/session-handler.js')
 
-    const body = JSON.stringify({ referrer: 'https://google.com' })
-    const req = makeRequest({
-      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64)',
-      'content-length': String(body.length)
-    })
-    // Simulate readable stream
-    const chunks = [body]
-    ;(req as unknown as { [Symbol.asyncIterator]: () => AsyncIterableIterator<string> })[Symbol.asyncIterator] = async function * () {
-      for (const chunk of chunks) yield chunk
-    }
-
+    const req = makeRequest({ 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64)' })
     const { res } = makeResponse()
     const ctx = { pool: {} }
 
@@ -118,15 +132,17 @@ describe('sessionHandler', () => {
       operating_system: 'Linux'
     }
     vi.doMock('@inertia/db', () => ({
-      createSession: vi.fn((pool: unknown, session: Record<string, unknown>) => {
+      createSession: vi.fn((_pool: unknown, session: Record<string, unknown>) => {
         capturedSession = session
         return okAsync(sessionRow)
       })
     }))
+
+    mockReadBody = vi.fn(() => Promise.resolve(''))
+
     const { sessionHandler } = await import('../server/session-handler.js')
 
     const req = makeRequest({ 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64)' })
-
     const { res } = makeResponse()
     const ctx = { pool: {} }
 
