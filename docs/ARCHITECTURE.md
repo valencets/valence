@@ -413,7 +413,7 @@ Unique, time-boxed codes tied to `session_id`. Redeemed at POS, synced back to P
 Location: `packages/hud/`
 
 ### Client HUD (`/admin/hud`)
-Visible on every appliance. Shows that client's own analytics: sessions, pageviews, conversions, referrers, high-intent actions. Built with Inertia's own Web Components. Pure SVG/CSS charting, zero charting library dependencies.
+Visible on every appliance. Shows that client's own analytics: sessions, pageviews, conversions, referrers, high-intent actions. Built with Inertia's own Web Components. Pure SVG/CSS charting — no charting libraries.
 
 ### Fleet Dashboard (`/admin/fleet`)
 Visible only on the studio appliance. Shows all client sites in one view. Each row: site_id, business_type, metrics, health indicator (green = reported today, yellow = 24-48h stale, red = offline 48h+). Filterable by business_type.

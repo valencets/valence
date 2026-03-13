@@ -84,6 +84,21 @@ These will fail code review. Memorize them.
 | Build | TypeScript compiler (`tsc`) | Per-package, outputs to `dist/` |
 | DB driver | `postgres` (porsager/postgres) | Tagged template SQL, parameterized by default |
 
+### Runtime Dependency Audit
+
+Minimal, audited dependency tree. Each dependency is MIT-licensed and chosen for a specific reason. Compare: a typical React/Next.js project installs 1,400+ packages.
+
+| Dependency | Version | Category | Justification | Vendored? |
+|-----------|---------|----------|--------------|-----------|
+| `@inertia/neverthrow` | 8.2.0 | Client + Server | Result<Ok,Err> monads — AV Rule 208 compliance | **Yes** — source in `packages/neverthrow/` |
+| `postgres` | 3.4.8 | Server | PostgreSQL driver with tagged template SQL, zero transitive deps | No — native bindings, actively maintained |
+| `zod` | 4.3.6 | Server | Schema validation (.safeParse() only), zero transitive deps | No — too large to vendor (5.6MB) |
+| `nodemailer` | 8.0.2 | Server | Contact form email delivery, zero transitive deps | No — complex protocol implementation |
+
+**Build-time only** (not shipped to production): postcss, tailwindcss, tailwind-variants, tailwind-merge, clsx, vitest, happy-dom, typescript, eslint/neostandard.
+
+**Client-side scripts in visitor's browser**: Zero third-party. The telemetry beacon is first-party code served from the client's own server. No Google Analytics, no Facebook Pixel, no Hotjar. This is accurate and verified.
+
 ---
 
 ## Project Structure

@@ -18,7 +18,7 @@ export const SERVICES_COPY_MAP: readonly CopyMapEntry[] = [
   {
     id: 'service-hud',
     default: 'First-party analytics dashboard (HUD)',
-    technical: 'Self-hosted HUD: pure SVG/CSS charting, reads from PostgreSQL summary tables, zero external dependencies'
+    technical: 'Self-hosted HUD: pure SVG/CSS charting, reads from PostgreSQL summary tables, no third-party tracking scripts'
   },
   {
     id: 'service-funnel',

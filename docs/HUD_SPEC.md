@@ -2,7 +2,7 @@
 
 ## What This Is
 
-The HUD (Heads-Up Display) is Inertia's self-hosted, first-party analytics dashboard. It lives inside the client's headless CMS admin console as a single pane of glass: content editing and analytics in one interface. It replaces Google Analytics, Adobe Analytics, and every third-party tracking script. The client owns 100% of their data. Zero external dependencies means zero ad-blocker interference.
+The HUD (Heads-Up Display) is Inertia's self-hosted, first-party analytics dashboard. It lives inside the client's headless CMS admin console as a single pane of glass: content editing and analytics in one interface. It replaces Google Analytics, Adobe Analytics, and every third-party tracking script. The client owns 100% of their data. No third-party tracking scripts means zero ad-blocker interference.
 
 The HUD is not a generic dashboard. It is an aerospace-grade instrument panel built with the same deterministic constraints as the rest of Inertia. It reads from pre-aggregated PostgreSQL summary tables, never raw event rows. It renders with fixed-size DOM elements, never infinite scroll. It uses color as function, never decoration.
 
