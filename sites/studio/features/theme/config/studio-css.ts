@@ -750,7 +750,7 @@ footer {
   .hero { padding: 4rem 1.5rem 3rem; min-height: auto; }
   .hero-stats { grid-template-columns: repeat(2, 1fr); }
   .comp-table { display: none; }
-  .mobile-comparison { display: block; }
+  .mobile-comparison { display: block; margin-bottom: 3rem; }
   .pain-grid { grid-template-columns: 1fr; }
   inertia-buffer-strip { display: none; }
   .form-input, .form-textarea, .form-select {

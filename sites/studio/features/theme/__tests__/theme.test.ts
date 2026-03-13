@@ -427,6 +427,11 @@ describe('mobile CSS: comparison tabs', () => {
     expect(css).toContain('.mobile-row-value')
   })
 
+  it('mobile-comparison has bottom margin for spacing from next element', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.mobile-comparison\s*\{[^}]*margin-bottom/)
+  })
+
   it('mobile-tabs has sticky positioning within section', () => {
     const css = getStudioCSS()
     expect(css).toMatch(/\.mobile-tabs\s*\{[^}]*position:\s*sticky/)
