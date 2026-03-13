@@ -1,4 +1,4 @@
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@inertia/neverthrow'
 import type { HudPeriod, HudError, SessionSummary, EventSummary, ConversionSummary, IngestionHealth } from '../types.js'
 import { HudErrorCode } from '../types.js'
 

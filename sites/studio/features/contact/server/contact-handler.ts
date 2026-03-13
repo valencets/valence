@@ -1,5 +1,5 @@
 import { parse as parseQs } from 'node:querystring'
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@inertia/neverthrow'
 import type { DbPool, DbError } from '@inertia/db'
 import { mapPostgresError } from '@inertia/db'
 import type { RouteHandler } from '../../../server/types.js'

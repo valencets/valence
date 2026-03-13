@@ -1,5 +1,5 @@
 // Barrel export — named exports only, no default exports
-import type { Result } from 'neverthrow'
+import type { Result } from '@inertia/neverthrow'
 import { extractSelectors } from './extract-selectors.js'
 import { splitCSS } from './split-css.js'
 import type { CriticalCSSError, SplitResult } from './types.js'

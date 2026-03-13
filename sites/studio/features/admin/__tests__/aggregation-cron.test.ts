@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { ok, err } from 'neverthrow'
+import { ok, err } from '@inertia/neverthrow'
 import type { DbError } from '@inertia/db'
 
 vi.mock('@inertia/db', () => ({

@@ -1,4 +1,4 @@
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@inertia/neverthrow'
 import { signPayload } from '@inertia/ingestion'
 import type { DailySummaryRow, DailySummaryPayload } from '@inertia/db'
 

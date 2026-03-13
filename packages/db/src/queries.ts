@@ -1,4 +1,4 @@
-import { okAsync, errAsync, ResultAsync } from 'neverthrow'
+import { okAsync, errAsync, ResultAsync } from '@inertia/neverthrow'
 import type postgres from 'postgres'
 import { DbErrorCode } from './types.js'
 import type { DbError, SessionRow, EventRow, InsertableSession, InsertableEvent } from './types.js'

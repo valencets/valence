@@ -1,5 +1,5 @@
-import { fromThrowable } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { fromThrowable } from '@inertia/neverthrow'
+import type { Result } from '@inertia/neverthrow'
 
 export interface ParseFailure {
   readonly code: 'PARSE_FAILURE'

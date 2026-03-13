@@ -14,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "neverthrow": "^8.2.0"
+    "@inertia/neverthrow": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.4.0"

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { okAsync } from 'neverthrow'
-import { ok } from 'neverthrow'
+import { okAsync } from '@inertia/neverthrow'
+import { ok } from '@inertia/neverthrow'
 
 let mockReadBody = vi.fn(() => Promise.resolve(''))
 

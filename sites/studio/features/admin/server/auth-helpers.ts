@@ -1,4 +1,4 @@
-import type { Result } from 'neverthrow'
+import type { Result } from '@inertia/neverthrow'
 import { checkAuth } from './auth-middleware.js'
 import type { AuthError } from './auth-middleware.js'
 

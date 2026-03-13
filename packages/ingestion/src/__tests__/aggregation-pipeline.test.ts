@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createAggregationPipeline } from '../aggregation-pipeline.js'
 import { signPayload } from '../hmac.js'
-import { ok, err } from 'neverthrow'
+import { ok, err } from '@inertia/neverthrow'
 
 function makePayload (): Record<string, unknown> {
   return {

@@ -1,5 +1,5 @@
-import { ok } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok } from '@inertia/neverthrow'
+import type { Result } from '@inertia/neverthrow'
 import { IntentType } from './intent-types.js'
 import type { TelemetryError } from './intent-types.js'
 import type { TelemetryRingBuffer } from './ring-buffer.js'

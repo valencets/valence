@@ -21,7 +21,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "neverthrow": "^8.2.0",
+    "@inertia/neverthrow": "workspace:*",
     "postgres": "^3.4.8",
     "zod": "^4.3.6"
   },

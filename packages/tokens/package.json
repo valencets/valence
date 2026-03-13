@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "zod": "^4.3.6",
-    "neverthrow": "^8.2.0"
+    "@inertia/neverthrow": "workspace:*"
   },
   "devDependencies": {
     "tailwind-variants": "^0.3.0",

@@ -11,7 +11,9 @@ const mode = process.argv[2] ?? '--staged'
 
 function getStagedFiles (): string[] {
   const output = execSync('git diff --cached --name-only --diff-filter=ACM', { encoding: 'utf-8' })
-  return output.split('\n').filter((f) => f.endsWith('.ts') || f.endsWith('.js'))
+  return output.split('\n')
+    .filter((f) => f.endsWith('.ts') || f.endsWith('.js'))
+    .filter((f) => !f.startsWith('packages/neverthrow/'))
 }
 
 function getAllSourceFiles (): string[] {

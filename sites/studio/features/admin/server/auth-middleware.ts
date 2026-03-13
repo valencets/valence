@@ -1,5 +1,5 @@
-import { ok, err } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err } from '@inertia/neverthrow'
+import type { Result } from '@inertia/neverthrow'
 
 export interface AuthError {
   readonly code: 'AUTH_FAILED'

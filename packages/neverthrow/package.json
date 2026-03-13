@@ -1,0 +1,13 @@
+{
+  "name": "@inertia/neverthrow",
+  "version": "8.2.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": { "import": "./index.js", "types": "./index.d.ts" }
+  },
+  "license": "MIT",
+  "description": "Vendored neverthrow v8.2.0 — Result<Ok, Err> monads. Original: https://github.com/supermacro/neverthrow"
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { okAsync, errAsync } from 'neverthrow'
+import { okAsync, errAsync } from '@inertia/neverthrow'
 import { createAsyncIngestionHandler } from '../black-hole.js'
 import type { AuditFn, AuditEntry } from '../black-hole.js'
 import type { AsyncPersistFn } from '../pipeline.js'

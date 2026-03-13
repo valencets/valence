@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { okAsync } from 'neverthrow'
+import { okAsync } from '@inertia/neverthrow'
 
 beforeEach(() => {
   vi.resetModules()

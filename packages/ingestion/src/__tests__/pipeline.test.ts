@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { ok, err } from 'neverthrow'
+import { ok, err } from '@inertia/neverthrow'
 import { createIngestionPipeline } from '../pipeline.js'
 import type { PersistFn } from '../pipeline.js'
 import type { ValidatedTelemetryPayload } from '../schemas.js'

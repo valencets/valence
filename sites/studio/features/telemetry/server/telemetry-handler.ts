@@ -1,5 +1,5 @@
-import type { ResultAsync } from 'neverthrow'
-import { errAsync } from 'neverthrow'
+import type { ResultAsync } from '@inertia/neverthrow'
+import { errAsync } from '@inertia/neverthrow'
 import { createAsyncIngestionHandler } from '@inertia/ingestion'
 import type { AuditEntry } from '@inertia/ingestion'
 import { transformIntentsToEvents } from '@inertia/ingestion'

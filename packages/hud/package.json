@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "neverthrow": "^8.2.0"
+    "@inertia/neverthrow": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^3.0.0",

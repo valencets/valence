@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { ok, err } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err } from '@inertia/neverthrow'
+import type { Result } from '@inertia/neverthrow'
 
 export const SUBJECTS = [
   'Build & Own',

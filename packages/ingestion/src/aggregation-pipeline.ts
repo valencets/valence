@@ -1,5 +1,5 @@
-import type { Result } from 'neverthrow'
-import { ok } from 'neverthrow'
+import type { Result } from '@inertia/neverthrow'
+import { ok } from '@inertia/neverthrow'
 import { safeJsonParse } from './safe-json-parse.js'
 import type { ParseFailure } from './safe-json-parse.js'
 import { validateDailySummary } from './daily-summary-schema.js'

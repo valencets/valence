@@ -1,5 +1,5 @@
 import { createTransport } from 'nodemailer'
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@inertia/neverthrow'
 
 export interface ContactNotification {
   readonly name: string

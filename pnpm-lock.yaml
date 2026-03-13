@@ -31,9 +31,9 @@ importers:
 
   packages/core:
     dependencies:
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
+      '@inertia/neverthrow':
+        specifier: workspace:*
+        version: link:../neverthrow
     devDependencies:
       '@types/node':
         specifier: ^25.4.0
@@ -41,9 +41,9 @@ importers:
 
   packages/db:
     dependencies:
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
+      '@inertia/neverthrow':
+        specifier: workspace:*
+        version: link:../neverthrow
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -57,9 +57,9 @@ importers:
 
   packages/hud:
     dependencies:
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
+      '@inertia/neverthrow':
+        specifier: workspace:*
+        version: link:../neverthrow
     devDependencies:
       happy-dom:
         specifier: ^17.0.0
@@ -70,9 +70,9 @@ importers:
 
   packages/ingestion:
     dependencies:
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
+      '@inertia/neverthrow':
+        specifier: workspace:*
+        version: link:../neverthrow
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -81,14 +81,20 @@ importers:
         specifier: ^25.4.0
         version: 25.4.0
 
+  packages/neverthrow: {}
+
   packages/tokens:
     dependencies:
+      '@inertia/neverthrow':
+        specifier: workspace:*
+        version: link:../neverthrow
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
       clsx:
         specifier: ^2.1.0
         version: 2.1.1
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
       tailwind-merge:
         specifier: ^3.0.0
         version: 3.5.0
@@ -98,9 +104,6 @@ importers:
       tailwindcss:
         specifier: ^4.0.0
         version: 4.2.1
-      zod:
-        specifier: ^4.3.6
-        version: 4.3.6
 
   sites/studio:
     dependencies:
@@ -122,12 +125,12 @@ importers:
       '@inertia/ingestion':
         specifier: workspace:*
         version: link:../../packages/ingestion
+      '@inertia/neverthrow':
+        specifier: workspace:*
+        version: link:../../packages/neverthrow
       '@inertia/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
       nodemailer:
         specifier: ^8.0.2
         version: 8.0.2
@@ -158,16 +161,16 @@ importers:
 
   tools/critical-css:
     dependencies:
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
-      postcss:
-        specifier: ^8.5.0
-        version: 8.5.8
+      '@inertia/neverthrow':
+        specifier: workspace:*
+        version: link:../../packages/neverthrow
     devDependencies:
       '@types/node':
         specifier: ^25.4.0
         version: 25.4.0
+      postcss:
+        specifier: ^8.5.0
+        version: 8.5.8
 
 packages:
 
@@ -1332,10 +1335,6 @@ packages:
     hasBin: true
     peerDependencies:
       eslint: ^9.0.0
-
-  neverthrow@8.2.0:
-    resolution: {integrity: sha512-kOCT/1MCPAxY5iUV3wytNFUMUolzuwd/VF/1KCx7kf6CutrOsTie+84zTGTpgQycjvfLdBBdvBvFLqFD2c0wkQ==}
-    engines: {node: '>=18'}
 
   node-exports-info@1.6.0:
     resolution: {integrity: sha512-pyFS63ptit/P5WqUkt+UUfe+4oevH+bFeIiPPdfb0pFeYEu/1ELnJu5l+5EcTKYL5M7zaAa7S8ddywgXypqKCw==}
@@ -3126,10 +3125,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
-
-  neverthrow@8.2.0:
-    optionalDependencies:
-      '@rollup/rollup-linux-x64-gnu': 4.59.0
 
   node-exports-info@1.6.0:
     dependencies:

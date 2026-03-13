@@ -322,7 +322,7 @@ export interface FooError {
 ### Result Monad Usage
 
 ```typescript
-import { ok, err, Result, ResultAsync } from 'neverthrow'
+import { ok, err, Result, ResultAsync } from '@inertia/neverthrow'
 
 // Synchronous
 function validate (input: string): Result<ValidData, FooError> {

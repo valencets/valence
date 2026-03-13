@@ -1,4 +1,4 @@
-import { okAsync, errAsync, ResultAsync } from 'neverthrow'
+import { okAsync, errAsync, ResultAsync } from '@inertia/neverthrow'
 import { DbErrorCode } from './types.js'
 import type { DbError } from './types.js'
 import type { DbPool } from './connection.js'
