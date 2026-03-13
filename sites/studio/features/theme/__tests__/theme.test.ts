@@ -383,6 +383,56 @@ describe('nav CTA button styles', () => {
   })
 })
 
+describe('mobile CSS: comparison tabs', () => {
+  it('hides mobile-comparison on desktop (≥768px)', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/\.mobile-comparison\s*\{[^}]*display:\s*none/)
+  })
+
+  it('shows mobile-comparison on mobile (<768px)', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.mobile-comparison\s*\{[^}]*display:\s*block/)
+  })
+
+  it('hides desktop comp-table on mobile (<768px)', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)[\s\S]*\.comp-table\s*\{[^}]*display:\s*none/)
+  })
+
+  it('styles mobile-tabs as segmented control', () => {
+    const css = getStudioCSS()
+    expect(css).toContain('.mobile-tabs')
+    expect(css).toContain('.mobile-tab')
+  })
+
+  it('styles active tab with accent background', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/\.mobile-tab\.active\s*\{[^}]*background/)
+  })
+
+  it('hides inactive panels', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/\.mobile-panel\s*\{[^}]*display:\s*none/)
+  })
+
+  it('shows active panel', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/\.mobile-panel\.active\s*\{[^}]*display:\s*block/)
+  })
+
+  it('styles mobile-row with label and value', () => {
+    const css = getStudioCSS()
+    expect(css).toContain('.mobile-row')
+    expect(css).toContain('.mobile-row-label')
+    expect(css).toContain('.mobile-row-value')
+  })
+
+  it('mobile-tabs has sticky positioning within section', () => {
+    const css = getStudioCSS()
+    expect(css).toMatch(/\.mobile-tabs\s*\{[^}]*position:\s*sticky/)
+  })
+})
+
 describe('mobile CSS: contact form improvements', () => {
   it('form has full-width inputs on mobile', () => {
     const css = getStudioCSS()
