@@ -44,15 +44,27 @@ export function bootTelemetry (): void {
   ;(window as unknown as Record<string, unknown>).__inertiaFlush = flushHandle
 }
 
-function ensureSession (): void {
-  if (document.cookie.includes('session_id=')) {
+let sessionEnsured = false
+
+export function ensureSession (): void {
+  // Check the non-HttpOnly has_session cookie (session_id is HttpOnly, invisible to JS)
+  if (sessionEnsured || document.cookie.includes('has_session=')) {
     return
   }
+  sessionEnsured = true
 
-  // Fire-and-forget session creation
-  const beacon = navigator.sendBeacon(TELEMETRY_CONFIG.sessionEndpoint, '')
+  // Send document.referrer in body — the HTTP Referer header always points to the
+  // current page, not the actual external referrer
+  const referrer = document.referrer.length > 0 ? document.referrer : null
+  const body = JSON.stringify({ referrer })
+
+  const beacon = navigator.sendBeacon(TELEMETRY_CONFIG.sessionEndpoint, body)
   if (!beacon) {
-    // Fallback: fetch
-    fetch(TELEMETRY_CONFIG.sessionEndpoint, { method: 'POST', keepalive: true })
+    fetch(TELEMETRY_CONFIG.sessionEndpoint, {
+      method: 'POST',
+      keepalive: true,
+      body,
+      headers: { 'Content-Type': 'application/json' }
+    })
   }
 }
