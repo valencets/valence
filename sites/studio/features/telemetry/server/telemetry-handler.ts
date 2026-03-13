@@ -36,13 +36,17 @@ function audit (entry: AuditEntry): void {
 }
 
 export const telemetryHandler: RouteHandler = async (req, res, ctx) => {
-  const body = await readBody(req)
-
-  // Extract session_id from cookie
   const cookies = req.headers.cookie ?? ''
   const sessionMatch = /session_id=([^;]+)/.exec(cookies)
-  const sessionId = sessionMatch?.[1] ?? 'anonymous'
+  const sessionId = sessionMatch?.[1] ?? ''
 
+  // Reject early if no valid session — avoids processing payload for nothing
+  if (!isValidUuid(sessionId)) {
+    sendJson(res, { status: 'dropped', reason: 'no_session' })
+    return
+  }
+
+  const body = await readBody(req)
   const persist = createPersistFn(ctx.pool, sessionId)
   const handler = createAsyncIngestionHandler(persist, audit)
   const response = await handler(body)
