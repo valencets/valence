@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@valencets/db": "workspace:*",
-    "@valencets/neverthrow": "workspace:*",
+    "neverthrow": "^8.2.0",
     "postgres": "^3.4.8"
   },
   "devDependencies": {

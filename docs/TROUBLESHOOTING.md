@@ -17,7 +17,6 @@ pnpm build --filter=@valencets/telemetry
 
 The dependency graph:
 ```
-neverthrow          (standalone)
 core                (depends on neverthrow)
 db                  (depends on neverthrow, postgres, zod)
 telemetry           (depends on db, neverthrow, postgres)
@@ -25,7 +24,7 @@ ui                  (standalone)
 cms                 (depends on core, db, ui, zod)
 ```
 
-Build order (topological): neverthrow -> core, db, ui (parallel) -> telemetry -> cms
+Build order (topological): core, db, ui (parallel) -> telemetry -> cms
 
 ## Pre-commit hook failures
 

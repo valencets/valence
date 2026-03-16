@@ -37,12 +37,9 @@ TCP slow start allocates 10 packets for the initial congestion window. At 1460 b
 
 ## Package Dependency Graph
 
-Six packages under `packages/`, connected by workspace dependencies:
+Five packages under `packages/`, connected by workspace dependencies. `neverthrow` is an npm dependency (not vendored):
 
 ```
-@valencets/neverthrow          (vendored, no deps)
-       |
-       v
 @valencets/core                (depends on neverthrow)
        |
        v
@@ -60,7 +57,6 @@ Six packages under `packages/`, connected by workspace dependencies:
 
 | Package | Status | Tests | Description |
 |---|---|---|---|
-| `packages/neverthrow/` | Vendored | -- | neverthrow v8.2.0 Result monads. Internal, not published. |
 | `packages/core/` | Built | 216 | Telemetry engine, HTML-over-the-wire router, server utilities. |
 | `packages/db/` | Built | 38 | PostgreSQL connection pool, config validation, migration runner, error mapping. |
 | `packages/telemetry/` | Built | 59 | Summary table queries, daily summary aggregation, fleet data types. |
@@ -108,7 +104,7 @@ This pattern repeats across packages:
 
 ### Result Monad Usage
 
-All fallible functions return `Result<Ok, Err>` (synchronous) or `ResultAsync<Ok, Err>` (asynchronous) from `@valencets/neverthrow`. The caller must explicitly handle both branches. No `.parse()` -- only `.safeParse()` for Zod schemas.
+All fallible functions return `Result<Ok, Err>` (synchronous) or `ResultAsync<Ok, Err>` (asynchronous) from `neverthrow`. The caller must explicitly handle both branches. No `.parse()` -- only `.safeParse()` for Zod schemas.
 
 ```typescript
 // Synchronous: factory functions, validation, parsing

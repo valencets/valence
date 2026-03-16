@@ -14,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@valencets/neverthrow": "workspace:*"
+    "neverthrow": "^8.2.0"
   },
   "devDependencies": {
     "@types/node": "^25.4.0"

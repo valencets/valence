@@ -1,5 +1,5 @@
-import { ok, err, ResultAsync } from '@valencets/neverthrow'
-import type { Result } from '@valencets/neverthrow'
+import { ok, err, ResultAsync } from 'neverthrow'
+import type { Result } from 'neverthrow'
 import { RouterErrorCode, resolveConfig } from './router-types.js'
 import type { RouterConfig, RouterError, NavigationDetail, ResolvedRouterConfig, NavigationPerformance } from './router-types.js'
 import { parseHtml, extractFragment, extractTitle, swapContent } from './fragment-swap.js'

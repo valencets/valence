@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { ResultAsync } from '@valencets/neverthrow'
+import { ResultAsync } from 'neverthrow'
 import { ServerErrorCode } from './server-types.js'
 import type { RouteHandler, RouteEntry, ServerRouter } from './server-types.js'
 import { sendError } from './http-helpers.js'

@@ -54,9 +54,9 @@ importers:
 
   packages/core:
     dependencies:
-      '@valencets/neverthrow':
-        specifier: workspace:*
-        version: link:../neverthrow
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
     devDependencies:
       '@types/node':
         specifier: ^25.4.0
@@ -64,9 +64,9 @@ importers:
 
   packages/db:
     dependencies:
-      '@valencets/neverthrow':
-        specifier: workspace:*
-        version: link:../neverthrow
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -78,16 +78,14 @@ importers:
         specifier: ^25.4.0
         version: 25.4.0
 
-  packages/neverthrow: {}
-
   packages/telemetry:
     dependencies:
       '@valencets/db':
         specifier: workspace:*
         version: link:../db
-      '@valencets/neverthrow':
-        specifier: workspace:*
-        version: link:../neverthrow
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -1218,6 +1216,10 @@ packages:
     hasBin: true
     peerDependencies:
       eslint: ^9.0.0
+
+  neverthrow@8.2.0:
+    resolution: {integrity: sha512-kOCT/1MCPAxY5iUV3wytNFUMUolzuwd/VF/1KCx7kf6CutrOsTie+84zTGTpgQycjvfLdBBdvBvFLqFD2c0wkQ==}
+    engines: {node: '>=18'}
 
   node-exports-info@1.6.0:
     resolution: {integrity: sha512-pyFS63ptit/P5WqUkt+UUfe+4oevH+bFeIiPPdfb0pFeYEu/1ELnJu5l+5EcTKYL5M7zaAa7S8ddywgXypqKCw==}
@@ -2859,6 +2861,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
+
+  neverthrow@8.2.0:
+    optionalDependencies:
+      '@rollup/rollup-linux-x64-gnu': 4.59.0
 
   node-exports-info@1.6.0:
     dependencies:

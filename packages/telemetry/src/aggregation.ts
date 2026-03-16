@@ -1,4 +1,4 @@
-import { okAsync, errAsync, ResultAsync } from '@valencets/neverthrow'
+import { okAsync, errAsync, ResultAsync } from 'neverthrow'
 import { DbErrorCode, mapPostgresError } from '@valencets/db'
 import type { DbError, DbPool } from '@valencets/db'
 import type { SessionSummaryRow, EventSummaryRow, ConversionSummaryRow, SummaryPeriod } from './summary-types.js'

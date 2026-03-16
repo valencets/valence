@@ -54,7 +54,7 @@ cms         → core, db, ui
 - **Server:** Node.js
 - **Database:** PostgreSQL
 - **Validation:** Zod (`.safeParse()` only)
-- **Error handling:** Result monads (vendored, ~50 lines)
+- **Error handling:** Result monads (`neverthrow`)
 - **Package manager:** pnpm workspaces
 
 ## Getting Started

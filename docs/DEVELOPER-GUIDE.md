@@ -11,8 +11,7 @@ valence/
 │   ├── db/             PostgreSQL pool, config, migrations, error mapping (38 tests)
 │   ├── telemetry/      Summary queries, daily aggregation, fleet types (59 tests)
 │   ├── ui/             Web Component primitives (scaffolded)
-│   ├── cms/            Content management (scaffolded)
-│   └── neverthrow/     Vendored Result monads (v8.2.0, MIT)
+│   └── cms/            Content management (scaffolded)
 └── docs/               You are here
 ```
 
@@ -23,7 +22,7 @@ Each package has its own `CLAUDE.md` with detailed rules and context.
 These are non-negotiable. Code that violates them will fail code review.
 
 1. **AV Rule 206** -- No dynamic memory allocation after init. Pre-allocate buffers and pools at boot, mutate in place at runtime.
-2. **AV Rule 208** -- No exceptions. Zero `try/catch/throw` in business logic. Everything uses `Result<Ok, Err>` monads from `@valencets/neverthrow`.
+2. **AV Rule 208** -- No exceptions. Zero `try/catch/throw` in business logic. Everything uses `Result<Ok, Err>` monads from `neverthrow`.
 3. **AV Rule 3** -- Cyclomatic complexity < 20. Early returns, static dictionary maps, micro-componentization. No `switch` statements.
 4. **14kB Protocol Limit** -- Critical shell (inline CSS + initial DOM) fits in the first 10 TCP packets (~14kB compressed).
 
@@ -32,22 +31,17 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full rationale.
 ## Dependency Graph
 
 ```
-neverthrow          (standalone)
+core                (neverthrow)
+db                  (neverthrow, postgres, zod)
     ^
     |
-    +--- core       (neverthrow)
-    |
-    +--- db         (neverthrow, postgres, zod)
-    |      ^
-    |      |
-    +------+--- telemetry  (db, neverthrow, postgres)
-    |
-    +--- ui         (standalone)
-    |
-    +--- cms        (core, db, ui, zod)
+    +--- telemetry  (db, neverthrow, postgres)
+
+ui                  (standalone)
+cms                 (core, db, ui, zod)
 ```
 
-Build order (topological): neverthrow -> core, db, ui (parallel) -> telemetry -> cms
+Build order (topological): core, db, ui (parallel) -> telemetry -> cms
 
 ## Database Migration Runner
 
@@ -64,7 +58,7 @@ Zero-padded 3-digit sequence number. The runner creates a `_migrations` tracking
 ### Usage
 
 - Write idempotent SQL (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`)
-- The migration runner uses neverthrow Result monads -- migrations that fail return `Err`, not exceptions
+- The migration runner uses Result monads -- migrations that fail return `Err`, not exceptions
 - Consuming applications call `runMigrations()` from `@valencets/db` at boot time
 
 ## Testing Patterns

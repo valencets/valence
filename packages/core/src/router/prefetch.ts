@@ -1,5 +1,5 @@
-import { ok, err, ResultAsync } from '@valencets/neverthrow'
-import type { Result } from '@valencets/neverthrow'
+import { ok, err, ResultAsync } from 'neverthrow'
+import type { Result } from 'neverthrow'
 import { RouterErrorCode } from './router-types.js'
 import type { RouterError, ResolvedRouterConfig, CachedResponse } from './router-types.js'
 
