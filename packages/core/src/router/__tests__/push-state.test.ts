@@ -756,4 +756,64 @@ describe('initRouter', () => {
     expect(scrollSpy).toHaveBeenCalledWith(0, 0)
     scrollSpy.mockRestore()
   })
+
+  it('non-admin paths ARE cached even when noCachePaths includes /admin', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Public</title></head><body><main><p>Public</p></main></body></html>')
+
+    const result = initRouter({ noCachePaths: ['/admin'] }, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/about')
+    expect(handle!.pageCacheSize()).toBe(1)
+  })
+
+  it('noCachePaths supports multiple prefixes', async () => {
+    const mockFetch = createMockFetch('<html><head><title>API</title></head><body><main><p>API</p></main></body></html>')
+
+    const result = initRouter({ noCachePaths: ['/admin', '/api'] }, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/api/status')
+    expect(handle!.pageCacheSize()).toBe(0)
+  })
+
+  it('background revalidation does not leak unhandled rejections on fetch failure', async () => {
+    let callCount = 0
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      callCount++
+      if (callCount === 1) {
+        return Promise.resolve(new Response('<html><head><title>OK</title></head><body><main><p>OK</p></main></body></html>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' }
+        }))
+      }
+      // Background revalidation fetch fails
+      return Promise.reject(new Error('network down'))
+    })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    // First visit — caches
+    await handle!.navigate('/revalidate-fail')
+    expect(callCount).toBe(1)
+
+    // Second visit — cache hit triggers background revalidation which fails
+    await handle!.navigate('/revalidate-fail')
+    // Wait for background fetch to settle — should NOT throw unhandled rejection
+    await new Promise(resolve => { setTimeout(resolve, 100) })
+    expect(callCount).toBe(2)
+  })
 })
