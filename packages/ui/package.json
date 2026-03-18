@@ -17,7 +17,8 @@
   ],
   "scripts": {
     "build": "tsc && cp src/tokens/*.css dist/tokens/",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "license": "MIT",
   "repository": {
@@ -26,8 +27,10 @@
     "directory": "packages/ui"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "happy-dom": "^20.8.3",
     "typescript": "^5.9.3",
+    "vite": "^8.0.0",
     "vitest": "^4.0.18"
   }
 }

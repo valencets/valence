@@ -71,10 +71,10 @@ template.innerHTML = `
 <div class="wrapper">
   <label part="label"><slot name="label"></slot></label>
   <button class="trigger" part="trigger" type="button"
-    role="combobox" aria-haspopup="listbox" aria-expanded="false">
+    role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="listbox">
     <span class="trigger-text"></span>
   </button>
-  <div class="listbox" role="listbox" part="listbox"></div>
+  <div class="listbox" role="listbox" part="listbox" id="listbox"></div>
 </div>
 `
 
@@ -170,6 +170,7 @@ export class ValSelect extends ValFormElement {
       const opt = this.options[i]!
       const div = document.createElement('div')
       div.className = 'option'
+      div.id = `opt-${i}`
       div.setAttribute('role', 'option')
       div.setAttribute('aria-selected', String(opt.value === this.currentValue))
       div.dataset.value = opt.value
@@ -218,6 +219,13 @@ export class ValSelect extends ValFormElement {
     const items = this.listboxEl.querySelectorAll('.option')
     for (let i = 0; i < items.length; i++) {
       items[i]!.classList.toggle('focused', i === this.focusedIndex)
+    }
+    if (this.triggerEl !== null) {
+      if (this.focusedIndex >= 0) {
+        this.triggerEl.setAttribute('aria-activedescendant', `opt-${this.focusedIndex}`)
+      } else {
+        this.triggerEl.removeAttribute('aria-activedescendant')
+      }
     }
   }
 
