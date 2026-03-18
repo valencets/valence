@@ -31,9 +31,9 @@ describe('ValText', () => {
       expect(el.shadowRoot).toBeNull()
     })
 
-    it('displays as inline by default', () => {
+    it('displays as inline', () => {
       const el = create()
-      expect(el.style.display).toBe('')
+      expect(el.style.display).toBe('inline')
     })
   })
 
@@ -76,6 +76,20 @@ describe('ValText', () => {
       const el = create()
       el.setAttribute('variant', 'caption')
       expect(el.style.fontSize).toBe('var(--val-text-xs)')
+    })
+
+    it('resets fontFamily when switching from code to body', () => {
+      const el = create({ variant: 'code' })
+      expect(el.style.fontFamily).toBe('var(--val-font-mono)')
+      el.setAttribute('variant', 'body')
+      expect(el.style.fontFamily).toBe('var(--val-font-sans)')
+    })
+
+    it('resets fontWeight when switching from label to body', () => {
+      const el = create({ variant: 'label' })
+      expect(el.style.fontWeight).toBe('var(--val-weight-medium)')
+      el.setAttribute('variant', 'body')
+      expect(el.style.fontWeight).toBe('')
     })
   })
 

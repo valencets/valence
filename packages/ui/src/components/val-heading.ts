@@ -12,6 +12,8 @@ const LEVEL_FONT_SIZE: Record<string, string> = {
 export class ValHeading extends ValElement {
   static observedAttributes = ['level']
 
+  private initialized = false
+
   constructor () {
     super({ shadow: false })
   }
@@ -22,12 +24,15 @@ export class ValHeading extends ValElement {
 
   connectedCallback (): void {
     super.connectedCallback()
-    this.setAttribute('role', 'heading')
-    this.style.display = 'block'
-    this.style.fontFamily = 'var(--val-font-sans)'
-    this.style.fontWeight = 'var(--val-weight-bold)'
-    this.style.lineHeight = 'var(--val-leading-tight)'
-    this.style.color = 'var(--val-color-text)'
+    if (!this.initialized) {
+      this.setAttribute('role', 'heading')
+      this.style.display = 'block'
+      this.style.fontFamily = 'var(--val-font-sans)'
+      this.style.fontWeight = 'var(--val-weight-bold)'
+      this.style.lineHeight = 'var(--val-leading-tight)'
+      this.style.color = 'var(--val-color-text)'
+      this.initialized = true
+    }
     this.syncLevel()
   }
 
@@ -36,7 +41,9 @@ export class ValHeading extends ValElement {
   }
 
   private syncLevel (): void {
-    const level = this.getAttribute('level') ?? '2'
+    const raw = this.getAttribute('level') ?? '2'
+    const n = Number(raw)
+    const level = String(n >= 1 && n <= 6 ? n : 2)
     this.setAttribute('aria-level', level)
     this.style.fontSize = LEVEL_FONT_SIZE[level] ?? LEVEL_FONT_SIZE['2']!
   }

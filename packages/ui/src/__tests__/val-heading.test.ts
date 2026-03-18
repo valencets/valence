@@ -57,6 +57,22 @@ describe('ValHeading', () => {
       expect(el.getAttribute('aria-level')).toBe('4')
       expect(el.style.fontSize).toBe('var(--val-text-xl)')
     })
+
+    it('clamps invalid level to 2', () => {
+      const el = create({ level: '99' })
+      expect(el.getAttribute('aria-level')).toBe('2')
+      expect(el.style.fontSize).toBe('var(--val-text-3xl)')
+    })
+
+    it('clamps zero to 2', () => {
+      const el = create({ level: '0' })
+      expect(el.getAttribute('aria-level')).toBe('2')
+    })
+
+    it('clamps non-numeric to 2', () => {
+      const el = create({ level: 'abc' })
+      expect(el.getAttribute('aria-level')).toBe('2')
+    })
   })
 
   describe('styling', () => {

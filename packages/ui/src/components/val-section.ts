@@ -9,6 +9,8 @@ function resolveSpace (value: string | null): string {
 export class ValSection extends ValElement {
   static observedAttributes = ['max-width', 'padding', 'center']
 
+  private initialized = false
+
   constructor () {
     super({ shadow: false })
   }
@@ -19,8 +21,11 @@ export class ValSection extends ValElement {
 
   connectedCallback (): void {
     super.connectedCallback()
-    this.style.display = 'block'
-    this.setAttribute('role', 'region')
+    if (!this.initialized) {
+      this.style.display = 'block'
+      this.setAttribute('role', 'region')
+      this.initialized = true
+    }
     this.syncStyles()
   }
 

@@ -51,6 +51,7 @@ export class ValText extends ValElement {
 
   connectedCallback (): void {
     super.connectedCallback()
+    this.style.display = 'inline'
     this.style.fontFamily = 'var(--val-font-sans)'
     this.style.color = 'var(--val-color-text)'
     this.syncStyles()
@@ -65,12 +66,8 @@ export class ValText extends ValElement {
     const styles = VARIANTS[variant] ?? VARIANTS.body!
     this.style.fontSize = styles.fontSize
     this.style.lineHeight = styles.lineHeight ?? ''
-    if (styles.fontFamily !== undefined) this.style.fontFamily = styles.fontFamily
-    if (styles.fontWeight !== undefined) {
-      this.style.fontWeight = styles.fontWeight
-    } else {
-      this.style.fontWeight = ''
-    }
+    this.style.fontFamily = styles.fontFamily ?? 'var(--val-font-sans)'
+    this.style.fontWeight = styles.fontWeight ?? ''
 
     // Color: muted attr takes precedence, then variant default, then base
     if (this.hasAttribute('muted') || styles.color !== undefined) {
