@@ -1,6 +1,6 @@
 # Valence Architecture
 
-Complete architectural reference for the Valence deterministic web framework. Read the relevant section when working on that subsystem.
+Architectural reference for Valence. Read the section relevant to what you're working on.
 
 ## Table of Contents
 
@@ -19,19 +19,19 @@ Complete architectural reference for the Valence deterministic web framework. Re
 
 ## Engineering Philosophy
 
-Valence applies JSF (Joint Strike Fighter) AV C++ Coding Standards to web development. The core metaphor is "remove before flight": strip dangerous language features to achieve deterministic, predictable behavior.
+Four rules. Break one, fix it before you merge.
 
-**AV Rule 206 -- No Dynamic Memory Allocation After Init**
-In C++, dynamic heap allocation causes fragmentation and unpredictable execution times. In JavaScript, it causes garbage collection "stop-the-world" pauses that drop frames and stutter UI. Solution: pre-allocate all structures at boot, mutate in-place, never create/destroy during runtime.
+**No allocation after init.**
+GC pauses drop frames and stutter UI. Pre-allocate all structures at boot, mutate in-place, never create/destroy during runtime. The telemetry engine uses a ring buffer and object pool for exactly this reason.
 
-**AV Rule 208 -- No Exceptions**
-The Ariane 5 rocket exploded because a 64-bit float converted to a 16-bit int threw an unhandled exception. Exceptions create unpredictable control flow. Solution: every function returns a `Result<Ok, Err>` type. The compiler forces explicit handling of both branches.
+**No exceptions.**
+Exceptions create invisible control flow. Every fallible function returns `Result<Ok, Err>`. The compiler forces you to handle both branches. One `try/catch` exists in the entire codebase — wrapping `JSON.parse`, because it throws by design.
 
-**AV Rule 3 -- Cyclomatic Complexity < 20**
-Formula: `V(G) = E - N + 2P` where E=edges, N=nodes, P=connected components. Every `if`, `for`, `while`, `&&`, `||` adds a decision path. Above 20, exhaustive testing becomes mathematically impossible. Solution: early returns, dictionary maps, micro-componentization. No switch statements. No enums (const unions only).
+**Complexity < 20.**
+Every `if`, `for`, `while`, `&&`, `||` adds a decision path. Past 20, you can't exhaustively test it. Early returns, dictionary maps, small functions. No switch statements. No enums (const unions only).
 
-**14kB Protocol Limit**
-TCP slow start allocates 10 packets for the initial congestion window. At 1460 bytes per packet, that is approximately 14kB. The server must flush a complete, usable page within that first window. No external stylesheets in the critical path.
+**14kB first paint.**
+TCP slow start gives you ~10 packets on the initial congestion window. At 1460 bytes per packet, that's ~14kB. The server flushes a complete, usable page in that first window. No external stylesheets in the critical path.
 
 ---
 
@@ -48,7 +48,7 @@ Five packages under `packages/`, connected by workspace dependencies. `neverthro
        v
 @valencets/telemetry           (depends on db, neverthrow, postgres)
 
-@valencets/ui                  (scaffolded, no deps yet)
+@valencets/ui                  (zero deps)
 
 @valencets/cms                 (v0.1 complete, depends on db, neverthrow, zod, argon2)
 ```
@@ -57,10 +57,10 @@ Five packages under `packages/`, connected by workspace dependencies. `neverthro
 
 | Package | Status | Tests | Description |
 |---|---|---|---|
-| `packages/core/` | Built | 216 | Telemetry engine, HTML-over-the-wire router, server utilities. |
+| `packages/core/` | Built | 223 | Telemetry engine, HTML-over-the-wire router, server utilities. |
 | `packages/db/` | Built | 38 | PostgreSQL connection pool, config validation, migration runner, error mapping. |
 | `packages/telemetry/` | Built | 59 | Summary table queries, daily summary aggregation, fleet data types. |
-| `packages/ui/` | Scaffolded | -- | Web Component primitives and design tokens. Placeholder only. |
+| `packages/ui/` | Built | 344 | ValElement protocol, 18 Web Component primitives, hydration directives. Zero deps. |
 | `packages/cms/` | v0.1 complete | 270 tests | Schema engine, admin UI, auth, REST API, media, query builder |
 
 ### Module Boundaries

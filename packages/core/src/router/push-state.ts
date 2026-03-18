@@ -6,6 +6,7 @@ import { parseHtml, extractFragment, extractTitle, swapContent } from './fragmen
 import { initPrefetch } from './prefetch.js'
 import type { PrefetchHandle } from './prefetch.js'
 import { initPageCache } from './page-cache.js'
+import { wrapInTransition, supportsViewTransitions } from './view-transitions.js'
 import type { PageCacheHandle } from './page-cache.js'
 
 export interface RouterHandle {
@@ -116,7 +117,7 @@ function performNavigation (
   if (!skipCache) {
     const pageCached = pageCacheHandle.get(url)
     if (pageCached.isOk()) {
-      const result = processHtml(pageCached.value.html, config.contentSelector)
+      const result = processHtml(pageCached.value.html, config.contentSelector, config.enableViewTransitions)
       if (result.isOk()) {
         revalidateInBackground(url, config, fetchFn, pageCacheHandle, pageCached.value.html)
         return ResultAsync.fromSafePromise(
@@ -129,7 +130,7 @@ function performNavigation (
   // 2. Check prefetch cache
   const prefetched = prefetchHandle.getCached(url)
   if (prefetched.isOk()) {
-    const result = processHtml(prefetched.value.html, config.contentSelector)
+    const result = processHtml(prefetched.value.html, config.contentSelector, config.enableViewTransitions)
     if (result.isOk()) {
       // Promote to page cache
       if (!skipCache) {
@@ -166,7 +167,7 @@ function performNavigation (
       message: `Navigation fetch failed for ${url}`
     })
   ).andThen(({ html, version, titleHeader }) => {
-    const result = processHtml(html, config.contentSelector)
+    const result = processHtml(html, config.contentSelector, config.enableViewTransitions)
     if (result.isErr()) return err(result.error)
 
     const title = titleHeader ?? result.value
@@ -191,7 +192,7 @@ function performNavigation (
   })
 }
 
-function processHtml (html: string, contentSelector: string): Result<string | null, RouterError> {
+function processHtml (html: string, contentSelector: string, enableViewTransitions: boolean = false): Result<string | null, RouterError> {
   const docResult = parseHtml(html)
   if (docResult.isErr()) return err(docResult.error)
 
@@ -214,10 +215,16 @@ function processHtml (html: string, contentSelector: string): Result<string | nu
 
   document.dispatchEvent(new CustomEvent('valence:before-swap'))
 
-  const swapResult = swapContent(liveContainer, fragment)
-  if (swapResult.isErr()) return err(swapResult.error)
-
-  document.dispatchEvent(new CustomEvent('valence:after-swap'))
+  if (enableViewTransitions && supportsViewTransitions()) {
+    wrapInTransition(() => {
+      swapContent(liveContainer, fragment)
+      document.dispatchEvent(new CustomEvent('valence:after-swap'))
+    }, liveContainer)
+  } else {
+    const swapResult = swapContent(liveContainer, fragment)
+    if (swapResult.isErr()) return err(swapResult.error)
+    document.dispatchEvent(new CustomEvent('valence:after-swap'))
+  }
 
   const title = extractTitle(doc)
   if (title !== null) {

@@ -59,7 +59,7 @@ export function swapContent (liveContainer: Element, newFragment: Element): Resu
       const el = child as Element
       const isPersist = el.nodeType === Node.ELEMENT_NODE &&
         el.hasAttribute !== undefined &&
-        el.hasAttribute('data-valence-persist') &&
+        (el.hasAttribute('data-valence-persist') || el.hasAttribute('transition:persist')) &&
         el.id !== ''
 
       if (isPersist) {

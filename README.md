@@ -1,79 +1,48 @@
-# Valence
+```
+            __                    
+ _   _____ / /__ ___  _______   
+| | / / _ `/ / -_) _ \/ __/ -_) 
+|_|/ /\_,_/_/\__/_//_/\__/\__/  
+  |___/                          
+```
 
-Schema-driven web framework with built-in CMS, telemetry, and a zero-dependency UI primitive library. TypeScript, Web Components, PostgreSQL.
+**Define the schema. Ship the site. Keep the data.**
 
-## What Valence Is
+---
 
-Valence is a web framework where content management and analytics are first-class primitives, not bolted-on plugins. Define a schema, get a database, an admin interface, validation, and conversion tracking out of the box. Every UI component extends a protocol base class that enforces accessibility, i18n, CMS traceability, and telemetry emission at the platform level.
+Valence is a web framework where the CMS, telemetry, and UI components aren't plugins you bolt on — they're the foundation you build on. One schema definition gives you the database, the admin, the validation, the API, and the analytics. No glue code. No third-party scripts in your visitor's browser. No framework lock-in.
 
-Valence is deployment-agnostic. It runs anywhere Node.js and PostgreSQL run: a VPS, a container, a bare-metal server, edge hardware.
+It runs on Node.js and PostgreSQL. Deploy it wherever those run.
 
 ## Packages
 
-```
-packages/
-  core/        Framework runtime: router, server, telemetry engine
-  db/          PostgreSQL: connection pool, migrations, Result types
-  ui/          ValElement protocol + Web Component primitives (zero deps)
-  cms/         Schema engine, admin UI, auth, media uploads, REST API
-  telemetry/   Beacon, ingestion, event storage, analytics HUD
-```
-
-### @valencets/core
-
-Router (`history.pushState()` navigation, DOMParser fragment swaps, hover-intent prefetch), server (`createServerRouter()` with typed route handlers, `sendHtml()`, `sendJson()`), and client-side telemetry engine (ring buffer, object pool, event delegation, `sendBeacon` flush).
-
-### @valencets/db
-
-Thin query layer over `postgres` (porsager/postgres). Tagged template literals, zero ORM, parameterized by default. Every operation returns `Result<T, E>`. Migration runner loads and executes SQL files in order.
-
-### @valencets/ui
-
-Protocol base class (`ValElement`) that every component extends. Native Custom Elements with `ElementInternals` for form association and accessibility. Four pillars: telemetry emission, CMS traceability, i18n via `Intl`, ARIA via `ElementInternals`. Declarative hydration directives (`hydrate:idle`, `hydrate:visible`, `hydrate:media`, `hydrate:load`) control when components initialize — server-rendered HTML ships static markup, components hydrate when the condition is met. Zero dependencies. 344 tests.
-
-### @valencets/cms
-
-**v0.1 implemented.** Schema engine: `collection()` + `field.*` API generates PostgreSQL tables, Zod validators, REST API, and admin UI from a single TypeScript definition. 10 field types, query builder, migration generator, Argon2id auth with sessions and rate limiting, media uploads, CSRF protection, access control, lifecycle hooks, plugin system. 270 tests. See [packages/cms/README.md](packages/cms/README.md) for full documentation.
-
-### @valencets/telemetry
-
-Client beacon (page path, referrer, session ID, events). Server ingestion endpoint. Pre-allocated ring buffer for event storage. Daily summary aggregation. Zero third-party scripts in the browser.
-
-## Dependency Graph
+| Package | What it does | Deps |
+|---------|-------------|------|
+| **@valencets/ui** | 18 Web Components + protocol base class. ARIA, i18n, telemetry, CMS traceability, declarative hydration directives (`hydrate:idle`, `hydrate:visible`, `hydrate:media`, `hydrate:load`). | zero |
+| **@valencets/core** | Router, server, client telemetry engine. `pushState` nav, fragment swaps, hover-intent prefetch, ring buffer event capture. | zero |
+| **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized by default, `Result<T,E>` returns, migration runner. | zero |
+| **@valencets/cms** | Schema-driven content engine. `collection()` + `field.*` → tables, Zod validators, REST API, admin UI, auth, media. | db |
+| **@valencets/telemetry** | Beacon, ingestion, event storage, daily summaries. Zero third-party scripts. | db |
 
 ```
-ui          (standalone, zero internal deps)
-db          (standalone, zero internal deps)
-core        (standalone, zero internal deps)
-telemetry   → db, ui
-cms         → db (runtime), core + ui (declared, not yet imported)
+ui     ── standalone
+core   ── standalone
+db     ── standalone
+cms    ── db
+telemetry ── db
 ```
 
-## Engineering Constraints
+## The Opinionated Parts
 
-| Rule | What It Does |
-|------|-------------|
-| Cyclomatic complexity < 20 | Every function fits on one screen |
-| Result monads, no try/catch | Errors are values in the return type, not hidden in the call stack |
-| 14kB critical shell | First paint in the first TCP data flight |
-| Pre-allocated ring buffer | Zero dynamic allocation in telemetry hot paths |
-| Zero third-party browser scripts | Nothing loaded in the visitor's browser that isn't yours |
+**Schema is the source of truth.** You define collections and fields in TypeScript. Valence derives everything else — database tables, API endpoints, admin views, Zod validators, migration SQL. Change the schema, the system follows.
 
-## Tech Stack
+**Web Components, not framework components.** `val-*` elements are native Custom Elements with `ElementInternals`. They work in any HTML page, any framework, or no framework. Shadow DOM where isolation matters, light DOM where composition matters.
 
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| Language | TypeScript (strict mode, zero `any`) | ES2022 target, ESNext modules |
-| UI | Native Web Components via `ValElement` | Protocol base class with 4 pillars |
-| Styling | CSS custom properties (design tokens) | Tailwind for light DOM layout |
-| Routing | HTML-over-the-wire | `history.pushState()`, DOMParser fragment swaps |
-| Server | Node.js (http module) | No Express, no Fastify |
-| Database | PostgreSQL | Tagged template SQL via `postgres` driver |
-| Validation | Zod 4.x | `.safeParse()` exclusively |
-| Error handling | Result monads | `neverthrow` |
-| Linting | Neostandard (ESLint 9) | Pre-commit hook enforced |
-| Testing | Vitest 4.x + happy-dom | 934+ tests across monorepo |
-| Package mgr | pnpm 10.x workspaces | Monorepo, `node >= 22` |
+**Telemetry is a platform contract.** Every `val-*` component dispatches `val:interaction` events on user actions. Always. If nobody's listening, the events vanish — zero cost. When `@valencets/telemetry` is installed, it registers one `document.addEventListener` and captures everything. The UI package doesn't know or care.
+
+**Errors are values.** Every fallible operation returns `Result<T, E>`. No try/catch, no uncaught promise rejections, no hidden failure modes.
+
+**Nothing in the browser you didn't write.** No analytics scripts, no tracking pixels, no CDN dependencies. The critical shell is 14kB. First paint in the first TCP data flight.
 
 ## Quick Start
 
@@ -81,28 +50,30 @@ cms         → db (runtime), core + ui (declared, not yet imported)
 git clone https://github.com/valencets/valence.git
 cd valence
 pnpm install
-pnpm build        # Build all packages
-pnpm test         # Run 934+ tests
-pnpm lint         # Neostandard lint
+pnpm build
+pnpm test         # 934+ tests
 ```
 
-See [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) for detailed setup.
+## Constraints
 
-## Documentation
+| Rule | Why |
+|------|-----|
+| Complexity < 20 | Every function fits on one screen |
+| `Result` monads | Errors visible in the type signature |
+| 14kB critical shell | First paint, first packet |
+| Pre-allocated ring buffer | Zero allocation in telemetry hot path |
+| Zero `any`, strict mode | If it compiles, the types are right |
+| Zero third-party browser JS | Your site, your code, your data |
 
-| Document | Purpose |
-|----------|---------|
-| [GETTING-STARTED.md](docs/GETTING-STARTED.md) | Clone, install, build in 5 minutes |
-| [DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md) | Day-to-day patterns for working in the codebase |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full architectural reference |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Code rules, commit convention, PR workflow |
-| [CMS README](packages/cms/README.md) | CMS API reference |
-| [CMS Guide](packages/cms/docs/guide.md) | Building schemas, extending with plugins and hooks |
-| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and fixes |
+## Docs
 
-## Status
-
-Active development. The CMS package (schema engine, admin UI, auth, media, REST API) is feature-complete for v0.1. The UI primitive library and core CLI are under construction.
+- [Getting Started](docs/GETTING-STARTED.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Developer Guide](docs/DEVELOPER-GUIDE.md)
+- [Contributing](CONTRIBUTING.md)
+- [CMS Reference](packages/cms/README.md)
+- [CMS Guide](packages/cms/docs/guide.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## License
 

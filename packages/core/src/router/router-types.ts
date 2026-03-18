@@ -28,6 +28,7 @@ export interface RouterConfig {
   readonly enableFragmentProtocol?: boolean
   readonly noCachePaths?: ReadonlyArray<string>
   readonly persistPageCache?: boolean
+  readonly enableViewTransitions?: boolean
 }
 
 export interface ResolvedRouterConfig {
@@ -41,6 +42,7 @@ export interface ResolvedRouterConfig {
   readonly enableFragmentProtocol: boolean
   readonly noCachePaths: ReadonlyArray<string>
   readonly persistPageCache: boolean
+  readonly enableViewTransitions: boolean
 }
 
 export interface CachedResponse {
@@ -79,7 +81,8 @@ const DEFAULT_CONFIG: ResolvedRouterConfig = {
   pageCacheTtlMs: 300_000,
   enableFragmentProtocol: true,
   noCachePaths: ['/admin'],
-  persistPageCache: true
+  persistPageCache: true,
+  enableViewTransitions: false
 }
 
 export function resolveConfig (partial?: RouterConfig): ResolvedRouterConfig {
@@ -94,6 +97,7 @@ export function resolveConfig (partial?: RouterConfig): ResolvedRouterConfig {
     pageCacheTtlMs: partial.pageCacheTtlMs ?? DEFAULT_CONFIG.pageCacheTtlMs,
     enableFragmentProtocol: partial.enableFragmentProtocol ?? DEFAULT_CONFIG.enableFragmentProtocol,
     noCachePaths: partial.noCachePaths ?? DEFAULT_CONFIG.noCachePaths,
-    persistPageCache: partial.persistPageCache ?? DEFAULT_CONFIG.persistPageCache
+    persistPageCache: partial.persistPageCache ?? DEFAULT_CONFIG.persistPageCache,
+    enableViewTransitions: partial.enableViewTransitions ?? DEFAULT_CONFIG.enableViewTransitions
   }
 }
