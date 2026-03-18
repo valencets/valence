@@ -29,7 +29,7 @@ Thin query layer over `postgres` (porsager/postgres). Tagged template literals, 
 
 ### @valencets/ui
 
-Protocol base class (`ValElement`) that every component extends. Native Custom Elements with `ElementInternals` for form association and accessibility. Four pillars: telemetry emission, CMS traceability, i18n via `Intl`, ARIA via `ElementInternals`. Zero dependencies.
+Protocol base class (`ValElement`) that every component extends. Native Custom Elements with `ElementInternals` for form association and accessibility. Four pillars: telemetry emission, CMS traceability, i18n via `Intl`, ARIA via `ElementInternals`. Declarative hydration directives (`hydrate:idle`, `hydrate:visible`, `hydrate:media`, `hydrate:load`) control when components initialize — server-rendered HTML ships static markup, components hydrate when the condition is met. Zero dependencies. 344 tests.
 
 ### @valencets/cms
 
@@ -72,7 +72,7 @@ cms         → db (runtime), core + ui (declared, not yet imported)
 | Validation | Zod 4.x | `.safeParse()` exclusively |
 | Error handling | Result monads | `neverthrow` |
 | Linting | Neostandard (ESLint 9) | Pre-commit hook enforced |
-| Testing | Vitest 4.x + happy-dom | ~580 tests across monorepo |
+| Testing | Vitest 4.x + happy-dom | 934+ tests across monorepo |
 | Package mgr | pnpm 10.x workspaces | Monorepo, `node >= 22` |
 
 ## Quick Start
@@ -82,7 +82,7 @@ git clone https://github.com/valencets/valence.git
 cd valence
 pnpm install
 pnpm build        # Build all packages
-pnpm test         # Run ~580 tests
+pnpm test         # Run 934+ tests
 pnpm lint         # Neostandard lint
 ```
 
