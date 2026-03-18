@@ -18,6 +18,9 @@ export function defineTestElement<T extends CustomElementConstructor> (
   ctor: T
 ): string {
   const unique = `${tag}-t${++counter}`
-  customElements.define(unique, ctor)
+  // Wrap in anonymous subclass so the same base class can be registered
+  // under multiple tag names (custom element registry requires unique constructors).
+  const wrapped = class extends (ctor as CustomElementConstructor) {} as unknown as T
+  customElements.define(unique, wrapped)
   return unique
 }
