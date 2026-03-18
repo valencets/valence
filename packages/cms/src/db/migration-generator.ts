@@ -85,6 +85,36 @@ export function generateCreateTableSql (collection: CollectionConfig): string {
   return parts.join('\n')
 }
 
+export interface SchemaChanges {
+  readonly added: readonly FieldConfig[]
+  readonly removed: readonly string[]
+  readonly changed: readonly FieldConfig[]
+}
+
+export function generateAlterTableSql (slug: string, changes: SchemaChanges): string {
+  assertIdentifier(slug)
+  const statements: string[] = []
+
+  for (const f of changes.added) {
+    assertIdentifier(f.name)
+    statements.push(`ADD COLUMN ${buildColumnDef(f)}`)
+  }
+
+  for (const name of changes.removed) {
+    assertIdentifier(name)
+    statements.push(`DROP COLUMN "${name}"`)
+  }
+
+  for (const f of changes.changed) {
+    assertIdentifier(f.name)
+    const colType = getColumnType(f)
+    statements.push(`ALTER COLUMN "${f.name}" TYPE ${colType}`)
+  }
+
+  if (statements.length === 0) return ''
+  return `ALTER TABLE "${slug}"\n  ${statements.join(',\n  ')};`
+}
+
 export function generateCreateTable (collection: CollectionConfig): MigrationOutput {
   assertIdentifier(collection.slug)
   const timestamp = Date.now()
