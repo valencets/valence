@@ -27,6 +27,7 @@
     "@valencets/core": "workspace:*",
     "@valencets/db": "workspace:*",
     "@valencets/ui": "workspace:*",
+    "neverthrow": "^8.2.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
