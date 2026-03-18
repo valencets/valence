@@ -170,7 +170,7 @@ describe('swapContent', () => {
     // Set up live container with a persistent element
     const persistent = document.createElement('div')
     persistent.id = 'persistent-widget'
-    persistent.setAttribute('data-inertia-persist', '')
+    persistent.setAttribute('data-valence-persist', '')
     persistent.textContent = 'live state'
     liveContainer.innerHTML = ''
     liveContainer.appendChild(persistent)
@@ -186,7 +186,7 @@ describe('swapContent', () => {
     const newMain = document.createElement('main')
     const newPersistent = document.createElement('div')
     newPersistent.id = 'persistent-widget'
-    newPersistent.setAttribute('data-inertia-persist', '')
+    newPersistent.setAttribute('data-valence-persist', '')
     newPersistent.textContent = 'new state'
     const newP = document.createElement('p')
     newP.textContent = 'New paragraph'

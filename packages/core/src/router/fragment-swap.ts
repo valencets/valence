@@ -46,7 +46,7 @@ export function swapContent (liveContainer: Element, newFragment: Element): Resu
 
     // Collect live persistent elements before clearing
     const livePersistedById = new Map<string, Element>()
-    for (const el of liveContainer.querySelectorAll('[data-inertia-persist][id]')) {
+    for (const el of liveContainer.querySelectorAll('[data-valence-persist][id]')) {
       livePersistedById.set(el.id, el)
     }
 
@@ -59,7 +59,7 @@ export function swapContent (liveContainer: Element, newFragment: Element): Resu
       const el = child as Element
       const isPersist = el.nodeType === Node.ELEMENT_NODE &&
         el.hasAttribute !== undefined &&
-        el.hasAttribute('data-inertia-persist') &&
+        el.hasAttribute('data-valence-persist') &&
         el.id !== ''
 
       if (isPersist) {

@@ -127,7 +127,7 @@ describe('prefetchUrl', () => {
     }
   })
 
-  it('sends X-Inertia-Fragment header when fragment protocol enabled', async () => {
+  it('sends X-Valence-Fragment header when fragment protocol enabled', async () => {
     const fragmentConfig = resolveConfig({ enableFragmentProtocol: true })
     const mockFetch = createMockFetch('<p>Fragment</p>')
     const result = initPrefetch(fragmentConfig, mockFetch)
@@ -135,7 +135,7 @@ describe('prefetchUrl', () => {
 
     await handle!.prefetchUrl('/frag')
     expect(mockFetch).toHaveBeenCalledWith('/frag', expect.objectContaining({
-      headers: expect.objectContaining({ 'X-Inertia-Fragment': '1' })
+      headers: expect.objectContaining({ 'X-Valence-Fragment': '1' })
     }))
   })
 

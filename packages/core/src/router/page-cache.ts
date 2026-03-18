@@ -3,7 +3,7 @@ import type { Result } from 'neverthrow'
 import { RouterErrorCode } from './router-types.js'
 import type { RouterError, ResolvedRouterConfig, PageCacheEntry } from './router-types.js'
 
-const STORAGE_KEY = 'inertia:page-cache'
+const STORAGE_KEY = 'valence:page-cache'
 
 interface CacheStorageData {
   readonly version: string | null

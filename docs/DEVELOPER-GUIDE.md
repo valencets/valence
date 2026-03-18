@@ -127,3 +127,47 @@ These fail code review. The pre-commit hook enforces lint rules, and manual revi
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) -- full system design and engineering philosophy
 - [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) -- common issues and fixes
+
+## Working with @valencets/cms
+
+The CMS package is the largest in the monorepo (~55 source files, 270 tests). Here's how to navigate it.
+
+### Module Map
+
+```
+packages/cms/src/
+├── schema/      # collection(), global(), field.*, registry, type inference
+├── validation/  # Zod schema generator, slug/email validators
+├── db/          # Query builder, migration generator, SQL sanitization, safeQuery
+├── access/      # Access control types and resolver
+├── hooks/       # Lifecycle hook types and runner
+├── auth/        # Passwords, sessions, middleware, CSRF, rate limiting, routes
+├── api/         # Local API, REST API, HTTP utilities, body reading
+├── admin/       # Server-rendered admin panel (layout, views, field renderers)
+├── media/       # Upload/serve handlers, MIME detection
+├── config/      # buildCms() entry point, plugin system
+└── index.ts     # Package barrel export
+```
+
+### Key Entry Points
+
+- **`buildCms(config)`** — The main entry point. Pass collections, globals, plugins. Returns `Result<CmsInstance, CmsError>`.
+- **`collection()` / `field.*`** — Define your schema.
+- **`createQueryBuilder(pool, registry)`** — Chainable SQL queries.
+- **`generateCreateTableSql(collection)`** — Schema → DDL.
+
+### Testing CMS Code
+
+CMS tests use mock pools from `__tests__/test-helpers.ts`:
+
+```typescript
+import { makeMockPool, makeErrorPool } from './test-helpers.js'
+
+const pool = makeMockPool([{ id: '1', title: 'Hello' }])
+// pool.sql.unsafe() returns the provided rows
+```
+
+### Full Documentation
+
+- [CMS README](../packages/cms/README.md) — API reference
+- [CMS Guide](../packages/cms/docs/guide.md) — Schema design, plugins, hooks, real-world examples

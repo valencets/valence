@@ -50,7 +50,7 @@ Five packages under `packages/`, connected by workspace dependencies. `neverthro
 
 @valencets/ui                  (scaffolded, no deps yet)
 
-@valencets/cms                 (scaffolded, depends on core, db, ui, zod)
+@valencets/cms                 (v0.1 complete, depends on db, neverthrow, zod, argon2)
 ```
 
 ### Package Status
@@ -61,7 +61,7 @@ Five packages under `packages/`, connected by workspace dependencies. `neverthro
 | `packages/db/` | Built | 38 | PostgreSQL connection pool, config validation, migration runner, error mapping. |
 | `packages/telemetry/` | Built | 59 | Summary table queries, daily summary aggregation, fleet data types. |
 | `packages/ui/` | Scaffolded | -- | Web Component primitives and design tokens. Placeholder only. |
-| `packages/cms/` | Scaffolded | -- | Content management layer. Placeholder only. |
+| `packages/cms/` | v0.1 complete | 270 tests | Schema engine, admin UI, auth, REST API, media, query builder |
 
 ### Module Boundaries
 
@@ -258,7 +258,7 @@ Why return 200 on bad data? HTTP 4xx/5xx responses trigger automated retry mecha
 
 ### HMAC Verification
 
-For signed payloads (daily summary pushes from remote appliances): extract `X-Inertia-Signature` header, verify HMAC-SHA256 with `crypto.timingSafeEqual`. Timing-safe comparison prevents timing attacks. The Black Hole pattern applies: invalid signatures return 200 OK, never revealing authentication failures.
+For signed payloads (daily summary pushes from remote appliances): extract `X-Valence-Signature` header, verify HMAC-SHA256 with `crypto.timingSafeEqual`. Timing-safe comparison prevents timing attacks. The Black Hole pattern applies: invalid signatures return 200 OK, never revealing authentication failures.
 
 ---
 
@@ -274,29 +274,29 @@ Bind a `mousemove` listener on `document.body`. Track cursor movement and calcul
 
 Prefetched responses are stored in a capacity-bounded `Map` (default 32 entries, configurable via `prefetchCacheCapacity`). TTL-based expiry (`prefetchTtlMs`, default 30s). Eviction removes the oldest entry when the cache is full.
 
-When the fragment protocol is enabled (default), prefetch requests include the `X-Inertia-Fragment: 1` header to receive a partial response.
+When the fragment protocol is enabled (default), prefetch requests include the `X-Valence-Fragment: 1` header to receive a partial response.
 
 ### Push-State Navigation
 
 Location: `packages/core/src/router/push-state.ts`
 
 1. Intercept click on `<a>` element via delegation on `document.body`
-2. `shouldIntercept()` filters: skip modifier keys, `_blank` targets, `data-inertia-ignore`, `download` attributes, hash-only hrefs, cross-origin links
+2. `shouldIntercept()` filters: skip modifier keys, `_blank` targets, `data-valence-ignore`, `download` attributes, hash-only hrefs, cross-origin links
 3. Check page cache (session-storage backed, stale-while-revalidate) -- serve instantly, revalidate in background
 4. Check prefetch cache -- serve if hit, promote to page cache
 5. Network fetch as final fallback
 6. Parse fetched HTML via `DOMParser.parseFromString(html, 'text/html')` -- creates inert document, scripts neutralized
 7. Extract content fragment via `querySelector(contentSelector)` (default `'main'`)
-8. Dispatch `inertia:before-swap` event
+8. Dispatch `valence:before-swap` event
 9. Swap via `replaceChildren()` or `moveBefore()` for persistent elements
-10. Dispatch `inertia:after-swap` event
+10. Dispatch `valence:after-swap` event
 11. `window.history.pushState(stateObj, '', targetUrl)` -- URL updates without reload
 
 ### Fragment Protocol Versioning
 
 ```
-Request header:   X-Inertia-Fragment: 1
-Response header:  X-Inertia-Fragment: 1
+Request header:   X-Valence-Fragment: 1
+Response header:  X-Valence-Fragment: 1
 ```
 
 Version increments when the fragment format changes. Router and server negotiate compatibility. Version mismatch detection clears the prefetch cache to prevent stale content.
@@ -305,14 +305,14 @@ Version increments when the fragment format changes. Router and server negotiate
 
 The router dispatches custom events during navigation:
 
-- `inertia:before-navigate` -- cancelable, fired before any fetch. Returning false cancels navigation.
-- `inertia:before-swap` -- fired after HTML is parsed, before DOM mutation. Tear down page-scoped state.
-- `inertia:after-swap` -- fired after DOM mutation completes. Rebuild page-scoped state for the new route.
-- `inertia:navigated` -- fired after push-state, carries `NavigationPerformance` detail (source, duration, from/to URLs).
+- `valence:before-navigate` -- cancelable, fired before any fetch. Returning false cancels navigation.
+- `valence:before-swap` -- fired after HTML is parsed, before DOM mutation. Tear down page-scoped state.
+- `valence:after-swap` -- fired after DOM mutation completes. Rebuild page-scoped state for the new route.
+- `valence:navigated` -- fired after push-state, carries `NavigationPerformance` detail (source, duration, from/to URLs).
 
 ### Persistent Elements
 
-When `Element.moveBefore()` is available, the router preserves elements marked with `data-inertia-persist` and a stable `id`. Instead of destroying and recreating them during a swap, it uses `moveBefore()` to atomically relocate them into the new fragment. This retains encapsulated JavaScript state (media players, multi-step forms, telemetry observers) across navigations.
+When `Element.moveBefore()` is available, the router preserves elements marked with `data-valence-persist` and a stable `id`. Instead of destroying and recreating them during a swap, it uses `moveBefore()` to atomically relocate them into the new fragment. This retains encapsulated JavaScript state (media players, multi-step forms, telemetry observers) across navigations.
 
 ### popstate Handling
 
@@ -349,8 +349,8 @@ Pure utility functions with no state:
 - `sendHtml(res, html, statusCode?, extraHeaders?)` -- sets Content-Type, Content-Length, writes response
 - `sendJson(res, data, statusCode?)` -- serializes to JSON, sets headers, writes response
 - `sendError(res, error)` -- renders a minimal HTML error page from a `ServerError`
-- `isFragmentRequest(req)` -- checks for `X-Inertia-Fragment: 1` header
-- `readBody(req)` -- collects request body chunks into a string (Promise-based, no try/catch)
+- `isFragmentRequest(req)` -- checks for `X-Valence-Fragment: 1` header
+- `readBody(req, maxBytes?)` -- collects request body chunks into a string (Promise-based, rejects if body exceeds `MAX_BODY_BYTES` default 1 MiB)
 
 ### Server Types
 

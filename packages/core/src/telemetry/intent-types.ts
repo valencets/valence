@@ -59,6 +59,20 @@ export interface TelemetryError {
   readonly message: string
 }
 
+export function resetIntent (slot: GlobalTelemetryIntent): void {
+  slot.timestamp = 0
+  slot.type = IntentType.CLICK
+  slot.targetDOMNode = ''
+  slot.x_coord = 0
+  slot.y_coord = 0
+  slot.isDirty = false
+  slot.schema_version = 1
+  slot.site_id = ''
+  slot.business_type = 'other'
+  slot.path = ''
+  slot.referrer = ''
+}
+
 export function createEmptyIntent (id: string): GlobalTelemetryIntent {
   return {
     id,

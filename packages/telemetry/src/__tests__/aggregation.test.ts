@@ -1,22 +1,12 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { aggregateSessionSummary, aggregateEventSummary, aggregateConversionSummary } from '../aggregation.js'
 import { DbErrorCode } from '@valencets/db'
-import type { DbPool } from '@valencets/db'
 import type { SummaryPeriod } from '../summary-types.js'
+import { makeMockPool, makeErrorPool } from './test-helpers.js'
 
 const period: SummaryPeriod = {
   start: new Date('2026-03-01T00:00:00Z'),
   end: new Date('2026-03-02T00:00:00Z')
-}
-
-function makeMockPool (returnValue: unknown = []): DbPool {
-  const sql = vi.fn(() => Promise.resolve(returnValue)) as unknown as DbPool['sql']
-  return { sql }
-}
-
-function makeErrorPool (error: Error): DbPool {
-  const sql = vi.fn(() => Promise.reject(error)) as unknown as DbPool['sql']
-  return { sql }
 }
 
 describe('aggregateSessionSummary', () => {

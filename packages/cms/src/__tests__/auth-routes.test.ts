@@ -1,0 +1,104 @@
+import { describe, it, expect, vi } from 'vitest'
+import { createAuthRoutes } from '../auth/auth-routes.js'
+import { createCollectionRegistry } from '../schema/registry.js'
+import { collection } from '../schema/collection.js'
+import { field } from '../schema/fields.js'
+import { makeMockPool } from './test-helpers.js'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+
+function makeMockReq (method: string, cookie: string | undefined, body: string = ''): IncomingMessage {
+  const req = {
+    method,
+    url: '',
+    headers: { cookie, 'content-type': 'application/json' },
+    on: vi.fn((event: string, cb: (data?: Buffer) => void) => {
+      if (event === 'data' && body) cb(Buffer.from(body))
+      if (event === 'end') cb()
+      return req
+    }),
+    removeAllListeners: vi.fn(() => req)
+  }
+  return req as unknown as IncomingMessage
+}
+
+function makeMockRes (): ServerResponse & { body: string, setCookie: string } {
+  const res = {
+    writeHead: vi.fn((_code: number, headers: Record<string, string>) => {
+      if (headers['Set-Cookie']) res.setCookie = headers['Set-Cookie']
+    }),
+    end: vi.fn((data?: string) => { res.body = data ?? '' }),
+    body: '',
+    setCookie: ''
+  }
+  return res as unknown as ServerResponse & { body: string, setCookie: string }
+}
+
+describe('createAuthRoutes()', () => {
+  it('registers login, logout, and me routes', () => {
+    const registry = createCollectionRegistry()
+    registry.register(collection({ slug: 'users', auth: true, fields: [field.text({ name: 'name' })] }))
+    const routes = createAuthRoutes(makeMockPool(), registry)
+    expect(routes.has('/api/users/login')).toBe(true)
+    expect(routes.has('/api/users/logout')).toBe(true)
+    expect(routes.has('/api/users/me')).toBe(true)
+  })
+})
+
+describe('POST /api/users/login', () => {
+  it('returns 400 for missing email/password', async () => {
+    const registry = createCollectionRegistry()
+    const routes = createAuthRoutes(makeMockPool(), registry)
+    const handler = routes.get('/api/users/login')?.POST
+    const req = makeMockReq('POST', undefined, JSON.stringify({}))
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object))
+  })
+})
+
+describe('POST /api/users/logout', () => {
+  it('returns 200 and clears cookie', async () => {
+    const registry = createCollectionRegistry()
+    const routes = createAuthRoutes(makeMockPool(), registry)
+    const handler = routes.get('/api/users/logout')?.POST
+    const req = makeMockReq('POST', 'cms_session=sess-1')
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
+      'Set-Cookie': expect.stringContaining('Max-Age=0')
+    }))
+  })
+})
+
+describe('POST /api/users/login rate limiting', () => {
+  it('returns 429 after exceeding max attempts', async () => {
+    const registry = createCollectionRegistry()
+    const pool = makeMockPool([])
+    const routes = createAuthRoutes(pool, registry)
+    const handler = routes.get('/api/users/login')?.POST
+    const body = JSON.stringify({ email: 'attacker@test.com', password: 'wrong' })
+
+    for (let i = 0; i < 5; i++) {
+      const req = makeMockReq('POST', undefined, body)
+      const res = makeMockRes()
+      await handler!(req, res, {})
+    }
+
+    const req = makeMockReq('POST', undefined, body)
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(429, expect.any(Object))
+  })
+})
+
+describe('GET /api/users/me', () => {
+  it('returns 401 with no session', async () => {
+    const registry = createCollectionRegistry()
+    const routes = createAuthRoutes(makeMockPool(), registry)
+    const handler = routes.get('/api/users/me')?.GET
+    const req = makeMockReq('GET', undefined)
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object))
+  })
+})
