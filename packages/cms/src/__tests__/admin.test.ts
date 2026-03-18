@@ -173,3 +173,14 @@ describe('createAdminRoutes()', () => {
     expect(routes.has('/admin/posts/new')).toBe(true)
   })
 })
+
+describe('admin POST handlers', () => {
+  it('registers POST handler on /admin/:collection/new for creating documents', () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry)
+    const entry = routes.get('/admin/posts/new')
+    expect(entry?.POST).toBeDefined()
+  })
+})
