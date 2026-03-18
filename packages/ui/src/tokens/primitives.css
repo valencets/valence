@@ -4,65 +4,65 @@
 
 :root {
   /* --- Gray scale --- */
-  --val-gray-50: #f9fafb;
-  --val-gray-100: #f3f4f6;
-  --val-gray-200: #e5e7eb;
-  --val-gray-300: #d1d5db;
-  --val-gray-400: #9ca3af;
-  --val-gray-500: #6b7280;
-  --val-gray-600: #4b5563;
-  --val-gray-700: #374151;
-  --val-gray-800: #1f2937;
-  --val-gray-900: #111827;
-  --val-gray-950: #030712;
+  --val-gray-50: oklch(0.9846 0.0017 247.84);
+  --val-gray-100: oklch(0.9670 0.0029 264.54);
+  --val-gray-200: oklch(0.9276 0.0058 264.53);
+  --val-gray-300: oklch(0.8717 0.0093 258.34);
+  --val-gray-400: oklch(0.7137 0.0192 261.32);
+  --val-gray-500: oklch(0.5510 0.0234 264.36);
+  --val-gray-600: oklch(0.4461 0.0263 256.80);
+  --val-gray-700: oklch(0.3729 0.0306 259.73);
+  --val-gray-800: oklch(0.2781 0.0296 256.85);
+  --val-gray-900: oklch(0.2101 0.0318 264.66);
+  --val-gray-950: oklch(0.1296 0.0274 261.69);
 
   /* --- Blue scale --- */
-  --val-blue-50: #eff6ff;
-  --val-blue-100: #dbeafe;
-  --val-blue-200: #bfdbfe;
-  --val-blue-300: #93c5fd;
-  --val-blue-400: #60a5fa;
-  --val-blue-500: #3b82f6;
-  --val-blue-600: #2563eb;
-  --val-blue-700: #1d4ed8;
-  --val-blue-800: #1e40af;
-  --val-blue-900: #1e3a8a;
+  --val-blue-50: oklch(0.9705 0.0142 254.60);
+  --val-blue-100: oklch(0.9319 0.0316 255.59);
+  --val-blue-200: oklch(0.8823 0.0571 254.13);
+  --val-blue-300: oklch(0.8091 0.0956 251.81);
+  --val-blue-400: oklch(0.7137 0.1434 254.62);
+  --val-blue-500: oklch(0.6231 0.1880 259.81);
+  --val-blue-600: oklch(0.5461 0.2152 262.88);
+  --val-blue-700: oklch(0.4882 0.2172 264.38);
+  --val-blue-800: oklch(0.4244 0.1809 265.64);
+  --val-blue-900: oklch(0.3791 0.1378 265.52);
 
   /* --- Red scale --- */
-  --val-red-50: #fef2f2;
-  --val-red-100: #fee2e2;
-  --val-red-200: #fecaca;
-  --val-red-300: #fca5a5;
-  --val-red-400: #f87171;
-  --val-red-500: #ef4444;
-  --val-red-600: #dc2626;
-  --val-red-700: #b91c1c;
-  --val-red-800: #991b1b;
-  --val-red-900: #7f1d1d;
+  --val-red-50: oklch(0.9705 0.0129 17.38);
+  --val-red-100: oklch(0.9356 0.0309 17.72);
+  --val-red-200: oklch(0.8845 0.0593 18.33);
+  --val-red-300: oklch(0.8077 0.1035 19.57);
+  --val-red-400: oklch(0.7106 0.1661 22.22);
+  --val-red-500: oklch(0.6368 0.2078 25.33);
+  --val-red-600: oklch(0.5771 0.2152 27.33);
+  --val-red-700: oklch(0.5054 0.1905 27.52);
+  --val-red-800: oklch(0.4437 0.1613 26.90);
+  --val-red-900: oklch(0.3958 0.1331 25.72);
 
   /* --- Green scale --- */
-  --val-green-50: #f0fdf4;
-  --val-green-100: #dcfce7;
-  --val-green-200: #bbf7d0;
-  --val-green-300: #86efac;
-  --val-green-400: #4ade80;
-  --val-green-500: #22c55e;
-  --val-green-600: #16a34a;
-  --val-green-700: #15803d;
-  --val-green-800: #166534;
-  --val-green-900: #14532d;
+  --val-green-50: oklch(0.9819 0.0181 155.83);
+  --val-green-100: oklch(0.9624 0.0434 156.74);
+  --val-green-200: oklch(0.9250 0.0806 155.99);
+  --val-green-300: oklch(0.8712 0.1363 154.45);
+  --val-green-400: oklch(0.8003 0.1821 151.71);
+  --val-green-500: oklch(0.7227 0.1920 149.58);
+  --val-green-600: oklch(0.6271 0.1699 149.21);
+  --val-green-700: oklch(0.5273 0.1371 150.07);
+  --val-green-800: oklch(0.4479 0.1083 151.33);
+  --val-green-900: oklch(0.3925 0.0896 152.54);
 
   /* --- Amber scale --- */
-  --val-amber-50: #fffbeb;
-  --val-amber-100: #fef3c7;
-  --val-amber-200: #fde68a;
-  --val-amber-300: #fcd34d;
-  --val-amber-400: #fbbf24;
-  --val-amber-500: #f59e0b;
-  --val-amber-600: #d97706;
-  --val-amber-700: #b45309;
-  --val-amber-800: #92400e;
-  --val-amber-900: #78350f;
+  --val-amber-50: oklch(0.9869 0.0214 95.28);
+  --val-amber-100: oklch(0.9619 0.0580 95.62);
+  --val-amber-200: oklch(0.9243 0.1151 95.75);
+  --val-amber-300: oklch(0.8790 0.1534 91.61);
+  --val-amber-400: oklch(0.8369 0.1644 84.43);
+  --val-amber-500: oklch(0.7686 0.1647 70.08);
+  --val-amber-600: oklch(0.6658 0.1574 58.32);
+  --val-amber-700: oklch(0.5553 0.1455 49.00);
+  --val-amber-800: oklch(0.4732 0.1247 46.20);
+  --val-amber-900: oklch(0.4137 0.1054 45.90);
 
   /* --- Spacing (4px base) --- */
   --val-space-0: 0;
@@ -110,9 +110,9 @@
   --val-radius-full: 9999px;
 
   /* --- Shadows --- */
-  --val-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --val-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --val-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --val-shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+  --val-shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -2px oklch(0 0 0 / 0.1);
+  --val-shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1);
 
   /* --- Duration --- */
   --val-duration-fast: 100ms;

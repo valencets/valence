@@ -5,18 +5,18 @@
 :root {
   /* --- Surface --- */
   --val-color-bg: var(--val-gray-50);
-  --val-color-bg-elevated: #ffffff;
+  --val-color-bg-elevated: oklch(1 0 0);
   --val-color-bg-muted: var(--val-gray-100);
 
   /* --- Text --- */
   --val-color-text: var(--val-gray-900);
   --val-color-text-muted: var(--val-gray-500);
-  --val-color-text-inverted: #ffffff;
+  --val-color-text-inverted: oklch(1 0 0);
 
   /* --- Interactive --- */
   --val-color-primary: var(--val-blue-600);
   --val-color-primary-hover: var(--val-blue-700);
-  --val-color-primary-text: #ffffff;
+  --val-color-primary-text: oklch(1 0 0);
 
   /* --- Feedback --- */
   --val-color-error: var(--val-red-500);
