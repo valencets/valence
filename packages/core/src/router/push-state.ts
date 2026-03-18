@@ -19,7 +19,7 @@ export interface RouterHandle {
 export function shouldIntercept (event: MouseEvent, anchor: HTMLAnchorElement): boolean {
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false
   if (anchor.target === '_blank') return false
-  if (anchor.hasAttribute('data-inertia-ignore')) return false
+  if (anchor.hasAttribute('data-valence-ignore')) return false
   if (anchor.hasAttribute('download')) return false
 
   const href = anchor.getAttribute('href') ?? ''
@@ -34,7 +34,7 @@ export function shouldIntercept (event: MouseEvent, anchor: HTMLAnchorElement): 
 function dispatchNavigationEvent (name: string, detail: NavigationDetail): boolean {
   const event = new CustomEvent(name, {
     bubbles: true,
-    cancelable: name === 'inertia:before-navigate',
+    cancelable: name === 'valence:before-navigate',
     detail
   })
   return document.dispatchEvent(event)
@@ -54,13 +54,13 @@ function revalidateInBackground (
   cachedHtml: string
 ): void {
   const fetchPromise = config.enableFragmentProtocol
-    ? fetchFn(url, { headers: { 'X-Inertia-Fragment': '1' } })
+    ? fetchFn(url, { headers: { 'X-Valence-Fragment': '1' } })
     : fetchFn(url)
 
   fetchPromise
     .then((response) => {
       if (!response.ok) return
-      const version = response.headers.get('X-Inertia-Version')
+      const version = response.headers.get('X-Valence-Version')
       return response.text().then((html) => ({ html, version }))
     })
     .then((result) => {
@@ -90,6 +90,9 @@ function revalidateInBackground (
       })
 
       processHtml(result.html, config.contentSelector)
+    })
+    .catch(() => {
+      // Background revalidation is fire-and-forget — log but don't propagate
     })
 }
 
@@ -146,7 +149,7 @@ function performNavigation (
 
   // 3. Network fetch
   const fetchPromise = config.enableFragmentProtocol
-    ? fetchFn(url, { headers: { 'X-Inertia-Fragment': '1' } })
+    ? fetchFn(url, { headers: { 'X-Valence-Fragment': '1' } })
     : fetchFn(url)
 
   return ResultAsync.fromPromise(
@@ -154,8 +157,8 @@ function performNavigation (
       if (!response.ok) {
         return Promise.reject(new Error(`Fetch returned status ${String(response.status)}`))
       }
-      const version = response.headers.get('X-Inertia-Version')
-      const titleHeader = response.headers.get('X-Inertia-Title')
+      const version = response.headers.get('X-Valence-Version')
+      const titleHeader = response.headers.get('X-Valence-Title')
       return response.text().then((html) => ({ html, version, titleHeader }))
     }),
     (): RouterError => ({
@@ -209,12 +212,12 @@ function processHtml (html: string, contentSelector: string): Result<string | nu
     })
   }
 
-  document.dispatchEvent(new CustomEvent('inertia:before-swap'))
+  document.dispatchEvent(new CustomEvent('valence:before-swap'))
 
   const swapResult = swapContent(liveContainer, fragment)
   if (swapResult.isErr()) return err(swapResult.error)
 
-  document.dispatchEvent(new CustomEvent('inertia:after-swap'))
+  document.dispatchEvent(new CustomEvent('valence:after-swap'))
 
   const title = extractTitle(doc)
   if (title !== null) {
@@ -237,7 +240,7 @@ export function initRouter (
   const pageCacheHandle = initPageCache(resolved)
 
   // Seed version from DOM if available
-  const versionAttr = document.documentElement.getAttribute('data-inertia-version')
+  const versionAttr = document.documentElement.getAttribute('data-valence-version')
   if (versionAttr !== null) {
     pageCacheHandle.setVersion(versionAttr)
   }
@@ -246,7 +249,7 @@ export function initRouter (
     const fromUrl = window.location.href
     const detail: NavigationDetail = { fromUrl, toUrl: url }
 
-    const allowed = dispatchNavigationEvent('inertia:before-navigate', detail)
+    const allowed = dispatchNavigationEvent('valence:before-navigate', detail)
     if (!allowed) {
       return ResultAsync.fromSafePromise(Promise.resolve(undefined))
     }
@@ -279,7 +282,7 @@ export function initRouter (
           fromUrl,
           toUrl: url
         }
-        document.dispatchEvent(new CustomEvent('inertia:navigated', {
+        document.dispatchEvent(new CustomEvent('valence:navigated', {
           bubbles: true,
           detail: perfDetail
         }))
@@ -308,7 +311,7 @@ export function initRouter (
           fromUrl: '',
           toUrl: url
         }
-        document.dispatchEvent(new CustomEvent('inertia:navigated', {
+        document.dispatchEvent(new CustomEvent('valence:navigated', {
           bubbles: true,
           detail: perfDetail
         }))

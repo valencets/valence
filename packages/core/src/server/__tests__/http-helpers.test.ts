@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import { EventEmitter } from 'node:events'
 import type { ServerResponse, IncomingMessage } from 'node:http'
-import { sendHtml, isFragmentRequest } from '../http-helpers.js'
+import { sendHtml, isFragmentRequest, readBody, MAX_BODY_BYTES } from '../http-helpers.js'
 
 function mockRes (): ServerResponse & { _status: number; _headers: Record<string, string | number>; _body: string } {
   const res = {
@@ -37,11 +38,11 @@ describe('sendHtml', () => {
   it('merges extra headers when provided', () => {
     const res = mockRes()
     sendHtml(res, '<p>Test</p>', 200, {
-      'X-Inertia-Version': 'abc123',
-      'X-Inertia-Title': 'Test Page'
+      'X-Valence-Version': 'abc123',
+      'X-Valence-Title': 'Test Page'
     })
-    expect(res._headers['X-Inertia-Version']).toBe('abc123')
-    expect(res._headers['X-Inertia-Title']).toBe('Test Page')
+    expect(res._headers['X-Valence-Version']).toBe('abc123')
+    expect(res._headers['X-Valence-Title']).toBe('Test Page')
     expect(res._headers['Content-Type']).toBe('text/html; charset=utf-8')
   })
 
@@ -54,13 +55,50 @@ describe('sendHtml', () => {
 })
 
 describe('isFragmentRequest', () => {
-  it('returns true when X-Inertia-Fragment is 1', () => {
-    const req = { headers: { 'x-inertia-fragment': '1' } } as unknown as IncomingMessage
+  it('returns true when X-Valence-Fragment is 1', () => {
+    const req = { headers: { 'x-valence-fragment': '1' } } as unknown as IncomingMessage
     expect(isFragmentRequest(req)).toBe(true)
   })
 
   it('returns false when header is missing', () => {
     const req = { headers: {} } as unknown as IncomingMessage
     expect(isFragmentRequest(req)).toBe(false)
+  })
+})
+
+describe('readBody', () => {
+  function mockReq (): EventEmitter & IncomingMessage {
+    const emitter = new EventEmitter()
+    return emitter as EventEmitter & IncomingMessage
+  }
+
+  it('reads a normal body', async () => {
+    const req = mockReq()
+    const promise = readBody(req)
+    req.emit('data', Buffer.from('hello'))
+    req.emit('end')
+    expect(await promise).toBe('hello')
+  })
+
+  it('rejects when body exceeds MAX_BODY_BYTES', async () => {
+    const req = mockReq()
+    const promise = readBody(req)
+    const oversized = Buffer.alloc(MAX_BODY_BYTES + 1, 'x')
+    req.emit('data', oversized)
+    await expect(promise).rejects.toThrow('Body exceeds')
+  })
+
+  it('rejects when cumulative chunks exceed limit', async () => {
+    const req = mockReq()
+    const promise = readBody(req)
+    const half = Buffer.alloc(Math.ceil(MAX_BODY_BYTES / 2) + 1, 'x')
+    req.emit('data', half)
+    req.emit('data', half)
+    await expect(promise).rejects.toThrow('Body exceeds')
+  })
+
+  it('exports MAX_BODY_BYTES as a number', () => {
+    expect(typeof MAX_BODY_BYTES).toBe('number')
+    expect(MAX_BODY_BYTES).toBeGreaterThan(0)
   })
 })

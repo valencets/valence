@@ -89,8 +89,8 @@ describe('shouldIntercept', () => {
     expect(shouldIntercept(event, a)).toBe(false)
   })
 
-  it('returns false for data-inertia-ignore', () => {
-    const a = createAnchor('/about', { 'data-inertia-ignore': '' })
+  it('returns false for data-valence-ignore', () => {
+    const a = createAnchor('/about', { 'data-valence-ignore': '' })
     const event = new MouseEvent('click', { bubbles: true })
     expect(shouldIntercept(event, a)).toBe(false)
   })
@@ -240,11 +240,11 @@ describe('initRouter', () => {
     expect(event.defaultPrevented).toBe(false)
   })
 
-  it('dispatches inertia:before-navigate before navigation', async () => {
+  it('dispatches valence:before-navigate before navigation', async () => {
     const mockFetch = createMockFetch('<html><head><title>Nav</title></head><body><main><p>Nav</p></main></body></html>')
     const beforeNavHandler = vi.fn()
 
-    document.addEventListener('inertia:before-navigate', beforeNavHandler)
+    document.addEventListener('valence:before-navigate', beforeNavHandler)
 
     const result = initRouter({}, mockFetch)
     if (result.isOk()) handle = result.value
@@ -259,13 +259,13 @@ describe('initRouter', () => {
     await new Promise(resolve => { setTimeout(resolve, 50) })
 
     expect(beforeNavHandler).toHaveBeenCalledTimes(1)
-    document.removeEventListener('inertia:before-navigate', beforeNavHandler)
+    document.removeEventListener('valence:before-navigate', beforeNavHandler)
   })
 
-  it('inertia:before-navigate is cancelable and aborts navigation', async () => {
+  it('valence:before-navigate is cancelable and aborts navigation', async () => {
     const mockFetch = createMockFetch('<html><head><title>Blocked</title></head><body><main><p>Blocked</p></main></body></html>')
 
-    document.addEventListener('inertia:before-navigate', (e) => {
+    document.addEventListener('valence:before-navigate', (e) => {
       e.preventDefault()
     }, { once: true })
 
@@ -286,11 +286,11 @@ describe('initRouter', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('dispatches inertia:navigated after success', async () => {
+  it('dispatches valence:navigated after success', async () => {
     const mockFetch = createMockFetch('<html><head><title>Done</title></head><body><main><p>Done</p></main></body></html>')
     const navigatedHandler = vi.fn()
 
-    document.addEventListener('inertia:navigated', navigatedHandler)
+    document.addEventListener('valence:navigated', navigatedHandler)
 
     const result = initRouter({}, mockFetch)
     if (result.isOk()) handle = result.value
@@ -305,7 +305,7 @@ describe('initRouter', () => {
     await new Promise(resolve => { setTimeout(resolve, 50) })
 
     expect(navigatedHandler).toHaveBeenCalledTimes(1)
-    document.removeEventListener('inertia:navigated', navigatedHandler)
+    document.removeEventListener('valence:navigated', navigatedHandler)
   })
 
   it('popstate triggers fragment swap', async () => {
@@ -372,11 +372,11 @@ describe('initRouter', () => {
     pushStateSpy.mockRestore()
   })
 
-  it('dispatches inertia:before-swap before fragment swap', async () => {
+  it('dispatches valence:before-swap before fragment swap', async () => {
     const mockFetch = createMockFetch('<html><head><title>Swap</title></head><body><main><p>Swapped</p></main></body></html>')
     const beforeSwapHandler = vi.fn()
 
-    document.addEventListener('inertia:before-swap', beforeSwapHandler)
+    document.addEventListener('valence:before-swap', beforeSwapHandler)
 
     const result = initRouter({}, mockFetch)
     if (result.isOk()) handle = result.value
@@ -393,15 +393,15 @@ describe('initRouter', () => {
     expect(beforeSwapHandler).toHaveBeenCalledTimes(1)
     // Before-swap fires before content changes, so by the time the handler is called,
     // the old content should still be in the DOM
-    document.removeEventListener('inertia:before-swap', beforeSwapHandler)
+    document.removeEventListener('valence:before-swap', beforeSwapHandler)
   })
 
-  it('dispatches inertia:after-swap after fragment swap', async () => {
+  it('dispatches valence:after-swap after fragment swap', async () => {
     const mockFetch = createMockFetch('<html><head><title>Swap</title></head><body><main><p>Swapped</p></main></body></html>')
     const afterSwapHandler = vi.fn()
     let contentAtSwap = ''
 
-    document.addEventListener('inertia:after-swap', () => {
+    document.addEventListener('valence:after-swap', () => {
       contentAtSwap = document.querySelector('main p')?.textContent ?? ''
       afterSwapHandler()
     })
@@ -427,7 +427,7 @@ describe('initRouter', () => {
     const mockFetch = createMockFetch('<html><head><title>Order</title></head><body><main><p>New content</p></main></body></html>')
     let contentDuringBeforeSwap = ''
 
-    document.addEventListener('inertia:before-swap', () => {
+    document.addEventListener('valence:before-swap', () => {
       contentDuringBeforeSwap = document.querySelector('main p')?.textContent ?? ''
     }, { once: true })
 
@@ -448,7 +448,7 @@ describe('initRouter', () => {
 
   it('handles bare fragment response without main wrapper', async () => {
     const mockFetch = createMockFetch('<section><p>Fragment content</p></section>', {
-      'X-Inertia-Title': 'About | Inertia Web Solutions'
+      'X-Valence-Title': 'About | Valence Studio'
     })
 
     const result = initRouter({ enableFragmentProtocol: true }, mockFetch)
@@ -461,10 +461,10 @@ describe('initRouter', () => {
     await handle!.navigate('/about')
 
     expect(document.querySelector('main section p')?.textContent).toBe('Fragment content')
-    expect(document.title).toBe('About | Inertia Web Solutions')
+    expect(document.title).toBe('About | Valence Studio')
   })
 
-  it('sends X-Inertia-Fragment header on navigation', async () => {
+  it('sends X-Valence-Fragment header on navigation', async () => {
     const mockFetch = createMockFetch('<html><head><title>Frag</title></head><body><main><p>Fragment</p></main></body></html>')
 
     const result = initRouter({ enableFragmentProtocol: true }, mockFetch)
@@ -477,7 +477,7 @@ describe('initRouter', () => {
     await handle!.navigate('/frag')
 
     expect(mockFetch).toHaveBeenCalledWith('/frag', expect.objectContaining({
-      headers: expect.objectContaining({ 'X-Inertia-Fragment': '1' })
+      headers: expect.objectContaining({ 'X-Valence-Fragment': '1' })
     }))
   })
 
@@ -496,11 +496,11 @@ describe('initRouter', () => {
     expect(mockFetch).toHaveBeenCalledWith('/full')
   })
 
-  it('inertia:navigated event includes performance metadata', async () => {
+  it('valence:navigated event includes performance metadata', async () => {
     const mockFetch = createMockFetch('<html><head><title>Perf</title></head><body><main><p>Perf</p></main></body></html>')
     let eventDetail: unknown = null
 
-    document.addEventListener('inertia:navigated', ((e: CustomEvent) => {
+    document.addEventListener('valence:navigated', ((e: CustomEvent) => {
       eventDetail = e.detail
     }) as EventListener, { once: true })
 
@@ -562,7 +562,7 @@ describe('initRouter', () => {
     const mockFetch = createMockFetch('<html><head><title>Src</title></head><body><main><p>Source</p></main></body></html>')
     let lastSource = ''
 
-    document.addEventListener('inertia:navigated', ((e: CustomEvent) => {
+    document.addEventListener('valence:navigated', ((e: CustomEvent) => {
       lastSource = e.detail.source
     }) as EventListener)
 
@@ -642,7 +642,7 @@ describe('initRouter', () => {
     const mockFetch = createMockFetch('<html><head><title>Same</title></head><body><main><p>Same</p></main></body></html>')
     let swapCount = 0
 
-    document.addEventListener('inertia:after-swap', () => { swapCount++ })
+    document.addEventListener('valence:after-swap', () => { swapCount++ })
 
     const result = initRouter({}, mockFetch)
     if (result.isOk()) handle = result.value
@@ -674,8 +674,8 @@ describe('initRouter', () => {
     expect(handle!.pageCacheSize()).toBe(0)
   })
 
-  it('reads initial version from data-inertia-version on html element', async () => {
-    document.documentElement.setAttribute('data-inertia-version', 'test-v1')
+  it('reads initial version from data-valence-version on html element', async () => {
+    document.documentElement.setAttribute('data-valence-version', 'test-v1')
 
     const mockFetch = createMockFetch('<html><head><title>Ver</title></head><body><main><p>Ver</p></main></body></html>')
     const result = initRouter({}, mockFetch)
@@ -689,15 +689,15 @@ describe('initRouter', () => {
     await handle!.navigate('/ver-test')
     expect(handle!.pageCacheSize()).toBe(1)
 
-    document.documentElement.removeAttribute('data-inertia-version')
+    document.documentElement.removeAttribute('data-valence-version')
   })
 
   it('version mismatch from response header invalidates page cache', async () => {
-    document.documentElement.setAttribute('data-inertia-version', 'old-version')
+    document.documentElement.setAttribute('data-valence-version', 'old-version')
 
     const mockFetch = createMockFetch(
       '<html><head><title>New</title></head><body><main><p>New</p></main></body></html>',
-      { 'X-Inertia-Version': 'new-version' }
+      { 'X-Valence-Version': 'new-version' }
     )
     const result = initRouter({}, mockFetch)
     if (result.isOk()) handle = result.value
@@ -717,7 +717,7 @@ describe('initRouter', () => {
     await handle!.navigate('/page-b')
     expect(handle!.pageCacheSize()).toBe(1)
 
-    document.documentElement.removeAttribute('data-inertia-version')
+    document.documentElement.removeAttribute('data-valence-version')
   })
 
   it('clearPageCache empties the cache', async () => {
@@ -755,5 +755,65 @@ describe('initRouter', () => {
 
     expect(scrollSpy).toHaveBeenCalledWith(0, 0)
     scrollSpy.mockRestore()
+  })
+
+  it('non-admin paths ARE cached even when noCachePaths includes /admin', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Public</title></head><body><main><p>Public</p></main></body></html>')
+
+    const result = initRouter({ noCachePaths: ['/admin'] }, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/about')
+    expect(handle!.pageCacheSize()).toBe(1)
+  })
+
+  it('noCachePaths supports multiple prefixes', async () => {
+    const mockFetch = createMockFetch('<html><head><title>API</title></head><body><main><p>API</p></main></body></html>')
+
+    const result = initRouter({ noCachePaths: ['/admin', '/api'] }, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    await handle!.navigate('/api/status')
+    expect(handle!.pageCacheSize()).toBe(0)
+  })
+
+  it('background revalidation does not leak unhandled rejections on fetch failure', async () => {
+    let callCount = 0
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      callCount++
+      if (callCount === 1) {
+        return Promise.resolve(new Response('<html><head><title>OK</title></head><body><main><p>OK</p></main></body></html>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' }
+        }))
+      }
+      // Background revalidation fetch fails
+      return Promise.reject(new Error('network down'))
+    })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    // First visit — caches
+    await handle!.navigate('/revalidate-fail')
+    expect(callCount).toBe(1)
+
+    // Second visit — cache hit triggers background revalidation which fails
+    await handle!.navigate('/revalidate-fail')
+    // Wait for background fetch to settle — should NOT throw unhandled rejection
+    await new Promise(resolve => { setTimeout(resolve, 100) })
+    expect(callCount).toBe(2)
   })
 })

@@ -30,13 +30,25 @@ export function sendError (res: ServerResponse, error: ServerError): void {
 }
 
 export function isFragmentRequest (req: IncomingMessage): boolean {
-  return req.headers['x-inertia-fragment'] === '1'
+  return req.headers['x-valence-fragment'] === '1'
 }
 
-export function readBody (req: IncomingMessage): Promise<string> {
-  return new Promise((resolve) => {
+// 1 MiB — generous for HTML form posts, blocks abuse
+export const MAX_BODY_BYTES = 1_048_576
+
+export function readBody (req: IncomingMessage, maxBytes: number = MAX_BODY_BYTES): Promise<string> {
+  return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => chunks.push(chunk))
+    let received = 0
+    req.on('data', (chunk: Buffer) => {
+      received += chunk.length
+      if (received > maxBytes) {
+        req.removeAllListeners('data')
+        reject(new Error(`Body exceeds ${maxBytes} bytes`))
+        return
+      }
+      chunks.push(chunk)
+    })
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')))
   })
 }

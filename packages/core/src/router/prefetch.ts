@@ -51,7 +51,7 @@ export function initPrefetch (
     inFlight.add(url)
 
     const fetchPromise = config.enableFragmentProtocol
-      ? fetchFn(url, { headers: { 'X-Inertia-Fragment': '1' } })
+      ? fetchFn(url, { headers: { 'X-Valence-Fragment': '1' } })
       : fetchFn(url)
 
     return ResultAsync.fromPromise(

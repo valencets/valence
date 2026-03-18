@@ -166,7 +166,7 @@ describe('page-cache sessionStorage persistence', () => {
   it('persists entries to sessionStorage on set', () => {
     const h = initPageCache(resolveConfig())
     h.set('/a', { url: '/a', html: 'a', timestamp: 1000, version: null, title: 'A' })
-    const stored = sessionStorage.getItem('inertia:page-cache')
+    const stored = sessionStorage.getItem('valence:page-cache')
     expect(stored).not.toBeNull()
     const data = JSON.parse(stored!)
     expect(data.entries).toHaveLength(1)
@@ -179,7 +179,7 @@ describe('page-cache sessionStorage persistence', () => {
       version: 'v1',
       entries: [['/x', { url: '/x', html: '<p>X</p>', timestamp: Date.now(), version: 'v1', title: 'X' }]]
     }
-    sessionStorage.setItem('inertia:page-cache', JSON.stringify(seed))
+    sessionStorage.setItem('valence:page-cache', JSON.stringify(seed))
     const h = initPageCache(resolveConfig())
     expect(h.size()).toBe(1)
     expect(h.getVersion()).toBe('v1')
@@ -193,9 +193,9 @@ describe('page-cache sessionStorage persistence', () => {
   it('clears sessionStorage on invalidateAll', () => {
     const h = initPageCache(resolveConfig())
     h.set('/a', { url: '/a', html: 'a', timestamp: Date.now(), version: null, title: null })
-    expect(sessionStorage.getItem('inertia:page-cache')).not.toBeNull()
+    expect(sessionStorage.getItem('valence:page-cache')).not.toBeNull()
     h.invalidateAll()
-    const data = JSON.parse(sessionStorage.getItem('inertia:page-cache')!)
+    const data = JSON.parse(sessionStorage.getItem('valence:page-cache')!)
     expect(data.entries).toHaveLength(0)
   })
 
@@ -204,7 +204,7 @@ describe('page-cache sessionStorage persistence', () => {
     h.set('/a', { url: '/a', html: 'a', timestamp: Date.now(), version: null, title: null })
     h.set('/b', { url: '/b', html: 'b', timestamp: Date.now(), version: null, title: null })
     h.invalidateUrl('/a')
-    const data = JSON.parse(sessionStorage.getItem('inertia:page-cache')!)
+    const data = JSON.parse(sessionStorage.getItem('valence:page-cache')!)
     expect(data.entries).toHaveLength(1)
     expect(data.entries[0][0]).toBe('/b')
   })
@@ -216,7 +216,7 @@ describe('page-cache sessionStorage persistence', () => {
   })
 
   it('skips restore if sessionStorage has invalid JSON', () => {
-    sessionStorage.setItem('inertia:page-cache', '{{not valid json')
+    sessionStorage.setItem('valence:page-cache', '{{not valid json')
     const h = initPageCache(resolveConfig())
     expect(h.size()).toBe(0)
   })
@@ -225,7 +225,7 @@ describe('page-cache sessionStorage persistence', () => {
     const entries = Array.from({ length: 20 }, (_, i) => [
       `/${i}`, { url: `/${i}`, html: `${i}`, timestamp: Date.now(), version: null, title: null }
     ])
-    sessionStorage.setItem('inertia:page-cache', JSON.stringify({ version: null, entries }))
+    sessionStorage.setItem('valence:page-cache', JSON.stringify({ version: null, entries }))
     const h = initPageCache(resolveConfig({ pageCacheCapacity: 5 }))
     expect(h.size()).toBe(5)
   })
@@ -233,13 +233,13 @@ describe('page-cache sessionStorage persistence', () => {
   it('persist is no-op when persistPageCache is false', () => {
     const h = initPageCache(resolveConfig({ persistPageCache: false }))
     h.set('/a', { url: '/a', html: 'a', timestamp: Date.now(), version: null, title: null })
-    expect(sessionStorage.getItem('inertia:page-cache')).toBeNull()
+    expect(sessionStorage.getItem('valence:page-cache')).toBeNull()
   })
 
   it('setVersion persists to sessionStorage', () => {
     const h = initPageCache(resolveConfig())
     h.setVersion('v2')
-    const data = JSON.parse(sessionStorage.getItem('inertia:page-cache')!)
+    const data = JSON.parse(sessionStorage.getItem('valence:page-cache')!)
     expect(data.version).toBe('v2')
   })
 })

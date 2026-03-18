@@ -1,6 +1,6 @@
-import { ResultAsync } from 'neverthrow'
+import { okAsync, errAsync, ResultAsync } from 'neverthrow'
 import type { JSONValue } from 'postgres'
-import { mapPostgresError } from '@valencets/db'
+import { DbErrorCode, mapPostgresError } from '@valencets/db'
 import type { DbError, DbPool } from '@valencets/db'
 import type { DailySummaryRow, DailySummaryPayload, DailyBreakdowns } from './daily-summary-types.js'
 
@@ -88,14 +88,14 @@ export function insertDailySummaryFromRemote (
           synced_at = NOW()
         RETURNING *
       `
-      const row = rows[0]
-      if (!row) {
-        return Promise.reject(new Error('INSERT returned no rows'))
-      }
-      return row
+      return rows
     })(),
     mapPostgresError
-  )
+  ).andThen((rows) => {
+    const row = rows[0]
+    if (!row) return errAsync({ code: DbErrorCode.NO_ROWS, message: 'INSERT returned no rows' })
+    return okAsync(row)
+  })
 }
 
 export function getDailyTrend (

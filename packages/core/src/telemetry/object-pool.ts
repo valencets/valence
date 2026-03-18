@@ -1,6 +1,6 @@
 import { ok, err } from 'neverthrow'
 import type { Result } from 'neverthrow'
-import { createEmptyIntent, IntentType, TelemetryErrorCode } from './intent-types.js'
+import { createEmptyIntent, resetIntent, TelemetryErrorCode } from './intent-types.js'
 import type { GlobalTelemetryIntent, TelemetryError } from './intent-types.js'
 
 function isPowerOfTwo (n: number): boolean {
@@ -41,28 +41,13 @@ export class TelemetryObjectPool {
         message: `Slot index ${index} out of bounds`
       })
     }
-    slot.timestamp = 0
-    slot.type = IntentType.CLICK
-    slot.targetDOMNode = ''
-    slot.x_coord = 0
-    slot.y_coord = 0
-    slot.isDirty = false
-    slot.site_id = ''
-    slot.business_type = 'other'
+    resetIntent(slot)
     return ok(undefined)
   }
 
   resetAll (): void {
     for (let i = 0; i < this.capacity; i++) {
-      const slot = this.slots[i]!
-      slot.timestamp = 0
-      slot.type = IntentType.CLICK
-      slot.targetDOMNode = ''
-      slot.x_coord = 0
-      slot.y_coord = 0
-      slot.isDirty = false
-      slot.site_id = ''
-      slot.business_type = 'other'
+      resetIntent(this.slots[i]!)
     }
   }
 }
