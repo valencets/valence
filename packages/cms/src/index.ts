@@ -101,3 +101,5 @@ export {
   renderFieldInput,
   createAdminRoutes
 } from './admin/index.js'
+
+export { isUploadEnabled, getMediaFields, getMimeType, createServeHandler } from './media/index.js'
