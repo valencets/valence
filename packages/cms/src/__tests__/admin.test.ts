@@ -1,0 +1,180 @@
+import { describe, it, expect, vi } from 'vitest'
+import { renderLayout } from '../admin/layout.js'
+import { renderDashboard } from '../admin/dashboard.js'
+import { renderListView } from '../admin/list-view.js'
+import { renderEditView } from '../admin/edit-view.js'
+import { renderFieldInput } from '../admin/field-renderers.js'
+import { createAdminRoutes } from '../admin/admin-routes.js'
+import { createCollectionRegistry } from '../schema/registry.js'
+import { collection } from '../schema/collection.js'
+import { field } from '../schema/fields.js'
+import type { DbPool } from '@valencets/db'
+import type { CollectionConfig } from '../schema/collection.js'
+
+function makeMockPool (returnValue: readonly Record<string, string | number | null>[] = []): DbPool {
+  const sql = vi.fn(() => Promise.resolve(returnValue)) as unknown as DbPool['sql']
+  return { sql }
+}
+
+function makePostsCollection (): CollectionConfig {
+  return collection({
+    slug: 'posts',
+    labels: { singular: 'Post', plural: 'Posts' },
+    fields: [
+      field.text({ name: 'title', required: true }),
+      field.slug({ name: 'slug', required: true }),
+      field.boolean({ name: 'published' }),
+      field.select({
+        name: 'status',
+        options: [
+          { label: 'Draft', value: 'draft' },
+          { label: 'Published', value: 'published' }
+        ]
+      }),
+      field.textarea({ name: 'body' }),
+      field.number({ name: 'order' }),
+      field.date({ name: 'publishedAt' }),
+      field.group({
+        name: 'seo',
+        fields: [
+          field.text({ name: 'metaTitle' }),
+          field.textarea({ name: 'metaDescription' })
+        ]
+      })
+    ]
+  })
+}
+
+describe('renderLayout()', () => {
+  it('returns HTML string with sidebar and main content', () => {
+    const html = renderLayout({
+      title: 'Dashboard',
+      content: '<p>Hello</p>',
+      collections: [makePostsCollection()]
+    })
+    expect(html).toContain('<!DOCTYPE html>')
+    expect(html).toContain('Dashboard')
+    expect(html).toContain('<p>Hello</p>')
+    expect(html).toContain('Posts')
+  })
+
+  it('includes navigation links for each collection', () => {
+    const html = renderLayout({
+      title: 'Test',
+      content: '',
+      collections: [makePostsCollection()]
+    })
+    expect(html).toContain('/admin/posts')
+  })
+})
+
+describe('renderDashboard()', () => {
+  it('renders collection cards', () => {
+    const html = renderDashboard([makePostsCollection()])
+    expect(html).toContain('Posts')
+    expect(html).toContain('/admin/posts')
+  })
+})
+
+describe('renderListView()', () => {
+  it('renders a table with document rows', () => {
+    const docs = [
+      { id: '1', title: 'Hello', slug: 'hello', published: 'true' },
+      { id: '2', title: 'World', slug: 'world', published: 'false' }
+    ]
+    const html = renderListView(makePostsCollection(), docs)
+    expect(html).toContain('Hello')
+    expect(html).toContain('World')
+    expect(html).toContain('/admin/posts/1/edit')
+  })
+
+  it('shows empty state when no docs', () => {
+    const html = renderListView(makePostsCollection(), [])
+    expect(html).toContain('No')
+  })
+})
+
+describe('renderEditView()', () => {
+  it('renders a form with fields for new document', () => {
+    const html = renderEditView(makePostsCollection(), null)
+    expect(html).toContain('<form')
+    expect(html).toContain('title')
+    expect(html).toContain('slug')
+    expect(html).toContain('published')
+  })
+
+  it('renders a form pre-filled for existing document', () => {
+    const doc = { id: '1', title: 'Existing', slug: 'existing', published: 'true' }
+    const html = renderEditView(makePostsCollection(), doc)
+    expect(html).toContain('Existing')
+    expect(html).toContain('existing')
+  })
+})
+
+describe('renderFieldInput()', () => {
+  it('renders text input', () => {
+    const html = renderFieldInput(field.text({ name: 'title' }), 'Hello')
+    expect(html).toContain('type="text"')
+    expect(html).toContain('name="title"')
+    expect(html).toContain('value="Hello"')
+  })
+
+  it('renders textarea', () => {
+    const html = renderFieldInput(field.textarea({ name: 'body' }), 'Content')
+    expect(html).toContain('<textarea')
+    expect(html).toContain('Content')
+  })
+
+  it('renders number input', () => {
+    const html = renderFieldInput(field.number({ name: 'order' }), '5')
+    expect(html).toContain('type="number"')
+  })
+
+  it('renders checkbox for boolean', () => {
+    const html = renderFieldInput(field.boolean({ name: 'active' }), 'true')
+    expect(html).toContain('type="checkbox"')
+    expect(html).toContain('checked')
+  })
+
+  it('renders select dropdown', () => {
+    const html = renderFieldInput(
+      field.select({ name: 'status', options: [{ label: 'Draft', value: 'draft' }, { label: 'Live', value: 'live' }] }),
+      'draft'
+    )
+    expect(html).toContain('<select')
+    expect(html).toContain('selected')
+    expect(html).toContain('Draft')
+  })
+
+  it('renders date input', () => {
+    const html = renderFieldInput(field.date({ name: 'publishedAt' }), '2026-03-18')
+    expect(html).toContain('type="date"')
+  })
+
+  it('renders slug as text input', () => {
+    const html = renderFieldInput(field.slug({ name: 'slug' }), 'hello-world')
+    expect(html).toContain('type="text"')
+    expect(html).toContain('hello-world')
+  })
+
+  it('renders group as fieldset', () => {
+    const html = renderFieldInput(
+      field.group({ name: 'seo', fields: [field.text({ name: 'metaTitle' })] }),
+      ''
+    )
+    expect(html).toContain('<fieldset')
+    expect(html).toContain('seo')
+  })
+})
+
+describe('createAdminRoutes()', () => {
+  it('returns route map with admin endpoints', () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry)
+    expect(routes.has('/admin')).toBe(true)
+    expect(routes.has('/admin/posts')).toBe(true)
+    expect(routes.has('/admin/posts/new')).toBe(true)
+  })
+})

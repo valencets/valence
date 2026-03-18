@@ -92,3 +92,12 @@ export type { AuthConfig, AuthContext } from './auth/index.js'
 
 export { createLocalApi, createRestRoutes } from './api/index.js'
 export type { LocalApi } from './api/index.js'
+
+export {
+  renderLayout,
+  renderDashboard,
+  renderListView,
+  renderEditView,
+  renderFieldInput,
+  createAdminRoutes
+} from './admin/index.js'
