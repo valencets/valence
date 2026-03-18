@@ -21,7 +21,10 @@ describe('valencePreset', () => {
       expect(colors.val.error).toBe('var(--val-color-error)')
       expect(colors.val.success).toBe('var(--val-color-success)')
       expect(colors.val.warning).toBe('var(--val-color-warning)')
+      expect(colors.val['text-inverted']).toBe('var(--val-color-text-inverted)')
+      expect(colors.val['primary-text']).toBe('var(--val-color-primary-text)')
       expect(colors.val.border).toBe('var(--val-color-border)')
+      expect(colors.val['border-focus']).toBe('var(--val-color-border-focus)')
     })
 
     it('maps gray primitive scale (50–950)', () => {
