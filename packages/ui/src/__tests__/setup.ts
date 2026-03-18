@@ -77,3 +77,56 @@ if (typeof HTMLElement.prototype.attachInternals !== 'function') {
     return internals as unknown as ElementInternals
   }
 }
+
+// --- requestIdleCallback polyfill for happy-dom ---
+if (typeof globalThis.requestIdleCallback !== 'function') {
+  globalThis.requestIdleCallback = function (cb: IdleRequestCallback): number {
+    return setTimeout(() => {
+      cb({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline)
+    }, 0) as unknown as number
+  } as typeof requestIdleCallback
+  globalThis.cancelIdleCallback = function (id: number): void {
+    clearTimeout(id)
+  }
+}
+
+// --- IntersectionObserver polyfill for happy-dom ---
+if (typeof globalThis.IntersectionObserver !== 'function') {
+  globalThis.IntersectionObserver = class MockIntersectionObserver {
+    private _callback: IntersectionObserverCallback
+    private _elements = new Set<Element>()
+    readonly root: Element | Document | null = null
+    readonly rootMargin: string = '0px'
+    readonly thresholds: ReadonlyArray<number> = [0]
+
+    constructor (callback: IntersectionObserverCallback) {
+      this._callback = callback
+    }
+
+    observe (target: Element): void { this._elements.add(target) }
+    unobserve (target: Element): void { this._elements.delete(target) }
+    disconnect (): void { this._elements.clear() }
+    takeRecords (): IntersectionObserverEntry[] { return [] }
+
+    /** Test helper — simulate an intersection entry */
+    _trigger (entries: Array<Partial<IntersectionObserverEntry>>): void {
+      this._callback(entries as IntersectionObserverEntry[], this as unknown as IntersectionObserver)
+    }
+  } as unknown as typeof IntersectionObserver
+}
+
+// --- matchMedia polyfill for happy-dom ---
+if (typeof globalThis.matchMedia !== 'function') {
+  globalThis.matchMedia = function (query: string): MediaQueryList {
+    return {
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false
+    } as MediaQueryList
+  }
+}
