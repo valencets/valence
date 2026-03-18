@@ -1,0 +1,161 @@
+import { describe, it, expect } from 'vitest'
+import { generateCreateTable, generateCreateTableSql } from '../db/migration-generator.js'
+import { collection } from '../schema/collection.js'
+import { field } from '../schema/fields.js'
+
+describe('generateCreateTableSql()', () => {
+  it('generates CREATE TABLE with id, timestamps, and soft delete', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true, unique: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS "posts"')
+    expect(sql).toContain('"id" UUID PRIMARY KEY DEFAULT gen_random_uuid()')
+    expect(sql).toContain('"title" TEXT NOT NULL')
+    expect(sql).toContain('"slug" TEXT NOT NULL UNIQUE')
+    expect(sql).toContain('"created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()')
+    expect(sql).toContain('"updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()')
+    expect(sql).toContain('"deleted_at" TIMESTAMPTZ')
+  })
+
+  it('omits timestamps when timestamps: false', () => {
+    const logs = collection({
+      slug: 'logs',
+      fields: [field.text({ name: 'msg' })],
+      timestamps: false
+    })
+    const sql = generateCreateTableSql(logs)
+    expect(sql).not.toContain('created_at')
+    expect(sql).not.toContain('updated_at')
+    // deleted_at is always present (soft delete)
+    expect(sql).toContain('"deleted_at"')
+  })
+
+  it('handles number fields with hasDecimals', () => {
+    const products = collection({
+      slug: 'products',
+      fields: [
+        field.number({ name: 'price', hasDecimals: true }),
+        field.number({ name: 'stock' })
+      ]
+    })
+    const sql = generateCreateTableSql(products)
+    expect(sql).toContain('"price" NUMERIC')
+    expect(sql).toContain('"stock" INTEGER')
+  })
+
+  it('handles select fields with CHECK constraint', () => {
+    const pages = collection({
+      slug: 'pages',
+      fields: [
+        field.select({
+          name: 'status',
+          required: true,
+          options: [
+            { label: 'Draft', value: 'draft' },
+            { label: 'Published', value: 'published' }
+          ]
+        })
+      ]
+    })
+    const sql = generateCreateTableSql(pages)
+    expect(sql).toContain('"status" TEXT NOT NULL')
+    expect(sql).toContain('CHECK')
+    expect(sql).toContain("'draft'")
+    expect(sql).toContain("'published'")
+  })
+
+  it('handles relation fields as UUID references', () => {
+    const comments = collection({
+      slug: 'comments',
+      fields: [
+        field.relation({ name: 'author', relationTo: 'users', required: true }),
+        field.text({ name: 'body', required: true })
+      ]
+    })
+    const sql = generateCreateTableSql(comments)
+    expect(sql).toContain('"author" UUID NOT NULL')
+    expect(sql).toContain('REFERENCES "users"("id")')
+  })
+
+  it('handles media fields as UUID references', () => {
+    const articles = collection({
+      slug: 'articles',
+      fields: [
+        field.media({ name: 'cover', relationTo: 'media' })
+      ]
+    })
+    const sql = generateCreateTableSql(articles)
+    expect(sql).toContain('"cover" UUID')
+    expect(sql).toContain('REFERENCES "media"("id")')
+  })
+
+  it('handles group fields as JSONB', () => {
+    const pages = collection({
+      slug: 'pages',
+      fields: [
+        field.group({
+          name: 'seo',
+          fields: [
+            field.text({ name: 'metaTitle' }),
+            field.textarea({ name: 'metaDescription' })
+          ]
+        })
+      ]
+    })
+    const sql = generateCreateTableSql(pages)
+    expect(sql).toContain('"seo" JSONB')
+  })
+
+  it('generates CREATE INDEX for indexed fields', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', index: true }),
+        field.date({ name: 'publishedAt', index: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).toContain('CREATE INDEX')
+    expect(sql).toContain('idx_posts_title')
+    expect(sql).toContain('idx_posts_publishedAt')
+  })
+
+  it('generates CREATE INDEX for relation FK fields', () => {
+    const comments = collection({
+      slug: 'comments',
+      fields: [
+        field.relation({ name: 'post', relationTo: 'posts' })
+      ]
+    })
+    const sql = generateCreateTableSql(comments)
+    expect(sql).toContain('CREATE INDEX')
+    expect(sql).toContain('idx_comments_post')
+  })
+})
+
+describe('generateCreateTable()', () => {
+  it('returns up and down SQL strings', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })]
+    })
+    const migration = generateCreateTable(posts)
+    expect(migration.up).toContain('CREATE TABLE')
+    expect(migration.down).toContain('DROP TABLE')
+    expect(migration.down).toContain('"posts"')
+  })
+
+  it('includes a migration name with timestamp prefix', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })]
+    })
+    const migration = generateCreateTable(posts)
+    expect(migration.name).toMatch(/^\d+_create_posts$/)
+  })
+})

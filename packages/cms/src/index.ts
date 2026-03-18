@@ -1,1 +1,108 @@
 // @valencets/cms — Schema engine, admin routes, auth, and media upload for Valence sites
+
+export {
+  CmsErrorCode,
+  FieldType,
+  field,
+  collection,
+  global,
+  createCollectionRegistry,
+  createGlobalRegistry
+} from './schema/index.js'
+
+export type {
+  CmsError,
+  FieldBaseConfig,
+  FieldConfig,
+  TextFieldConfig,
+  TextareaFieldConfig,
+  NumberFieldConfig,
+  BooleanFieldConfig,
+  SelectFieldConfig,
+  SelectOption,
+  DateFieldConfig,
+  SlugFieldConfig,
+  MediaFieldConfig,
+  RelationFieldConfig,
+  GroupFieldConfig,
+  CollectionConfig,
+  CollectionLabels,
+  GlobalConfig,
+  CollectionRegistry,
+  GlobalRegistry,
+  InferFieldType,
+  InferFieldsType
+} from './schema/index.js'
+
+export {
+  generateZodSchema,
+  generatePartialSchema,
+  isValidSlug,
+  isValidEmail
+} from './validation/index.js'
+
+export {
+  WhereOperator,
+  createQueryBuilder,
+  getColumnType,
+  getColumnConstraints,
+  generateCreateTable,
+  generateCreateTableSql
+} from './db/index.js'
+
+export type {
+  WhereCondition,
+  WhereClause,
+  OrderByClause,
+  PaginatedResult,
+  QueryBuilderFactory,
+  CollectionQueryBuilder,
+  MigrationOutput,
+  SqlValue
+} from './db/index.js'
+
+export { resolveAccess } from './access/index.js'
+export type {
+  AccessControlFunction,
+  AccessArgs,
+  CollectionAccess,
+  FieldAccess
+} from './access/index.js'
+
+export { runHooks } from './hooks/index.js'
+export type {
+  HookFunction,
+  HookArgs,
+  HookData,
+  CollectionHooks,
+  FieldHooks
+} from './hooks/index.js'
+
+export {
+  isAuthEnabled,
+  getAuthConfig,
+  hashPassword,
+  verifyPassword,
+  createSession,
+  validateSession,
+  destroySession,
+  createAuthMiddleware
+} from './auth/index.js'
+export type { AuthConfig, AuthContext } from './auth/index.js'
+
+export { createLocalApi, createRestRoutes } from './api/index.js'
+export type { LocalApi } from './api/index.js'
+
+export {
+  renderLayout,
+  renderDashboard,
+  renderListView,
+  renderEditView,
+  renderFieldInput,
+  createAdminRoutes
+} from './admin/index.js'
+
+export { isUploadEnabled, getMediaFields, getMimeType, createServeHandler } from './media/index.js'
+
+export { buildCms } from './config/index.js'
+export type { CmsConfig, CmsInstance, Plugin } from './config/index.js'

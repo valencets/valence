@@ -22,5 +22,8 @@
   "packageManager": "pnpm@10.30.3",
   "engines": {
     "node": ">=22.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["argon2"]
   }
 }
