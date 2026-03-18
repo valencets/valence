@@ -5,7 +5,7 @@ export function sendHtml (
   res: ServerResponse,
   html: string,
   statusCode: number = 200,
-  extraHeaders?: Record<string, string>
+  extraHeaders?: Record<string, string | number>
 ): void {
   const headers: Record<string, string | number> = {
     'Content-Type': 'text/html; charset=utf-8',
