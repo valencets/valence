@@ -29,9 +29,10 @@ describe('Server Islands', () => {
 
       const handle = initServerIslands({ fetchFn: mockFetch })
 
-      // Wait for fetches to complete
+      // Wait for fetch + innerHTML swap to complete
+      const island = container.querySelector('[server\\:defer]')!
       await vi.waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledOnce()
+        expect(island.innerHTML).toBe('<p>Related posts here</p>')
       })
 
       expect(mockFetch).toHaveBeenCalledWith(
@@ -40,10 +41,6 @@ describe('Server Islands', () => {
           headers: expect.objectContaining({ 'X-Valence-Fragment': '1' })
         })
       )
-
-      // Placeholder content should be replaced
-      const island = container.querySelector('[server\\:defer]')!
-      expect(island.innerHTML).toBe('<p>Related posts here</p>')
 
       handle.destroy()
     })
