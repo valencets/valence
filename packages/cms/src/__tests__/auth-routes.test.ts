@@ -75,6 +75,27 @@ describe('POST /api/users/logout', () => {
   })
 })
 
+describe('POST /api/users/login rate limiting', () => {
+  it('returns 429 after exceeding max attempts', async () => {
+    const registry = createCollectionRegistry()
+    const pool = makeMockPool([])
+    const routes = createAuthRoutes(pool, registry)
+    const handler = routes.get('/api/users/login')?.POST
+    const body = JSON.stringify({ email: 'attacker@test.com', password: 'wrong' })
+
+    for (let i = 0; i < 5; i++) {
+      const req = makeMockReq('POST', undefined, body)
+      const res = makeMockRes()
+      await handler!(req, res, {})
+    }
+
+    const req = makeMockReq('POST', undefined, body)
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(429, expect.any(Object))
+  })
+})
+
 describe('GET /api/users/me', () => {
   it('returns 401 with no session', async () => {
     const registry = createCollectionRegistry()
