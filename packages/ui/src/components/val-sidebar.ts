@@ -86,6 +86,8 @@ export class ValSidebar extends ValElement {
   private syncState (): void {
     const collapsed = this.hasAttribute('collapsed')
     this.toggleBtn!.setAttribute('aria-expanded', String(!collapsed))
+    const icon = this.toggleBtn!.querySelector('.icon')
+    if (icon !== null) icon.textContent = collapsed ? '\u25B6' : '\u25C0'
 
     const width = this.getAttribute('width') ?? '16rem'
     this.navEl!.style.width = collapsed ? '3rem' : width

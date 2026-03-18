@@ -75,18 +75,29 @@ export class ValTabs extends ValElement {
   private setupTabs (): void {
     const tabs = this.getTabs()
     const panels = this.getPanels()
+    const activeTab = tabs[this.activeIndex]
+    const activePanelName = activeTab?.dataset.panel ?? ''
 
     for (let i = 0; i < tabs.length; i++) {
       const tab = tabs[i]!
+      const panelName = tab.dataset.panel ?? ''
+      const tabId = `tab-${panelName}`
+      const panelId = `panel-${panelName}`
+      tab.id = tabId
       tab.setAttribute('role', 'tab')
       tab.setAttribute('tabindex', i === this.activeIndex ? '0' : '-1')
       tab.setAttribute('aria-selected', String(i === this.activeIndex))
+      tab.setAttribute('aria-controls', panelId)
     }
 
-    for (let i = 0; i < panels.length; i++) {
-      const panel = panels[i]!
+    for (const panel of panels) {
+      const panelName = panel.dataset.name ?? ''
+      const panelId = `panel-${panelName}`
+      const tabId = `tab-${panelName}`
+      panel.id = panelId
       panel.setAttribute('role', 'tabpanel')
-      panel.hidden = i !== this.activeIndex
+      panel.setAttribute('aria-labelledby', tabId)
+      panel.hidden = panelName !== activePanelName
     }
   }
 

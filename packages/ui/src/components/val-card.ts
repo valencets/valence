@@ -24,6 +24,9 @@ export class ValCard extends ValElement {
     if (!this.initialized) {
       this.style.display = 'block'
       this.style.borderRadius = 'var(--val-radius-lg)'
+      this.style.borderWidth = '1px'
+      this.style.borderStyle = 'solid'
+      this.style.borderColor = 'var(--val-color-border)'
       this.style.fontFamily = 'var(--val-font-sans)'
       this.style.color = 'var(--val-color-text)'
       this.initialized = true
@@ -40,9 +43,6 @@ export class ValCard extends ValElement {
     const padding = this.getAttribute('padding')
 
     this.style.padding = padding !== null ? resolveSpace(padding) : 'var(--val-space-4)'
-    this.style.borderWidth = '1px'
-    this.style.borderStyle = 'solid'
-    this.style.borderColor = 'var(--val-color-border)'
 
     if (variant === 'flat') {
       this.style.background = 'var(--val-color-bg-elevated)'

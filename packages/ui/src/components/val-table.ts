@@ -6,9 +6,7 @@ export interface ValTableColumn {
   sortable?: boolean
 }
 
-export interface ValTableRow {
-  [key: string]: string | number | boolean
-}
+export type ValTableRow = Record<string, string | number | boolean>
 
 type SortDirection = 'ascending' | 'descending' | 'none'
 

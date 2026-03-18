@@ -78,6 +78,14 @@ describe('ValSidebar', () => {
       el.setAttribute('collapsed', '')
       expect(el.shadowRoot!.querySelector('button')!.getAttribute('aria-expanded')).toBe('false')
     })
+
+    it('flips icon direction when collapsed', () => {
+      const el = create()
+      const icon = el.shadowRoot!.querySelector('.icon')!
+      expect(icon.textContent).toBe('\u25C0') // left arrow (expanded)
+      el.shadowRoot!.querySelector('button')!.click()
+      expect(icon.textContent).toBe('\u25B6') // right arrow (collapsed)
+    })
   })
 
   describe('width', () => {

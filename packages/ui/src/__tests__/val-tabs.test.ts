@@ -81,6 +81,38 @@ describe('ValTabs', () => {
       expect((panels[1] as HTMLElement).hidden).toBe(true)
       expect((panels[2] as HTMLElement).hidden).toBe(true)
     })
+
+    it('sets aria-controls on tabs linking to panel IDs', () => {
+      const el = create()
+      const tabs = el.querySelectorAll('[slot="tab"]')
+      expect(tabs[0]!.getAttribute('aria-controls')).toBe('panel-one')
+      expect(tabs[1]!.getAttribute('aria-controls')).toBe('panel-two')
+    })
+
+    it('sets aria-labelledby on panels linking to tab IDs', () => {
+      const el = create()
+      const panels = el.querySelectorAll('[slot="panel"]')
+      expect(panels[0]!.getAttribute('aria-labelledby')).toBe('tab-one')
+      expect(panels[1]!.getAttribute('aria-labelledby')).toBe('tab-two')
+    })
+
+    it('shows correct panel when DOM order differs from tab order', () => {
+      const tag = defineTestElement('val-tabs', ValTabs)
+      const el = document.createElement(tag) as InstanceType<typeof ValTabs>
+      // Panels in reverse order
+      el.innerHTML = `
+        <div slot="tab" data-panel="a">A</div>
+        <div slot="tab" data-panel="b">B</div>
+        <div slot="panel" data-name="b">B Content</div>
+        <div slot="panel" data-name="a">A Content</div>
+      `
+      container.appendChild(el)
+
+      const panels = el.querySelectorAll('[slot="panel"]')
+      // Panel "a" should be visible (matches first tab), regardless of DOM order
+      expect((panels[0] as HTMLElement).hidden).toBe(true)  // "b" panel
+      expect((panels[1] as HTMLElement).hidden).toBe(false)  // "a" panel
+    })
   })
 
   describe('tab selection', () => {
