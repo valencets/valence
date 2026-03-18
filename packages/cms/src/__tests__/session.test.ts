@@ -1,16 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { createSession, validateSession, destroySession } from '../auth/session.js'
-import type { DbPool } from '@valencets/db'
-
-function makeMockPool (returnValue: readonly Record<string, string | number | null>[] = []): DbPool {
-  const sql = vi.fn(() => Promise.resolve(returnValue)) as unknown as DbPool['sql']
-  return { sql }
-}
-
-function makeErrorPool (error: Error): DbPool {
-  const sql = vi.fn(() => Promise.reject(error)) as unknown as DbPool['sql']
-  return { sql }
-}
+import { makeMockPool, makeErrorPool } from './test-helpers.js'
 
 describe('createSession()', () => {
   it('returns Ok with session id', async () => {
@@ -18,7 +8,7 @@ describe('createSession()', () => {
     const result = await createSession('user-1', pool)
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toBe('session-abc')
-    expect(pool.sql).toHaveBeenCalled()
+    expect(pool.sql.unsafe).toHaveBeenCalled()
   })
 
   it('returns Err on db failure', async () => {

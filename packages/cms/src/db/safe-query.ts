@@ -10,7 +10,7 @@ export function safeQuery<T> (
   params: readonly SqlValue[]
 ): ResultAsync<T, CmsError> {
   return ResultAsync.fromPromise(
-    pool.sql.unsafe(queryStr, params as SqlValue[]) as Promise<T>,
+    pool.sql.unsafe(queryStr, params as SqlValue[]).then((rows) => rows as T),
     (e: unknown): CmsError => ({
       code: CmsErrorCode.INTERNAL,
       message: e instanceof Error ? e.message : 'Query failed'

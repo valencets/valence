@@ -5,6 +5,7 @@ import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
 import type { WhereOperator, PaginatedResult, SqlValue } from './query-types.js'
 import { isValidIdentifier, getValidFieldNames, isAllowedField } from './sql-sanitize.js'
+import { safeQuery } from './safe-query.js'
 
 export interface DocumentRow {
   readonly id: string
@@ -111,13 +112,7 @@ function executeQuery<T> (
   queryStr: string,
   params: SqlValue[]
 ): ResultAsync<T, CmsError> {
-  return ResultAsync.fromPromise(
-    pool.sql(queryStr as never, ...params as never[]).then((rows) => rows as T),
-    (e: unknown): CmsError => ({
-      code: CmsErrorCode.INTERNAL,
-      message: e instanceof Error ? e.message : 'Query failed'
-    })
-  )
+  return safeQuery<T>(pool, queryStr, params)
 }
 
 export interface CollectionQueryBuilder {

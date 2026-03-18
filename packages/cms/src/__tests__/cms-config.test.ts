@@ -1,16 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { buildCms } from '../config/cms-config.js'
 import type { CmsConfig } from '../config/cms-config.js'
 import type { Plugin } from '../config/plugin.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 import { global } from '../schema/global.js'
-import type { DbPool } from '@valencets/db'
-
-function makeMockPool (): DbPool {
-  const sql = vi.fn(() => Promise.resolve([])) as unknown as DbPool['sql']
-  return { sql }
-}
+import { makeMockPool } from './test-helpers.js'
 
 describe('buildCms()', () => {
   it('returns Ok with CmsInstance', () => {

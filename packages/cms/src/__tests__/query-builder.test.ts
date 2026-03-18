@@ -4,17 +4,8 @@ import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 import { CmsErrorCode } from '../schema/types.js'
+import { makeMockPool, makeErrorPool } from './test-helpers.js'
 import type { DbPool } from '@valencets/db'
-
-function makeMockPool (returnValue: unknown = []): DbPool {
-  const sql = vi.fn(() => Promise.resolve(returnValue)) as unknown as DbPool['sql']
-  return { sql }
-}
-
-function makeErrorPool (error: Error): DbPool {
-  const sql = vi.fn(() => Promise.reject(error)) as unknown as DbPool['sql']
-  return { sql }
-}
 
 function setupRegistry () {
   const registry = createCollectionRegistry()
@@ -188,7 +179,7 @@ describe('.where()', () => {
     await qb.query('posts')
       .where('published', 'equals', true)
       .all()
-    expect(pool.sql).toHaveBeenCalled()
+    expect(pool.sql.unsafe).toHaveBeenCalled()
   })
 
   it('supports shorthand where(field, value) defaulting to equals', async () => {
@@ -198,7 +189,7 @@ describe('.where()', () => {
     const builder = qb.query('posts').where('published', true)
     expect(typeof builder.all).toBe('function')
     await builder.all()
-    expect(pool.sql).toHaveBeenCalled()
+    expect(pool.sql.unsafe).toHaveBeenCalled()
   })
 })
 
@@ -210,7 +201,7 @@ describe('.withDeleted()', () => {
     const builder = qb.query('posts').withDeleted()
     expect(typeof builder.all).toBe('function')
     await builder.all()
-    expect(pool.sql).toHaveBeenCalled()
+    expect(pool.sql.unsafe).toHaveBeenCalled()
   })
 })
 
@@ -219,10 +210,14 @@ describe('.page()', () => {
     const rows = [{ id: '1', title: 'A' }]
     const countResult = [{ count: '25' }]
     let callIdx = 0
-    const sql = vi.fn(() => {
+    const unsafe = vi.fn(() => {
       callIdx++
       return Promise.resolve(callIdx === 1 ? countResult : rows)
-    }) as unknown as DbPool['sql']
+    })
+    const sql = Object.assign(
+      vi.fn(() => Promise.resolve([])),
+      { unsafe }
+    ) as unknown as DbPool['sql']
     const pool: DbPool = { sql }
     const registry = setupRegistry()
     const qb = createQueryBuilder(pool, registry)

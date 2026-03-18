@@ -4,6 +4,7 @@ import type { CollectionRegistry } from '../schema/registry.js'
 import type { RestRouteEntry } from '../api/rest-api.js'
 import { verifyPassword } from './password.js'
 import { createRateLimiter } from './rate-limit.js'
+import { safeQuery } from '../db/safe-query.js'
 import { createSession, validateSession, destroySession, buildSessionCookie, buildExpiredSessionCookie } from './session.js'
 import { ResultAsync } from 'neverthrow'
 import { CmsErrorCode } from '../schema/types.js'
@@ -77,19 +78,11 @@ function parseCookie (cookieHeader: string, name: string): string | null {
 }
 
 function queryUser (pool: DbPool, email: string): ResultAsync<UserRow | null, CmsError> {
-  return ResultAsync.fromPromise(
-    pool.sql(
-      'SELECT id, email, password_hash, name FROM users WHERE email = $1 AND deleted_at IS NULL LIMIT 1' as never,
-      email as never
-    ).then((rows) => {
-      const row = [...rows][0] as UserRow | undefined
-      return row ?? null
-    }),
-    (e: unknown): CmsError => ({
-      code: CmsErrorCode.INTERNAL,
-      message: e instanceof Error ? e.message : 'User query failed'
-    })
-  )
+  return safeQuery<UserRow[]>(
+    pool,
+    'SELECT id, email, password_hash, name FROM users WHERE email = $1 AND deleted_at IS NULL LIMIT 1',
+    [email]
+  ).map(rows => rows[0] ?? null)
 }
 
 interface LoginBody {
@@ -168,19 +161,11 @@ export function createAuthRoutes (
       if (sessionResult.isErr()) { sendErrorJson(res, 'Unauthorized', 401); return }
 
       const userId = sessionResult.value
-      const userResult = await ResultAsync.fromPromise(
-        pool.sql(
-          'SELECT id, email, name FROM users WHERE id = $1 AND deleted_at IS NULL' as never,
-          userId as never
-        ).then((rows) => {
-          const row = [...rows][0] as { id: string, email: string, name: string } | undefined
-          return row ?? null
-        }),
-        (e: unknown): CmsError => ({
-          code: CmsErrorCode.INTERNAL,
-          message: e instanceof Error ? e.message : 'User query failed'
-        })
-      )
+      const userResult = await safeQuery<Array<{ id: string, email: string, name: string }>>(
+        pool,
+        'SELECT id, email, name FROM users WHERE id = $1 AND deleted_at IS NULL',
+        [userId]
+      ).map(rows => rows[0] ?? null)
 
       if (userResult.isErr() || !userResult.value) {
         sendErrorJson(res, 'User not found', 404)

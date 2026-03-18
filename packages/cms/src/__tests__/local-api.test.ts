@@ -1,16 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { createLocalApi } from '../api/local-api.js'
 import { createCollectionRegistry, createGlobalRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { global } from '../schema/global.js'
 import { field } from '../schema/fields.js'
 import { CmsErrorCode } from '../schema/types.js'
-import type { DbPool } from '@valencets/db'
-
-function makeMockPool (returnValue: readonly Record<string, string | number | null>[] = []): DbPool {
-  const sql = vi.fn(() => Promise.resolve(returnValue)) as unknown as DbPool['sql']
-  return { sql }
-}
+import { makeMockPool } from './test-helpers.js'
 
 function setup (poolReturn: readonly Record<string, string | number | null>[] = []) {
   const pool = makeMockPool(poolReturn)

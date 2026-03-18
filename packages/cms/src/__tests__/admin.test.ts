@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { renderLayout } from '../admin/layout.js'
 import { renderDashboard } from '../admin/dashboard.js'
 import { renderListView } from '../admin/list-view.js'
@@ -8,13 +8,8 @@ import { createAdminRoutes } from '../admin/admin-routes.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import type { DbPool } from '@valencets/db'
+import { makeMockPool } from './test-helpers.js'
 import type { CollectionConfig } from '../schema/collection.js'
-
-function makeMockPool (returnValue: readonly Record<string, string | number | null>[] = []): DbPool {
-  const sql = vi.fn(() => Promise.resolve(returnValue)) as unknown as DbPool['sql']
-  return { sql }
-}
 
 function makePostsCollection (): CollectionConfig {
   return collection({

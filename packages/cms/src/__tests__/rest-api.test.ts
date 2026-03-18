@@ -3,13 +3,8 @@ import { createRestRoutes } from '../api/rest-api.js'
 import { createCollectionRegistry, createGlobalRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import type { DbPool } from '@valencets/db'
+import { makeMockPool } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-
-function makeMockPool (returnValue: readonly Record<string, string | number | null>[] = []): DbPool {
-  const sql = vi.fn(() => Promise.resolve(returnValue)) as unknown as DbPool['sql']
-  return { sql }
-}
 
 function makeMockReq (method: string, url: string, body: string = ''): IncomingMessage {
   const req = {

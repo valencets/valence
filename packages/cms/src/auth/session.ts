@@ -1,7 +1,9 @@
-import { ResultAsync, errAsync } from 'neverthrow'
+import { errAsync, okAsync } from 'neverthrow'
+import type { ResultAsync } from 'neverthrow'
 import type { DbPool } from '@valencets/db'
 import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
+import { safeQuery } from '../db/safe-query.js'
 
 interface SessionRow {
   readonly id: string
@@ -9,41 +11,31 @@ interface SessionRow {
   readonly expires_at: string
 }
 
-function queryRows (pool: DbPool, sql: string, ...params: string[]): ResultAsync<SessionRow[], CmsError> {
-  return ResultAsync.fromPromise(
-    pool.sql(sql as never, ...params as never[]).then((rows) => [...rows] as SessionRow[]),
-    (e: unknown): CmsError => ({
-      code: CmsErrorCode.INTERNAL,
-      message: e instanceof Error ? e.message : 'Database query failed'
-    })
-  )
-}
-
 export function createSession (userId: string, pool: DbPool): ResultAsync<string, CmsError> {
-  return queryRows(
+  return safeQuery<SessionRow[]>(
     pool,
     'INSERT INTO cms_sessions (user_id, expires_at) VALUES ($1, NOW() + INTERVAL \'2 hours\') RETURNING id, user_id',
-    userId
+    [userId]
   ).andThen((rows) => {
     const row = rows[0]
     if (!row) {
       return errAsync({ code: CmsErrorCode.INTERNAL, message: 'No session returned' } as CmsError)
     }
-    return ResultAsync.fromSafePromise(Promise.resolve(row.id))
+    return okAsync(row.id)
   })
 }
 
 export function validateSession (sessionId: string, pool: DbPool): ResultAsync<string, CmsError> {
-  return queryRows(
+  return safeQuery<SessionRow[]>(
     pool,
     'SELECT id, user_id, expires_at FROM cms_sessions WHERE id = $1 AND expires_at > NOW() AND deleted_at IS NULL',
-    sessionId
+    [sessionId]
   ).andThen((rows) => {
     const row = rows[0]
     if (!row) {
       return errAsync({ code: CmsErrorCode.NOT_FOUND, message: 'Session not found or expired' } as CmsError)
     }
-    return ResultAsync.fromSafePromise(Promise.resolve(row.user_id))
+    return okAsync(row.user_id)
   })
 }
 
@@ -56,14 +48,9 @@ export function buildExpiredSessionCookie (): string {
 }
 
 export function destroySession (sessionId: string, pool: DbPool): ResultAsync<void, CmsError> {
-  return ResultAsync.fromPromise(
-    pool.sql(
-      'UPDATE cms_sessions SET deleted_at = NOW() WHERE id = $1 RETURNING id' as never,
-      sessionId as never
-    ).then(() => undefined),
-    (e: unknown): CmsError => ({
-      code: CmsErrorCode.INTERNAL,
-      message: e instanceof Error ? e.message : 'Failed to destroy session'
-    })
-  )
+  return safeQuery<SessionRow[]>(
+    pool,
+    'UPDATE cms_sessions SET deleted_at = NOW() WHERE id = $1 RETURNING id',
+    [sessionId]
+  ).map(() => undefined)
 }

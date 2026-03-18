@@ -6,18 +6,8 @@ import type { CmsError } from '../schema/types.js'
 import type { DocumentRow, DocumentData } from '../db/query-builder.js'
 import { createQueryBuilder } from '../db/query-builder.js'
 import { CmsErrorCode } from '../schema/types.js'
-import type { SqlValue } from '../db/query-types.js'
 import { isValidIdentifier } from '../db/sql-sanitize.js'
-
-function executeGlobalQuery<T> (pool: DbPool, sql: string, params: SqlValue[] = []): ResultAsync<T, CmsError> {
-  return ResultAsync.fromPromise(
-    pool.sql(sql as never, ...params as never[]).then((rows) => [...rows] as T),
-    (e: unknown): CmsError => ({
-      code: CmsErrorCode.INTERNAL,
-      message: e instanceof Error ? e.message : 'Global query failed'
-    })
-  )
-}
+import { safeQuery } from '../db/safe-query.js'
 
 interface FindArgs {
   readonly collection: string
@@ -132,7 +122,7 @@ export function createLocalApi (
         return errAsync({ code: CmsErrorCode.INVALID_INPUT, message: `Invalid global slug: ${args.slug}` })
       }
       const table = `"global_${args.slug}"`
-      return executeGlobalQuery<DocumentRow[]>(pool, `SELECT * FROM ${table} WHERE "deleted_at" IS NULL LIMIT 1`)
+      return safeQuery<DocumentRow[]>(pool, `SELECT * FROM ${table} WHERE "deleted_at" IS NULL LIMIT 1`, [])
         .map(rows => rows[0] ?? null)
     },
 
@@ -153,7 +143,7 @@ export function createLocalApi (
       const setClauses = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ')
       const params = Object.values(args.data)
       const table = `"global_${args.slug}"`
-      return executeGlobalQuery<DocumentRow[]>(pool, `UPDATE ${table} SET ${setClauses} RETURNING *`, params)
+      return safeQuery<DocumentRow[]>(pool, `UPDATE ${table} SET ${setClauses} RETURNING *`, params)
         .map(rows => rows[0] as DocumentRow)
     }
   }
