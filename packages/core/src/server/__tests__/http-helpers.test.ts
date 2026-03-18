@@ -102,3 +102,29 @@ describe('readBody', () => {
     expect(MAX_BODY_BYTES).toBeGreaterThan(0)
   })
 })
+
+describe('sendIslandHtml', () => {
+  it('sends html fragment with X-Valence-Fragment header', async () => {
+    const { sendIslandHtml } = await import('../http-helpers.js')
+    const res = mockRes()
+    sendIslandHtml(res, '<p>Island content</p>')
+    expect(res._status).toBe(200)
+    expect(res._headers['Content-Type']).toBe('text/html; charset=utf-8')
+    expect(res._headers['X-Valence-Fragment']).toBe('1')
+    expect(res._body).toBe('<p>Island content</p>')
+  })
+
+  it('sets Cache-Control with maxAge option', async () => {
+    const { sendIslandHtml } = await import('../http-helpers.js')
+    const res = mockRes()
+    sendIslandHtml(res, '<p>Cached island</p>', { maxAge: 60 })
+    expect(res._headers['Cache-Control']).toBe('public, max-age=60')
+  })
+
+  it('defaults to no Cache-Control without maxAge', async () => {
+    const { sendIslandHtml } = await import('../http-helpers.js')
+    const res = mockRes()
+    sendIslandHtml(res, '<p>No cache</p>')
+    expect(res._headers['Cache-Control']).toBeUndefined()
+  })
+})

@@ -52,3 +52,21 @@ export function readBody (req: IncomingMessage, maxBytes: number = MAX_BODY_BYTE
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')))
   })
 }
+
+export interface IslandHtmlOptions {
+  readonly maxAge?: number
+}
+
+export function sendIslandHtml (
+  res: ServerResponse,
+  html: string,
+  options?: IslandHtmlOptions
+): void {
+  const headers: Record<string, string | number> = {
+    'X-Valence-Fragment': '1'
+  }
+  if (options?.maxAge !== undefined) {
+    headers['Cache-Control'] = `public, max-age=${options.maxAge}`
+  }
+  sendHtml(res, html, 200, headers)
+}
