@@ -1,11 +1,12 @@
+import { ResultAsync } from 'neverthrow'
+import { CmsErrorCode } from '../schema/types.js'
+import type { CmsError } from '../schema/types.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { writeFile } from 'node:fs/promises'
 import { join, resolve, basename } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { ResultAsync } from 'neverthrow'
-import { CmsErrorCode } from '../schema/types.js'
-import type { CmsError } from '../schema/types.js'
 import { getMimeType } from './media-config.js'
+import { readRawBody } from '../api/read-body.js'
 
 const MAX_UPLOAD_BYTES = 10_485_760
 const SAFE_FILENAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/
@@ -14,30 +15,6 @@ function generateStoredName (originalName: string): string {
   const ext = originalName.split('.').pop() ?? ''
   const prefix = randomBytes(16).toString('hex')
   return ext ? `${prefix}.${ext}` : prefix
-}
-
-function safeReadRawBody (req: IncomingMessage): ResultAsync<Buffer, CmsError> {
-  return ResultAsync.fromPromise(
-    new Promise<Buffer>((resolve, reject) => {
-      const chunks: Buffer[] = []
-      let received = 0
-      req.on('data', (chunk: Buffer) => {
-        received += chunk.length
-        if (received > MAX_UPLOAD_BYTES) {
-          req.removeAllListeners('data')
-          reject(new Error(`Upload exceeds ${MAX_UPLOAD_BYTES} bytes`))
-          return
-        }
-        chunks.push(chunk)
-      })
-      req.on('end', () => resolve(Buffer.concat(chunks)))
-      req.on('error', (e: Error) => reject(e))
-    }),
-    (e: unknown): CmsError => ({
-      code: CmsErrorCode.INVALID_INPUT,
-      message: e instanceof Error ? e.message : 'Upload read failed'
-    })
-  )
 }
 
 export interface UploadResult {
@@ -60,7 +37,7 @@ export function createUploadHandler (uploadDir: string): (req: IncomingMessage, 
       return
     }
 
-    const bodyResult = await safeReadRawBody(req)
+    const bodyResult = await readRawBody(req, MAX_UPLOAD_BYTES)
     if (bodyResult.isErr()) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: bodyResult.error.message }))

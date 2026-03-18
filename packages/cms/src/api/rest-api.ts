@@ -77,7 +77,9 @@ export function createRestRoutes (
       },
       PATCH: async (req, res) => {
         if (!requireJsonContentType(req, res)) return
-        const id = req.url?.split('/').pop() ?? ''
+        const rawId = req.url?.split('/').pop() ?? ''
+        const id = rawId.split('?')[0] ?? ''
+        if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
         const bodyResult = await safeReadBody(req)
         if (bodyResult.isErr()) { sendErrorJson(res, bodyResult.error.message, 400); return }
         const parseResult = await safeJsonParse(bodyResult.value)
@@ -96,7 +98,9 @@ export function createRestRoutes (
         )
       },
       DELETE: async (req, res) => {
-        const id = req.url?.split('/').pop() ?? ''
+        const rawId = req.url?.split('/').pop() ?? ''
+        const id = rawId.split('?')[0] ?? ''
+        if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
         const result = await api.delete({ collection: slug, id })
         result.match(
           (doc) => sendJson(res, doc as DocumentData),

@@ -103,7 +103,7 @@ export type { AuthConfig, AuthContext, AuthMiddleware } from './auth/index.js'
 export { createRateLimiter, parseCookie } from './auth/index.js'
 export type { RateLimiter } from './auth/index.js'
 
-export { createLocalApi, createRestRoutes } from './api/index.js'
+export { createLocalApi, createRestRoutes, sendJson, sendErrorJson, safeReadBody, safeJsonParse } from './api/index.js'
 export type { LocalApi, RestRouteHandler, RestRouteEntry } from './api/index.js'
 
 export {

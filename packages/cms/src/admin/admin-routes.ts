@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { ResultAsync } from 'neverthrow'
-import { CmsErrorCode } from '../schema/types.js'
+
 import type { CmsError } from '../schema/types.js'
 import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry } from '../schema/registry.js'
@@ -16,6 +16,8 @@ import { validateSession } from '../auth/session.js'
 import { parseCookie } from '../auth/cookie.js'
 import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { escapeHtml } from './escape.js'
+import { readStringBody } from '../api/read-body.js'
+import { generateZodSchema } from '../validation/zod-generator.js'
 
 type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
@@ -43,23 +45,7 @@ function wrapWithAuth (pool: DbPool, handler: AdminRouteHandler): AdminRouteHand
 }
 
 function safeReadFormBody (req: IncomingMessage): ResultAsync<DocumentData, CmsError> {
-  return ResultAsync.fromPromise(
-    new Promise<string>((resolve, reject) => {
-      const chunks: Buffer[] = []
-      let received = 0
-      req.on('data', (chunk: Buffer) => {
-        received += chunk.length
-        if (received > 1_048_576) { req.removeAllListeners('data'); reject(new Error('Body too large')); return }
-        chunks.push(chunk)
-      })
-      req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')))
-      req.on('error', (e: Error) => reject(e))
-    }),
-    (e: unknown): CmsError => ({
-      code: CmsErrorCode.INVALID_INPUT,
-      message: e instanceof Error ? e.message : 'Failed to read body'
-    })
-  ).map((body) => {
+  return readStringBody(req).map((body) => {
     const params = new URLSearchParams(body)
     const data: Record<string, string> = {}
     for (const [key, value] of params.entries()) {
@@ -159,6 +145,13 @@ export function createAdminRoutes (
           return
         }
         const { _csrf, ...data } = formData
+        const zodSchema = generateZodSchema(col.fields)
+        const validation = zodSchema.safeParse(data)
+        if (!validation.success) {
+          const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
+          sendHtml(res, `Validation failed: ${escapeHtml(issues)}`, 400)
+          return
+        }
         const result = await api.create({ collection: col.slug, data })
         result.match(
           () => {
