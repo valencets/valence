@@ -1,4 +1,5 @@
 import type { FieldConfig } from '../schema/field-types.js'
+import { sanitizeOptionValue, isValidIdentifier } from './sql-sanitize.js'
 
 const TYPE_MAP: Record<string, string> = {
   text: 'TEXT',
@@ -31,8 +32,8 @@ export function getColumnConstraints (field: FieldConfig): string {
     parts.push('UNIQUE')
   }
 
-  if (field.type === 'select' && 'options' in field) {
-    const values = field.options.map(o => `'${o.value}'`).join(', ')
+  if (field.type === 'select' && 'options' in field && isValidIdentifier(field.name)) {
+    const values = field.options.map(o => `'${sanitizeOptionValue(o.value)}'`).join(', ')
     parts.push(`CHECK ("${field.name}" IN (${values}))`)
   }
 

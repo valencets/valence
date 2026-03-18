@@ -4,6 +4,7 @@ import type { CollectionRegistry } from '../schema/registry.js'
 import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
 import type { WhereOperator, PaginatedResult, SqlValue } from './query-types.js'
+import { isValidIdentifier, getValidFieldNames, isAllowedField } from './sql-sanitize.js'
 
 export interface DocumentRow {
   readonly id: string
@@ -44,21 +45,42 @@ const OPERATOR_SQL: Record<WhereOperator, string> = {
   exists: 'IS NOT NULL'
 }
 
+function invalidField (name: string): CmsError {
+  return { code: CmsErrorCode.INVALID_INPUT, message: `Invalid field name: ${name}` }
+}
+
+function validateFields (state: QueryState, allowedFields: Set<string>): CmsError | null {
+  for (const w of state.wheres) {
+    if (!isAllowedField(w.field, allowedFields)) return invalidField(w.field)
+  }
+  for (const o of state.orderBys) {
+    if (!isAllowedField(o.field, allowedFields)) return invalidField(o.field)
+  }
+  return null
+}
+
+function validateDataKeys (data: DocumentData, allowedFields: Set<string>): CmsError | null {
+  for (const key of Object.keys(data)) {
+    if (!isAllowedField(key, allowedFields)) return invalidField(key)
+  }
+  return null
+}
+
 function buildWhereSql (state: QueryState): string {
   const parts: string[] = []
 
   if (!state.includeDeleted) {
-    parts.push('deleted_at IS NULL')
+    parts.push('"deleted_at" IS NULL')
   }
 
   for (const w of state.wheres) {
-    const op = OPERATOR_SQL[w.operator]
+    const col = `"${w.field}"`
     if (w.operator === 'exists') {
-      parts.push(`"${w.field}" ${w.value ? 'IS NOT NULL' : 'IS NULL'}`)
+      parts.push(`${col} ${w.value ? 'IS NOT NULL' : 'IS NULL'}`)
     } else if (w.operator === 'in') {
-      parts.push(`"${w.field}" = ANY($${parts.length + 1})`)
+      parts.push(`${col} = ANY($${parts.length + 1})`)
     } else {
-      parts.push(`"${w.field}" ${op} $${parts.length + 1}`)
+      parts.push(`${col} ${OPERATOR_SQL[w.operator]} $${parts.length + 1}`)
     }
   }
 
@@ -73,8 +95,8 @@ function buildOrderSql (state: QueryState): string {
 
 function buildLimitOffsetSql (state: QueryState): string {
   let sql = ''
-  if (state.limitVal !== null) sql += ` LIMIT ${state.limitVal}`
-  if (state.offsetVal !== null) sql += ` OFFSET ${state.offsetVal}`
+  if (state.limitVal !== null) sql += ` LIMIT ${Number(state.limitVal)}`
+  if (state.offsetVal !== null) sql += ` OFFSET ${Number(state.offsetVal)}`
   return sql
 }
 
@@ -119,10 +141,16 @@ function createBuilder (
   registry: CollectionRegistry,
   state: QueryState
 ): CollectionQueryBuilder {
-  function guardSlug (): CmsError | null {
+  function guard (): { error: CmsError } | { allowedFields: Set<string> } {
+    if (!isValidIdentifier(state.slug)) {
+      return { error: { code: CmsErrorCode.INVALID_INPUT, message: `Invalid collection slug: ${state.slug}` } }
+    }
     const result = registry.get(state.slug)
-    if (result.isErr()) return result.error
-    return null
+    if (result.isErr()) return { error: result.error }
+    const allowedFields = getValidFieldNames(result.value)
+    const fieldErr = validateFields(state, allowedFields)
+    if (fieldErr) return { error: fieldErr }
+    return { allowedFields }
   }
 
   function whereImpl (fieldOrName: string, operatorOrValue: SqlValue | WhereOperator, maybeValue?: SqlValue): CollectionQueryBuilder {
@@ -158,96 +186,86 @@ function createBuilder (
     },
 
     all<T> () {
-      const err = guardSlug()
-      if (err) return errAsync(err)
-      const where = buildWhereSql(state)
-      const order = buildOrderSql(state)
-      const limitOffset = buildLimitOffsetSql(state)
-      const query = `SELECT * FROM "${state.slug}"${where}${order}${limitOffset}`
-      const params = getWhereValues(state)
-      return executeQuery<T[]>(pool, query, params)
+      const g = guard()
+      if ('error' in g) return errAsync(g.error)
+      const table = `"${state.slug}"`
+      return executeQuery<T[]>(pool, `SELECT * FROM ${table}${buildWhereSql(state)}${buildOrderSql(state)}${buildLimitOffsetSql(state)}`, getWhereValues(state))
     },
 
     first<T> () {
-      const err = guardSlug()
-      if (err) return errAsync(err)
-      const where = buildWhereSql(state)
-      const order = buildOrderSql(state)
-      const query = `SELECT * FROM "${state.slug}"${where}${order} LIMIT 1`
-      const params = getWhereValues(state)
-      return executeQuery<T[]>(pool, query, params)
+      const g = guard()
+      if ('error' in g) return errAsync(g.error)
+      const table = `"${state.slug}"`
+      return executeQuery<T[]>(pool, `SELECT * FROM ${table}${buildWhereSql(state)}${buildOrderSql(state)} LIMIT 1`, getWhereValues(state))
         .map((rows: T[]) => (rows[0] as T | undefined) ?? null)
     },
 
     count () {
-      const err = guardSlug()
-      if (err) return errAsync(err)
-      const where = buildWhereSql(state)
-      const query = `SELECT COUNT(*) as count FROM "${state.slug}"${where}`
-      const params = getWhereValues(state)
-      return executeQuery<Array<{ count: string }>>(pool, query, params)
+      const g = guard()
+      if ('error' in g) return errAsync(g.error)
+      const table = `"${state.slug}"`
+      return executeQuery<Array<{ count: string }>>(pool, `SELECT COUNT(*) as count FROM ${table}${buildWhereSql(state)}`, getWhereValues(state))
         .map(rows => Number(rows[0]?.count ?? 0))
     },
 
     insert<T> (data: DocumentData) {
-      const err = guardSlug()
-      if (err) return errAsync(err)
+      const g = guard()
+      if ('error' in g) return errAsync(g.error)
+      const dataErr = validateDataKeys(data, g.allowedFields)
+      if (dataErr) return errAsync(dataErr)
       const keys = Object.keys(data)
       const cols = keys.map(k => `"${k}"`).join(', ')
       const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ')
-      const query = `INSERT INTO "${state.slug}" (${cols}) VALUES (${placeholders}) RETURNING *`
-      const params = Object.values(data)
-      return executeQuery<T[]>(pool, query, params)
+      const table = `"${state.slug}"`
+      return executeQuery<T[]>(pool, `INSERT INTO ${table} (${cols}) VALUES (${placeholders}) RETURNING *`, Object.values(data))
         .map(rows => rows[0] as T)
     },
 
     update<T> (data: DocumentData) {
-      const err = guardSlug()
-      if (err) return errAsync(err)
+      const g = guard()
+      if ('error' in g) return errAsync(g.error)
+      const dataErr = validateDataKeys(data, g.allowedFields)
+      if (dataErr) return errAsync(dataErr)
       const keys = Object.keys(data)
       const whereParams = getWhereValues(state)
       const setClauses = keys.map((k, i) => `"${k}" = $${whereParams.length + i + 1}`).join(', ')
-      const where = buildWhereSql(state)
-      const query = `UPDATE "${state.slug}" SET ${setClauses}${where} RETURNING *`
-      const params = [...whereParams, ...Object.values(data)]
-      return executeQuery<T[]>(pool, query, params)
+      const table = `"${state.slug}"`
+      return executeQuery<T[]>(pool, `UPDATE ${table} SET ${setClauses}${buildWhereSql(state)} RETURNING *`, [...whereParams, ...Object.values(data)])
         .map(rows => rows[0] as T)
     },
 
     delete<T> () {
-      const err = guardSlug()
-      if (err) return errAsync(err)
-      const where = buildWhereSql(state)
-      const params = getWhereValues(state)
-      const query = `UPDATE "${state.slug}" SET deleted_at = NOW()${where} RETURNING *`
-      return executeQuery<T[]>(pool, query, params)
+      const g = guard()
+      if ('error' in g) return errAsync(g.error)
+      const table = `"${state.slug}"`
+      return executeQuery<T[]>(pool, `UPDATE ${table} SET "deleted_at" = NOW()${buildWhereSql(state)} RETURNING *`, getWhereValues(state))
         .map(rows => rows[0] as T)
     },
 
     page<T> (pageNum: number, perPage: number) {
-      const err = guardSlug()
-      if (err) return errAsync(err)
+      const g = guard()
+      if ('error' in g) return errAsync(g.error)
+      const table = `"${state.slug}"`
       const where = buildWhereSql(state)
       const whereParams = getWhereValues(state)
-      const countQuery = `SELECT COUNT(*) as count FROM "${state.slug}"${where}`
+      const safePerPage = Number(perPage)
+      const safePageNum = Number(pageNum)
 
-      return executeQuery<Array<{ count: string }>>(pool, countQuery, whereParams)
+      return executeQuery<Array<{ count: string }>>(pool, `SELECT COUNT(*) as count FROM ${table}${where}`, whereParams)
         .andThen(countRows => {
           const totalDocs = Number(countRows[0]?.count ?? 0)
-          const totalPages = Math.ceil(totalDocs / perPage)
-          const pageOffset = (pageNum - 1) * perPage
-          const order = buildOrderSql(state)
-          const dataQuery = `SELECT * FROM "${state.slug}"${where}${order} LIMIT ${perPage} OFFSET ${pageOffset}`
+          const totalPages = Math.ceil(totalDocs / safePerPage)
+          const pageOffset = (safePageNum - 1) * safePerPage
 
-          return executeQuery<T[]>(pool, dataQuery, whereParams)
+          return executeQuery<T[]>(pool, `SELECT * FROM ${table}${where}${buildOrderSql(state)} LIMIT ${safePerPage} OFFSET ${pageOffset}`, whereParams)
             .map((docs): PaginatedResult<T> => ({
               docs,
               totalDocs,
-              page: pageNum,
+              page: safePageNum,
               totalPages,
-              limit: perPage,
-              hasNextPage: pageNum < totalPages,
-              hasPrevPage: pageNum > 1
+              limit: safePerPage,
+              hasNextPage: safePageNum < totalPages,
+              hasPrevPage: safePageNum > 1
             }))
         })
     }

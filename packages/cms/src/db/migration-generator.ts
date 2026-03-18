@@ -1,6 +1,7 @@
 import type { CollectionConfig } from '../schema/collection.js'
 import type { FieldConfig } from '../schema/field-types.js'
 import { getColumnType, getColumnConstraints } from './column-map.js'
+import { isValidIdentifier } from './sql-sanitize.js'
 
 export interface MigrationOutput {
   readonly name: string
@@ -8,7 +9,14 @@ export interface MigrationOutput {
   readonly down: string
 }
 
+function assertIdentifier (name: string): void {
+  if (!isValidIdentifier(name)) {
+    throw new Error(`Invalid SQL identifier: ${name}`)
+  }
+}
+
 function buildColumnDef (f: FieldConfig): string {
+  assertIdentifier(f.name)
   const colType = getColumnType(f)
   const constraints = getColumnConstraints(f)
   const parts = [`"${f.name}" ${colType}`]
@@ -16,13 +24,12 @@ function buildColumnDef (f: FieldConfig): string {
   return parts.join(' ')
 }
 
-function buildForeignKeys (fields: readonly FieldConfig[], _tableName: string): string[] {
+function buildForeignKeys (fields: readonly FieldConfig[]): string[] {
   const fks: string[] = []
   for (const f of fields) {
-    if (f.type === 'relation' && 'relationTo' in f) {
-      fks.push(`  FOREIGN KEY ("${f.name}") REFERENCES "${f.relationTo}"("id")`)
-    }
-    if (f.type === 'media' && 'relationTo' in f) {
+    if ((f.type === 'relation' || f.type === 'media') && 'relationTo' in f) {
+      assertIdentifier(f.name)
+      assertIdentifier(f.relationTo)
       fks.push(`  FOREIGN KEY ("${f.name}") REFERENCES "${f.relationTo}"("id")`)
     }
   }
@@ -30,10 +37,12 @@ function buildForeignKeys (fields: readonly FieldConfig[], _tableName: string): 
 }
 
 function buildIndexStatements (collection: CollectionConfig): string[] {
+  assertIdentifier(collection.slug)
   const statements: string[] = []
   for (const f of collection.fields) {
     const needsIndex = f.index === true || f.type === 'relation' || f.type === 'media'
     if (needsIndex) {
+      assertIdentifier(f.name)
       statements.push(
         `CREATE INDEX IF NOT EXISTS "idx_${collection.slug}_${f.name}" ON "${collection.slug}" ("${f.name}");`
       )
@@ -43,16 +52,14 @@ function buildIndexStatements (collection: CollectionConfig): string[] {
 }
 
 export function generateCreateTableSql (collection: CollectionConfig): string {
+  assertIdentifier(collection.slug)
+
   const columns: string[] = [
     '  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid()'
   ]
 
   for (const f of collection.fields) {
-    if (f.type === 'group') {
-      columns.push(`  ${buildColumnDef(f)}`)
-    } else {
-      columns.push(`  ${buildColumnDef(f)}`)
-    }
+    columns.push(`  ${buildColumnDef(f)}`)
   }
 
   if (collection.timestamps) {
@@ -62,7 +69,7 @@ export function generateCreateTableSql (collection: CollectionConfig): string {
 
   columns.push('  "deleted_at" TIMESTAMPTZ')
 
-  const fks = buildForeignKeys(collection.fields, collection.slug)
+  const fks = buildForeignKeys(collection.fields)
   const allEntries = [...columns, ...fks]
 
   const parts: string[] = [
@@ -79,6 +86,7 @@ export function generateCreateTableSql (collection: CollectionConfig): string {
 }
 
 export function generateCreateTable (collection: CollectionConfig): MigrationOutput {
+  assertIdentifier(collection.slug)
   const timestamp = Date.now()
   return {
     name: `${timestamp}_create_${collection.slug}`,
