@@ -118,7 +118,7 @@ describe('sendIslandHtml', () => {
     const { sendIslandHtml } = await import('../http-helpers.js')
     const res = mockRes()
     sendIslandHtml(res, '<p>Cached island</p>', { maxAge: 60 })
-    expect(res._headers['Cache-Control']).toBe('public, max-age=60')
+    expect(res._headers['Cache-Control']).toBe('public, max-age=60, stale-while-revalidate=30')
   })
 
   it('defaults to no Cache-Control without maxAge', async () => {

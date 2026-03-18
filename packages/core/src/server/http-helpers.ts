@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ServerError } from './server-types.js'
+import { cacheControl } from './cache-control.js'
 
 export function sendHtml (
   res: ServerResponse,
@@ -66,7 +67,7 @@ export function sendIslandHtml (
     'X-Valence-Fragment': '1'
   }
   if (options?.maxAge !== undefined) {
-    headers['Cache-Control'] = `public, max-age=${options.maxAge}`
+    headers['Cache-Control'] = cacheControl('island', { maxAge: options.maxAge })
   }
   sendHtml(res, html, 200, headers)
 }
