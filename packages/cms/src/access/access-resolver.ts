@@ -13,13 +13,7 @@ export function resolveAccess (
   }
 
   return ResultAsync.fromPromise(
-    new Promise<boolean | WhereClause>((resolve, reject) => {
-      try {
-        resolve(accessFn(args))
-      } catch (e: unknown) {
-        reject(e)
-      }
-    }),
+    Promise.resolve().then(() => accessFn(args)),
     (e: unknown): CmsError => ({
       code: CmsErrorCode.INTERNAL,
       message: e instanceof Error ? e.message : 'Access check failed'

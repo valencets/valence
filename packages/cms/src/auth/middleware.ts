@@ -15,7 +15,9 @@ function parseCookie (cookieHeader: string, name: string): string | null {
   return match.slice(name.length + 1)
 }
 
-export function createAuthMiddleware (pool: DbPool) {
+export type AuthMiddleware = (req: IncomingMessage, res: ServerResponse, next: (ctx: AuthContext) => void) => Promise<void>
+
+export function createAuthMiddleware (pool: DbPool): AuthMiddleware {
   return async (
     req: IncomingMessage,
     res: ServerResponse,

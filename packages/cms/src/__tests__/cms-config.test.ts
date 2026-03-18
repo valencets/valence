@@ -13,7 +13,7 @@ function makeMockPool (): DbPool {
 }
 
 describe('buildCms()', () => {
-  it('returns a CmsInstance with api and collections', () => {
+  it('returns Ok with CmsInstance', () => {
     const config: CmsConfig = {
       db: makeMockPool(),
       secret: 'test-secret',
@@ -24,7 +24,9 @@ describe('buildCms()', () => {
         })
       ]
     }
-    const cms = buildCms(config)
+    const result = buildCms(config)
+    expect(result.isOk()).toBe(true)
+    const cms = result._unsafeUnwrap()
     expect(cms.api).toBeDefined()
     expect(cms.collections.has('posts')).toBe(true)
   })
@@ -38,8 +40,21 @@ describe('buildCms()', () => {
         global({ slug: 'site-settings', fields: [field.text({ name: 'siteName' })] })
       ]
     }
-    const cms = buildCms(config)
-    expect(cms.globals.has('site-settings')).toBe(true)
+    const result = buildCms(config)
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap().globals.has('site-settings')).toBe(true)
+  })
+
+  it('returns Err on duplicate collection slug', () => {
+    const posts = collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      collections: [posts, posts]
+    }
+    const result = buildCms(config)
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().code).toBe('DUPLICATE_SLUG')
   })
 
   it('applies plugins in order', () => {
@@ -72,7 +87,9 @@ describe('buildCms()', () => {
       ],
       plugins: [addPagesPlugin]
     }
-    const cms = buildCms(config)
+    const result = buildCms(config)
+    expect(result.isOk()).toBe(true)
+    const cms = result._unsafeUnwrap()
     expect(cms.collections.has('posts')).toBe(true)
     expect(cms.collections.has('pages')).toBe(true)
   })
@@ -87,7 +104,7 @@ describe('CmsInstance', () => {
         collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
       ]
     }
-    const cms = buildCms(config)
+    const cms = buildCms(config)._unsafeUnwrap()
     expect(cms.restRoutes).toBeDefined()
     expect(cms.restRoutes.has('/api/posts')).toBe(true)
   })
@@ -100,7 +117,7 @@ describe('CmsInstance', () => {
         collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
       ]
     }
-    const cms = buildCms(config)
+    const cms = buildCms(config)._unsafeUnwrap()
     expect(cms.adminRoutes).toBeDefined()
     expect(cms.adminRoutes.has('/admin')).toBe(true)
   })
