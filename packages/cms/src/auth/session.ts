@@ -47,6 +47,14 @@ export function validateSession (sessionId: string, pool: DbPool): ResultAsync<s
   })
 }
 
+export function buildSessionCookie (sessionId: string, maxAgeSeconds: number = 7200): string {
+  return `cms_session=${sessionId}; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=${maxAgeSeconds}`
+}
+
+export function buildExpiredSessionCookie (): string {
+  return 'cms_session=; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=0'
+}
+
 export function destroySession (sessionId: string, pool: DbPool): ResultAsync<void, CmsError> {
   return ResultAsync.fromPromise(
     pool.sql(

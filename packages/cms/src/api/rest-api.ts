@@ -6,7 +6,7 @@ import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
 import { createLocalApi } from './local-api.js'
 import type { DocumentData } from '../db/query-builder.js'
-import { generateZodSchema } from '../validation/zod-generator.js'
+import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
 
 export type RestRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
@@ -125,6 +125,13 @@ export function createRestRoutes (
         if (bodyResult.isErr()) { sendErrorJson(res, bodyResult.error.message, 400); return }
         const parseResult = await safeJsonParse(bodyResult.value)
         if (parseResult.isErr()) { sendErrorJson(res, parseResult.error.message, 400); return }
+        const partialSchema = generatePartialSchema(col.fields)
+        const validation = partialSchema.safeParse(parseResult.value)
+        if (!validation.success) {
+          const issues = validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
+          sendErrorJson(res, `Validation failed: ${issues}`, 400)
+          return
+        }
         const result = await api.update({ collection: slug, id, data: parseResult.value })
         result.match(
           (doc) => sendJson(res, doc as DocumentData),

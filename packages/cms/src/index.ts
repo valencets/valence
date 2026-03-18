@@ -81,14 +81,21 @@ export type {
 export {
   isAuthEnabled,
   getAuthConfig,
+  getAuthFields,
+  injectAuthFields,
   hashPassword,
   verifyPassword,
   createSession,
   validateSession,
   destroySession,
-  createAuthMiddleware
+  buildSessionCookie,
+  buildExpiredSessionCookie,
+  createAuthMiddleware,
+  generateCsrfToken,
+  validateCsrfToken,
+  createAuthRoutes
 } from './auth/index.js'
-export type { AuthConfig, AuthContext } from './auth/index.js'
+export type { AuthConfig, AuthContext, AuthMiddleware } from './auth/index.js'
 
 export { createLocalApi, createRestRoutes } from './api/index.js'
 export type { LocalApi, RestRouteHandler, RestRouteEntry } from './api/index.js'
@@ -102,7 +109,8 @@ export {
   createAdminRoutes
 } from './admin/index.js'
 
-export { isUploadEnabled, getMediaFields, getMimeType, createServeHandler } from './media/index.js'
+export { isUploadEnabled, getMediaFields, getMimeType, createServeHandler, createUploadHandler } from './media/index.js'
+export type { UploadResult } from './media/index.js'
 
 export { buildCms } from './config/index.js'
 export type { CmsConfig, CmsInstance, Plugin } from './config/index.js'

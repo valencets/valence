@@ -1,12 +1,5 @@
 import type { FieldConfig } from '../schema/field-types.js'
-
-function escapeHtml (str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+import { escapeHtml } from './escape.js'
 
 const RENDERER_MAP: Record<string, (f: FieldConfig, value: string) => string> = {
   text: renderTextInput,
