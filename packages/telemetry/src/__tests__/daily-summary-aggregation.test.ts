@@ -1,25 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { generateDailySummary } from '../daily-summary-aggregation.js'
 import type { DbPool } from '@valencets/db'
-
-function makeMockPool (returnValues: Record<string, unknown[]>): DbPool {
-  let callIndex = 0
-  const keys = Object.keys(returnValues)
-  const sql = vi.fn(() => {
-    const key = keys[callIndex] ?? keys[keys.length - 1]
-    const result = returnValues[key ?? ''] ?? []
-    callIndex++
-    return Promise.resolve(result)
-  }) as unknown as DbPool['sql']
-  Object.defineProperty(sql, 'json', { value: (v: unknown) => v })
-  return { sql }
-}
-
-function makeErrorPool (error: Error): DbPool {
-  const sql = vi.fn(() => Promise.reject(error)) as unknown as DbPool['sql']
-  Object.defineProperty(sql, 'json', { value: (v: unknown) => v })
-  return { sql }
-}
+import { makeSequentialMockPool, makeErrorPool } from './test-helpers.js'
 
 describe('generateDailySummary', () => {
   it('is a function', () => {
@@ -27,7 +9,7 @@ describe('generateDailySummary', () => {
   })
 
   it('returns a ResultAsync', () => {
-    const pool = makeMockPool({
+    const pool = makeSequentialMockPool({
       sessions: [{ total_sessions: 10 }],
       pageviews: [{ pageview_count: 50 }],
       conversions: [{ conversion_count: 3 }],
@@ -64,7 +46,7 @@ describe('generateDailySummary', () => {
   })
 
   it('accepts siteId, businessType, and date parameters', () => {
-    const pool = makeMockPool({
+    const pool = makeSequentialMockPool({
       q1: [{ total_sessions: 0 }],
       q2: [{ pageview_count: 0 }],
       q3: [{ conversion_count: 0 }],

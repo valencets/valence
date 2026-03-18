@@ -1,18 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { getDailySummary, getUnsyncedDailySummaries, markSynced, insertDailySummaryFromRemote, getDailyBreakdowns, getDailyTrend } from '../daily-summary-queries.js'
 import type { DbPool } from '@valencets/db'
-
-function makeMockPool (returnValue: unknown = []): DbPool {
-  const sql = vi.fn(() => Promise.resolve(returnValue)) as unknown as DbPool['sql']
-  Object.defineProperty(sql, 'json', { value: (v: unknown) => v })
-  return { sql }
-}
-
-function makeErrorPool (error: Error): DbPool {
-  const sql = vi.fn(() => Promise.reject(error)) as unknown as DbPool['sql']
-  Object.defineProperty(sql, 'json', { value: (v: unknown) => v })
-  return { sql }
-}
+import { makeMockPool, makeErrorPool } from './test-helpers.js'
 
 const mockRow = {
   id: 1,
