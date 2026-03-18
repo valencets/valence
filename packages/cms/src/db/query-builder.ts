@@ -69,6 +69,7 @@ function validateDataKeys (data: DocumentData, allowedFields: Set<string>): CmsE
 
 function buildWhereSql (state: QueryState): string {
   const parts: string[] = []
+  let paramIdx = 0
 
   if (!state.includeDeleted) {
     parts.push('"deleted_at" IS NULL')
@@ -79,9 +80,11 @@ function buildWhereSql (state: QueryState): string {
     if (w.operator === 'exists') {
       parts.push(`${col} ${w.value ? 'IS NOT NULL' : 'IS NULL'}`)
     } else if (w.operator === 'in') {
-      parts.push(`${col} = ANY($${parts.length + 1})`)
+      paramIdx++
+      parts.push(`${col} = ANY($${paramIdx})`)
     } else {
-      parts.push(`${col} ${OPERATOR_SQL[w.operator]} $${parts.length + 1}`)
+      paramIdx++
+      parts.push(`${col} ${OPERATOR_SQL[w.operator]} $${paramIdx}`)
     }
   }
 
