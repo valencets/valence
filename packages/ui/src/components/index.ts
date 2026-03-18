@@ -1,2 +1,8 @@
-// Component registrations — populated in Phase 2+
-export {}
+export { ValButton } from './val-button.js'
+export { ValInput } from './val-input.js'
+export { ValTextarea } from './val-textarea.js'
+export { ValSelect } from './val-select.js'
+export { ValCheckbox } from './val-checkbox.js'
+export { ValToggle } from './val-toggle.js'
+export { ValForm } from './val-form.js'
+export type { ValSubmitDetail } from './val-form.js'
