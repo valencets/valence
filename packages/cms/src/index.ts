@@ -103,3 +103,6 @@ export {
 } from './admin/index.js'
 
 export { isUploadEnabled, getMediaFields, getMimeType, createServeHandler } from './media/index.js'
+
+export { buildCms } from './config/index.js'
+export type { CmsConfig, CmsInstance, Plugin } from './config/index.js'
