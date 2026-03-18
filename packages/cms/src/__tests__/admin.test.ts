@@ -184,3 +184,28 @@ describe('admin POST handlers', () => {
     expect(entry?.POST).toBeDefined()
   })
 })
+
+describe('admin auth protection', () => {
+  it('createAdminRoutes accepts requireAuth flag', () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry, { requireAuth: true })
+    expect(routes.has('/admin')).toBe(true)
+  })
+
+  it('protected admin GET returns 401 without session cookie', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry, { requireAuth: true })
+    const handler = routes.get('/admin')?.GET
+    const req = { headers: {}, url: '/admin', method: 'GET' }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object))
+  })
+})
