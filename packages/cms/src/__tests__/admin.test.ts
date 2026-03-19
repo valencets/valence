@@ -324,3 +324,36 @@ describe('renderEditView() with relation context', () => {
     expect(html).toContain('General')
   })
 })
+
+describe('nonce threading', () => {
+  it('renderLayout adds nonce to inline toast script', () => {
+    const html = renderLayout({
+      title: 'Test',
+      content: '<p>hi</p>',
+      collections: [makePostsCollection()],
+      toast: { type: 'success', text: 'Saved' },
+      nonce: 'test-nonce-123'
+    })
+    expect(html).toContain('nonce="test-nonce-123"')
+    // Both the toast script and the admin-client script should have the nonce
+    const scriptMatches = html.match(/<script/g) ?? []
+    const nonceMatches = html.match(/nonce="test-nonce-123"/g) ?? []
+    expect(nonceMatches.length).toBe(scriptMatches.length)
+  })
+
+  it('renderLayout adds nonce to admin-client script tag', () => {
+    const html = renderLayout({
+      title: 'Test',
+      content: '',
+      collections: [],
+      nonce: 'abc'
+    })
+    expect(html).toContain('<script src="/admin/_assets/admin-client.js" nonce="abc" defer>')
+  })
+
+  it('renderEditView adds nonce to delete dialog script', () => {
+    const doc = { id: '1', title: 'T', slug: 's', published: 'true' }
+    const html = renderEditView(makePostsCollection(), doc, 'tok', undefined, 'delete-nonce')
+    expect(html).toContain('nonce="delete-nonce"')
+  })
+})

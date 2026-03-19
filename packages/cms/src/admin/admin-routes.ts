@@ -28,6 +28,7 @@ import { readStringBody } from '../api/read-body.js'
 import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
 import { setFlashCookie, readFlash, clearFlashCookie } from './flash.js'
 import { readFileSync } from 'node:fs'
+import { generateNonce, setSecurityHeaders, CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
 import { fileURLToPath } from 'node:url'
 
 type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
@@ -67,12 +68,15 @@ function safeReadFormBody (req: IncomingMessage): ResultAsync<DocumentData, CmsE
   })
 }
 
-/** Sends HTML using setHeader so previously set headers (e.g. Set-Cookie) are preserved. */
+/** Sends HTML with CSP nonce: generates nonce, replaces placeholders, sets security headers. */
 function sendHtml (res: ServerResponse, html: string, statusCode: number = 200): void {
+  const nonce = generateNonce()
+  const finalHtml = html.replaceAll(CSP_NONCE_PLACEHOLDER, nonce)
+  setSecurityHeaders(res, { nonce })
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
-  res.setHeader('Content-Length', Buffer.byteLength(html))
+  res.setHeader('Content-Length', Buffer.byteLength(finalHtml))
   res.writeHead(statusCode)
-  res.end(html)
+  res.end(finalHtml)
 }
 
 interface FormSnapshot {

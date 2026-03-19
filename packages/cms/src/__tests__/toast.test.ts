@@ -61,7 +61,7 @@ describe('renderLayout() with toast', () => {
       collections: [col],
       toast: { type: 'success', text: 'Saved' }
     })
-    expect(html).toContain('<script>')
+    expect(html).toContain('<script ')
     expect(html).toContain('toast-fade')
   })
 
@@ -72,7 +72,9 @@ describe('renderLayout() with toast', () => {
       collections: [col]
     })
     expect(html).not.toContain('class="toast')
-    expect(html).not.toContain('<script>')
+    // Only the admin-client script tag should be present (no toast inline script)
+    const scriptTags = html.match(/<script/g) ?? []
+    expect(scriptTags.length).toBe(1)
   })
 
   it('includes toast CSS', () => {

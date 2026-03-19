@@ -61,4 +61,24 @@ describe('resolveStaticPath', () => {
     const result = resolveStaticPath('/file\0.js', '/srv/public')
     expect(result.isErr()).toBe(true)
   })
+
+  it('rejects backslash in path', () => {
+    const result = resolveStaticPath('/foo\\bar', '/srv/public')
+    expect(result.isErr()).toBe(true)
+  })
+
+  it('rejects encoded backslash %5c', () => {
+    const result = resolveStaticPath('/foo%5cbar', '/srv/public')
+    expect(result.isErr()).toBe(true)
+  })
+
+  it('rejects encoded backslash %5C', () => {
+    const result = resolveStaticPath('/foo%5Cbar', '/srv/public')
+    expect(result.isErr()).toBe(true)
+  })
+
+  it('rejects control characters in path', () => {
+    const result = resolveStaticPath('/foo\x01bar', '/srv/public')
+    expect(result.isErr()).toBe(true)
+  })
 })

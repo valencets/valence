@@ -1,4 +1,5 @@
 import type { CollectionConfig } from '../schema/collection.js'
+import { CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
 import type { FlashMessage } from './flash.js'
 import { escapeHtml } from './escape.js'
 import { renderToast } from './toast.js'
@@ -8,6 +9,7 @@ interface LayoutArgs {
   readonly content: string
   readonly collections: readonly CollectionConfig[]
   readonly toast?: FlashMessage | undefined
+  readonly nonce?: string | undefined
 }
 
 export function renderLayout (args: LayoutArgs): string {
@@ -521,7 +523,7 @@ ${navItems}
     ${args.content}
   </main>
   ${toastHtml
-    ? `<script>
+    ? `<script${args.nonce ? ` nonce="${args.nonce}"` : ' nonce="' + CSP_NONCE_PLACEHOLDER + '"'}>
     (function () {
       var t = document.querySelector('.toast')
       if (!t) return
@@ -531,7 +533,7 @@ ${navItems}
     })()
   </script>`
     : ''}
-  <script src="/admin/_assets/admin-client.js" defer></script>
+  <script src="/admin/_assets/admin-client.js"${args.nonce ? ` nonce="${args.nonce}"` : ' nonce="' + CSP_NONCE_PLACEHOLDER + '"'} defer></script>
 </body>
 </html>`
 }
