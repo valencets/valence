@@ -1,5 +1,7 @@
 export { ServerErrorCode, createServerRouter } from './server-router.js'
 export type { ServerError, RouteHandler, RouteEntry, ServerRouter } from './server-types.js'
+export type { RequestContext, Middleware, ErrorHandler } from './middleware-types.js'
+export { createRequestContext } from './request-context.js'
 export { sendHtml, sendJson, sendError, isFragmentRequest, readBody, sendIslandHtml } from './http-helpers.js'
 export type { IslandHtmlOptions } from './http-helpers.js'
 export { cacheControl, setCacheHeaders, versionedUrl } from './cache-control.js'
