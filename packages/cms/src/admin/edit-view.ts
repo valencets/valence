@@ -14,7 +14,10 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
     : `/admin/${escapeHtml(col.slug)}/${escapeHtml(String(doc.id ?? ''))}/edit`
 
   const fieldInputs = col.fields.map(f => {
-    const value = doc ? String(doc[f.name] ?? '') : ''
+    const raw = doc ? doc[f.name] : null
+    const value = Object.prototype.toString.call(raw) === '[object Date]'
+      ? (raw as unknown as Date).toISOString().slice(0, 10)
+      : String(raw ?? '')
     return renderFieldInput(f, value)
   }).join('\n')
 
