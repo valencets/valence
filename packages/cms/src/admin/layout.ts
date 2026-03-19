@@ -382,6 +382,49 @@ export function renderLayout (args: LayoutArgs): string {
       margin: 0.5rem 0;
     }
     .richtext-content a { color: var(--val-blue-400); text-decoration: underline; }
+    .richtext-content code {
+      background: var(--val-color-bg-elevated);
+      padding: 0.125rem 0.375rem;
+      border-radius: var(--val-radius-sm);
+      font-family: var(--val-font-mono);
+      font-size: 0.85em;
+    }
+    .form-json {
+      min-height: 120px;
+      resize: vertical;
+      background: var(--val-color-bg-muted);
+      border: 1px solid var(--val-color-border);
+      border-radius: var(--val-radius-md);
+      padding: 0.5rem 0.75rem;
+      color: var(--val-color-text);
+      font-family: var(--val-font-mono);
+      font-size: var(--val-text-sm);
+      line-height: var(--val-leading-normal);
+    }
+    .form-json:focus {
+      outline: none;
+      border-color: var(--val-color-border-focus);
+      box-shadow: var(--val-focus-ring);
+    }
+    .array-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .array-add {
+      align-self: flex-start;
+      background: var(--val-color-bg-muted);
+      border: 1px dashed var(--val-color-border);
+      border-radius: var(--val-radius-md);
+      padding: 0.375rem 0.75rem;
+      color: var(--val-color-text-muted);
+      font-size: var(--val-text-sm);
+      cursor: pointer;
+    }
+    .array-add:hover {
+      border-color: var(--val-blue-500);
+      color: var(--val-color-text);
+    }
 
     /* --- Responsive --- */
     @media (max-width: 768px) {

@@ -1,37 +1,95 @@
-import { createEditor, $getRoot, $insertNodes, type LexicalEditor } from 'lexical'
-import { registerRichText, HeadingNode, QuoteNode } from '@lexical/rich-text'
-import { ListNode, ListItemNode, registerList } from '@lexical/list'
-import { LinkNode } from '@lexical/link'
+import { createEditor, $getRoot, $getSelection, $isRangeSelection, $insertNodes, FORMAT_TEXT_COMMAND, type LexicalEditor } from 'lexical'
+import { registerRichText, HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text'
+import { ListNode, ListItemNode, registerList, INSERT_UNORDERED_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND } from '@lexical/list'
+import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link'
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html'
 import { registerHistory, createEmptyHistoryState } from '@lexical/history'
-import { FORMAT_TEXT_COMMAND } from 'lexical'
+import { $setBlocksType } from '@lexical/selection'
 
-interface ToolbarAction {
+export interface ToolbarActionDef {
   readonly label: string
-  readonly command: () => void
+  readonly type: string
+}
+
+export const TOOLBAR_ACTIONS: readonly ToolbarActionDef[] = [
+  { label: 'B', type: 'format-bold' },
+  { label: 'I', type: 'format-italic' },
+  { label: 'U', type: 'format-underline' },
+  { label: 'H2', type: 'heading' },
+  { label: 'UL', type: 'bullet-list' },
+  { label: 'OL', type: 'number-list' },
+  { label: 'Quote', type: 'blockquote' },
+  { label: 'Code', type: 'format-code' }
+]
+
+function dispatchAction (editor: LexicalEditor, action: ToolbarActionDef): void {
+  switch (action.type) {
+    case 'format-bold':
+      editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')
+      break
+    case 'format-italic':
+      editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')
+      break
+    case 'format-underline':
+      editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')
+      break
+    case 'format-code':
+      editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')
+      break
+    case 'heading':
+      editor.update(() => {
+        const selection = $getSelection()
+        if ($isRangeSelection(selection)) {
+          $setBlocksType(selection, () => $createHeadingNode('h2'))
+        }
+      })
+      break
+    case 'bullet-list':
+      editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)
+      break
+    case 'number-list':
+      editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined)
+      break
+    case 'blockquote':
+      editor.update(() => {
+        const selection = $getSelection()
+        if ($isRangeSelection(selection)) {
+          $setBlocksType(selection, () => $createQuoteNode())
+        }
+      })
+      break
+  }
 }
 
 function createToolbar (editor: LexicalEditor): HTMLElement {
   const toolbar = document.createElement('div')
   toolbar.className = 'richtext-toolbar'
 
-  const actions: readonly ToolbarAction[] = [
-    { label: 'B', command: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold') },
-    { label: 'I', command: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic') },
-    { label: 'U', command: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline') }
-  ]
-
-  for (const action of actions) {
+  for (const action of TOOLBAR_ACTIONS) {
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'richtext-toolbar-btn'
     btn.textContent = action.label
     btn.addEventListener('click', (e) => {
       e.preventDefault()
-      action.command()
+      dispatchAction(editor, action)
     })
     toolbar.appendChild(btn)
   }
+
+  // Link button is special — needs URL prompt
+  const linkBtn = document.createElement('button')
+  linkBtn.type = 'button'
+  linkBtn.className = 'richtext-toolbar-btn'
+  linkBtn.textContent = 'Link'
+  linkBtn.addEventListener('click', (e) => {
+    e.preventDefault()
+    const url = prompt('Enter URL:')
+    if (url) {
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, url)
+    }
+  })
+  toolbar.appendChild(linkBtn)
 
   return toolbar
 }
@@ -62,7 +120,8 @@ function initEditor (container: HTMLElement): void {
       text: {
         bold: 'richtext-bold',
         italic: 'richtext-italic',
-        underline: 'richtext-underline'
+        underline: 'richtext-underline',
+        code: 'richtext-code'
       },
       list: {
         ul: 'richtext-ul',
