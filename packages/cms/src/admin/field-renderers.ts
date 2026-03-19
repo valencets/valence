@@ -1,6 +1,15 @@
 import type { FieldConfig } from '../schema/field-types.js'
 import { escapeHtml } from './escape.js'
 
+export interface RelationOption {
+  readonly id: string
+  readonly label: string
+}
+
+export interface RelationContext {
+  readonly [fieldName: string]: readonly RelationOption[]
+}
+
 const RENDERER_MAP: Record<string, (f: FieldConfig, value: string) => string> = {
   text: renderTextInput,
   slug: renderTextInput,
@@ -11,7 +20,7 @@ const RENDERER_MAP: Record<string, (f: FieldConfig, value: string) => string> = 
   select: renderSelect,
   date: renderDateInput,
   media: renderTextInput,
-  relation: renderTextInput,
+  relation: renderRelation,
   group: renderGroup
 }
 
@@ -60,6 +69,18 @@ function renderRichtextEditor (f: FieldConfig, value: string): string {
   return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><div class="richtext-wrap"><input type="hidden" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"><div class="richtext-editor" data-field="${escapeHtml(f.name)}"></div>${templateTag}</div></label>`
 }
 
+function renderRelation (f: FieldConfig, value: string, context?: RelationContext): string {
+  const options = context?.[f.name]
+  if (!options) return renderTextInput(f, value)
+  const req = f.required ? ' required' : ''
+  const emptyOpt = f.required ? '' : '<option value="">— None —</option>'
+  const optionTags = options.map(o => {
+    const sel = o.id === value ? ' selected' : ''
+    return `<option value="${escapeHtml(o.id)}"${sel}>${escapeHtml(o.label)}</option>`
+  }).join('')
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><select class="form-select" name="${escapeHtml(f.name)}"${req}>${emptyOpt}${optionTags}</select></label>`
+}
+
 function renderGroup (f: FieldConfig, _value: string): string {
   const inner = 'fields' in f
     ? f.fields.map(child => renderFieldInput(child, '')).join('\n')
@@ -67,8 +88,9 @@ function renderGroup (f: FieldConfig, _value: string): string {
   return `<fieldset><legend>${escapeHtml(f.label ?? f.name)}</legend>${inner}</fieldset>`
 }
 
-export function renderFieldInput (f: FieldConfig, value: string): string {
+export function renderFieldInput (f: FieldConfig, value: string, context?: RelationContext): string {
   const renderer = RENDERER_MAP[f.type]
   if (!renderer) return `<p>Unsupported field type: ${escapeHtml(f.type)}</p>`
+  if (f.type === 'relation') return renderRelation(f, value, context)
   return renderer(f, value)
 }

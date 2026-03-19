@@ -1,5 +1,6 @@
 import type { CollectionConfig } from '../schema/collection.js'
 import { renderFieldInput } from './field-renderers.js'
+import type { RelationContext } from './field-renderers.js'
 import { escapeHtml } from './escape.js'
 
 interface DocRow {
@@ -7,7 +8,7 @@ interface DocRow {
   readonly [key: string]: string | number | boolean | Date | null | undefined
 }
 
-export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = ''): string {
+export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = '', relationContext?: RelationContext): string {
   const isNew = doc === null
   const action = isNew
     ? `/admin/${escapeHtml(col.slug)}/new`
@@ -18,7 +19,7 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
     const value = raw instanceof Date
       ? raw.toISOString().slice(0, 10)
       : String(raw ?? '')
-    return renderFieldInput(f, value)
+    return renderFieldInput(f, value, relationContext)
   }).join('\n')
 
   const csrfField = csrfToken ? `<input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">` : ''

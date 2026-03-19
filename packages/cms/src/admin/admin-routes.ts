@@ -12,6 +12,7 @@ import { renderLayout } from './layout.js'
 import { renderDashboard } from './dashboard.js'
 import { renderListView } from './list-view.js'
 import { renderEditView } from './edit-view.js'
+import type { RelationContext } from './field-renderers.js'
 import { createLocalApi } from '../api/local-api.js'
 import { createGlobalRegistry } from '../schema/registry.js'
 import { validateSession } from '../auth/session.js'
@@ -77,12 +78,13 @@ function renderErrorPage (
   title: string,
   formData: FormSnapshot,
   csrfToken: string,
-  toast: FlashMessage
+  toast: FlashMessage,
+  relationContext?: RelationContext
 ): string {
   const docRow = Object.keys(formData).length > 0
     ? formData as FormSnapshot & { id?: string }
     : null
-  const content = renderEditView(col, docRow, csrfToken)
+  const content = renderEditView(col, docRow, csrfToken, relationContext)
   return renderLayout({ title, content, collections: allCollections, toast })
 }
 
@@ -123,6 +125,26 @@ export function createAdminRoutes (
     const token = generateCsrfToken()
     csrfTokens.set(token, Date.now())
     return token
+  }
+
+  async function buildRelationContext (col: CollectionConfig): Promise<RelationContext> {
+    const context: Record<string, Array<{ id: string; label: string }>> = {}
+    for (const f of col.fields) {
+      if (f.type !== 'relation' || !('relationTo' in f)) continue
+      const relCol = collections.get(f.relationTo)
+      if (relCol.isErr()) continue
+      const result = await api.find({ collection: f.relationTo })
+      const rows = result.match(
+        (r) => r as Array<{ id: string; [key: string]: string | number | boolean | null }>,
+        () => []
+      )
+      const firstTextField = relCol.value.fields.find(rf => rf.type === 'text')
+      context[f.name] = rows.map(row => ({
+        id: String(row.id),
+        label: firstTextField ? String(row[firstTextField.name] ?? row.id) : String(row.id)
+      }))
+    }
+    return context
   }
 
   routes.set('/admin/_assets/admin-client.js', {
@@ -192,7 +214,8 @@ export function createAdminRoutes (
     routes.set(`/admin/${col.slug}/new`, {
       GET: wrap(async (_req, res) => {
         const token = freshCsrfToken()
-        const content = renderEditView(col, null, token)
+        const relationContext = await buildRelationContext(col)
+        const content = renderEditView(col, null, token, relationContext)
         const html = renderLayout({
           title: `New ${col.labels?.singular ?? col.slug}`,
           content,
@@ -289,7 +312,8 @@ export function createAdminRoutes (
           return
         }
         const token = freshCsrfToken()
-        const content = renderEditView(col, doc, token)
+        const relationContext = await buildRelationContext(col)
+        const content = renderEditView(col, doc, token, relationContext)
         const html = renderLayout({
           title: `Edit ${col.labels?.singular ?? col.slug}`,
           content,
