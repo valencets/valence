@@ -17,7 +17,7 @@ import { parseCookie } from '../auth/cookie.js'
 import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { escapeHtml } from './escape.js'
 import { readStringBody } from '../api/read-body.js'
-import { generateZodSchema } from '../validation/zod-generator.js'
+import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
 
 type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
@@ -153,6 +153,58 @@ export function createAdminRoutes (
           return
         }
         const result = await api.create({ collection: col.slug, data })
+        result.match(
+          () => {
+            res.writeHead(302, { Location: `/admin/${col.slug}` })
+            res.end()
+          },
+          (err) => sendHtml(res, `Error: ${escapeHtml(err.message)}`, 400)
+        )
+      })
+    })
+
+    routes.set(`/admin/${col.slug}/:id/edit`, {
+      GET: wrap(async (req, res, ctx) => {
+        const id = ctx.id ?? ''
+        const docResult = await api.findByID({ collection: col.slug, id })
+        const doc = docResult.match(
+          (row) => row as { id: string, [key: string]: string | number | boolean | null | undefined } | null,
+          () => null
+        )
+        if (!doc) {
+          sendHtml(res, 'Not found', 404)
+          return
+        }
+        const token = generateCsrfToken()
+        csrfTokens.set(token, Date.now())
+        const content = renderEditView(col, doc, token)
+        const html = renderLayout({
+          title: `Edit ${col.labels?.singular ?? col.slug}`,
+          content,
+          collections: allCollections
+        })
+        sendHtml(res, html)
+      }),
+      POST: wrap(async (req, res, ctx) => {
+        const id = ctx.id ?? ''
+        const bodyResult = await safeReadFormBody(req)
+        if (bodyResult.isErr()) { sendHtml(res, 'Bad request', 400); return }
+        const formData = bodyResult.value
+        const submittedToken = String(formData._csrf ?? '')
+        if (!submittedToken || !validateCsrf(submittedToken)) {
+          res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' })
+          res.end('Forbidden: invalid CSRF token')
+          return
+        }
+        const { _csrf, ...data } = formData
+        const zodSchema = generatePartialSchema(col.fields)
+        const validation = zodSchema.safeParse(data)
+        if (!validation.success) {
+          const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
+          sendHtml(res, `Validation failed: ${escapeHtml(issues)}`, 400)
+          return
+        }
+        const result = await api.update({ collection: col.slug, id, data })
         result.match(
           () => {
             res.writeHead(302, { Location: `/admin/${col.slug}` })

@@ -104,6 +104,22 @@ describe('renderEditView()', () => {
     expect(html).toContain('Existing')
     expect(html).toContain('existing')
   })
+
+  it('new doc form action points to /admin/:slug/new', () => {
+    const html = renderEditView(makePostsCollection(), null, 'tok')
+    expect(html).toContain('action="/admin/posts/new"')
+  })
+
+  it('existing doc form action points to /admin/:slug/:id/edit', () => {
+    const doc = { id: '123', title: 'T', slug: 's', published: 'true' }
+    const html = renderEditView(makePostsCollection(), doc, 'tok')
+    expect(html).toContain('action="/admin/posts/123/edit"')
+  })
+
+  it('does not include data-method attribute', () => {
+    const html = renderEditView(makePostsCollection(), null)
+    expect(html).not.toContain('data-method')
+  })
 })
 
 describe('renderFieldInput()', () => {
@@ -171,6 +187,17 @@ describe('createAdminRoutes()', () => {
     expect(routes.has('/admin')).toBe(true)
     expect(routes.has('/admin/posts')).toBe(true)
     expect(routes.has('/admin/posts/new')).toBe(true)
+  })
+
+  it('registers /admin/:slug/:id/edit route with GET and POST', () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry)
+    const entry = routes.get('/admin/posts/:id/edit')
+    expect(entry).toBeDefined()
+    expect(entry?.GET).toBeDefined()
+    expect(entry?.POST).toBeDefined()
   })
 })
 
