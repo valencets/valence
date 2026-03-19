@@ -7,6 +7,7 @@ import type { CollectionRegistry } from '../schema/registry.js'
 import type { RestRouteEntry } from '../api/rest-api.js'
 import type { DocumentData } from '../db/query-builder.js'
 import type { FlashMessage } from './flash.js'
+import type { CollectionConfig } from '../schema/collection.js'
 import { renderLayout } from './layout.js'
 import { renderDashboard } from './dashboard.js'
 import { renderListView } from './list-view.js'
@@ -19,7 +20,6 @@ import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { readStringBody } from '../api/read-body.js'
 import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
 import { setFlashCookie, readFlash, clearFlashCookie } from './flash.js'
-import type { CollectionConfig } from '../schema/collection.js'
 
 type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
@@ -57,25 +57,28 @@ function safeReadFormBody (req: IncomingMessage): ResultAsync<DocumentData, CmsE
   })
 }
 
+/** Sends HTML using setHeader so previously set headers (e.g. Set-Cookie) are preserved. */
 function sendHtml (res: ServerResponse, html: string, statusCode: number = 200): void {
-  const headers: Record<string, string | number> = {
-    'Content-Type': 'text/html; charset=utf-8',
-    'Content-Length': Buffer.byteLength(html)
-  }
-  res.writeHead(statusCode, headers)
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('Content-Length', Buffer.byteLength(html))
+  res.writeHead(statusCode)
   res.end(html)
+}
+
+interface FormSnapshot {
+  readonly [key: string]: string
 }
 
 function renderErrorPage (
   col: CollectionConfig,
   allCollections: readonly CollectionConfig[],
   title: string,
-  formData: Record<string, string>,
+  formData: FormSnapshot,
   csrfToken: string,
   toast: FlashMessage
 ): string {
   const docRow = Object.keys(formData).length > 0
-    ? formData as Record<string, string> & { id?: string }
+    ? formData as FormSnapshot & { id?: string }
     : null
   const content = renderEditView(col, docRow, csrfToken)
   return renderLayout({ title, content, collections: allCollections, toast })
@@ -175,7 +178,7 @@ export function createAdminRoutes (
         const { _csrf, ...data } = formData
         if (!submittedToken || !validateCsrf(submittedToken)) {
           const token = freshCsrfToken()
-          const html = renderErrorPage(col, allCollections, `New ${col.labels?.singular ?? col.slug}`, data as Record<string, string>, token, { type: 'error', text: 'Forbidden: invalid CSRF token' })
+          const html = renderErrorPage(col, allCollections, `New ${col.labels?.singular ?? col.slug}`, data as FormSnapshot, token, { type: 'error', text: 'Forbidden: invalid CSRF token' })
           sendHtml(res, html, 403)
           return
         }
@@ -184,7 +187,7 @@ export function createAdminRoutes (
         if (!validation.success) {
           const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
           const token = freshCsrfToken()
-          const html = renderErrorPage(col, allCollections, `New ${col.labels?.singular ?? col.slug}`, data as Record<string, string>, token, { type: 'error', text: `Validation failed: ${issues}` })
+          const html = renderErrorPage(col, allCollections, `New ${col.labels?.singular ?? col.slug}`, data as FormSnapshot, token, { type: 'error', text: `Validation failed: ${issues}` })
           sendHtml(res, html, 400)
           return
         }
@@ -197,7 +200,7 @@ export function createAdminRoutes (
           },
           (err) => {
             const token = freshCsrfToken()
-            const html = renderErrorPage(col, allCollections, `New ${col.labels?.singular ?? col.slug}`, data as Record<string, string>, token, { type: 'error', text: `Error: ${err.message}` })
+            const html = renderErrorPage(col, allCollections, `New ${col.labels?.singular ?? col.slug}`, data as FormSnapshot, token, { type: 'error', text: `Error: ${err.message}` })
             sendHtml(res, html, 400)
           }
         )
@@ -239,7 +242,7 @@ export function createAdminRoutes (
         const { _csrf, ...data } = formData
         if (!submittedToken || !validateCsrf(submittedToken)) {
           const token = freshCsrfToken()
-          const html = renderErrorPage(col, allCollections, `Edit ${col.labels?.singular ?? col.slug}`, { id, ...data } as Record<string, string>, token, { type: 'error', text: 'Forbidden: invalid CSRF token' })
+          const html = renderErrorPage(col, allCollections, `Edit ${col.labels?.singular ?? col.slug}`, { id, ...data } as FormSnapshot, token, { type: 'error', text: 'Forbidden: invalid CSRF token' })
           sendHtml(res, html, 403)
           return
         }
@@ -248,7 +251,7 @@ export function createAdminRoutes (
         if (!validation.success) {
           const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
           const token = freshCsrfToken()
-          const html = renderErrorPage(col, allCollections, `Edit ${col.labels?.singular ?? col.slug}`, { id, ...data } as Record<string, string>, token, { type: 'error', text: `Validation failed: ${issues}` })
+          const html = renderErrorPage(col, allCollections, `Edit ${col.labels?.singular ?? col.slug}`, { id, ...data } as FormSnapshot, token, { type: 'error', text: `Validation failed: ${issues}` })
           sendHtml(res, html, 400)
           return
         }
@@ -261,7 +264,7 @@ export function createAdminRoutes (
           },
           (err) => {
             const token = freshCsrfToken()
-            const html = renderErrorPage(col, allCollections, `Edit ${col.labels?.singular ?? col.slug}`, { id, ...data } as Record<string, string>, token, { type: 'error', text: `Error: ${err.message}` })
+            const html = renderErrorPage(col, allCollections, `Edit ${col.labels?.singular ?? col.slug}`, { id, ...data } as FormSnapshot, token, { type: 'error', text: `Error: ${err.message}` })
             sendHtml(res, html, 400)
           }
         )

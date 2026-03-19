@@ -4,7 +4,7 @@ import { escapeHtml } from './escape.js'
 
 interface DocRow {
   readonly id?: string | undefined
-  readonly [key: string]: string | number | boolean | null | undefined
+  readonly [key: string]: string | number | boolean | Date | null | undefined
 }
 
 export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = ''): string {
@@ -15,8 +15,8 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
 
   const fieldInputs = col.fields.map(f => {
     const raw = doc ? doc[f.name] : null
-    const value = Object.prototype.toString.call(raw) === '[object Date]'
-      ? (raw as unknown as Date).toISOString().slice(0, 10)
+    const value = raw instanceof Date
+      ? raw.toISOString().slice(0, 10)
       : String(raw ?? '')
     return renderFieldInput(f, value)
   }).join('\n')

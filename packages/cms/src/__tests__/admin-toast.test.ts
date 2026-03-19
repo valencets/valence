@@ -60,7 +60,7 @@ describe('admin POST error re-rendering', () => {
     }
     await routes.get('/admin/posts/new')!.POST!(postReq as never, postRes as never, {})
 
-    expect(postRes.writeHead).toHaveBeenCalledWith(400, expect.any(Object))
+    expect(postRes.writeHead).toHaveBeenCalledWith(400)
     expect(postBody).toContain('toast-error')
     expect(postBody).toContain('Validation failed')
     // Form should be re-rendered with submitted values preserved
@@ -83,7 +83,7 @@ describe('admin POST error re-rendering', () => {
     }
     await routes.get('/admin/posts/new')!.POST!(req as never, res as never, {})
 
-    expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object))
+    expect(res.writeHead).toHaveBeenCalledWith(403)
     expect(body).toContain('toast-error')
     expect(body).toContain('CSRF')
     // Form should be re-rendered with the submitted data preserved
