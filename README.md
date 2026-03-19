@@ -20,7 +20,11 @@
 
 ---
 
-Valence is a schema-driven web framework for Node.js and PostgreSQL. One TypeScript schema gives you the database, admin UI, REST API, validation, and analytics. 18 native Web Components work in any framework or none. Zero third-party scripts in your visitor's browser.
+> **valence** /ˈveɪləns/ *n.* — in chemistry, the outermost electrons of an atom. The part that actually bonds with the world. Everything else is buried inside.
+
+Most frameworks hand you a skeleton and a plugin catalog. The CMS is a third-party install. The analytics is a vendor script. The component library needs its own build pipeline. You spend your time wiring seams together and debugging the gaps between things that were never designed to talk to each other.
+
+Valence puts the bonding layer first. Define collections and fields in TypeScript. The database tables, admin UI, REST API, validators, and migrations all derive from that single schema. 18 native Web Components work in any HTML page. Telemetry writes to your Postgres, not someone else's SaaS dashboard. Nothing phones home.
 
 ## Quick Start
 
@@ -36,11 +40,11 @@ pnpm test         # 1,028 tests
 
 | Package | What it does | Deps |
 |---------|-------------|------|
-| **@valencets/ui** | 18 Web Components + protocol base class. ARIA, i18n, telemetry hooks, CMS traceability, declarative hydration directives (`hydrate:idle`, `hydrate:visible`, `hydrate:media`, `hydrate:load`). OKLCH design tokens, optional Tailwind preset, theme contract. | zero |
-| **@valencets/core** | Router, server, client telemetry engine. `pushState` nav, fragment swaps, hover-intent prefetch, ring buffer event capture. | zero |
+| **@valencets/ui** | 18 Web Components. ARIA, i18n, telemetry hooks, hydration directives. OKLCH tokens, Tailwind preset, theme contract. | zero |
+| **@valencets/core** | Router + server. `pushState` nav, fragment swaps, hover-intent prefetch, ring buffer event capture. | zero |
 | **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized by default, `Result<T,E>` returns, migration runner. | zero |
-| **@valencets/cms** | Schema-driven content engine. `collection()` + `field.*` produces tables, Zod validators, REST API, admin UI, auth, media. | db |
-| **@valencets/telemetry** | Beacon, ingestion, event storage, daily summaries. Zero third-party scripts. | db |
+| **@valencets/cms** | Schema engine. `collection()` + `field.*` produces tables, Zod validators, REST API, admin UI, auth, media. | db |
+| **@valencets/telemetry** | Beacon, ingestion, event storage, daily summaries. Your data in your database. | db |
 
 ```
 ui        standalone
@@ -50,38 +54,43 @@ cms       db
 telemetry db
 ```
 
-## Why Valence
+---
 
-- **Schema is the source of truth.** Define collections and fields in TypeScript. Valence derives tables, endpoints, admin views, validators, and migrations.
-- **Native Web Components.** `val-*` elements use Custom Elements and `ElementInternals`. They work in React, Vue, Svelte, Astro, or plain HTML.
-- **Built-in telemetry.** Every component dispatches interaction events. When nobody listens, zero cost. When `@valencets/telemetry` is active, one event listener captures everything.
-- **Errors are values.** Every fallible operation returns `Result<T, E>`. No try/catch, no hidden failures.
-- **14kB critical shell.** First paint ships in the first TCP round trip. No CDN dependencies, no web fonts, no third-party scripts.
+**One schema.** Collections and fields in TypeScript. Tables, endpoints, admin views, validators, migrations. All derived. Change the schema, everything follows.
 
-## Constraints
+**Your code in their browser.** 14kB critical shell. First paint in the first TCP round trip. No CDN dependencies. No web fonts from Google. No third-party scripts. Ever.
 
-| Rule | Why |
-|------|-----|
-| Complexity < 20 | Every function fits on one screen |
-| `Result` monads | Errors visible in the type signature |
-| 14kB critical shell | First paint, first packet |
-| Pre-allocated ring buffer | Zero allocation in telemetry hot path |
-| Zero `any`, strict mode | If it compiles, the types are right |
-| Zero third-party browser JS | Your site, your code, your data |
+**Errors are values.** `Result<T, E>` on every fallible operation. Both branches handled or it doesn't compile. No try/catch. No "works on my machine."
+
+**Real components.** Custom Elements with `ElementInternals`. Work in React, Vue, Svelte, Astro, plain HTML. No virtual DOM. No framework lock-in.
+
+**Your data.** Telemetry captures interaction events into your Postgres. Not Mixpanel's. Not Google's. Yours.
+
+---
+
+## Non-Negotiable
+
+| Rule | |
+|------|---|
+| Complexity < 20 | Every function fits on one screen. No exceptions. |
+| `Result<T, E>` everywhere | If it can fail, the type signature says so. |
+| 14kB critical shell | First paint in the first TCP data flight. |
+| Pre-allocated ring buffer | Zero allocation in the telemetry hot path. |
+| Zero `any`, strict mode | If it compiles, the types are right. |
+| Zero third-party browser JS | Your site. Your code. Your data. |
 
 ## Documentation
 
 - [Getting Started](docs/GETTING-STARTED.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Developer Guide](docs/DEVELOPER-GUIDE.md)
-- [Contributing](CONTRIBUTING.md)
 - [CMS Reference](packages/cms/README.md)
 - [CMS Guide](packages/cms/docs/guide.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and the TDD workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, standards, and the TDD workflow.
 
 ## License
 
