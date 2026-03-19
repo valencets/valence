@@ -30,5 +30,8 @@
     "type": "git",
     "url": "git+https://github.com/valencets/valence.git",
     "directory": "packages/db"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
