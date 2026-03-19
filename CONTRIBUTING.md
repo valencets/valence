@@ -45,16 +45,12 @@ These will fail code review. No exceptions.
 | `Record<string, unknown>` | Loose typing | Explicit interfaces or typed unions |
 | `unknown` as property type | Loose typing | `string \| number \| boolean \| null` |
 | `.parse()` on Zod | Throws on failure | `.safeParse()` only |
-| `import React` (in Valence source) | Valence internals use native Web Components | Custom Elements + `ElementInternals` |
 | `localStorage`/`sessionStorage` | Fragile state | Server-delivered HTML |
 | `process.env` outside config | Scattered config | Centralized `loadConfig()` |
 | `export default` | Named exports only | `export function/class/const` |
 | `as never` | Unsafe cast | `safeQuery()` for DB, proper types |
 | `as unknown as` | Unsafe cast | Proper type narrowing |
 | `as any` | Defeats TypeScript | Never acceptable |
-
-> **Note:** Valence uses native Web Components internally. Your application can use any framework (React, Vue, Svelte, Astro, or plain HTML) to consume `val-*` components.
-
 ## Code Style
 
 - **Barrel exports** for all module directories (`index.ts`)
