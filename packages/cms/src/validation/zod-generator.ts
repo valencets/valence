@@ -27,7 +27,7 @@ function buildTextSchema (field: FieldConfig): ZodTypeAny {
 }
 
 function buildNumberSchema (field: FieldConfig): ZodTypeAny {
-  let schema = z.number()
+  let schema = z.coerce.number()
   if ('min' in field && field.min !== undefined) {
     schema = schema.min(field.min)
   }
@@ -38,7 +38,10 @@ function buildNumberSchema (field: FieldConfig): ZodTypeAny {
 }
 
 function buildBooleanSchema (_field: FieldConfig): ZodTypeAny {
-  return z.boolean()
+  return z.preprocess(
+    (val) => val === 'true' ? true : val === 'false' ? false : val,
+    z.boolean()
+  )
 }
 
 function buildSelectSchema (field: FieldConfig): ZodTypeAny {
@@ -53,8 +56,14 @@ function buildSelectSchema (field: FieldConfig): ZodTypeAny {
   return z.string()
 }
 
-function buildDateSchema (_field: FieldConfig): ZodTypeAny {
-  return z.string()
+function buildDateSchema (field: FieldConfig): ZodTypeAny {
+  if (field.required) {
+    return z.string().min(1)
+  }
+  return z.preprocess(
+    (val) => (typeof val === 'string' && val === '') ? undefined : val,
+    z.string().optional()
+  )
 }
 
 function buildSlugSchema (_field: FieldConfig): ZodTypeAny {

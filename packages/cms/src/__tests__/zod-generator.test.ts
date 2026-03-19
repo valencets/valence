@@ -68,6 +68,21 @@ describe('generateZodSchema()', () => {
     expect(schema.safeParse({ active: 'yes' }).success).toBe(false)
   })
 
+  it('coerces "true"/"false" strings to booleans for form submission', () => {
+    const fields: readonly FieldConfig[] = [
+      field.boolean({ name: 'published', required: true })
+    ]
+    const schema = generateZodSchema(fields)
+
+    const trueResult = schema.safeParse({ published: 'true' })
+    expect(trueResult.success).toBe(true)
+    if (trueResult.success) expect(trueResult.data.published).toBe(true)
+
+    const falseResult = schema.safeParse({ published: 'false' })
+    expect(falseResult.success).toBe(true)
+    if (falseResult.success) expect(falseResult.data.published).toBe(false)
+  })
+
   it('validates select fields against options', () => {
     const fields: readonly FieldConfig[] = [
       field.select({

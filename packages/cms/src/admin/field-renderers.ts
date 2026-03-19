@@ -16,12 +16,12 @@ const RENDERER_MAP: Record<string, (f: FieldConfig, value: string) => string> = 
 
 function renderTextInput (f: FieldConfig, value: string): string {
   const req = f.required ? ' required' : ''
-  return `<label>${escapeHtml(f.label ?? f.name)}<input type="text" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${req}></label>`
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><input class="form-input" type="text" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${req}></label>`
 }
 
 function renderTextarea (f: FieldConfig, value: string): string {
   const req = f.required ? ' required' : ''
-  return `<label>${escapeHtml(f.label ?? f.name)}<textarea name="${escapeHtml(f.name)}"${req}>${escapeHtml(value)}</textarea></label>`
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><textarea class="form-textarea" name="${escapeHtml(f.name)}"${req}>${escapeHtml(value)}</textarea></label>`
 }
 
 function renderNumberInput (f: FieldConfig, value: string): string {
@@ -29,12 +29,12 @@ function renderNumberInput (f: FieldConfig, value: string): string {
   let attrs = ''
   if ('min' in f && f.min !== undefined) attrs += ` min="${escapeHtml(String(f.min))}"`
   if ('max' in f && f.max !== undefined) attrs += ` max="${escapeHtml(String(f.max))}"`
-  return `<label>${escapeHtml(f.label ?? f.name)}<input type="number" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${attrs}${req}></label>`
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><input class="form-input" type="number" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${attrs}${req}></label>`
 }
 
 function renderCheckbox (f: FieldConfig, value: string): string {
   const checked = value === 'true' ? ' checked' : ''
-  return `<label><input type="checkbox" name="${escapeHtml(f.name)}" value="true"${checked}> ${escapeHtml(f.label ?? f.name)}</label>`
+  return `<label class="form-checkbox"><input type="hidden" name="${escapeHtml(f.name)}" value="false"><input type="checkbox" name="${escapeHtml(f.name)}" value="true"${checked}> ${escapeHtml(f.label ?? f.name)}</label>`
 }
 
 function renderSelect (f: FieldConfig, value: string): string {
@@ -44,12 +44,12 @@ function renderSelect (f: FieldConfig, value: string): string {
       return `<option value="${escapeHtml(o.value)}"${sel}>${escapeHtml(o.label)}</option>`
     }).join('')
     : ''
-  return `<label>${escapeHtml(f.label ?? f.name)}<select name="${escapeHtml(f.name)}">${options}</select></label>`
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><select class="form-select" name="${escapeHtml(f.name)}">${options}</select></label>`
 }
 
 function renderDateInput (f: FieldConfig, value: string): string {
   const req = f.required ? ' required' : ''
-  return `<label>${escapeHtml(f.label ?? f.name)}<input type="date" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${req}></label>`
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><input class="form-input" type="date" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${req}></label>`
 }
 
 function renderGroup (f: FieldConfig, _value: string): string {

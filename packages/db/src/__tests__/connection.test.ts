@@ -1,4 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const { mockPostgres } = vi.hoisted(() => {
+  const mockPostgres = vi.fn(() => Object.assign(() => {}, { end: () => Promise.resolve() }))
+  return { mockPostgres }
+})
+vi.mock('postgres', () => ({ default: mockPostgres }))
+
 import { validateDbConfig, createPool, mapPostgresError } from '../connection.js'
 import type { DbConfig } from '../types.js'
 
@@ -12,6 +19,10 @@ const validConfig: DbConfig = {
   idle_timeout: 30,
   connect_timeout: 5
 }
+
+beforeEach(() => {
+  mockPostgres.mockClear()
+})
 
 describe('validateDbConfig', () => {
   it('returns Ok for valid config', () => {
@@ -91,6 +102,20 @@ describe('createPool', () => {
     const pool = createPool(validConfig)
     expect(pool.sql).toBeDefined()
     expect(typeof pool.sql).toBe('function')
+  })
+
+  it('passes onnotice to suppress postgres NOTICE logs', () => {
+    createPool(validConfig)
+    const opts = mockPostgres.mock.calls[0]![0]
+    expect(opts).toHaveProperty('onnotice')
+    expect(typeof opts.onnotice).toBe('function')
+  })
+
+  it('passes onnotice when query_timeout is set', () => {
+    createPool({ ...validConfig, query_timeout: 30_000 })
+    const opts = mockPostgres.mock.calls[0]![0]
+    expect(opts).toHaveProperty('onnotice')
+    expect(typeof opts.onnotice).toBe('function')
   })
 })
 

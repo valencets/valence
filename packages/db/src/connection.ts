@@ -48,7 +48,8 @@ export function createPool (config: DbConfig): DbPool {
     password: config.password,
     max: config.max,
     idle_timeout: config.idle_timeout,
-    connect_timeout: config.connect_timeout
+    connect_timeout: config.connect_timeout,
+    onnotice: () => {}
   }
 
   const sql = config.query_timeout !== undefined

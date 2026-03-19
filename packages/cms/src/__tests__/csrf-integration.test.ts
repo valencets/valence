@@ -31,7 +31,7 @@ function makeMockReq (body: string, cookie: string = ''): Record<string, unknown
 }
 
 function makeMockRes (): Record<string, ReturnType<typeof vi.fn>> {
-  return { writeHead: vi.fn(), end: vi.fn() }
+  return { writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn() }
 }
 
 describe('admin CSRF protection', () => {
@@ -44,7 +44,7 @@ describe('admin CSRF protection', () => {
     const req = makeMockReq('title=Hello&slug=hello')
     const res = makeMockRes()
     await handler!(req as never, res as never, {})
-    expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object))
+    expect(res.writeHead).toHaveBeenCalledWith(403)
   })
 
   it('GET renders form with _csrf hidden input', async () => {
@@ -57,7 +57,8 @@ describe('admin CSRF protection', () => {
     let body = ''
     const res = {
       writeHead: vi.fn(),
-      end: vi.fn((data: string) => { body = data })
+      end: vi.fn((data: string) => { body = data }),
+      setHeader: vi.fn()
     }
     await handler!(req as never, res as never, {})
     expect(body).toContain('name="_csrf"')
