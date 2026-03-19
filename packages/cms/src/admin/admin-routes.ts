@@ -125,7 +125,23 @@ export function createAdminRoutes (
 
   routes.set('/admin', {
     GET: wrap(async (_req, res) => {
-      const content = renderDashboard(allCollections)
+      const statsPromises = allCollections.map(async (col) => {
+        const countResult = await api.count({ collection: col.slug })
+        const count = countResult.match((n) => n, () => 0)
+        const recentResult = await api.find({ collection: col.slug, limit: 5 })
+        const recent = recentResult.match(
+          (rows) => rows as Array<{ id: string; [key: string]: string | number | boolean | null }>,
+          () => []
+        )
+        return {
+          slug: col.slug,
+          label: col.labels?.plural ?? col.slug,
+          count,
+          recent
+        }
+      })
+      const stats = await Promise.all(statsPromises)
+      const content = renderDashboard({ stats })
       const html = renderLayout({ title: 'Dashboard', content, collections: allCollections })
       sendHtml(res, html)
     })

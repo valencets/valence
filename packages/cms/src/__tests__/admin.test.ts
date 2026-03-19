@@ -65,9 +65,10 @@ describe('renderLayout()', () => {
 
 describe('renderDashboard()', () => {
   it('renders collection cards', () => {
-    const html = renderDashboard([makePostsCollection()])
+    const html = renderDashboard({ stats: [{ slug: 'posts', label: 'Posts', count: 5, recent: [] }] })
     expect(html).toContain('Posts')
     expect(html).toContain('/admin/posts')
+    expect(html).toContain('5')
   })
 })
 
