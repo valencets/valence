@@ -12,6 +12,9 @@ function mockRes (): ServerResponse & { _body: string; _status: number; _headers
     _body: '',
     _status: 0,
     _headers: {} as Record<string, string>,
+    setHeader (name: string, value: string) {
+      res._headers[name] = value
+    },
     headersSent: false,
     writeHead (status: number, headers?: Record<string, string>) {
       res._status = status
@@ -165,5 +168,36 @@ describe('createServerRouter', () => {
     expect(consoleSpy).toHaveBeenCalled()
 
     consoleSpy.mockRestore()
+  })
+
+  it('sets security headers on every response', async () => {
+    const router = createServerRouter<Ctx>()
+    router.register('/secure', {
+      GET: async (_req, res) => {
+        res.writeHead(200)
+        res.end('ok')
+      }
+    })
+
+    const req = mockReq('/secure')
+    const res = mockRes()
+    await router.handle(req, res, ctx)
+
+    expect(res._headers['X-Content-Type-Options']).toBe('nosniff')
+    expect(res._headers['X-Frame-Options']).toBe('DENY')
+    expect(res._headers['Content-Security-Policy']).toContain("default-src 'self'")
+    expect(res._headers['Strict-Transport-Security']).toContain('max-age')
+    expect(res._headers['Referrer-Policy']).toBe('strict-origin-when-cross-origin')
+  })
+
+  it('sets security headers even on 404 responses', async () => {
+    const router = createServerRouter<Ctx>()
+    const req = mockReq('/nonexistent')
+    const res = mockRes()
+    await router.handle(req, res, ctx)
+
+    expect(res._status).toBe(404)
+    expect(res._headers['X-Content-Type-Options']).toBe('nosniff')
+    expect(res._headers['X-Frame-Options']).toBe('DENY')
   })
 })

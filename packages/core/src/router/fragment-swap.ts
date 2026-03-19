@@ -3,9 +3,13 @@ import type { Result } from 'neverthrow'
 import { RouterErrorCode } from './router-types.js'
 import type { RouterError } from './router-types.js'
 
+function hasMoveBefore (target: Element): target is Element & { moveBefore (node: Node, ref: Node | null): void } {
+  return typeof (target as { moveBefore?: Function }).moveBefore === 'function'
+}
+
 export const supportsMoveBefore: boolean =
   typeof Element !== 'undefined' &&
-  typeof (Element.prototype as unknown as Record<string, unknown>).moveBefore === 'function'
+  hasMoveBefore(Element.prototype)
 
 const parser = new DOMParser()
 
@@ -39,7 +43,7 @@ export function extractTitle (doc: Document): string | null {
 }
 
 export function swapContent (liveContainer: Element, newFragment: Element): Result<void, RouterError> {
-  const hasMoveBeforeMethod = typeof (liveContainer as unknown as Record<string, unknown>).moveBefore === 'function'
+  const hasMoveBeforeMethod = hasMoveBefore(liveContainer)
 
   if (hasMoveBeforeMethod) {
     const newChildren = Array.from(newFragment.childNodes)
@@ -52,8 +56,7 @@ export function swapContent (liveContainer: Element, newFragment: Element): Resu
 
     liveContainer.replaceChildren()
 
-    const moveFn = (liveContainer as unknown as { moveBefore (node: Node, ref: Node | null): void }).moveBefore
-      .bind(liveContainer)
+    const moveFn = liveContainer.moveBefore.bind(liveContainer)
 
     for (const child of newChildren) {
       const el = child as Element

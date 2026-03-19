@@ -8,9 +8,13 @@ import {
 import type { BeaconEvent, BeaconValidationError, BeaconIntentType } from './beacon-types.js'
 
 const REQUIRED_STRING_FIELDS = ['id', 'targetDOMNode', 'site_id', 'business_type', 'path', 'referrer'] as const
+interface RawBeaconInput {
+  readonly [key: string]: string | number | boolean | null | undefined
+}
+
 const REQUIRED_NUMBER_FIELDS = ['timestamp', 'x_coord', 'y_coord', 'schema_version'] as const
 
-function validateEvent (raw: Record<string, unknown>, index: number): Result<BeaconEvent, BeaconValidationError> {
+function validateEvent (raw: RawBeaconInput, index: number): Result<BeaconEvent, BeaconValidationError> {
   // Check required string fields exist
   for (const field of REQUIRED_STRING_FIELDS) {
     if (raw[field] === undefined || raw[field] === null) {
@@ -142,7 +146,7 @@ export function validateBeaconPayload (raw: string): Result<ReadonlyArray<Beacon
         message: `Event ${i}: must be an object`
       })
     }
-    const result = validateEvent(item as Record<string, unknown>, i)
+    const result = validateEvent(item as RawBeaconInput, i)
     if (result.isErr()) return err(result.error)
     events.push(result.value)
   }

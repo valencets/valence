@@ -77,8 +77,8 @@ describe('renderLearnPage', () => {
 
   it('uses dark theme colors', () => {
     const html = renderLearnPage(freshProgress(), 3000)
-    expect(html).toContain('#0f172a')
-    expect(html).toContain('#3b82f6')
+    expect(html).toContain('--val-color-bg')
+    expect(html).toContain('--val-color-primary')
   })
 
   it('includes exit learn mode link', () => {

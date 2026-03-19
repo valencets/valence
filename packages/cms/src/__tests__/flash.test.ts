@@ -56,6 +56,7 @@ describe('setFlashCookie', () => {
     expect(cookie).toContain('Path=/admin')
     expect(cookie).toContain('HttpOnly')
     expect(cookie).toContain('SameSite=Strict')
+    expect(cookie).toContain('Secure')
     expect(cookie).toContain('Max-Age=30')
   })
 })
