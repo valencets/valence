@@ -1,5 +1,5 @@
 export { ServerErrorCode, createServerRouter } from './server-router.js'
-export type { ServerError, RouteHandler, RouteEntry, ServerRouter } from './server-types.js'
+export type { ServerError, RouteHandler, RouteEntry, RouteOptions, ServerRouter } from './server-types.js'
 export type { RequestContext, Middleware, ErrorHandler } from './middleware-types.js'
 export { createRequestContext } from './request-context.js'
 export { composeMiddleware } from './middleware-pipeline.js'
