@@ -7,7 +7,7 @@ import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { existsSync, readFileSync } from 'node:fs'
 import { createPool, closePool, loadMigrations, runMigrations } from '@valencets/db'
-import type { DbConfig } from '@valencets/db'
+import type { DbConfig, DbPool } from '@valencets/db'
 import { buildCms } from '@valencets/cms'
 import type { RestRouteEntry } from '@valencets/cms'
 import { readLearnProgress, writeLearnProgress, createInitialProgress } from './learn/index.js'
@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS "daily_summaries" (
             idle_timeout: 10,
             connect_timeout: 10
           })
-          await seedDatabase(seedPool as never)
+          await seedDatabase(seedPool)
           await closePool(seedPool)
           log('Seed data inserted.')
         } catch {
@@ -895,25 +895,25 @@ async function runMigrationsForProject (projectDir: string, config: DbConfig): P
   return true
 }
 
-export async function seedDatabase (pool: { query: (text: string, values?: readonly (string | boolean | null)[]) => Promise<{ rows: Array<Record<string, string>> }> }): Promise<void> {
+export async function seedDatabase (pool: DbPool): Promise<void> {
   // Insert a default category
-  await pool.query(
+  await pool.sql.unsafe(
     'INSERT INTO "categories" ("name", "slug", "color") VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
     ['General', 'general', 'blue']
   )
 
   // Get the category id for the post relation
-  const catResult = await pool.query('SELECT id FROM "categories" WHERE "slug" = $1 LIMIT 1', ['general'])
-  const catId = catResult.rows[0]?.id ?? null
+  const catRows = await pool.sql.unsafe('SELECT id FROM "categories" WHERE "slug" = $1 LIMIT 1', ['general'])
+  const catId = (catRows[0] as { id: string } | undefined)?.id ?? null
 
   // Insert a welcome post
-  await pool.query(
+  await pool.sql.unsafe(
     'INSERT INTO "posts" ("title", "slug", "body", "category", "published") VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING',
     ['Welcome to Valence', 'welcome-to-valence', '<h2>Hello!</h2><p>This is your first post. Edit it from the admin panel.</p>', catId, true]
   )
 
   // Insert an about page
-  await pool.query(
+  await pool.sql.unsafe(
     'INSERT INTO "pages" ("title", "slug", "content", "status") VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
     ['About', 'about', '<p>This is the about page.</p>', 'published']
   )
@@ -1021,7 +1021,7 @@ async function loadUserConfig (): Promise<UserConfig | null> {
         const parsed = JSON.parse(output)
         // Re-hydrate through collection() to get proper CollectionConfig objects
         const { collection: col } = await import('@valencets/cms')
-        const collections = parsed.collections.map((c: Record<string, unknown>) => col(c as Parameters<typeof col>[0]))
+        const collections = parsed.collections.map((c: Parameters<typeof col>[0]) => col(c))
         return { collections, telemetry: parsed.telemetry }
       }
     } catch (e2) {

@@ -54,15 +54,17 @@ describe('seed data', () => {
     const { seedDatabase } = await import('../cli.js')
     const queries: Array<{ text: string; values: readonly (string | boolean | null)[] }> = []
     const mockPool = {
-      query: async (text: string, values: readonly (string | boolean | null)[] = []) => {
-        queries.push({ text, values })
-        if (text.includes('SELECT id FROM')) {
-          return { rows: [{ id: 'cat-uuid-123' }] }
+      sql: {
+        unsafe: async (text: string, values: readonly (string | boolean | null)[] = []) => {
+          queries.push({ text, values })
+          if (text.includes('SELECT id FROM')) {
+            return [{ id: 'cat-uuid-123' }]
+          }
+          return []
         }
-        return { rows: [] }
       }
     }
-    await seedDatabase(mockPool as never)
+    await seedDatabase(mockPool as Parameters<typeof seedDatabase>[0])
     const allSql = queries.map(q => q.text).join('\n')
     expect(allSql).toContain('INSERT INTO "categories"')
     expect(allSql).toContain('INSERT INTO "posts"')

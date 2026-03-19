@@ -1,4 +1,4 @@
-import { createEditor, $getRoot, $getSelection, $isRangeSelection, $insertNodes, FORMAT_TEXT_COMMAND, type LexicalEditor } from 'lexical'
+import { createEditor, $getRoot, $getSelection, $isRangeSelection, $insertNodes, FORMAT_TEXT_COMMAND, type LexicalEditor, type ElementNode } from 'lexical'
 import { registerRichText, HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text'
 import { ListNode, ListItemNode, registerList, INSERT_UNORDERED_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND } from '@lexical/list'
 import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link'
@@ -22,43 +22,29 @@ export const TOOLBAR_ACTIONS: readonly ToolbarActionDef[] = [
   { label: 'Code', type: 'format-code' }
 ]
 
+function setBlockType (editor: LexicalEditor, createNode: () => ElementNode): void {
+  editor.update(() => {
+    const selection = $getSelection()
+    if ($isRangeSelection(selection)) {
+      $setBlocksType(selection, createNode)
+    }
+  })
+}
+
+const ACTION_HANDLERS: Readonly<Record<string, (editor: LexicalEditor) => void>> = {
+  'format-bold': (e) => e.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold'),
+  'format-italic': (e) => e.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic'),
+  'format-underline': (e) => e.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline'),
+  'format-code': (e) => e.dispatchCommand(FORMAT_TEXT_COMMAND, 'code'),
+  heading: (e) => setBlockType(e, () => $createHeadingNode('h2')),
+  'bullet-list': (e) => e.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined),
+  'number-list': (e) => e.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined),
+  blockquote: (e) => setBlockType(e, () => $createQuoteNode())
+}
+
 function dispatchAction (editor: LexicalEditor, action: ToolbarActionDef): void {
-  switch (action.type) {
-    case 'format-bold':
-      editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')
-      break
-    case 'format-italic':
-      editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')
-      break
-    case 'format-underline':
-      editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')
-      break
-    case 'format-code':
-      editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')
-      break
-    case 'heading':
-      editor.update(() => {
-        const selection = $getSelection()
-        if ($isRangeSelection(selection)) {
-          $setBlocksType(selection, () => $createHeadingNode('h2'))
-        }
-      })
-      break
-    case 'bullet-list':
-      editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)
-      break
-    case 'number-list':
-      editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined)
-      break
-    case 'blockquote':
-      editor.update(() => {
-        const selection = $getSelection()
-        if ($isRangeSelection(selection)) {
-          $setBlocksType(selection, () => $createQuoteNode())
-        }
-      })
-      break
-  }
+  const handler = ACTION_HANDLERS[action.type]
+  if (handler) handler(editor)
 }
 
 function createToolbar (editor: LexicalEditor): HTMLElement {
