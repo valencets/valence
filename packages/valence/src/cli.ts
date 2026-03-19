@@ -255,6 +255,48 @@ CREATE TABLE IF NOT EXISTS "users" (
   "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "deleted_at" TIMESTAMPTZ
 );
+
+-- Telemetry tables
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE IF NOT EXISTS "sessions" (
+  "session_id" UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  "referrer" TEXT,
+  "device_type" VARCHAR(50) NOT NULL DEFAULT 'desktop',
+  "operating_system" TEXT,
+  "created_at" TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS "events" (
+  "event_id" BIGSERIAL PRIMARY KEY,
+  "session_id" UUID NOT NULL REFERENCES "sessions"("session_id") ON DELETE RESTRICT,
+  "event_category" VARCHAR(100) NOT NULL,
+  "dom_target" TEXT,
+  "payload" JSONB DEFAULT '{}',
+  "created_at" TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_session ON "events"("session_id");
+CREATE INDEX IF NOT EXISTS idx_events_time_category ON "events"("created_at", "event_category");
+
+CREATE TABLE IF NOT EXISTS "daily_summaries" (
+  "id" SERIAL PRIMARY KEY,
+  "site_id" TEXT NOT NULL,
+  "date" DATE NOT NULL,
+  "business_type" TEXT,
+  "schema_version" INT DEFAULT 1,
+  "session_count" INT,
+  "pageview_count" INT,
+  "conversion_count" INT,
+  "top_referrers" JSONB DEFAULT '[]',
+  "top_pages" JSONB DEFAULT '[]',
+  "intent_counts" JSONB DEFAULT '{}',
+  "avg_flush_ms" FLOAT DEFAULT 0,
+  "rejection_count" INT DEFAULT 0,
+  "synced_at" TIMESTAMPTZ,
+  "created_at" TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE("site_id", "date")
+);
 `)
 
   log('Project scaffolded.')
@@ -372,7 +414,8 @@ async function runDev (): Promise<void> {
     db: pool,
     secret: process.env.CMS_SECRET ?? 'dev-secret',
     uploadDir: join(projectDir, 'uploads'),
-    collections: userConfig
+    collections: userConfig,
+    telemetryPool: pool
   })
 
   if (cmsResult.isErr()) {
