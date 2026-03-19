@@ -204,3 +204,41 @@ describe('generatePartialSchema()', () => {
     expect(schema.safeParse({ order: -1 }).success).toBe(false)
   })
 })
+
+describe('UUID field empty string handling', () => {
+  it('accepts empty string for optional relation field (converts to undefined)', () => {
+    const fields: readonly FieldConfig[] = [
+      field.relation({ name: 'category', relationTo: 'categories' })
+    ]
+    const schema = generateZodSchema(fields)
+    const result = schema.safeParse({ category: '' })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects empty string for required relation field', () => {
+    const fields: readonly FieldConfig[] = [
+      field.relation({ name: 'category', relationTo: 'categories', required: true })
+    ]
+    const schema = generateZodSchema(fields)
+    const result = schema.safeParse({ category: '' })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts empty string for optional media field (converts to undefined)', () => {
+    const fields: readonly FieldConfig[] = [
+      field.media({ name: 'image', relationTo: 'media' })
+    ]
+    const schema = generateZodSchema(fields)
+    const result = schema.safeParse({ image: '' })
+    expect(result.success).toBe(true)
+  })
+
+  it('still accepts valid UUID for optional relation field', () => {
+    const fields: readonly FieldConfig[] = [
+      field.relation({ name: 'category', relationTo: 'categories' })
+    ]
+    const schema = generateZodSchema(fields)
+    const result = schema.safeParse({ category: '550e8400-e29b-41d4-a716-446655440000' })
+    expect(result.success).toBe(true)
+  })
+})

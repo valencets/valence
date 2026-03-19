@@ -221,6 +221,17 @@ describe('admin POST handlers', () => {
   })
 })
 
+describe('renderLayout() richtext CSS', () => {
+  it('includes min-height on .richtext-editor class', () => {
+    const html = renderLayout({
+      title: 'Test',
+      content: '',
+      collections: [makePostsCollection()]
+    })
+    expect(html).toMatch(/\.richtext-editor\s*\{[^}]*min-height/)
+  })
+})
+
 describe('admin auth protection', () => {
   it('createAdminRoutes accepts requireAuth flag', () => {
     const registry = createCollectionRegistry()
