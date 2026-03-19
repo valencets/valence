@@ -20,7 +20,7 @@
 
 ---
 
-Define collections and fields in one TypeScript config. Valence derives the database tables, admin UI, REST API, first-party analytics, validators, and migrations from that single schema. No plugins. No vendor scripts. No third-party browser JS.
+Define collections and fields in one TypeScript config. Valence derives the database tables, admin UI, REST API, first-party analytics, validators, and migrations from that single schema. No plugins. No vendor scripts. Minimal, audited dependencies.
 
 ```ts
 // valence.config.ts
@@ -69,7 +69,7 @@ export default defineConfig({
 })
 ```
 
-That config gives you: `posts` and `users` tables in Postgres, a server-rendered admin panel with form validation and session auth (Argon2id), a REST API at `/api/posts` and `/api/users`, Zod validators, database migrations, and a first-party analytics pipeline that tracks user intent with zero third-party scripts. Change the schema, everything follows.
+That config gives you: `posts` and `users` tables in Postgres, a server-rendered admin panel with form validation and session auth (Argon2id), a REST API at `/api/posts` and `/api/users`, Zod validators, database migrations, and a first-party analytics pipeline that tracks user intent without any third-party scripts on your public pages. Change the schema, everything follows.
 
 ## Quick Start
 
@@ -97,13 +97,14 @@ Open `http://localhost:3000/admin` to sign in. Open `http://localhost:3000` for 
 - **Admin panel** at `/admin`. Server-rendered HTML forms, CSRF protection, session auth with Argon2id. Login page with proper error handling.
 - **REST API** at `/api/:collection`. CRUD with Zod validation, parameterized queries, `Result<T, E>` error handling.
 - **Migrations** generated from schema diffs. Deterministic SQL, idempotent, version-tracked.
-- **Web Components**. 18 custom elements with ARIA, i18n, telemetry hooks, and hydration directives. Work in any framework or plain HTML.
+- **18 field types**. text, textarea, richtext, number, boolean, select, date, slug, media, relation, group, email, url, password, json, color, multiselect, array.
+- **Rich text editor**. Lexical-powered editor in the admin panel with heading, list, blockquote, link, and code formatting.
 - **First-party analytics**. Built-in telemetry that runs entirely in your Postgres -- no vendor scripts, no third-party dashboards, no data leaving your infrastructure.
 - **Learn mode**. Interactive 6-step tutorial embedded in `valence dev` that teaches core concepts through real actions. Run `valence init --learn` to try it.
 
 ## Telemetry
 
-Valence includes a complete, privacy-respecting analytics pipeline that runs entirely on your own infrastructure. No Google Analytics, no Plausible, no third-party scripts. Your data stays in your Postgres.
+Valence includes a complete, privacy-respecting analytics pipeline that runs entirely on your own infrastructure. No Google Analytics, no Plausible, no third-party scripts on your public pages. Your data stays in your Postgres.
 
 **How it works:**
 
@@ -126,14 +127,18 @@ Valence includes a complete, privacy-respecting analytics pipeline that runs ent
 
 ## Packages
 
-| Package | What it does | Deps |
-|---------|-------------|------|
-| **@valencets/ui** | 18 Web Components. ARIA, i18n, telemetry hooks, hydration directives. OKLCH design tokens. | zero |
-| **@valencets/core** | Router + server. `pushState` nav, fragment swaps, prefetch, view transitions, server islands. | zero |
-| **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | zero |
-| **@valencets/cms** | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media. | core, db, ui |
-| **@valencets/telemetry** | Beacon ingestion, event storage, daily summaries, fleet aggregation. | db |
-| **@valencets/valence** | CLI. `valence init`, `valence dev`, `valence migrate`, `valence build`. | cms, db |
+| Package | What it does | External deps |
+|---------|-------------|---------------|
+| **@valencets/ui** | 18 Web Components. ARIA, i18n, telemetry hooks, hydration directives. OKLCH design tokens. | none |
+| **@valencets/core** | Router + server. `pushState` nav, fragment swaps, prefetch, view transitions, server islands. | [neverthrow](https://github.com/supermacro/neverthrow) |
+| **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | [postgres](https://github.com/porsager/postgres), [neverthrow](https://github.com/supermacro/neverthrow), [zod](https://github.com/colinhacks/zod) |
+| **@valencets/cms** | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media. Rich text via Lexical. | [lexical](https://github.com/facebook/lexical), [argon2](https://github.com/ranisalt/node-argon2), [zod](https://github.com/colinhacks/zod), [neverthrow](https://github.com/supermacro/neverthrow) |
+| **@valencets/telemetry** | Beacon ingestion, event storage, daily summaries, fleet aggregation. | [postgres](https://github.com/porsager/postgres), [neverthrow](https://github.com/supermacro/neverthrow) |
+| **@valencets/valence** | CLI. `valence init`, `valence dev`, `valence migrate`, `valence build`. | [tsx](https://github.com/privatenumber/tsx), [zod](https://github.com/colinhacks/zod), [neverthrow](https://github.com/supermacro/neverthrow) |
+
+**Total external runtime deps:** 6 — postgres, neverthrow, zod, lexical, argon2, tsx. All MIT-licensed, all audited via [Socket](https://socket.dev/npm/package/@valencets/valence).
+
+**Browser JS:** Public-facing pages ship zero third-party JavaScript. The admin panel uses [Lexical](https://lexical.dev/) (Meta, MIT, ~40kB gzipped) for rich text editing only.
 
 ## Non-Negotiable
 
@@ -143,8 +148,8 @@ Valence includes a complete, privacy-respecting analytics pipeline that runs ent
 | `Result<T, E>` everywhere | If it can fail, the type signature says so. Both branches handled or it doesn't compile. |
 | 14kB critical shell | First paint in the first TCP data flight. CDN-ready with cache profiles and server islands. |
 | Pre-allocated ring buffer | Zero allocation in the telemetry hot path. |
-| Zero third-party browser JS | Your site. Your code. Your data. Nothing phones home. |
-| 1,306 tests | Strict TypeScript, neostandard, CI on every push. |
+| Zero third-party JS on public pages | Your site ships your code. Lexical is admin-only. Nothing phones home. |
+| 1,359 tests | Strict TypeScript, neostandard, CI on every push. |
 
 ## Documentation
 
