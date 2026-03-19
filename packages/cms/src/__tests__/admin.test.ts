@@ -256,3 +256,71 @@ describe('admin auth protection', () => {
     expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object))
   })
 })
+
+describe('renderFieldInput() relation dropdown', () => {
+  it('renders a <select> when relation context is provided', () => {
+    const f = field.relation({ name: 'category', relationTo: 'categories' })
+    const context = {
+      category: [
+        { id: 'uuid-1', label: 'General' },
+        { id: 'uuid-2', label: 'News' }
+      ]
+    }
+    const html = renderFieldInput(f, '', context)
+    expect(html).toContain('<select')
+    expect(html).toContain('name="category"')
+    expect(html).toContain('General')
+    expect(html).toContain('News')
+    expect(html).toContain('value="uuid-1"')
+    expect(html).toContain('value="uuid-2"')
+  })
+
+  it('marks the current value as selected', () => {
+    const f = field.relation({ name: 'category', relationTo: 'categories' })
+    const context = {
+      category: [
+        { id: 'uuid-1', label: 'General' },
+        { id: 'uuid-2', label: 'News' }
+      ]
+    }
+    const html = renderFieldInput(f, 'uuid-2', context)
+    expect(html).toContain('value="uuid-2" selected')
+  })
+
+  it('includes an empty option for optional relation fields', () => {
+    const f = field.relation({ name: 'category', relationTo: 'categories' })
+    const context = {
+      category: [{ id: 'uuid-1', label: 'General' }]
+    }
+    const html = renderFieldInput(f, '', context)
+    expect(html).toContain('<option value=""')
+  })
+
+  it('falls back to text input when no context provided', () => {
+    const f = field.relation({ name: 'category', relationTo: 'categories' })
+    const html = renderFieldInput(f, '')
+    expect(html).toContain('type="text"')
+  })
+})
+
+describe('renderEditView() with relation context', () => {
+  it('passes relation context through to field renderers', () => {
+    const col = collection({
+      slug: 'posts',
+      labels: { singular: 'Post', plural: 'Posts' },
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.relation({ name: 'category', relationTo: 'categories' })
+      ]
+    })
+    const context = {
+      category: [
+        { id: 'uuid-1', label: 'General' },
+        { id: 'uuid-2', label: 'News' }
+      ]
+    }
+    const html = renderEditView(col, null, 'csrf-tok', context)
+    expect(html).toContain('<select')
+    expect(html).toContain('General')
+  })
+})
