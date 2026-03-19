@@ -2,6 +2,8 @@
  * Embeddable CSS token definitions for standalone HTML pages (learn, landing).
  * These pages are always dark-themed, so we set semantic tokens to dark values directly.
  * Values come from @valencets/ui primitives.css + semantic.css dark mode.
+ * Source: packages/ui/src/tokens/primitives.css and packages/ui/src/tokens/semantic.css
+ * If token values change in the source CSS files, update these values to match.
  */
 export const PAGE_TOKEN_CSS = `
   :root {

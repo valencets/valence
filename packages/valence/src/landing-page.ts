@@ -23,20 +23,20 @@ export function landingPage (port: number): string {
 </head>
 <body>
   <div class="container">
-    <svg viewBox="0 0 360 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="280" style="margin-bottom: 1rem;">
+    <svg viewBox="0 0 360 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="280" style="margin-bottom: var(--val-space-4);">
       <defs>
         <linearGradient id="orbital" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#60a5fa" stop-opacity="0"/>
-          <stop offset="40%" stop-color="#60a5fa" stop-opacity="0.25"/>
-          <stop offset="100%" stop-color="#60a5fa" stop-opacity="0.7"/>
+          <stop offset="0%" style="stop-color: var(--val-color-primary-hover); stop-opacity: 0"/>
+          <stop offset="40%" style="stop-color: var(--val-color-primary-hover); stop-opacity: 0.25"/>
+          <stop offset="100%" style="stop-color: var(--val-color-primary-hover); stop-opacity: 0.7"/>
         </linearGradient>
       </defs>
       <ellipse cx="180" cy="40" rx="172" ry="32" stroke="url(#orbital)" stroke-width="1.5" fill="none" transform="rotate(-5, 180, 40)"/>
-      <circle cx="350" cy="28" r="4" fill="#60a5fa">
+      <circle cx="350" cy="28" r="4" style="fill: var(--val-color-primary-hover)">
         <animateMotion dur="4s" repeatCount="indefinite" path="M0,0 A172,32 -5 1 1 -340,24 A172,32 -5 1 1 0,0" />
       </circle>
-      <text x="180" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-size="46" letter-spacing="0.1em" fill="#e2e8f0">
-        <tspan font-weight="600" fill="#60a5fa">v</tspan><tspan font-weight="300">alence</tspan>
+      <text x="180" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-size="46" letter-spacing="0.1em" style="fill: var(--val-color-text)">
+        <tspan font-weight="600" style="fill: var(--val-color-primary-hover)">v</tspan><tspan font-weight="300">alence</tspan>
       </text>
     </svg>
     <p>Your site is running on port ${port}. Edit <code>valence.config.ts</code> to add collections, then visit the admin panel to create content.</p>

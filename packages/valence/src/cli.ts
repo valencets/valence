@@ -11,6 +11,7 @@ import type { DbConfig, DbPool } from '@valencets/db'
 import { buildCms } from '@valencets/cms'
 import type { RestRouteEntry } from '@valencets/cms'
 import { readLearnProgress, writeLearnProgress, createInitialProgress } from './learn/index.js'
+import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig } from './config-loader.js'
@@ -77,10 +78,6 @@ function exec (cmd: string, cwd: string): boolean {
   } catch {
     return false
   }
-}
-
-function log (msg: string): void {
-  console.log(`  ${msg}`)
 }
 
 // -- init --
