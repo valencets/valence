@@ -86,39 +86,47 @@ export function loadMigrations (directory: string): ResultAsync<ReadonlyArray<Mi
   })
 }
 
+const MIGRATION_LOCK_ID = 839274628
+
 export function runMigrations (pool: DbPool, migrations: ReadonlyArray<MigrationFile>): ResultAsync<number, DbError> {
   return ResultAsync.fromPromise(
     (async () => {
-      await pool.sql`
-        CREATE TABLE IF NOT EXISTS _migrations (
-          version INTEGER PRIMARY KEY,
-          name TEXT NOT NULL,
-          applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `
+      await pool.sql.unsafe('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID])
 
-      const applied = await pool.sql<Array<{ version: number }>>`
-        SELECT version FROM _migrations ORDER BY version
-      `
-      const appliedVersions = new Set(applied.map((r) => r.version))
+      try {
+        await pool.sql`
+          CREATE TABLE IF NOT EXISTS _migrations (
+            version INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `
 
-      let count = 0
-      for (const migration of migrations) {
-        if (appliedVersions.has(migration.version)) {
-          continue
+        const applied = await pool.sql<Array<{ version: number }>>`
+          SELECT version FROM _migrations ORDER BY version
+        `
+        const appliedVersions = new Set(applied.map((r) => r.version))
+
+        let count = 0
+        for (const migration of migrations) {
+          if (appliedVersions.has(migration.version)) {
+            continue
+          }
+
+          await pool.sql.begin(async (tx) => {
+            await tx.unsafe(migration.sql)
+            await tx.unsafe(
+              'INSERT INTO _migrations (version, name) VALUES ($1, $2)',
+              [migration.version, migration.name]
+            )
+          })
+          count++
         }
 
-        await pool.sql.begin(async (tx) => {
-          await tx.unsafe(migration.sql)
-          await tx.unsafe(
-            'INSERT INTO _migrations (version, name) VALUES ($1, $2)',
-            [migration.version, migration.name]
-          )
-        })
-        count++
+        return count
+      } finally {
+        await pool.sql.unsafe('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID])
       }
-
-      return count
     })(),
     mapPostgresError
   )
