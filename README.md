@@ -95,7 +95,7 @@ Open `http://localhost:3000/admin` to sign in. Open `http://localhost:3000` for 
 |------|-----|
 | Complexity < 20 | Every function fits on one screen. No exceptions. |
 | `Result<T, E>` everywhere | If it can fail, the type signature says so. Both branches handled or it doesn't compile. |
-| 14kB critical shell | First paint in the first TCP data flight. No CDN. No web fonts. |
+| 14kB critical shell | First paint in the first TCP data flight. CDN-ready with cache profiles and server islands. |
 | Pre-allocated ring buffer | Zero allocation in the telemetry hot path. |
 | Zero third-party browser JS | Your site. Your code. Your data. Nothing phones home. |
 | 1,337 tests | Strict TypeScript, neostandard, CI on every push. |
