@@ -253,7 +253,7 @@ describe('admin auth protection', () => {
       end: vi.fn()
     }
     await handler!(req as never, res as never, {})
-    expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object))
+    expect(res.writeHead).toHaveBeenCalledWith(302, { Location: '/admin/login' })
   })
 })
 

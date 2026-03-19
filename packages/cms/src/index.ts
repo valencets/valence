@@ -112,6 +112,7 @@ export {
   renderListView,
   renderEditView,
   renderFieldInput,
+  renderLoginPage,
   createAdminRoutes,
   escapeHtml
 } from './admin/index.js'

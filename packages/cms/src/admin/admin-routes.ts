@@ -15,8 +15,11 @@ import { renderEditView } from './edit-view.js'
 import type { RelationContext } from './field-renderers.js'
 import { createLocalApi } from '../api/local-api.js'
 import { createGlobalRegistry } from '../schema/registry.js'
-import { validateSession } from '../auth/session.js'
+import { createSession, validateSession, destroySession, buildSessionCookie, buildExpiredSessionCookie } from '../auth/session.js'
+import { verifyPassword } from '../auth/password.js'
 import { parseCookie } from '../auth/cookie.js'
+import { renderLoginPage } from './login-view.js'
+import { safeQuery } from '../db/safe-query.js'
 import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { readStringBody } from '../api/read-body.js'
 import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
@@ -35,14 +38,14 @@ function wrapWithAuth (pool: DbPool, handler: AdminRouteHandler): AdminRouteHand
     const cookieHeader = req.headers.cookie ?? ''
     const sessionId = parseCookie(cookieHeader, 'cms_session')
     if (!sessionId) {
-      res.writeHead(401, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Unauthorized' }))
+      res.writeHead(302, { Location: '/admin/login' })
+      res.end()
       return
     }
     const result = await validateSession(sessionId, pool)
     if (result.isErr()) {
-      res.writeHead(401, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Unauthorized' }))
+      res.writeHead(302, { Location: '/admin/login' })
+      res.end()
       return
     }
     return handler(req, res, ctx)
@@ -164,6 +167,89 @@ export function createAdminRoutes (
       }
     }
   })
+  // --- Auth routes (no auth wrap) ---
+  routes.set('/admin/login', {
+    GET: async (_req, res) => {
+      const token = freshCsrfToken()
+      const html = renderLoginPage({ csrfToken: token })
+      sendHtml(res, html)
+    },
+    POST: async (req, res) => {
+      const bodyResult = await safeReadFormBody(req)
+      if (bodyResult.isErr()) {
+        const token = freshCsrfToken()
+        const html = renderLoginPage({ error: 'Bad request', csrfToken: token })
+        sendHtml(res, html, 400)
+        return
+      }
+      const formData = bodyResult.value
+      const submittedToken = String(formData._csrf ?? '')
+      if (!submittedToken || !validateCsrf(submittedToken)) {
+        const token = freshCsrfToken()
+        const html = renderLoginPage({ error: 'Invalid form submission. Please try again.', csrfToken: token })
+        sendHtml(res, html, 403)
+        return
+      }
+      const email = String(formData.email ?? '').trim()
+      const password = String(formData.password ?? '')
+      if (!email || !password) {
+        const token = freshCsrfToken()
+        const html = renderLoginPage({ error: 'Email and password are required.', csrfToken: token })
+        sendHtml(res, html, 400)
+        return
+      }
+      interface UserRow { readonly id: string; readonly password_hash: string }
+      const userResult = await safeQuery<UserRow[]>(
+        pool,
+        'SELECT id, password_hash FROM users WHERE email = $1 AND deleted_at IS NULL LIMIT 1',
+        [email]
+      )
+      if (userResult.isErr()) {
+        const token = freshCsrfToken()
+        const html = renderLoginPage({ error: 'An error occurred. Please try again.', csrfToken: token })
+        sendHtml(res, html, 500)
+        return
+      }
+      const user = userResult.value[0]
+      if (!user) {
+        const token = freshCsrfToken()
+        const html = renderLoginPage({ error: 'Invalid email or password.', csrfToken: token })
+        sendHtml(res, html, 401)
+        return
+      }
+      const verifyResult = await verifyPassword(password, user.password_hash)
+      if (verifyResult.isErr() || !verifyResult.value) {
+        const token = freshCsrfToken()
+        const html = renderLoginPage({ error: 'Invalid email or password.', csrfToken: token })
+        sendHtml(res, html, 401)
+        return
+      }
+      const sessionResult = await createSession(user.id, pool)
+      if (sessionResult.isErr()) {
+        const token = freshCsrfToken()
+        const html = renderLoginPage({ error: 'Could not create session. Please try again.', csrfToken: token })
+        sendHtml(res, html, 500)
+        return
+      }
+      res.setHeader('Set-Cookie', buildSessionCookie(sessionResult.value))
+      res.writeHead(302, { Location: '/admin' })
+      res.end()
+    }
+  })
+
+  routes.set('/admin/logout', {
+    POST: async (req, res) => {
+      const cookieHeader = req.headers.cookie ?? ''
+      const sessionId = parseCookie(cookieHeader, 'cms_session')
+      if (sessionId) {
+        await destroySession(sessionId, pool)
+      }
+      res.setHeader('Set-Cookie', buildExpiredSessionCookie())
+      res.writeHead(302, { Location: '/admin/login' })
+      res.end()
+    }
+  })
+
   routes.set('/admin', {
     GET: wrap(async (_req, res) => {
       const statsPromises = allCollections.map(async (col) => {
