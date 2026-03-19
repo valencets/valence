@@ -7,6 +7,18 @@ import type { WhereOperator, PaginatedResult, SqlValue } from './query-types.js'
 import { isValidIdentifier, getValidFieldNames, isAllowedField } from './sql-sanitize.js'
 import { safeQuery } from './safe-query.js'
 
+const VALID_TS_LANGUAGES = new Set([
+  'simple', 'arabic', 'armenian', 'basque', 'catalan', 'danish', 'dutch',
+  'english', 'finnish', 'french', 'german', 'greek', 'hindi', 'hungarian',
+  'indonesian', 'irish', 'italian', 'lithuanian', 'nepali', 'norwegian',
+  'portuguese', 'romanian', 'russian', 'serbian', 'spanish', 'swedish',
+  'tamil', 'turkish', 'yiddish'
+])
+
+function sanitizeLanguage (lang: string): string {
+  return VALID_TS_LANGUAGES.has(lang) ? lang : 'english'
+}
+
 export interface DocumentRow {
   readonly id: string
   readonly created_at?: string | undefined
@@ -72,7 +84,8 @@ function validateDataKeys (data: DocumentData, allowedFields: Set<string>): CmsE
 function buildSelectSql (state: QueryState, table: string): string {
   if (state.searchQuery !== null) {
     const searchParamIdx = getWhereParamCount(state) + 1
-    return `SELECT *, ts_rank(search_vector, plainto_tsquery('${state.searchLanguage}', $${searchParamIdx})) AS search_rank FROM ${table}`
+    const lang = sanitizeLanguage(state.searchLanguage)
+    return `SELECT *, ts_rank(search_vector, plainto_tsquery('${lang}', $${searchParamIdx})) AS search_rank FROM ${table}`
   }
   return `SELECT * FROM ${table}`
 }
@@ -104,7 +117,8 @@ function buildWhereSql (state: QueryState): string {
 
   if (state.searchQuery !== null) {
     const searchParamIdx = paramIdx + 1
-    parts.push(`search_vector @@ plainto_tsquery('${state.searchLanguage}', $${searchParamIdx})`)
+    const lang = sanitizeLanguage(state.searchLanguage)
+    parts.push(`search_vector @@ plainto_tsquery('${lang}', $${searchParamIdx})`)
   }
 
   return parts.length > 0 ? ` WHERE ${parts.join(' AND ')}` : ''

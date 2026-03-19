@@ -2,6 +2,7 @@ import { ok, err } from 'neverthrow'
 import type { Result } from 'neverthrow'
 import type { CollectionConfig } from '../schema/collection.js'
 import { CmsErrorCode } from '../schema/types.js'
+import { isValidIdentifier } from './sql-sanitize.js'
 import type { CmsError } from '../schema/types.js'
 
 const TEXT_FIELD_TYPES = new Set(['text', 'textarea', 'richtext', 'slug', 'email'])
@@ -33,6 +34,14 @@ function buildTsvectorExpression (fields: readonly string[], language: string): 
 
 export function generateSearchMigration (col: CollectionConfig): Result<string, CmsError> {
   const fields = getSearchableFields(col)
+  for (const f of fields) {
+    if (!isValidIdentifier(f)) {
+      return err({
+        code: CmsErrorCode.INVALID_INPUT,
+        message: `Invalid search field name: "${f}"`
+      })
+    }
+  }
   if (fields.length === 0) {
     return err({
       code: CmsErrorCode.INVALID_INPUT,
