@@ -18,7 +18,8 @@ export function renderListView (col: CollectionConfig, docs: readonly DocRow[]):
   const rows = docs.map(doc => {
     const cells = displayFields.map(f => `<td>${escapeHtml(String(doc[f.name] ?? ''))}</td>`).join('')
     const safeId = escapeHtml(doc.id)
-    return `<tr><td><a href="/admin/${escapeHtml(col.slug)}/${safeId}/edit">${safeId}</a></td>${cells}</tr>`
+    const safeSlug = escapeHtml(col.slug)
+    return `<tr><td><a href="/admin/${safeSlug}/${safeId}/edit">${safeId.slice(0, 8)}\u2026</a></td>${cells}<td class="actions-cell"><a href="/admin/${safeSlug}/${safeId}/edit" class="action-link">Edit</a></td></tr>`
   }).join('\n')
 
   return `
@@ -27,7 +28,7 @@ export function renderListView (col: CollectionConfig, docs: readonly DocRow[]):
   <a href="/admin/${escapeHtml(col.slug)}/new" class="btn btn-primary">New ${escapeHtml(col.labels?.singular ?? col.slug)}</a>
 </div>
 <table>
-  <thead><tr><th>ID</th>${headerCells}</tr></thead>
+  <thead><tr><th>ID</th>${headerCells}<th>Actions</th></tr></thead>
   <tbody>${rows}</tbody>
 </table>`
 }

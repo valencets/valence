@@ -26,37 +26,40 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
 
   const deleteSection = !isNew && doc
     ? `
-  <hr style="border-color: var(--val-color-border); margin-top: 1rem;">
-  <form id="delete-form" action="/admin/${escapeHtml(col.slug)}/${escapeHtml(String(doc.id ?? ''))}/delete" method="POST" style="display:none;">
-    ${csrfField}
-  </form>
-  <button type="button" class="btn btn-danger delete-trigger">Delete ${escapeHtml(col.labels?.singular ?? col.slug)}</button>
-  <val-dialog id="delete-dialog">
-    <h3 style="margin-bottom: 0.5rem;">Delete ${escapeHtml(col.labels?.singular ?? col.slug)}?</h3>
-    <p style="color: var(--val-color-text-muted); font-size: var(--val-text-sm); margin-bottom: 1.5rem;">This action cannot be undone.</p>
-    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-      <button type="button" class="btn" id="delete-cancel" style="background: var(--val-color-bg-muted);">Cancel</button>
-      <button type="button" class="btn btn-danger" id="delete-confirm">Delete</button>
-    </div>
-  </val-dialog>
-  <script>
-    (function () {
-      var trigger = document.querySelector('.delete-trigger')
-      var dialog = document.getElementById('delete-dialog')
-      var cancel = document.getElementById('delete-cancel')
-      var confirm = document.getElementById('delete-confirm')
-      var form = document.getElementById('delete-form')
-      if (trigger && dialog) trigger.addEventListener('click', function () { dialog.show() })
-      if (cancel && dialog) cancel.addEventListener('click', function () { dialog.close() })
-      if (confirm && form) confirm.addEventListener('click', function () { form.submit() })
-    })()
-  </script>`
+  <div class="edit-danger-zone">
+    <form id="delete-form" action="/admin/${escapeHtml(col.slug)}/${escapeHtml(String(doc.id ?? ''))}/delete" method="POST" style="display:none;">
+      ${csrfField}
+    </form>
+    <button type="button" class="btn btn-ghost-danger delete-trigger">Delete ${escapeHtml(col.labels?.singular ?? col.slug)}</button>
+    <val-dialog id="delete-dialog">
+      <h3 style="margin-bottom: 0.5rem;">Delete ${escapeHtml(col.labels?.singular ?? col.slug)}?</h3>
+      <p style="color: var(--val-color-text-muted); font-size: var(--val-text-sm); margin-bottom: 1.5rem;">This action cannot be undone.</p>
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+        <button type="button" class="btn" id="delete-cancel" style="background: var(--val-color-bg-muted);">Cancel</button>
+        <button type="button" class="btn btn-danger" id="delete-confirm">Delete</button>
+      </div>
+    </val-dialog>
+    <script>
+      (function () {
+        var trigger = document.querySelector('.delete-trigger')
+        var dialog = document.getElementById('delete-dialog')
+        var cancel = document.getElementById('delete-cancel')
+        var confirm = document.getElementById('delete-confirm')
+        var form = document.getElementById('delete-form')
+        if (trigger && dialog) trigger.addEventListener('click', function () { dialog.show() })
+        if (cancel && dialog) cancel.addEventListener('click', function () { dialog.close() })
+        if (confirm && form) confirm.addEventListener('click', function () { form.submit() })
+      })()
+    </script>
+  </div>`
     : ''
 
   return `
-<form action="${action}" method="POST" class="admin-form">
-  ${csrfField}
-  ${fieldInputs}
-  <button type="submit" class="btn btn-primary">${isNew ? 'Create' : 'Save'}</button>
-</form>${deleteSection}`
+<div class="edit-container">
+  <form action="${action}" method="POST" class="admin-form">
+    ${csrfField}
+    ${fieldInputs}
+    <button type="submit" class="btn btn-primary">${isNew ? 'Create' : 'Save'}</button>
+  </form>${deleteSection}
+</div>`
 }

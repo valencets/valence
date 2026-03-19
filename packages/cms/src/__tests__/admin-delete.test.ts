@@ -116,7 +116,7 @@ describe('delete button rendering', () => {
     const html = renderEditView(makePostsCollection(), doc, 'csrf-tok')
     expect(html).toContain('delete-form')
     expect(html).toContain('val-dialog')
-    expect(html).toContain('btn-danger')
+    expect(html).toContain('btn-ghost-danger')
     expect(html).toContain('/admin/posts/123/delete')
   })
 

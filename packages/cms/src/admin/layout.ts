@@ -426,6 +426,50 @@ export function renderLayout (args: LayoutArgs): string {
       color: var(--val-color-text);
     }
 
+    /* --- Edit page container --- */
+    .edit-container {
+      max-width: 640px;
+    }
+    .edit-danger-zone {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--val-color-border);
+    }
+    .btn-ghost-danger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.375rem 0.75rem;
+      font-size: var(--val-text-sm);
+      font-weight: var(--val-weight-medium);
+      font-family: var(--val-font-sans);
+      border-radius: var(--val-radius-md);
+      border: 1px solid var(--val-color-error);
+      background: transparent;
+      color: var(--val-color-error);
+      cursor: pointer;
+      transition: background var(--val-duration-fast) var(--val-ease-in-out);
+    }
+    .btn-ghost-danger:hover {
+      background: var(--val-color-error);
+      color: oklch(1 0 0);
+    }
+
+    /* --- List view actions --- */
+    .actions-cell {
+      white-space: nowrap;
+    }
+    .action-link {
+      font-size: var(--val-text-xs);
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--val-radius-sm);
+      color: var(--val-color-text-muted);
+    }
+    .action-link:hover {
+      background: var(--val-color-bg-muted);
+      color: var(--val-color-text);
+    }
+
     /* --- Responsive --- */
     @media (max-width: 768px) {
       body { flex-direction: column; }
