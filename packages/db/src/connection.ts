@@ -14,11 +14,12 @@ const dbConfigSchema = z.object({
   host: z.string().min(1),
   port: z.number().int().min(1).max(65535),
   database: z.string().min(1),
-  username: z.string(),
-  password: z.string(),
-  max: z.number().int().min(1),
-  idle_timeout: z.number().min(0),
-  connect_timeout: z.number().min(0)
+  username: z.string().min(1),
+  password: z.string().min(1),
+  max: z.number().int().min(1).max(100),
+  idle_timeout: z.number().min(0).max(3_600_000),
+  connect_timeout: z.number().min(0).max(60_000),
+  query_timeout: z.number().min(0).max(600_000).optional()
 })
 
 export function validateDbConfig (config: unknown): Result<DbConfig, DbError> {
@@ -39,16 +40,28 @@ export function validateDbConfig (config: unknown): Result<DbConfig, DbError> {
 }
 
 export function createPool (config: DbConfig): DbPool {
-  const sql = postgres({
-    host: config.host,
-    port: config.port,
-    database: config.database,
-    username: config.username,
-    password: config.password,
-    max: config.max,
-    idle_timeout: config.idle_timeout,
-    connect_timeout: config.connect_timeout
-  })
+  const sql = config.query_timeout !== undefined
+    ? postgres({
+      host: config.host,
+      port: config.port,
+      database: config.database,
+      username: config.username,
+      password: config.password,
+      max: config.max,
+      idle_timeout: config.idle_timeout,
+      connect_timeout: config.connect_timeout,
+      connection: { statement_timeout: config.query_timeout }
+    })
+    : postgres({
+      host: config.host,
+      port: config.port,
+      database: config.database,
+      username: config.username,
+      password: config.password,
+      max: config.max,
+      idle_timeout: config.idle_timeout,
+      connect_timeout: config.connect_timeout
+    })
 
   return { sql }
 }
@@ -64,9 +77,19 @@ export function closePool (pool: DbPool): ResultAsync<void, DbError> {
 }
 
 const PG_ERROR_MAP = new Map<string, DbErrorCode>([
+  ['23502', DbErrorCode.CONSTRAINT_VIOLATION],
   ['23503', DbErrorCode.CONSTRAINT_VIOLATION],
   ['23505', DbErrorCode.CONSTRAINT_VIOLATION],
   ['23514', DbErrorCode.CONSTRAINT_VIOLATION],
+  ['28000', DbErrorCode.AUTH_FAILED],
+  ['28P01', DbErrorCode.AUTH_FAILED],
+  ['08000', DbErrorCode.CONNECTION_FAILED],
+  ['08001', DbErrorCode.CONNECTION_FAILED],
+  ['08003', DbErrorCode.CONNECTION_FAILED],
+  ['08006', DbErrorCode.CONNECTION_FAILED],
+  ['57014', DbErrorCode.QUERY_TIMEOUT],
+  ['53300', DbErrorCode.POOL_EXHAUSTED],
+  ['40001', DbErrorCode.SERIALIZATION_FAILURE],
   ['42501', DbErrorCode.QUERY_FAILED]
 ])
 

@@ -120,3 +120,101 @@ describe('validateMigrations', () => {
     expect(file.sql).toBe('SELECT 1;')
   })
 })
+
+import { loadMigrations, runMigrations, getMigrationStatus } from '../migration-runner.js'
+import { makeMockPool, makeErrorPool } from '../test-helpers.js'
+import { DbErrorCode } from '../types.js'
+import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+describe('loadMigrations', () => {
+  it('returns Err for nonexistent directory', async () => {
+    const result = await loadMigrations('/tmp/does-not-exist-' + Date.now())
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().code).toBe('MIGRATION_FAILED')
+  })
+
+  it('returns Ok([]) for empty directory', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'val-db-test-'))
+    const result = await loadMigrations(dir)
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toEqual([])
+    await rm(dir, { recursive: true })
+  })
+
+  it('ignores non-.sql files', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'val-db-test-'))
+    await writeFile(join(dir, 'README.md'), '# hello')
+    await writeFile(join(dir, '.gitkeep'), '')
+    const result = await loadMigrations(dir)
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toEqual([])
+    await rm(dir, { recursive: true })
+  })
+
+  it('reads SQL content from files', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'val-db-test-'))
+    await writeFile(join(dir, '001-init.sql'), 'CREATE TABLE foo (id INT);')
+    const result = await loadMigrations(dir)
+    expect(result.isOk()).toBe(true)
+    const migrations = result._unsafeUnwrap()
+    expect(migrations.length).toBe(1)
+    expect(migrations[0]!.version).toBe(1)
+    expect(migrations[0]!.name).toBe('init')
+    expect(migrations[0]!.sql).toBe('CREATE TABLE foo (id INT);')
+    await rm(dir, { recursive: true })
+  })
+})
+
+describe('getMigrationStatus', () => {
+  it('returns Ok with rows from pool', async () => {
+    const pool = makeMockPool([{ version: 1, applied_at: '2026-01-01' }])
+    const result = await getMigrationStatus(pool)
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('returns Err on query failure', async () => {
+    const pool = makeErrorPool({ code: DbErrorCode.QUERY_FAILED, message: 'boom' })
+    const result = await getMigrationStatus(pool)
+    expect(result.isErr()).toBe(true)
+  })
+})
+
+describe('runMigrations edge cases', () => {
+  it('returns Ok(0) for empty migrations array', async () => {
+    const pool = makeMockPool([])
+    const result = await runMigrations(pool, [])
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toBe(0)
+  })
+})
+
+describe('runMigrations advisory lock', () => {
+  it('acquires and releases advisory lock around migration execution', async () => {
+    const calls: string[] = []
+    const unsafe = (query: string): Promise<ReadonlyArray<Record<string, number>>> => {
+      calls.push(query)
+      return Promise.resolve([])
+    }
+    const sql = Object.assign(
+      (): Promise<ReadonlyArray<Record<string, number>>> => Promise.resolve([]),
+      {
+        unsafe,
+        begin: async (fn: (tx: { unsafe: typeof unsafe }) => Promise<void>): Promise<void> => {
+          await fn({ unsafe })
+        }
+      }
+    ) as unknown as import('../connection.js').DbPool['sql']
+    const pool = { sql }
+
+    await runMigrations(pool, [
+      { version: 1, name: 'init', sql: 'CREATE TABLE test (id INT);' }
+    ])
+
+    const lockCall = calls.find((c) => c.includes('pg_advisory_lock'))
+    const unlockCall = calls.find((c) => c.includes('pg_advisory_unlock'))
+    expect(lockCall).toBeDefined()
+    expect(unlockCall).toBeDefined()
+  })
+})

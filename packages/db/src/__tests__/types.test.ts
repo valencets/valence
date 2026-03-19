@@ -68,3 +68,21 @@ describe('type construction', () => {
     expect(config.max).toBe(10)
   })
 })
+
+describe('DbErrorCode extended codes', () => {
+  it('has AUTH_FAILED code', () => {
+    expect(DbErrorCode.AUTH_FAILED).toBe('AUTH_FAILED')
+  })
+
+  it('has QUERY_TIMEOUT code', () => {
+    expect(DbErrorCode.QUERY_TIMEOUT).toBe('QUERY_TIMEOUT')
+  })
+
+  it('has POOL_EXHAUSTED code', () => {
+    expect(DbErrorCode.POOL_EXHAUSTED).toBe('POOL_EXHAUSTED')
+  })
+
+  it('has SERIALIZATION_FAILURE code', () => {
+    expect(DbErrorCode.SERIALIZATION_FAILURE).toBe('SERIALIZATION_FAILURE')
+  })
+})
