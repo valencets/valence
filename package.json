@@ -24,6 +24,17 @@
     "node": ">=22.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["argon2"]
+    "onlyBuiltDependencies": [
+      "argon2"
+    ]
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/valencets/valence.git"
+  },
+  "homepage": "https://github.com/valencets/valence#readme",
+  "bugs": {
+    "url": "https://github.com/valencets/valence/issues"
   }
 }

@@ -33,5 +33,9 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "homepage": "https://github.com/valencets/valence/tree/master/packages/db#readme",
+  "bugs": {
+    "url": "https://github.com/valencets/valence/issues"
   }
 }

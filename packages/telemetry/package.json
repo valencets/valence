@@ -42,5 +42,9 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "homepage": "https://github.com/valencets/valence/tree/master/packages/telemetry#readme",
+  "bugs": {
+    "url": "https://github.com/valencets/valence/issues"
   }
 }
