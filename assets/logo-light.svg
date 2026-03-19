@@ -6,13 +6,16 @@
       <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.7"/>
     </linearGradient>
   </defs>
-  <!-- Orbital arc -->
   <ellipse cx="180" cy="40" rx="172" ry="32"
     stroke="url(#orbital)" stroke-width="1.5" fill="none"
     transform="rotate(-5, 180, 40)"/>
-  <!-- Electron -->
-  <circle cx="350" cy="28" r="4" fill="#3b82f6"/>
-  <!-- Wordmark: bold v + light alence -->
+  <circle r="4" fill="#3b82f6">
+    <animateMotion dur="6s" repeatCount="indefinite">
+      <mpath href="#orbit-path"/>
+    </animateMotion>
+  </circle>
+  <ellipse id="orbit-path" cx="180" cy="40" rx="172" ry="32"
+    transform="rotate(-5, 180, 40)" fill="none" stroke="none"/>
   <text x="180" y="44" text-anchor="middle"
     font-family="'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif"
     font-size="46" letter-spacing="0.1em" fill="#0f172a">
