@@ -493,7 +493,7 @@ describe('initRouter', () => {
 
     await handle!.navigate('/full')
 
-    expect(mockFetch).toHaveBeenCalledWith('/full')
+    expect(mockFetch).toHaveBeenCalledWith('/full', expect.objectContaining({ signal: expect.any(AbortSignal) }))
   })
 
   it('valence:navigated event includes performance metadata', async () => {
@@ -815,5 +815,249 @@ describe('initRouter', () => {
     // Wait for background fetch to settle -- should NOT throw unhandled rejection
     await new Promise(resolve => { setTimeout(resolve, 100) })
     expect(callCount).toBe(2)
+  })
+
+  it('rapid sequential navigations: earlier fetches receive abort signal', async () => {
+    const receivedSignals: Array<AbortSignal | undefined> = []
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation((_url, init) => {
+      receivedSignals.push(init?.signal ?? undefined)
+      return Promise.resolve(new Response(
+        '<html><head><title>Nav</title></head><body><main><p>Nav</p></main></body></html>',
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      ))
+    })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    // Fire 3 rapid navigations
+    handle!.navigate('/page-a')
+    handle!.navigate('/page-b')
+    await handle!.navigate('/page-c')
+
+    // All fetches should receive an AbortSignal
+    expect(receivedSignals.length).toBeGreaterThanOrEqual(1)
+    for (const signal of receivedSignals) {
+      expect(signal).toBeInstanceOf(AbortSignal)
+    }
+
+    // Earlier signals should be aborted, last should not
+    const lastSignal = receivedSignals[receivedSignals.length - 1]
+    expect(lastSignal?.aborted).toBe(false)
+    if (receivedSignals.length > 1) {
+      expect(receivedSignals[0]?.aborted).toBe(true)
+    }
+  })
+
+  it('failed fetch returns error after retries exhausted', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockRejectedValue(
+      new TypeError('Failed to fetch')
+    )
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    // Navigate — all retries will fail
+    const navResult = await handle!.navigate('/fail-page')
+
+    // Should have returned an error (implementation will fall back to location.href)
+    expect(navResult.isErr()).toBe(true)
+  })
+
+  it('click sets aria-busy and data-val-loading on anchor', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(new Response(
+            '<html><head><title>Loading</title></head><body><main><p>Loaded</p></main></body></html>',
+            { status: 200, headers: { 'Content-Type': 'text/html' } }
+          ))
+        }, 50)
+      })
+    })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const link = createAnchor('/loading')
+    clickAnchor(link)
+
+    // Immediately after click, loading state should be set
+    expect(link.getAttribute('aria-busy')).toBe('true')
+    expect(link.hasAttribute('data-val-loading')).toBe(true)
+
+    await new Promise(resolve => { setTimeout(resolve, 100) })
+  })
+
+  it('successful navigation removes loading attributes', async () => {
+    const mockFetch = createMockFetch('<html><head><title>Done</title></head><body><main><p>Done</p></main></body></html>')
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const link = createAnchor('/done')
+    clickAnchor(link)
+
+    await new Promise(resolve => { setTimeout(resolve, 50) })
+
+    expect(link.hasAttribute('aria-busy')).toBe(false)
+    expect(link.hasAttribute('data-val-loading')).toBe(false)
+  })
+
+  it('failed navigation removes loading attributes', async () => {
+    vi.useFakeTimers()
+
+    const mockFetch = vi.fn<typeof fetch>().mockRejectedValue(
+      new TypeError('Failed to fetch')
+    )
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const link = createAnchor('/fail')
+    clickAnchor(link)
+
+    // Advance past retry backoff (immediate + 1s delay + final attempt)
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(link.hasAttribute('aria-busy')).toBe(false)
+    expect(link.hasAttribute('data-val-loading')).toBe(false)
+
+    vi.useRealTimers()
+  })
+
+  it('double-click on same URL while in-flight is ignored', async () => {
+    let fetchCallCount = 0
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      fetchCallCount++
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(new Response(
+            '<html><head><title>Click</title></head><body><main><p>Click</p></main></body></html>',
+            { status: 200, headers: { 'Content-Type': 'text/html' } }
+          ))
+        }, 50)
+      })
+    })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const link = createAnchor('/double')
+    clickAnchor(link)
+    clickAnchor(link)
+
+    await new Promise(resolve => { setTimeout(resolve, 100) })
+
+    // Only one navigation should have been initiated
+    // (first click navigates, second click is ignored as duplicate)
+    expect(fetchCallCount).toBe(1)
+  })
+
+  it('click on different URL starts new navigation (previous aborted)', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation((url) => {
+      const urlStr = typeof url === 'string' ? url : url.toString()
+      return Promise.resolve(new Response(
+        `<html><head><title>${urlStr}</title></head><body><main><p>${urlStr}</p></main></body></html>`,
+        { status: 200, headers: { 'Content-Type': 'text/html' } }
+      ))
+    })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const linkA = createAnchor('/page-a')
+    const linkB = createAnchor('/page-b')
+    clickAnchor(linkA)
+    clickAnchor(linkB)
+
+    await new Promise(resolve => { setTimeout(resolve, 50) })
+
+    // linkA should have loading cleared (navigation was superseded)
+    expect(linkA.hasAttribute('aria-busy')).toBe(false)
+    expect(linkA.hasAttribute('data-val-loading')).toBe(false)
+  })
+
+  it('loading timeout clears attributes after 8s', async () => {
+    vi.useFakeTimers()
+
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      // Never resolves — simulates a hung request
+      return new Promise(() => {})
+    })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const link = createAnchor('/timeout')
+    clickAnchor(link)
+
+    expect(link.getAttribute('aria-busy')).toBe('true')
+
+    // Advance past the 8s safety timeout
+    await vi.advanceTimersByTimeAsync(8000)
+
+    expect(link.hasAttribute('aria-busy')).toBe(false)
+    expect(link.hasAttribute('data-val-loading')).toBe(false)
+
+    vi.useRealTimers()
+  })
+
+  it('destroy() clears loading state', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      return new Promise(() => {}) // never resolves
+    })
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const link = createAnchor('/destroy-loading')
+    clickAnchor(link)
+
+    expect(link.getAttribute('aria-busy')).toBe('true')
+
+    handle!.destroy()
+    handle = null
+
+    expect(link.hasAttribute('aria-busy')).toBe(false)
+    expect(link.hasAttribute('data-val-loading')).toBe(false)
   })
 })

@@ -29,10 +29,15 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/valencets/valence.git",
+    "url": "git+https://github.com/valencets/valence.git",
     "directory": "packages/core"
   },
   "engines": {
     "node": ">=22"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/valencets/valence/tree/master/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/valencets/valence/issues"
   }
 }

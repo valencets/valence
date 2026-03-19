@@ -1,4 +1,5 @@
 import type { CollectionConfig } from '../schema/collection.js'
+import { CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
 import type { FlashMessage } from './flash.js'
 import { escapeHtml } from './escape.js'
 import { renderToast } from './toast.js'
@@ -8,6 +9,8 @@ interface LayoutArgs {
   readonly content: string
   readonly collections: readonly CollectionConfig[]
   readonly toast?: FlashMessage | undefined
+  readonly nonce?: string | undefined
+  readonly headTags?: readonly string[] | undefined
 }
 
 export function renderLayout (args: LayoutArgs): string {
@@ -25,6 +28,7 @@ export function renderLayout (args: LayoutArgs): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(args.title)} — Valence CMS</title>
+  ${(args.headTags ?? []).join('\n  ')}
   <style>
     /* --- Primitive tokens (inlined from @valencets/ui) --- */
     :root {
@@ -521,7 +525,7 @@ ${navItems}
     ${args.content}
   </main>
   ${toastHtml
-    ? `<script>
+    ? `<script${args.nonce ? ` nonce="${args.nonce}"` : ' nonce="' + CSP_NONCE_PLACEHOLDER + '"'}>
     (function () {
       var t = document.querySelector('.toast')
       if (!t) return
@@ -531,7 +535,7 @@ ${navItems}
     })()
   </script>`
     : ''}
-  <script src="/admin/_assets/admin-client.js" defer></script>
+  <script src="/admin/_assets/admin-client.js"${args.nonce ? ` nonce="${args.nonce}"` : ' nonce="' + CSP_NONCE_PLACEHOLDER + '"'} defer></script>
 </body>
 </html>`
 }

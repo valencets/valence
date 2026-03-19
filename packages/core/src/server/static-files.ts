@@ -38,6 +38,19 @@ export function resolveStaticPath (requestPath: string, rootDir: string): Result
     return err({ code: ServerErrorCode.NOT_FOUND, message: 'Invalid path', statusCode: 404 })
   }
 
+  // Reject backslashes (raw and percent-encoded)
+  if (requestPath.includes('\\') || requestPath.includes('%5c') || requestPath.includes('%5C')) {
+    return err({ code: ServerErrorCode.NOT_FOUND, message: 'Invalid path', statusCode: 404 })
+  }
+
+  // Reject control characters (U+0001–U+001F)
+  for (let i = 0; i < requestPath.length; i++) {
+    const code = requestPath.charCodeAt(i)
+    if (code >= 1 && code <= 0x1f) {
+      return err({ code: ServerErrorCode.NOT_FOUND, message: 'Invalid path', statusCode: 404 })
+    }
+  }
+
   // Decode and normalize
   const decoded = decodeURIComponent(requestPath)
   const normalized = normalize(decoded)

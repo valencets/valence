@@ -1,3 +1,5 @@
+import { createAbortableFetch } from './fetch-retry.js'
+import { initScrollRestore } from './scroll-restore.js'
 import { ok, err, ResultAsync } from 'neverthrow'
 import type { Result } from 'neverthrow'
 import { RouterErrorCode, resolveConfig } from './router-types.js'
@@ -108,6 +110,7 @@ function performNavigation (
   url: string,
   config: ResolvedRouterConfig,
   fetchFn: typeof fetch,
+  rawFetchFn: typeof fetch,
   prefetchHandle: PrefetchHandle,
   pageCacheHandle: PageCacheHandle
 ): ResultAsync<NavigationResult, RouterError> {
@@ -119,7 +122,7 @@ function performNavigation (
     if (pageCached.isOk()) {
       const result = processHtml(pageCached.value.html, config.contentSelector, config.enableViewTransitions)
       if (result.isOk()) {
-        revalidateInBackground(url, config, fetchFn, pageCacheHandle, pageCached.value.html)
+        revalidateInBackground(url, config, rawFetchFn, pageCacheHandle, pageCached.value.html)
         return ResultAsync.fromSafePromise(
           Promise.resolve({ source: 'cache' as const, version: pageCached.value.version, title: result.value })
         )
@@ -245,6 +248,35 @@ export function initRouter (
   const prefetchHandle = prefetchResult.value
 
   const pageCacheHandle = initPageCache(resolved)
+  const abortableFetch = createAbortableFetch(fetchFn)
+  const scrollRestore = initScrollRestore()
+
+  // Click debouncing + loading state
+  let activeNavigationUrl: string | null = null
+  let activeAnchor: HTMLAnchorElement | null = null
+  let loadingTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+  function setLoadingState (anchor: HTMLAnchorElement, url: string): void {
+    clearLoadingState()
+    activeNavigationUrl = url
+    activeAnchor = anchor
+    anchor.setAttribute('aria-busy', 'true')
+    anchor.setAttribute('data-val-loading', '')
+    loadingTimeoutId = setTimeout(clearLoadingState, resolved.navigationTimeoutMs)
+  }
+
+  function clearLoadingState (): void {
+    if (activeAnchor !== null) {
+      activeAnchor.removeAttribute('aria-busy')
+      activeAnchor.removeAttribute('data-val-loading')
+    }
+    activeAnchor = null
+    activeNavigationUrl = null
+    if (loadingTimeoutId !== null) {
+      clearTimeout(loadingTimeoutId)
+      loadingTimeoutId = null
+    }
+  }
 
   // Seed version from DOM if available
   const versionAttr = document.documentElement.getAttribute('data-valence-version')
@@ -252,7 +284,7 @@ export function initRouter (
     pageCacheHandle.setVersion(versionAttr)
   }
 
-  function navigate (url: string): ResultAsync<void, RouterError> {
+  function navigate (url: string, hash?: string): ResultAsync<void, RouterError> {
     const fromUrl = window.location.href
     const detail: NavigationDetail = { fromUrl, toUrl: url }
 
@@ -263,11 +295,14 @@ export function initRouter (
 
     const startTime = performance.now()
 
-    return performNavigation(url, resolved, fetchFn, prefetchHandle, pageCacheHandle)
+    scrollRestore.saveCurrentPosition()
+    abortableFetch.abort()
+    return performNavigation(url, resolved, abortableFetch.fetch, fetchFn, prefetchHandle, pageCacheHandle)
       .map((navResult) => {
         const durationMs = Math.round(performance.now() - startTime)
-        window.history.pushState({ url }, '', url)
-        window.scrollTo(0, 0)
+        const pushUrl = hash !== undefined ? url + hash : url
+        window.history.pushState({ url }, '', pushUrl)
+        if (hash === undefined || !scrollRestore.scrollToHash(hash)) { window.scrollTo(0, 0) }
 
         // Apply title from header (fragment responses) or parsed HTML
         if (navResult.title !== null) {
@@ -293,7 +328,12 @@ export function initRouter (
           bubbles: true,
           detail: perfDetail
         }))
+        clearLoadingState()
         return undefined
+      })
+      .mapErr((error) => {
+        clearLoadingState()
+        return error
       })
   }
 
@@ -304,7 +344,7 @@ export function initRouter (
 
     const startTime = performance.now()
 
-    performNavigation(url, resolved, fetchFn, prefetchHandle, pageCacheHandle)
+    performNavigation(url, resolved, abortableFetch.fetch, fetchFn, prefetchHandle, pageCacheHandle)
       .map((navResult) => {
         const durationMs = Math.round(performance.now() - startTime)
 
@@ -322,6 +362,7 @@ export function initRouter (
           bubbles: true,
           detail: perfDetail
         }))
+        scrollRestore.restorePosition(popEvent.state)
         return undefined
       })
   }
@@ -341,7 +382,13 @@ export function initRouter (
     // Use pathname + search (strips hash fragment) so cache keys are consistent
     // /about#contact and /about resolve to the same server resource
     const url = anchor.pathname + anchor.search
-    navigate(url)
+    const hash = anchor.hash !== '' ? anchor.hash : undefined
+
+    // Ignore duplicate click on same URL while navigation is in-flight
+    if (activeNavigationUrl === url) return
+
+    setLoadingState(anchor, url)
+    navigate(url, hash)
   }
 
   document.body.addEventListener('click', onClick)
@@ -352,6 +399,9 @@ export function initRouter (
       document.body.removeEventListener('click', onClick)
       window.removeEventListener('popstate', onPopstate)
       prefetchHandle.destroy()
+      abortableFetch.abort()
+      scrollRestore.destroy()
+      clearLoadingState()
       pageCacheHandle.invalidateAll()
     },
     navigate,

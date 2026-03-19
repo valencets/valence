@@ -1,4 +1,5 @@
 import type { LearnProgress, LearnStepId } from './types.js'
+import { PAGE_TOKEN_CSS } from '../page-tokens.js'
 
 interface StepDisplay {
   readonly id: LearnStepId
@@ -126,7 +127,7 @@ export function renderLearnPage (progress: LearnProgress, port: number): string 
         <a href="/admin/analytics">Analytics Dashboard</a>
         <a href="https://github.com/valencets/valence/wiki">Documentation</a>
       </div>
-      <p style="margin-top:1rem;font-size:0.85rem;color:#64748b">Valence includes built-in first-party analytics &mdash; no third-party scripts. Add <code>data-telemetry-*</code> attributes to your HTML to track user intent, and view the results at <code>/admin/analytics</code>.</p>
+      <p style="margin-top:var(--val-space-4);font-size:var(--val-text-sm);color:var(--val-gray-500)">Valence includes built-in first-party analytics &mdash; no third-party scripts. Add <code>data-telemetry-*</code> attributes to your HTML to track user intent, and view the results at <code>/admin/analytics</code>.</p>
     </div>`
     : ''
 
@@ -137,145 +138,146 @@ export function renderLearnPage (progress: LearnProgress, port: number): string 
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Valence Learn</title>
   <style>
+    ${PAGE_TOKEN_CSS}
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #0f172a;
-      color: #e2e8f0;
+      font-family: var(--val-font-sans);
+      background: var(--val-color-bg);
+      color: var(--val-color-text);
       min-height: 100vh;
-      padding: 2rem;
+      padding: var(--val-space-8);
     }
     .container { max-width: 640px; margin: 0 auto; }
-    header { margin-bottom: 2rem; }
+    header { margin-bottom: var(--val-space-8); }
     h1 {
-      font-size: 1.75rem;
+      font-size: var(--val-text-2xl);
       font-weight: 300;
       letter-spacing: 0.05em;
-      margin-bottom: 1rem;
+      margin-bottom: var(--val-space-4);
     }
-    h1 span { font-weight: 600; color: #3b82f6; }
+    h1 span { font-weight: 600; color: var(--val-color-primary); }
     .progress-bar-container {
-      background: #1e293b;
-      border-radius: 8px;
+      background: var(--val-color-bg-elevated);
+      border-radius: var(--val-radius-lg);
       height: 8px;
       overflow: hidden;
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--val-space-2);
     }
     .progress-bar-fill {
-      background: #3b82f6;
+      background: var(--val-color-primary);
       height: 100%;
-      border-radius: 8px;
+      border-radius: var(--val-radius-lg);
       transition: width 0.4s ease;
     }
-    .progress-text { color: #94a3b8; font-size: 0.85rem; }
-    .steps { display: flex; flex-direction: column; gap: 0.5rem; }
+    .progress-text { color: var(--val-color-text-muted); font-size: var(--val-text-sm); }
+    .steps { display: flex; flex-direction: column; gap: var(--val-space-2); }
     .step {
-      background: #1e293b;
-      border-radius: 8px;
-      padding: 1rem 1.25rem;
+      background: var(--val-color-bg-elevated);
+      border-radius: var(--val-radius-lg);
+      padding: var(--val-space-4) var(--val-space-5);
       border-left: 3px solid transparent;
     }
-    .step.completed { border-left-color: #22c55e; opacity: 0.7; }
-    .step.current { border-left-color: #3b82f6; }
+    .step.completed { border-left-color: var(--val-color-success); opacity: 0.7; }
+    .step.current { border-left-color: var(--val-color-primary); }
     .step.future { opacity: 0.4; }
     .step-header {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--val-space-2);
       cursor: pointer;
     }
-    .step-check { color: #22c55e; font-size: 1.1rem; }
-    .step-dot { color: #3b82f6; font-size: 0.75rem; }
-    .step-dot.dim { color: #475569; }
-    .step-number { color: #64748b; font-size: 0.85rem; }
+    .step-check { color: var(--val-color-success); font-size: var(--val-text-lg); }
+    .step-dot { color: var(--val-color-primary); font-size: var(--val-text-xs); }
+    .step-dot.dim { color: var(--val-gray-600); }
+    .step-number { color: var(--val-gray-500); font-size: var(--val-text-sm); }
     .step-title { font-weight: 500; }
-    .step-body { margin-top: 0.75rem; padding-left: 1.75rem; }
-    .step-body p { color: #94a3b8; line-height: 1.6; margin-bottom: 0.5rem; font-size: 0.9rem; }
-    .step-body code { background: #0f172a; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.85rem; color: #e2e8f0; }
-    .hint { color: #64748b !important; font-style: italic; }
+    .step-body { margin-top: var(--val-space-3); padding-left: var(--val-space-6); }
+    .step-body p { color: var(--val-color-text-muted); line-height: 1.6; margin-bottom: var(--val-space-2); font-size: var(--val-text-sm); }
+    .step-body code { background: var(--val-gray-900); padding: var(--val-space-1) var(--val-space-2); border-radius: var(--val-radius-sm); font-size: var(--val-text-sm); color: var(--val-color-text); }
+    .hint { color: var(--val-gray-500) !important; font-style: italic; }
     .command-block {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      padding: 0.5rem 0.75rem;
-      margin-top: 0.5rem;
+      gap: var(--val-space-3);
+      background: var(--val-gray-900);
+      border: 1px solid var(--val-color-border);
+      border-radius: var(--val-radius-md);
+      padding: var(--val-space-2) var(--val-space-3);
+      margin-top: var(--val-space-2);
     }
     .command-block code {
       flex: 1;
       background: transparent;
       padding: 0;
-      font-size: 0.85rem;
-      color: #e2e8f0;
+      font-size: var(--val-text-sm);
+      color: var(--val-color-text);
     }
     .copy-btn {
-      background: #334155;
-      color: #94a3b8;
+      background: var(--val-color-border);
+      color: var(--val-color-text-muted);
       border: none;
-      padding: 0.25rem 0.75rem;
-      border-radius: 4px;
+      padding: var(--val-space-1) var(--val-space-3);
+      border-radius: var(--val-radius-sm);
       cursor: pointer;
-      font-size: 0.8rem;
-      transition: background 0.15s;
+      font-size: var(--val-text-xs);
+      transition: background var(--val-duration-fast);
     }
-    .copy-btn:hover { background: #475569; color: #e2e8f0; }
+    .copy-btn:hover { background: var(--val-gray-600); color: var(--val-color-text); }
     .action-link {
       display: inline-block;
-      margin-top: 0.75rem;
-      color: #3b82f6;
+      margin-top: var(--val-space-3);
+      color: var(--val-color-primary);
       text-decoration: none;
-      font-size: 0.9rem;
-      padding: 0.4rem 0.75rem;
-      border: 1px solid #3b82f6;
-      border-radius: 6px;
-      transition: all 0.15s;
+      font-size: var(--val-text-sm);
+      padding: var(--val-space-2) var(--val-space-3);
+      border: 1px solid var(--val-color-primary);
+      border-radius: var(--val-radius-md);
+      transition: all var(--val-duration-fast);
     }
-    .action-link:hover { background: #3b82f6; color: #0f172a; }
+    .action-link:hover { background: var(--val-color-primary); color: var(--val-color-bg); }
     .celebration {
-      background: #1e293b;
-      border-radius: 8px;
-      padding: 1.5rem;
+      background: var(--val-color-bg-elevated);
+      border-radius: var(--val-radius-lg);
+      padding: var(--val-space-6);
       text-align: center;
-      margin-top: 1.5rem;
-      border: 1px solid #22c55e;
+      margin-top: var(--val-space-6);
+      border: 1px solid var(--val-color-success);
     }
-    .celebration h2 { color: #22c55e; margin-bottom: 0.5rem; font-size: 1.25rem; }
-    .celebration p { color: #94a3b8; margin-bottom: 1rem; font-size: 0.9rem; }
-    .next-links { display: flex; gap: 0.75rem; justify-content: center; }
+    .celebration h2 { color: var(--val-color-success); margin-bottom: var(--val-space-2); font-size: var(--val-text-xl); }
+    .celebration p { color: var(--val-color-text-muted); margin-bottom: var(--val-space-4); font-size: var(--val-text-sm); }
+    .next-links { display: flex; gap: var(--val-space-3); justify-content: center; }
     .next-links a {
-      color: #3b82f6;
+      color: var(--val-color-primary);
       text-decoration: none;
-      padding: 0.4rem 0.75rem;
-      border: 1px solid #3b82f6;
-      border-radius: 6px;
-      transition: all 0.15s;
-      font-size: 0.9rem;
+      padding: var(--val-space-2) var(--val-space-3);
+      border: 1px solid var(--val-color-primary);
+      border-radius: var(--val-radius-md);
+      transition: all var(--val-duration-fast);
+      font-size: var(--val-text-sm);
     }
-    .next-links a:hover { background: #3b82f6; color: #0f172a; }
+    .next-links a:hover { background: var(--val-color-primary); color: var(--val-color-bg); }
     footer {
-      margin-top: 2rem;
-      padding-top: 1rem;
-      border-top: 1px solid #1e293b;
+      margin-top: var(--val-space-8);
+      padding-top: var(--val-space-4);
+      border-top: 1px solid var(--val-color-bg-elevated);
       display: flex;
-      gap: 1rem;
+      gap: var(--val-space-4);
       justify-content: center;
       flex-wrap: wrap;
     }
     footer a {
-      color: #64748b;
+      color: var(--val-gray-500);
       text-decoration: none;
-      font-size: 0.8rem;
-      transition: color 0.15s;
+      font-size: var(--val-text-xs);
+      transition: color var(--val-duration-fast);
     }
-    footer a:hover { color: #94a3b8; }
+    footer a:hover { color: var(--val-color-text-muted); }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1><span>v</span>alence <span style="font-weight:300;color:#64748b">learn</span></h1>
+      <h1><span>v</span>alence <span style="font-weight:300;color:var(--val-gray-500)">learn</span></h1>
       <div class="progress-bar-container">
         <div class="progress-bar-fill" style="width: ${progressPct}%"></div>
       </div>

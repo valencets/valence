@@ -28,6 +28,8 @@ export function initPrefetch (
 ): Result<PrefetchHandle, RouterError> {
   const cache = new Map<string, CachedResponse>()
   const inFlight = new Set<string>()
+  const pendingQueue: string[] = []
+  const pendingSet = new Set<string>()
 
   let lastX = 0
   let lastY = 0
@@ -44,9 +46,28 @@ export function initPrefetch (
     }
   }
 
+  function drainQueue (): void {
+    if (pendingQueue.length === 0) return
+    if (inFlight.size >= config.maxConcurrentPrefetches) return
+    const next = pendingQueue.shift()
+    if (next !== undefined) {
+      pendingSet.delete(next)
+      prefetchUrl(next)
+    }
+  }
+
   function prefetchUrl (url: string): ResultAsync<void, RouterError> {
     if (cache.has(url)) return ResultAsync.fromSafePromise(Promise.resolve(undefined))
     if (inFlight.has(url)) return ResultAsync.fromSafePromise(Promise.resolve(undefined))
+
+    // Budget check -- queue if at capacity
+    if (inFlight.size >= config.maxConcurrentPrefetches) {
+      if (!pendingSet.has(url)) {
+        pendingQueue.push(url)
+        pendingSet.add(url)
+      }
+      return ResultAsync.fromSafePromise(Promise.resolve(undefined))
+    }
 
     inFlight.add(url)
 
@@ -92,7 +113,12 @@ export function initPrefetch (
         html,
         timestamp: Date.now()
       })
+      drainQueue()
       return undefined
+    }).mapErr((error) => {
+      inFlight.delete(url)
+      drainQueue()
+      return error
     })
   }
 
@@ -175,12 +201,16 @@ export function initPrefetch (
       document.body.removeEventListener('mousemove', onMouseMove)
       clearIntent()
       cache.clear()
+      pendingQueue.length = 0
+      pendingSet.clear()
       inFlight.clear()
     },
     prefetchUrl,
     getCached,
     clearCache () {
       cache.clear()
+      pendingQueue.length = 0
+      pendingSet.clear()
     },
     cacheSize () {
       return cache.size

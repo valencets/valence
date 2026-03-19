@@ -25,11 +25,11 @@ function parseFlash (encoded: string): FlashMessage | null {
 
 function setFlashCookie (res: ServerResponse, msg: FlashMessage): void {
   const value = serializeFlash(msg)
-  res.setHeader('Set-Cookie', `cms_flash=${value}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=30`)
+  res.setHeader('Set-Cookie', `cms_flash=${value}; Path=/admin; HttpOnly; SameSite=Strict; Secure; Max-Age=30`)
 }
 
 function clearFlashCookie (res: ServerResponse): void {
-  res.setHeader('Set-Cookie', 'cms_flash=; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0')
+  res.setHeader('Set-Cookie', 'cms_flash=; Path=/admin; HttpOnly; SameSite=Strict; Secure; Max-Age=0')
 }
 
 function readFlash (cookieHeader: string): FlashMessage | null {

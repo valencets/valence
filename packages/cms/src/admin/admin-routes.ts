@@ -28,6 +28,7 @@ import { readStringBody } from '../api/read-body.js'
 import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
 import { setFlashCookie, readFlash, clearFlashCookie } from './flash.js'
 import { readFileSync } from 'node:fs'
+import { generateNonce, setSecurityHeaders, CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
 import { fileURLToPath } from 'node:url'
 
 type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
@@ -35,6 +36,7 @@ type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record
 interface AdminOptions {
   readonly requireAuth?: boolean | undefined
   readonly telemetryPool?: DbPool | undefined
+  readonly headTags?: readonly string[] | undefined
 }
 
 function wrapWithAuth (pool: DbPool, handler: AdminRouteHandler): AdminRouteHandler {
@@ -67,12 +69,15 @@ function safeReadFormBody (req: IncomingMessage): ResultAsync<DocumentData, CmsE
   })
 }
 
-/** Sends HTML using setHeader so previously set headers (e.g. Set-Cookie) are preserved. */
+/** Sends HTML with CSP nonce: generates nonce, replaces placeholders, sets security headers. */
 function sendHtml (res: ServerResponse, html: string, statusCode: number = 200): void {
+  const nonce = generateNonce()
+  const finalHtml = html.replaceAll(CSP_NONCE_PLACEHOLDER, nonce)
+  setSecurityHeaders(res, { nonce })
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
-  res.setHeader('Content-Length', Buffer.byteLength(html))
+  res.setHeader('Content-Length', Buffer.byteLength(finalHtml))
   res.writeHead(statusCode)
-  res.end(html)
+  res.end(finalHtml)
 }
 
 interface FormSnapshot {
@@ -105,6 +110,7 @@ export function createAdminRoutes (
     : (handler: AdminRouteHandler): AdminRouteHandler => handler
   const routes = new Map<string, RestRouteEntry>()
   const allCollections = collections.getAll()
+  const headTags = options.headTags
   const globals = createGlobalRegistry()
   const api = createLocalApi(pool, collections, globals)
   const CSRF_TTL_MS = 3_600_000
@@ -258,7 +264,7 @@ export function createAdminRoutes (
     GET: wrap(async (_req, res) => {
       if (!options.telemetryPool) {
         const content = renderAnalyticsView(null)
-        const html = renderLayout({ title: 'Analytics', content, collections: allCollections })
+        const html = renderLayout({ title: 'Analytics', content, collections: allCollections, headTags })
         sendHtml(res, html)
         return
       }
@@ -286,11 +292,11 @@ export function createAdminRoutes (
           topPages: breakdowns.top_pages,
           topReferrers: breakdowns.top_referrers
         })
-        const html = renderLayout({ title: 'Analytics', content, collections: allCollections })
+        const html = renderLayout({ title: 'Analytics', content, collections: allCollections, headTags })
         sendHtml(res, html)
       } catch {
         const content = renderAnalyticsView(null)
-        const html = renderLayout({ title: 'Analytics', content, collections: allCollections })
+        const html = renderLayout({ title: 'Analytics', content, collections: allCollections, headTags })
         sendHtml(res, html)
       }
     })
@@ -315,7 +321,7 @@ export function createAdminRoutes (
       })
       const stats = await Promise.all(statsPromises)
       const content = renderDashboard({ stats })
-      const html = renderLayout({ title: 'Dashboard', content, collections: allCollections })
+      const html = renderLayout({ title: 'Dashboard', content, collections: allCollections, headTags })
       sendHtml(res, html)
     })
   })
@@ -337,6 +343,7 @@ export function createAdminRoutes (
           title: col.labels?.plural ?? col.slug,
           content,
           collections: allCollections,
+          headTags,
           toast
         })
         sendHtml(res, html)
@@ -351,7 +358,8 @@ export function createAdminRoutes (
         const html = renderLayout({
           title: `New ${col.labels?.singular ?? col.slug}`,
           content,
-          collections: allCollections
+          collections: allCollections,
+          headTags
         })
         sendHtml(res, html)
       }),
@@ -449,7 +457,8 @@ export function createAdminRoutes (
         const html = renderLayout({
           title: `Edit ${col.labels?.singular ?? col.slug}`,
           content,
-          collections: allCollections
+          collections: allCollections,
+          headTags
         })
         sendHtml(res, html)
       }),
@@ -507,7 +516,8 @@ export function createAdminRoutes (
         const html = renderLayout({
           title: `History — ${col.labels?.singular ?? col.slug}`,
           content,
-          collections: allCollections
+          collections: allCollections,
+          headTags
         })
         sendHtml(res, html)
       })
@@ -529,7 +539,8 @@ export function createAdminRoutes (
         const html = renderLayout({
           title: `Revision ${rev} — ${col.labels?.singular ?? col.slug}`,
           content,
-          collections: allCollections
+          collections: allCollections,
+          headTags
         })
         sendHtml(res, html)
       })

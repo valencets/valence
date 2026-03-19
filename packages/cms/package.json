@@ -48,5 +48,9 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "homepage": "https://github.com/valencets/valence/tree/master/packages/cms#readme",
+  "bugs": {
+    "url": "https://github.com/valencets/valence/issues"
   }
 }

@@ -349,4 +349,188 @@ describe('hover intent', () => {
     await new Promise(resolve => { setTimeout(resolve, 50) })
     expect(mockFetch).not.toHaveBeenCalled()
   })
+
+  it('only N concurrent prefetch requests fire (budget)', async () => {
+    const config = resolveConfig({ maxConcurrentPrefetches: 2 })
+    const resolvers: Array<(value: Response) => void> = []
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      return new Promise<Response>((resolve) => {
+        resolvers.push(resolve)
+      })
+    })
+
+    const result = initPrefetch(config, mockFetch)
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) return
+    handle = result.value
+
+    // Fire 3 prefetch requests — only 2 should start
+    handle.prefetchUrl('/page-1')
+    handle.prefetchUrl('/page-2')
+    handle.prefetchUrl('/page-3')
+
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('queued prefetch starts when slot opens', async () => {
+    const config = resolveConfig({ maxConcurrentPrefetches: 1 })
+    const resolvers: Array<(value: Response) => void> = []
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      return new Promise<Response>((resolve) => {
+        resolvers.push(resolve)
+      })
+    })
+
+    const result = initPrefetch(config, mockFetch)
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) return
+    handle = result.value
+
+    // Fire 2 requests — first starts, second queued
+    handle.prefetchUrl('/page-1')
+    handle.prefetchUrl('/page-2')
+
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+
+    // Complete the first — should start the second
+    resolvers[0]!(new Response('<main>Page 1</main>', { status: 200, headers: { 'Content-Type': 'text/html' } }))
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('queued items fire in order', async () => {
+    const config = resolveConfig({ maxConcurrentPrefetches: 1 })
+    const fetchedUrls: string[] = []
+    const resolvers: Array<(value: Response) => void> = []
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation((url) => {
+      const urlStr = typeof url === 'string' ? url : url.toString()
+      fetchedUrls.push(urlStr)
+      return new Promise<Response>((resolve) => {
+        resolvers.push(resolve)
+      })
+    })
+
+    const result = initPrefetch(config, mockFetch)
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) return
+    handle = result.value
+
+    handle.prefetchUrl('/page-a')
+    handle.prefetchUrl('/page-b')
+    handle.prefetchUrl('/page-c')
+
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+    expect(fetchedUrls).toEqual(['/page-a'])
+
+    // Complete first
+    resolvers[0]!(new Response('<main>A</main>', { status: 200, headers: { 'Content-Type': 'text/html' } }))
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+    expect(fetchedUrls).toEqual(['/page-a', '/page-b'])
+
+    // Complete second
+    resolvers[1]!(new Response('<main>B</main>', { status: 200, headers: { 'Content-Type': 'text/html' } }))
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+    expect(fetchedUrls).toEqual(['/page-a', '/page-b', '/page-c'])
+  })
+
+  it('failed prefetch frees slot for queued items', async () => {
+    const config = resolveConfig({ maxConcurrentPrefetches: 1 })
+    const rejecters: Array<(reason: Error) => void> = []
+    const resolvers: Array<(value: Response) => void> = []
+    let callCount = 0
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      callCount++
+      if (callCount === 1) {
+        return new Promise<Response>((_resolve, reject) => {
+          rejecters.push(reject)
+        })
+      }
+      return new Promise<Response>((resolve) => {
+        resolvers.push(resolve)
+      })
+    })
+
+    const result = initPrefetch(config, mockFetch)
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) return
+    handle = result.value
+
+    handle.prefetchUrl('/fail')
+    handle.prefetchUrl('/succeed')
+
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+
+    // Fail the first — should free slot and start second
+    rejecters[0]!(new Error('Network error'))
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('clearCache clears pending queue', async () => {
+    const config = resolveConfig({ maxConcurrentPrefetches: 1 })
+    const resolvers: Array<(value: Response) => void> = []
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      return new Promise<Response>((resolve) => {
+        resolvers.push(resolve)
+      })
+    })
+
+    const result = initPrefetch(config, mockFetch)
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) return
+    handle = result.value
+
+    handle.prefetchUrl('/page-1')
+    handle.prefetchUrl('/page-2')
+    handle.prefetchUrl('/page-3')
+
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+
+    // Clear cache should also clear the pending queue
+    handle.clearCache()
+
+    // Complete the in-flight request
+    resolvers[0]!(new Response('<main>Done</main>', { status: 200, headers: { 'Content-Type': 'text/html' } }))
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+
+    // The queued items should NOT have started
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('destroy clears pending queue', async () => {
+    const config = resolveConfig({ maxConcurrentPrefetches: 1 })
+    const resolvers: Array<(value: Response) => void> = []
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => {
+      return new Promise<Response>((resolve) => {
+        resolvers.push(resolve)
+      })
+    })
+
+    const result = initPrefetch(config, mockFetch)
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) return
+    handle = result.value
+
+    handle.prefetchUrl('/page-1')
+    handle.prefetchUrl('/page-2')
+
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+
+    handle.destroy()
+    handle = null
+
+    // Complete the in-flight — queued should NOT start since destroyed
+    resolvers[0]!(new Response('<main>Done</main>', { status: 200, headers: { 'Content-Type': 'text/html' } }))
+    await new Promise(resolve => { setTimeout(resolve, 10) })
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
 })
