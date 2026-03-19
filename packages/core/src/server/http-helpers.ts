@@ -34,7 +34,7 @@ export function isFragmentRequest (req: IncomingMessage): boolean {
   return req.headers['x-valence-fragment'] === '1'
 }
 
-// 1 MiB — generous for HTML form posts, blocks abuse
+// 1 MiB -- generous for HTML form posts, blocks abuse
 export const MAX_BODY_BYTES = 1_048_576
 
 export function readBody (req: IncomingMessage, maxBytes: number = MAX_BODY_BYTES): Promise<string> {

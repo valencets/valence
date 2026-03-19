@@ -309,7 +309,7 @@ describe('hover intent', () => {
       clientY: 100
     }))
 
-    // Small movement after intentDurationMs — below velocity threshold
+    // Small movement after intentDurationMs -- below velocity threshold
     await new Promise(resolve => { setTimeout(resolve, 30) })
     link.dispatchEvent(new MouseEvent('mousemove', {
       bubbles: true,
@@ -339,7 +339,7 @@ describe('hover intent', () => {
       clientY: 100
     }))
 
-    // Large movement in very short time — above velocity threshold
+    // Large movement in very short time -- above velocity threshold
     link.dispatchEvent(new MouseEvent('mousemove', {
       bubbles: true,
       clientX: 500,

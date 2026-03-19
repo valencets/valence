@@ -72,15 +72,15 @@ function revalidateInBackground (
         pageCacheHandle.setVersion(result.version)
       }
 
-      // Same content — no re-swap needed
+      // Same content -- no re-swap needed
       if (result.html === cachedHtml) return
 
-      // User navigated away — don't re-swap
+      // User navigated away -- don't re-swap
       const currentPath = window.location.pathname
       const urlPath = url.startsWith('/') ? url : new URL(url, window.location.origin).pathname
       if (currentPath !== urlPath) return
 
-      // Content changed — update cache and re-swap
+      // Content changed -- update cache and re-swap
       const titleHeader = null
       pageCacheHandle.set(url, {
         url,
@@ -93,7 +93,7 @@ function revalidateInBackground (
       processHtml(result.html, config.contentSelector)
     })
     .catch(() => {
-      // Background revalidation is fire-and-forget — log but don't propagate
+      // Background revalidation is fire-and-forget -- log but don't propagate
     })
 }
 
@@ -113,7 +113,7 @@ function performNavigation (
 ): ResultAsync<NavigationResult, RouterError> {
   const skipCache = isNoCachePath(url, config.noCachePaths)
 
-  // 1. Check page cache first — serve instantly, revalidate in background
+  // 1. Check page cache first -- serve instantly, revalidate in background
   if (!skipCache) {
     const pageCached = pageCacheHandle.get(url)
     if (pageCached.isOk()) {
@@ -274,7 +274,7 @@ export function initRouter (
           document.title = navResult.title
         }
 
-        // Version mismatch detection — also clear prefetch cache
+        // Version mismatch detection -- also clear prefetch cache
         if (navResult.version !== null) {
           const currentVer = pageCacheHandle.getVersion()
           if (currentVer !== null && currentVer !== navResult.version) {

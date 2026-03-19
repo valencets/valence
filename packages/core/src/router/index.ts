@@ -1,4 +1,4 @@
-// Barrel export — named exports only, no default exports
+// Barrel export -- named exports only, no default exports
 export { RouterErrorCode, resolveConfig } from './router-types.js'
 export type {
   RouterError,

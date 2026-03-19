@@ -1,4 +1,4 @@
-// Barrel export — named exports only, no default exports
+// Barrel export -- named exports only, no default exports
 export { IntentType, TelemetryErrorCode, createEmptyIntent } from './intent-types.js'
 export type { GlobalTelemetryIntent, TelemetryError } from './intent-types.js'
 export { TelemetryObjectPool } from './object-pool.js'

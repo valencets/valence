@@ -1,4 +1,4 @@
-// Server Islands — deferred server-rendered fragments.
+// Server Islands -- deferred server-rendered fragments.
 // The page shell ships immediately. Placeholders with [server:defer] and src
 // fetch their content from server endpoints after initial render.
 

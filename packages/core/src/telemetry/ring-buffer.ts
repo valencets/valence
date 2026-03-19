@@ -37,7 +37,7 @@ export class TelemetryRingBuffer {
     timestamp: number
   ): Result<GlobalTelemetryIntent, TelemetryError> {
     if (this._count === this.capacity) {
-      // Buffer full — overwrite oldest, advance tail
+      // Buffer full -- overwrite oldest, advance tail
       this._tail = (this._tail + 1) & this.mask
       this._count--
     }

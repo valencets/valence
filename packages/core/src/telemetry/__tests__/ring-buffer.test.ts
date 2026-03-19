@@ -41,7 +41,6 @@ describe('TelemetryRingBuffer', () => {
           const slot = buf.slotAt(i)!
           expect(slot.isDirty).toBe(false)
           expect(slot.site_id).toBe('')
-          expect(slot.business_type).toBe('other')
         }
       }
     })
@@ -279,10 +278,8 @@ describe('TelemetryRingBuffer', () => {
         const buf = result.value
         buf.write(IntentType.CLICK, 'target', 10, 20, 1000)
 
-        // Mutate site_id and business_type to test reset
         const slotBeforeFlush = buf.slotAt(0)!
         slotBeforeFlush.site_id = 'test-site'
-        slotBeforeFlush.business_type = 'barbershop'
 
         buf.markFlushed(1)
 
@@ -292,7 +289,6 @@ describe('TelemetryRingBuffer', () => {
         expect(slot.isDirty).toBe(false)
         expect(slot.timestamp).toBe(0)
         expect(slot.site_id).toBe('')
-        expect(slot.business_type).toBe('other')
       }
     })
 

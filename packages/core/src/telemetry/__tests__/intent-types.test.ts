@@ -46,7 +46,7 @@ describe('TelemetryErrorCode', () => {
 })
 
 describe('createEmptyIntent', () => {
-  it('returns an intent with all 12 properties and correct defaults', () => {
+  it('returns an intent with correct defaults', () => {
     const intent = createEmptyIntent('test-0')
     expect(intent.id).toBe('test-0')
     expect(intent.timestamp).toBe(0)
@@ -57,7 +57,8 @@ describe('createEmptyIntent', () => {
     expect(intent.isDirty).toBe(false)
     expect(intent.schema_version).toBe(1)
     expect(intent.site_id).toBe('')
-    expect(intent.business_type).toBe('other')
+    expect(intent.path).toBe('')
+    expect(intent.referrer).toBe('')
   })
 
   it('returns isDirty as false', () => {
@@ -71,30 +72,19 @@ describe('createEmptyIntent', () => {
     expect(keys).toEqual([
       'id', 'timestamp', 'type', 'targetDOMNode',
       'x_coord', 'y_coord', 'isDirty', 'schema_version',
-      'site_id', 'business_type', 'path', 'referrer'
+      'site_id', 'path', 'referrer'
     ])
   })
 
-  it('satisfies GlobalTelemetryIntent type including site_id and business_type', () => {
+  it('satisfies GlobalTelemetryIntent type', () => {
     const intent: GlobalTelemetryIntent = createEmptyIntent('typed-0')
     expect(intent.id).toBe('typed-0')
     expect(typeof intent.site_id).toBe('string')
-    expect(typeof intent.business_type).toBe('string')
   })
 
   it('includes path and referrer fields with empty defaults', () => {
     const intent = createEmptyIntent('path-0')
     expect(intent.path).toBe('')
     expect(intent.referrer).toBe('')
-  })
-
-  it('has property order matching interface declaration including path and referrer', () => {
-    const intent = createEmptyIntent('order-0')
-    const keys = Object.keys(intent)
-    expect(keys).toEqual([
-      'id', 'timestamp', 'type', 'targetDOMNode',
-      'x_coord', 'y_coord', 'isDirty', 'schema_version',
-      'site_id', 'business_type', 'path', 'referrer'
-    ])
   })
 })
