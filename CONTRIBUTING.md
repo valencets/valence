@@ -7,7 +7,7 @@ git clone https://github.com/valencets/valence.git
 cd valence
 pnpm install
 pnpm build   # Build all packages (required before first test run)
-pnpm test    # 1,004+ tests across all packages
+pnpm test    # 1,028 tests across all packages
 pnpm lint    # Neostandard lint
 ```
 
@@ -19,17 +19,17 @@ Requires Node.js >= 22 and pnpm 10.x. The `packageManager` field in `package.jso
 packages/
   core/        # Router, server, telemetry engine (256 tests)
   db/          # PostgreSQL connection, migrations (38 tests)
-  ui/          # Web Components + protocol base class (344 tests)
+  ui/          # Web Components + protocol base class (368 tests)
   cms/         # Schema engine, admin, auth, API (270 tests)
-  telemetry/   # Beacon validation, ingestion pipeline, event queries, aggregation (142 tests)
+  telemetry/   # Beacon validation, ingestion pipeline, event queries, aggregation (96 tests)
 ```
 
 Each package has:
-- `src/` — Source code
-- `src/__tests__/` — Tests (co-located)
-- `src/index.ts` — Barrel export
-- `vitest.config.ts` — Test configuration
-- `tsconfig.json` — TypeScript configuration
+- `src/` Source code
+- `src/__tests__/` Tests (co-located)
+- `src/index.ts` Barrel export
+- `vitest.config.ts` Test configuration
+- `tsconfig.json` TypeScript configuration
 
 ## Banned Patterns
 
@@ -45,13 +45,15 @@ These will fail code review. No exceptions.
 | `Record<string, unknown>` | Loose typing | Explicit interfaces or typed unions |
 | `unknown` as property type | Loose typing | `string \| number \| boolean \| null` |
 | `.parse()` on Zod | Throws on failure | `.safeParse()` only |
-| `import React` | No VDOM frameworks | Native Web Components |
+| `import React` (in Valence source) | Valence internals use native Web Components | Custom Elements + `ElementInternals` |
 | `localStorage`/`sessionStorage` | Fragile state | Server-delivered HTML |
 | `process.env` outside config | Scattered config | Centralized `loadConfig()` |
 | `export default` | Named exports only | `export function/class/const` |
 | `as never` | Unsafe cast | `safeQuery()` for DB, proper types |
 | `as unknown as` | Unsafe cast | Proper type narrowing |
 | `as any` | Defeats TypeScript | Never acceptable |
+
+> **Note:** Valence uses native Web Components internally. Your application can use any framework (React, Vue, Svelte, Astro, or plain HTML) to consume `val-*` components.
 
 ## Code Style
 
@@ -67,11 +69,11 @@ These will fail code review. No exceptions.
 
 Strict mode with these compiler options enforced:
 
-- `noImplicitAny` — no implicit `any` types
-- `noImplicitReturns` — all code paths must return
-- `strictNullChecks` — null/undefined are distinct types
-- `noUncheckedIndexedAccess` — array/object index access returns `T | undefined`
-- `exactOptionalPropertyTypes` — `undefined` must be explicit
+- `noImplicitAny`: no implicit `any` types
+- `noImplicitReturns`: all code paths must return
+- `strictNullChecks`: null/undefined are distinct types
+- `noUncheckedIndexedAccess`: array/object index access returns `T | undefined`
+- `exactOptionalPropertyTypes`: `undefined` must be explicit
 
 ## Error Handling
 
@@ -99,15 +101,15 @@ The only acceptable use of `(e: unknown)` is in `ResultAsync.fromPromise()` erro
 
 All code changes follow strict TDD with tagged micro-commits:
 
-1. **RED** — Write a failing test that specifies the behavior. Run tests to confirm failure. Commit with `— RED` tag.
-2. **GREEN** — Write the minimum implementation to make the test pass. Run tests to confirm pass. Commit with `— GREEN` tag.
-3. **REFACTOR** — Clean up while keeping tests green. Commit with `— REFACTOR` tag.
+1. **RED**: Write a failing test that specifies the behavior. Run tests to confirm failure. Commit with `RED` tag.
+2. **GREEN**: Write the minimum implementation to make the test pass. Run tests to confirm pass. Commit with `GREEN` tag.
+3. **REFACTOR**: Clean up while keeping tests green. Commit with `REFACTOR` tag.
 
 ```bash
 # Example commit sequence
-test(cms): add rate limiter tests — RED
-feat(cms): implement rate limiter — GREEN
-refactor(cms): extract shared test helpers — REFACTOR
+test(cms): add rate limiter tests -- RED
+feat(cms): implement rate limiter -- GREEN
+refactor(cms): extract shared test helpers -- REFACTOR
 ```
 
 ## Commit Convention
@@ -129,17 +131,17 @@ Commits are enforced via Husky pre-commit hooks that run lint.
 
 ## Branching
 
-- `master` — stable, production-ready
-- `development` — integration branch, CI runs on push
-- `feat/<name>` — feature branches off `development`
-- `fixes/<name>` — fix branches off `development`
+- `master`: stable, production-ready
+- `development`: integration branch, CI runs on push
+- `feat/<name>`: feature branches off `development`
+- `fixes/<name>`: fix branches off `development`
 
 Merge feature/fix branches into `development` with `--no-ff`. Merge `development` into `master` when stable.
 
 ## Pull Requests
 
 1. Create a feature branch from `development`.
-2. Follow TDD: RED → GREEN → REFACTOR commits.
+2. Follow TDD: RED, GREEN, REFACTOR commits.
 3. Ensure `pnpm test` and `pnpm lint` both pass.
 4. Ensure `pnpm build` (typecheck) passes.
 5. Open a PR against `development`. CI runs lint, typecheck, and tests.
@@ -160,7 +162,7 @@ The CMS is the largest package (~270 tests, ~55 source files). Key patterns:
 
 ### Database Queries
 
-Always use `safeQuery()` from `db/safe-query.ts`. Never call `pool.sql` directly — `safeQuery` wraps `sql.unsafe()` with `ResultAsync` error mapping:
+Always use `safeQuery()` from `db/safe-query.ts`. Never call `pool.sql` directly. `safeQuery` wraps `sql.unsafe()` with `ResultAsync` error mapping:
 
 ```typescript
 import { safeQuery } from '../db/safe-query.js'
@@ -170,7 +172,7 @@ const result = await safeQuery<UserRow[]>(pool, 'SELECT * FROM users WHERE id = 
 
 ### SQL Identifier Safety
 
-All field names and table names interpolated into SQL must pass through `isValidIdentifier()` from `db/sql-sanitize.ts`. The query builder does this automatically — only use raw `safeQuery` for queries the builder doesn't cover (sessions, auth).
+All field names and table names interpolated into SQL must pass through `isValidIdentifier()` from `db/sql-sanitize.ts`. The query builder does this automatically. Only use raw `safeQuery` for queries the builder doesn't cover (sessions, auth).
 
 ### HTML Output
 
@@ -198,7 +200,7 @@ Use the existing renderers as building blocks:
 import { renderLayout, renderFieldInput, escapeHtml } from '@valencets/cms'
 ```
 
-All admin views are plain HTML strings — no framework, no templating engine. `renderLayout()` provides the shell with sidebar navigation.
+All admin views are plain HTML strings. No framework, no templating engine. `renderLayout()` provides the shell with sidebar navigation.
 
 ## Architecture Guidelines
 
