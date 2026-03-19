@@ -149,9 +149,9 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
       start: 'node dist/server.js'
     },
     dependencies: {
-      '@valencets/valence': '^0.5.0',
-      '@valencets/cms': '^0.1.0',
-      '@valencets/db': '^0.1.1',
+      '@valencets/valence': '^0.7.1',
+      '@valencets/cms': '^0.2.1',
+      '@valencets/db': '^0.1.2',
       tsx: '^4.21.0',
       ...extraDeps
     },

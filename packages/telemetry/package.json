@@ -1,17 +1,17 @@
 {
   "name": "@valencets/telemetry",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./daily-summary-queries": {
-      "import": "./dist/daily-summary-queries.js",
-      "types": "./dist/daily-summary-queries.d.ts"
+      "types": "./dist/daily-summary-queries.d.ts",
+      "default": "./dist/daily-summary-queries.js"
     }
   },
   "files": [

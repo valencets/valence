@@ -73,7 +73,7 @@ jobs:
             NAME=$(node -p "require('./package.json').name")
             PUBLISHED=$(npm view "$NAME@$VERSION" version 2>/dev/null || echo "")
             if [ "$PUBLISHED" != "$VERSION" ]; then
-              npm publish --access public --provenance
+              pnpm publish --access public --provenance --no-git-checks
               echo "Published $NAME@$VERSION"
             else
               echo "Skipped $NAME@$VERSION (already published)"
@@ -81,3 +81,4 @@ jobs:
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
