@@ -123,7 +123,6 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
   await mkdir(join(dir, 'collections'), { recursive: true })
   await mkdir(join(dir, 'migrations'), { recursive: true })
   await mkdir(join(dir, 'public'), { recursive: true })
-  await mkdir(join(dir, 'templates'), { recursive: true })
   await mkdir(join(dir, 'uploads'), { recursive: true })
 
   const extraDeps: Record<string, string> = {}
@@ -208,38 +207,13 @@ Admin: http://localhost:${serverPort}/admin
 
   await writeFile(join(dir, 'migrations', '001-init.sql'), `CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-CREATE TABLE IF NOT EXISTS "categories" (
-  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "name" TEXT NOT NULL,
-  "slug" TEXT NOT NULL UNIQUE,
-  "description" TEXT,
-  "color" TEXT,
-  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "deleted_at" TIMESTAMPTZ
-);
-
 CREATE TABLE IF NOT EXISTS "posts" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "title" TEXT NOT NULL,
   "slug" TEXT NOT NULL UNIQUE,
   "body" TEXT,
-  "category" UUID REFERENCES "categories"("id"),
   "published" BOOLEAN DEFAULT false,
   "publishedAt" TIMESTAMPTZ,
-  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "deleted_at" TIMESTAMPTZ
-);
-
-CREATE TABLE IF NOT EXISTS "pages" (
-  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "title" TEXT NOT NULL,
-  "slug" TEXT NOT NULL UNIQUE,
-  "content" TEXT,
-  "status" TEXT NOT NULL DEFAULT 'draft',
-  "publishedAt" TIMESTAMPTZ,
-  "seo" JSONB,
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "deleted_at" TIMESTAMPTZ
@@ -717,26 +691,10 @@ async function runMigrationsForProject (projectDir: string, config: DbConfig): P
 }
 
 export async function seedDatabase (pool: DbPool): Promise<void> {
-  // Insert a default category
-  await pool.sql.unsafe(
-    'INSERT INTO "categories" ("name", "slug", "color") VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-    ['General', 'general', 'blue']
-  )
-
-  // Get the category id for the post relation
-  const catRows = await pool.sql.unsafe('SELECT id FROM "categories" WHERE "slug" = $1 LIMIT 1', ['general'])
-  const catId = (catRows[0] as { id: string } | undefined)?.id ?? null
-
   // Insert a welcome post
   await pool.sql.unsafe(
-    'INSERT INTO "posts" ("title", "slug", "body", "category", "published") VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING',
-    ['Welcome to Valence', 'welcome-to-valence', '<h2>Hello!</h2><p>This is your first post. Edit it from the admin panel.</p>', catId, true]
-  )
-
-  // Insert an about page
-  await pool.sql.unsafe(
-    'INSERT INTO "pages" ("title", "slug", "content", "status") VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
-    ['About', 'about', '<p>This is the about page.</p>', 'published']
+    'INSERT INTO "posts" ("title", "slug", "body", "published") VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+    ['Welcome to Valence', 'welcome-to-valence', '<h2>Hello!</h2><p>This is your first post. Edit it from the admin panel.</p>', true]
   )
 }
 

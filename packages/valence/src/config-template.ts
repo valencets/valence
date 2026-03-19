@@ -14,7 +14,7 @@ export function generateConfigTemplate (opts: ConfigTemplateOptions): string {
   const tagsCollection = learnMode
     ? `,
 
-    // ── LEARN MODE: Step 4 ──────────────────────────────────
+    // ── LEARN MODE: Step 4 ──────────────────────────────────────
     // Uncomment the collection below and save this file.
     // Valence will detect the change automatically!
     //
@@ -42,65 +42,15 @@ export default defineConfig({
     port: Number(process.env.PORT ?? ${serverPort})
   },
   collections: [
-    ${learnComment('Categories: a simple collection with text, slug, textarea, and select fields.')}collection({
-      slug: 'categories',
-      labels: { singular: 'Category', plural: 'Categories' },
-      fields: [
-        field.text({ name: 'name', required: true }),
-        field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'name' }),
-        field.textarea({ name: 'description' }),
-        field.select({
-          name: 'color',
-          options: [
-            { label: 'Blue', value: 'blue' },
-            { label: 'Green', value: 'green' },
-            { label: 'Red', value: 'red' },
-            { label: 'Purple', value: 'purple' },
-            { label: 'Amber', value: 'amber' }
-          ]
-        })
-      ]
-    }),
-
-    ${learnComment('Posts: uses richtext for the body, a relation to categories, and a boolean toggle.')}collection({
+    ${learnComment('Posts: uses richtext for the body and a boolean toggle for publish status.')}collection({
       slug: 'posts',
       labels: { singular: 'Post', plural: 'Posts' },
       fields: [
         field.text({ name: 'title', required: true }),
         field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'title' }),
         field.richtext({ name: 'body' }),
-        field.relation({ name: 'category', relationTo: 'categories' }),
         field.boolean({ name: 'published' }),
         field.date({ name: 'publishedAt' })
-      ]
-    }),
-
-    ${learnComment('Pages: includes a status select, a date field, and a group for SEO metadata.')}collection({
-      slug: 'pages',
-      labels: { singular: 'Page', plural: 'Pages' },
-      fields: [
-        field.text({ name: 'title', required: true }),
-        field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'title' }),
-        field.richtext({ name: 'content' }),
-        field.select({
-          name: 'status',
-          required: true,
-          defaultValue: 'draft',
-          options: [
-            { label: 'Draft', value: 'draft' },
-            { label: 'Published', value: 'published' },
-            { label: 'Archived', value: 'archived' }
-          ]
-        }),
-        field.date({ name: 'publishedAt' }),
-        field.group({
-          name: 'seo',
-          label: 'SEO',
-          fields: [
-            field.text({ name: 'metaTitle', label: 'Meta Title' }),
-            field.textarea({ name: 'metaDescription', label: 'Meta Description' })
-          ]
-        })
       ]
     }),
 

@@ -28,48 +28,48 @@ describe('init template collections', () => {
     vi.restoreAllMocks()
   })
 
-  it('valence.config.ts includes categories collection', async () => {
+  it('valence.config.ts includes posts collection with richtext body', async () => {
     await run(['init', 'test-app', '-y'])
     const config = getWrittenFile('valence.config.ts')
-    expect(config).toContain("slug: 'categories'")
-    expect(config).toContain('field.select')
-    expect(config).toContain("'blue'")
-  })
-
-  it('valence.config.ts includes pages collection with richtext', async () => {
-    await run(['init', 'test-app', '-y'])
-    const config = getWrittenFile('valence.config.ts')
-    expect(config).toContain("slug: 'pages'")
-    expect(config).toContain('field.richtext')
-    expect(config).toContain("'content'")
-  })
-
-  it('valence.config.ts posts collection uses richtext for body', async () => {
-    await run(['init', 'test-app', '-y'])
-    const config = getWrittenFile('valence.config.ts')
+    expect(config).toContain("slug: 'posts'")
     expect(config).toContain("field.richtext({ name: 'body'")
   })
 
-  it('valence.config.ts posts collection has category relation', async () => {
+  it('valence.config.ts posts has title, slug, published, publishedAt', async () => {
     await run(['init', 'test-app', '-y'])
     const config = getWrittenFile('valence.config.ts')
-    expect(config).toContain("field.relation({ name: 'category', relationTo: 'categories'")
+    expect(config).toContain("field.text({ name: 'title', required: true })")
+    expect(config).toContain("field.slug({ name: 'slug'")
+    expect(config).toContain("field.boolean({ name: 'published'")
+    expect(config).toContain("field.date({ name: 'publishedAt'")
   })
 
-  it('valence.config.ts pages collection has SEO group', async () => {
+  it('valence.config.ts includes users collection with auth', async () => {
     await run(['init', 'test-app', '-y'])
     const config = getWrittenFile('valence.config.ts')
-    expect(config).toContain("name: 'seo'")
-    expect(config).toContain("'metaTitle'")
-    expect(config).toContain("'metaDescription'")
+    expect(config).toContain("slug: 'users'")
+    expect(config).toContain('auth: true')
   })
 
-  it('valence.config.ts pages collection has status select', async () => {
+  it('valence.config.ts does NOT include categories, pages, or tags', async () => {
     await run(['init', 'test-app', '-y'])
     const config = getWrittenFile('valence.config.ts')
-    expect(config).toContain("'draft'")
-    expect(config).toContain("'published'")
-    expect(config).toContain("'archived'")
+    expect(config).not.toContain("slug: 'categories'")
+    expect(config).not.toContain("slug: 'pages'")
+    expect(config).not.toMatch(/^\s*collection\(\{[^}]*slug:\s*'tags'/m)
+  })
+
+  it('valence.config.ts posts has no category relation', async () => {
+    await run(['init', 'test-app', '-y'])
+    const config = getWrittenFile('valence.config.ts')
+    expect(config).not.toContain("relationTo: 'categories'")
+  })
+
+  it('valence.config.ts has exactly 2 collections', async () => {
+    await run(['init', 'test-app', '-y'])
+    const config = getWrittenFile('valence.config.ts')
+    const collectionMatches = config.match(/collection\(\{/g)
+    expect(collectionMatches).toHaveLength(2)
   })
 })
 
@@ -82,40 +82,45 @@ describe('init migration SQL', () => {
     vi.restoreAllMocks()
   })
 
-  it('migration includes all 4 tables', async () => {
+  it('migration includes posts and users tables', async () => {
     await run(['init', 'test-app', '-y'])
     const sql = getWrittenFile('001-init.sql')
-    expect(sql).toContain('CREATE TABLE IF NOT EXISTS "categories"')
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS "posts"')
-    expect(sql).toContain('CREATE TABLE IF NOT EXISTS "pages"')
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS "users"')
   })
 
-  it('categories table appears before posts (FK dependency)', async () => {
+  it('migration does NOT include categories or pages tables', async () => {
     await run(['init', 'test-app', '-y'])
     const sql = getWrittenFile('001-init.sql')
-    const catIdx = sql.indexOf('"categories"')
-    const postsIdx = sql.indexOf('"posts"')
-    expect(catIdx).toBeLessThan(postsIdx)
+    expect(sql).not.toContain('CREATE TABLE IF NOT EXISTS "categories"')
+    expect(sql).not.toContain('CREATE TABLE IF NOT EXISTS "pages"')
   })
 
-  it('posts table has category UUID column', async () => {
+  it('posts table has body, published, and publishedAt columns', async () => {
     await run(['init', 'test-app', '-y'])
     const sql = getWrittenFile('001-init.sql')
-    expect(sql).toContain('"category" UUID')
-  })
-
-  it('pages table has content, status, and publishedAt columns', async () => {
-    await run(['init', 'test-app', '-y'])
-    const sql = getWrittenFile('001-init.sql')
-    expect(sql).toContain('"content" TEXT')
-    expect(sql).toContain('"status" TEXT')
+    expect(sql).toContain('"body" TEXT')
+    expect(sql).toContain('"published" BOOLEAN')
     expect(sql).toContain('"publishedAt" TIMESTAMPTZ')
   })
 
-  it('pages table has seo JSONB column', async () => {
+  it('posts table has no category FK column', async () => {
     await run(['init', 'test-app', '-y'])
     const sql = getWrittenFile('001-init.sql')
-    expect(sql).toContain('"seo" JSONB')
+    expect(sql).not.toContain('"category" UUID')
+  })
+
+  it('migration includes telemetry tables', async () => {
+    await run(['init', 'test-app', '-y'])
+    const sql = getWrittenFile('001-init.sql')
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS "sessions"')
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS "events"')
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS "daily_summaries"')
+  })
+
+  it('migration includes document_revisions table', async () => {
+    await run(['init', 'test-app', '-y'])
+    const sql = getWrittenFile('001-init.sql')
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS "document_revisions"')
   })
 })
