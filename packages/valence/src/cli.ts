@@ -232,7 +232,16 @@ export default defineConfig({
       slug: 'users',
       auth: true,
       fields: [
-        field.text({ name: 'name', required: true })
+        field.text({ name: 'name', required: true }),
+        field.select({
+          name: 'role',
+          required: true,
+          defaultValue: 'editor',
+          options: [
+            { label: 'Admin', value: 'admin' },
+            { label: 'Editor', value: 'editor' }
+          ]
+        })
       ]
     })
   ],
@@ -338,6 +347,7 @@ CREATE TABLE IF NOT EXISTS "users" (
   "email" TEXT NOT NULL UNIQUE,
   "password_hash" TEXT NOT NULL,
   "name" TEXT NOT NULL,
+  "role" TEXT NOT NULL DEFAULT 'editor',
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "deleted_at" TIMESTAMPTZ
@@ -566,8 +576,8 @@ async function runUserCreate (): Promise<void> {
     }
 
     await pool.sql`
-      INSERT INTO "users" ("id", "email", "password_hash", "name")
-      VALUES (gen_random_uuid(), ${email}, ${hashResult.value}, ${name})
+      INSERT INTO "users" ("id", "email", "password_hash", "name", "role")
+      VALUES (gen_random_uuid(), ${email}, ${hashResult.value}, ${name}, 'admin')
     `
     log(`User "${email}" created.`)
   } finally {
