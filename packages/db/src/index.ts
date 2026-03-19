@@ -4,3 +4,4 @@ export { validateDbConfig, createPool, closePool, mapPostgresError } from './con
 export type { DbPool } from './connection.js'
 export { loadMigrations, runMigrations, getMigrationStatus, parseMigrationFilename, sortMigrations, validateMigrations } from './migration-runner.js'
 export type { MigrationFile } from './migration-runner.js'
+export { makeMockPool, makeErrorPool, makeSequentialPool } from './test-helpers.js'
