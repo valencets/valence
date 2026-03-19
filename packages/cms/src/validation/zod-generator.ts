@@ -13,7 +13,14 @@ const FIELD_SCHEMA_MAP: Record<string, (field: FieldConfig) => ZodTypeAny> = {
   slug: buildSlugSchema,
   media: buildUuidSchema,
   relation: buildUuidSchema,
-  group: buildGroupSchema
+  group: buildGroupSchema,
+  email: buildEmailSchema,
+  url: buildUrlSchema,
+  password: buildPasswordSchema,
+  json: buildJsonSchema,
+  color: buildColorSchema,
+  multiselect: buildMultiselectSchema,
+  array: buildArraySchema
 }
 
 function buildTextSchema (field: FieldConfig): ZodTypeAny {
@@ -80,6 +87,59 @@ function buildGroupSchema (field: FieldConfig): ZodTypeAny {
     return buildObjectSchema(field.fields)
   }
   return z.object({})
+}
+
+function buildEmailSchema (_field: FieldConfig): ZodTypeAny {
+  return z.string().email()
+}
+
+function buildUrlSchema (_field: FieldConfig): ZodTypeAny {
+  return z.string().url()
+}
+
+function buildPasswordSchema (field: FieldConfig): ZodTypeAny {
+  let schema = z.string()
+  if ('minLength' in field && field.minLength !== undefined) {
+    schema = schema.min(field.minLength)
+  }
+  if ('maxLength' in field && field.maxLength !== undefined) {
+    schema = schema.max(field.maxLength)
+  }
+  return schema
+}
+
+function buildJsonSchema (_field: FieldConfig): ZodTypeAny {
+  return z.string().refine((val) => {
+    try {
+      JSON.parse(val)
+      return true
+    } catch {
+      return false
+    }
+  }, { message: 'Invalid JSON' })
+}
+
+function buildColorSchema (_field: FieldConfig): ZodTypeAny {
+  return z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Invalid hex color')
+}
+
+function buildMultiselectSchema (field: FieldConfig): ZodTypeAny {
+  if ('options' in field && field.options.length > 0) {
+    const values = field.options.map(o => o.value)
+    const first = values[0]
+    const rest = values.slice(1)
+    if (first !== undefined) {
+      return z.array(z.enum([first, ...rest]))
+    }
+  }
+  return z.array(z.string())
+}
+
+function buildArraySchema (field: FieldConfig): ZodTypeAny {
+  if ('fields' in field) {
+    return z.array(buildObjectSchema(field.fields))
+  }
+  return z.array(z.object({}))
 }
 
 function buildObjectSchema (fields: readonly FieldConfig[]): ZodObject {

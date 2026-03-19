@@ -9,7 +9,14 @@ export const FieldType = {
   SLUG: 'slug',
   MEDIA: 'media',
   RELATION: 'relation',
-  GROUP: 'group'
+  GROUP: 'group',
+  EMAIL: 'email',
+  URL: 'url',
+  PASSWORD: 'password',
+  JSON: 'json',
+  COLOR: 'color',
+  MULTISELECT: 'multiselect',
+  ARRAY: 'array'
 } as const
 
 export type FieldType = typeof FieldType[keyof typeof FieldType]
@@ -94,6 +101,38 @@ export interface GroupFieldConfig extends FieldBaseConfig {
   readonly fields: readonly FieldConfig[]
 }
 
+export interface EmailFieldConfig extends FieldBaseConfig {
+  readonly type: 'email'
+}
+
+export interface UrlFieldConfig extends FieldBaseConfig {
+  readonly type: 'url'
+}
+
+export interface PasswordFieldConfig extends FieldBaseConfig {
+  readonly type: 'password'
+  readonly minLength?: number | undefined
+  readonly maxLength?: number | undefined
+}
+
+export interface JsonFieldConfig extends FieldBaseConfig {
+  readonly type: 'json'
+}
+
+export interface ColorFieldConfig extends FieldBaseConfig {
+  readonly type: 'color'
+}
+
+export interface MultiselectFieldConfig extends FieldBaseConfig {
+  readonly type: 'multiselect'
+  readonly options: readonly SelectOption[]
+}
+
+export interface ArrayFieldConfig extends FieldBaseConfig {
+  readonly type: 'array'
+  readonly fields: readonly FieldConfig[]
+}
+
 export type FieldConfig =
   | TextFieldConfig
   | TextareaFieldConfig
@@ -106,3 +145,10 @@ export type FieldConfig =
   | MediaFieldConfig
   | RelationFieldConfig
   | GroupFieldConfig
+  | EmailFieldConfig
+  | UrlFieldConfig
+  | PasswordFieldConfig
+  | JsonFieldConfig
+  | ColorFieldConfig
+  | MultiselectFieldConfig
+  | ArrayFieldConfig

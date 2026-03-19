@@ -7,6 +7,7 @@ export type {
   FieldConfig,
   TextFieldConfig,
   TextareaFieldConfig,
+  RichtextFieldConfig,
   NumberFieldConfig,
   BooleanFieldConfig,
   SelectFieldConfig,
@@ -15,7 +16,14 @@ export type {
   SlugFieldConfig,
   MediaFieldConfig,
   RelationFieldConfig,
-  GroupFieldConfig
+  GroupFieldConfig,
+  EmailFieldConfig,
+  UrlFieldConfig,
+  PasswordFieldConfig,
+  JsonFieldConfig,
+  ColorFieldConfig,
+  MultiselectFieldConfig,
+  ArrayFieldConfig
 } from './field-types.js'
 
 export { field } from './fields.js'

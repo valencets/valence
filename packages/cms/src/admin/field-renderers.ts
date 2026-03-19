@@ -21,7 +21,14 @@ const RENDERER_MAP: Record<string, (f: FieldConfig, value: string) => string> = 
   date: renderDateInput,
   media: renderTextInput,
   relation: renderRelation,
-  group: renderGroup
+  group: renderGroup,
+  email: renderEmailInput,
+  url: renderUrlInput,
+  password: renderPasswordInput,
+  json: renderJsonTextarea,
+  color: renderColorInput,
+  multiselect: renderMultiselect,
+  array: renderArrayField
 }
 
 function renderTextInput (f: FieldConfig, value: string): string {
@@ -86,6 +93,46 @@ function renderGroup (f: FieldConfig, _value: string): string {
     ? f.fields.map(child => renderFieldInput(child, '')).join('\n')
     : ''
   return `<fieldset><legend>${escapeHtml(f.label ?? f.name)}</legend>${inner}</fieldset>`
+}
+
+function renderEmailInput (f: FieldConfig, value: string): string {
+  const req = f.required ? ' required' : ''
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><input class="form-input" type="email" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${req}></label>`
+}
+
+function renderUrlInput (f: FieldConfig, value: string): string {
+  const req = f.required ? ' required' : ''
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><input class="form-input" type="url" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${req}></label>`
+}
+
+function renderPasswordInput (f: FieldConfig, value: string): string {
+  const req = f.required ? ' required' : ''
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><input class="form-input" type="password" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${req}></label>`
+}
+
+function renderJsonTextarea (f: FieldConfig, value: string): string {
+  const req = f.required ? ' required' : ''
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><textarea class="form-json" name="${escapeHtml(f.name)}"${req}>${escapeHtml(value)}</textarea></label>`
+}
+
+function renderColorInput (f: FieldConfig, value: string): string {
+  const req = f.required ? ' required' : ''
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><input class="form-input" type="color" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"${req}></label>`
+}
+
+function renderMultiselect (f: FieldConfig, value: string): string {
+  const selected = value ? value.split(',') : []
+  const options = 'options' in f
+    ? f.options.map(o => {
+      const sel = selected.includes(o.value) ? ' selected' : ''
+      return `<option value="${escapeHtml(o.value)}"${sel}>${escapeHtml(o.label)}</option>`
+    }).join('')
+    : ''
+  return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><select class="form-select" name="${escapeHtml(f.name)}" multiple>${options}</select></label>`
+}
+
+function renderArrayField (f: FieldConfig, value: string): string {
+  return `<div class="array-field"><label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span></label><input type="hidden" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"><div class="array-rows" data-field="${escapeHtml(f.name)}"></div><button type="button" class="array-add" data-field="${escapeHtml(f.name)}">+ Add row</button></div>`
 }
 
 export function renderFieldInput (f: FieldConfig, value: string, context?: RelationContext): string {

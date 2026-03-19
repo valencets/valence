@@ -12,7 +12,14 @@ const TYPE_MAP: Record<string, string> = {
   slug: 'TEXT',
   media: 'UUID',
   relation: 'UUID',
-  group: 'JSONB'
+  group: 'JSONB',
+  email: 'TEXT',
+  url: 'TEXT',
+  password: 'TEXT',
+  json: 'JSONB',
+  color: 'TEXT',
+  multiselect: 'JSONB',
+  array: 'JSONB'
 }
 
 export function getColumnType (field: FieldConfig): string {

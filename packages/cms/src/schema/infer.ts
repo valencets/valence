@@ -1,11 +1,13 @@
 import type {
   FieldConfig,
-  GroupFieldConfig
+  GroupFieldConfig,
+  ArrayFieldConfig
 } from './field-types.js'
 
 interface FieldValueMap {
   text: string
   textarea: string
+  richtext: string
   number: number
   boolean: boolean
   select: string
@@ -13,14 +15,22 @@ interface FieldValueMap {
   slug: string
   media: string
   relation: string
+  email: string
+  url: string
+  password: string
+  json: string
+  color: string
+  multiselect: string[]
 }
 
 export type InferFieldType<F extends FieldConfig> =
     F extends GroupFieldConfig
       ? InferFieldsType<F['fields']>
-      : F extends { readonly type: infer T extends keyof FieldValueMap }
-        ? FieldValueMap[T]
-        : never
+      : F extends ArrayFieldConfig
+        ? InferFieldsType<F['fields']>[]
+        : F extends { readonly type: infer T extends keyof FieldValueMap }
+          ? FieldValueMap[T]
+          : never
 
 export type InferFieldsType<Fields extends readonly FieldConfig[]> = {
   [K in Fields[number] as K['name']]: InferFieldType<K>

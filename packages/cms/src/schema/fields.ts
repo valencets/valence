@@ -9,7 +9,14 @@ import type {
   SlugFieldConfig,
   MediaFieldConfig,
   RelationFieldConfig,
-  GroupFieldConfig
+  GroupFieldConfig,
+  EmailFieldConfig,
+  UrlFieldConfig,
+  PasswordFieldConfig,
+  JsonFieldConfig,
+  ColorFieldConfig,
+  MultiselectFieldConfig,
+  ArrayFieldConfig
 } from './field-types.js'
 
 export const field = {
@@ -55,5 +62,33 @@ export const field = {
 
   group (opts: Omit<GroupFieldConfig, 'type'>): GroupFieldConfig {
     return { type: 'group', ...opts }
+  },
+
+  email (opts: Omit<EmailFieldConfig, 'type'>): EmailFieldConfig {
+    return { type: 'email', ...opts }
+  },
+
+  url (opts: Omit<UrlFieldConfig, 'type'>): UrlFieldConfig {
+    return { type: 'url', ...opts }
+  },
+
+  password (opts: Omit<PasswordFieldConfig, 'type'>): PasswordFieldConfig {
+    return { type: 'password', ...opts }
+  },
+
+  json (opts: Omit<JsonFieldConfig, 'type'>): JsonFieldConfig {
+    return { type: 'json', ...opts }
+  },
+
+  color (opts: Omit<ColorFieldConfig, 'type'>): ColorFieldConfig {
+    return { type: 'color', ...opts }
+  },
+
+  multiselect (opts: Omit<MultiselectFieldConfig, 'type'>): MultiselectFieldConfig {
+    return { type: 'multiselect', ...opts }
+  },
+
+  array (opts: Omit<ArrayFieldConfig, 'type'>): ArrayFieldConfig {
+    return { type: 'array', ...opts }
   }
 }
