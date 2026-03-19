@@ -1,5 +1,13 @@
 import { join, normalize, resolve } from 'node:path'
 
+function safeDecodeURIComponent (str: string): string | null {
+  try {
+    return decodeURIComponent(str)
+  } catch {
+    return null
+  }
+}
+
 interface PageRouteResult {
   readonly path: string
   readonly param: string | null
@@ -20,12 +28,8 @@ export function resolvePageRouteWithParam (pathname: string, srcDir: string): Pa
   }
 
   // Decode URI — reject malformed percent-encoding
-  let decoded: string
-  try {
-    decoded = decodeURIComponent(pathname)
-  } catch {
-    return null
-  }
+  const decoded = safeDecodeURIComponent(pathname)
+  if (decoded === null) return null
 
   // Check for traversal
   if (decoded.includes('..')) return null

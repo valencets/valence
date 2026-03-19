@@ -1,3 +1,5 @@
+// Generated client is user-land code — throw is intentional here
+// (Valence internals use Result monads, but user API clients use throw)
 export function generateBaseClient (): string {
   return `// @generated — regenerated from valence.config.ts. DO NOT EDIT.
 

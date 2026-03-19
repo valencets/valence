@@ -66,6 +66,7 @@ export function generateDetailPage (collection: CollectionConfig): string {
       ${bodyField
 ? `const body = document.createElement('div')
       body.className = 'body'
+      // TRUST BOUNDARY: richtext content is HTML by design — sanitize if collection lacks auth
       body.innerHTML = item.${bodyField} ?? ''
       content.appendChild(body)`
 : ''}

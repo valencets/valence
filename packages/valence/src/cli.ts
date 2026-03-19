@@ -5,7 +5,6 @@ import { stdin, stdout } from 'node:process'
 import { execSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { existsSync } from 'node:fs'
 import { createPool, closePool, loadMigrations, runMigrations } from '@valencets/db'
 import type { DbConfig, DbPool } from '@valencets/db'
 import { buildCms } from '@valencets/cms'
@@ -19,7 +18,7 @@ import { resolveStaticPath, resolveMimeType, sendHtml } from '@valencets/core/se
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
-import { readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { scaffoldFsd } from './scaffold/fsd-scaffold.js'
 
 const COMMANDS = {
@@ -465,9 +464,17 @@ async function runDev (): Promise<void> {
         configPath,
         onConfigChange: () => {
           markConfigChanged(learnSignals!)
-          // Reload config to get updated slug list
+          // Reload config to get updated slug list + regenerate codegen
           loadUserConfig().then(cfg => {
-            if (cfg) currentConfigSlugs = cfg.collections.map(c => c.slug)
+            if (!cfg) return
+            currentConfigSlugs = cfg.collections.map(c => c.slug)
+            regenerateFromConfig(projectDir, cfg.collections).match(
+              (result) => {
+                const total = result.added.length + result.updated.length
+                if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
+              },
+              (e) => { log(`Regeneration error: ${e.message}`) }
+            )
           }).catch((e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
         }
       })
