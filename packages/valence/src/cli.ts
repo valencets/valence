@@ -401,11 +401,14 @@ async function runDev (): Promise<void> {
   await runMigrationsForProject(projectDir, config)
 
   log('Loading config...')
-  const userConfig = await loadUserConfig()
-  if (!userConfig) {
+  const loadedConfig = await loadUserConfig()
+  if (!loadedConfig) {
     console.error('  Error: could not load valence.config.ts. Make sure it exists and exports defineConfig().')
     process.exit(1)
   }
+
+  const userConfig = loadedConfig.collections
+  const telemetryEnabled = loadedConfig.telemetry?.enabled ?? false
 
   log('Building CMS...')
   const pool = createPool(config)
@@ -415,7 +418,7 @@ async function runDev (): Promise<void> {
     secret: process.env.CMS_SECRET ?? 'dev-secret',
     uploadDir: join(projectDir, 'uploads'),
     collections: userConfig,
-    telemetryPool: pool
+    telemetryPool: telemetryEnabled ? pool : undefined
   })
 
   if (cmsResult.isErr()) {
@@ -447,7 +450,7 @@ async function runDev (): Promise<void> {
           markConfigChanged(learnSignals!)
           // Reload config to get updated slug list
           loadUserConfig().then(cfg => {
-            if (cfg) currentConfigSlugs = cfg.map(c => c.slug)
+            if (cfg) currentConfigSlugs = cfg.collections.map(c => c.slug)
           }).catch(() => {})
         }
       })
@@ -795,6 +798,11 @@ export default defineConfig({
   admin: {
     pathPrefix: '/admin',
     requireAuth: true
+  },
+  telemetry: {
+    enabled: true,
+    endpoint: '/api/telemetry',
+    siteId: process.env.SITE_ID ?? '${dbName}'
   }
 })
 `
@@ -948,7 +956,18 @@ function landingPage (port: number): string {
 </html>`
 }
 
-async function loadUserConfig (): Promise<ReadonlyArray<import('@valencets/cms').CollectionConfig> | null> {
+interface UserConfig {
+  readonly collections: ReadonlyArray<import('@valencets/cms').CollectionConfig>
+  readonly telemetry?: {
+    readonly enabled: boolean
+    readonly endpoint: string
+    readonly siteId: string
+    readonly bufferSize?: number | undefined
+    readonly flushIntervalMs?: number | undefined
+  } | undefined
+}
+
+async function loadUserConfig (): Promise<UserConfig | null> {
   const configPath = join(process.cwd(), 'valence.config.ts')
   if (!existsSync(configPath)) {
     log('No valence.config.ts found.')
@@ -960,7 +979,7 @@ async function loadUserConfig (): Promise<ReadonlyArray<import('@valencets/cms')
     const mod = await import(configPath)
     const result = mod.default
     if (result && typeof result.isOk === 'function' && result.isOk()) {
-      return result.value.collections ?? []
+      return { collections: result.value.collections ?? [], telemetry: result.value.telemetry }
     }
     return null
   } catch {
@@ -971,10 +990,13 @@ async function loadUserConfig (): Promise<ReadonlyArray<import('@valencets/cms')
         '.then(m => {',
         '  const r = m.default;',
         '  if (r && r.isOk && r.isOk()) {',
-        '    process.stdout.write(JSON.stringify(r.value.collections.map(c => ({',
-        '      slug: c.slug, labels: c.labels, auth: c.auth, upload: c.upload,',
-        '      timestamps: c.timestamps, fields: c.fields',
-        '    }))));',
+        '    process.stdout.write(JSON.stringify({',
+        '      collections: r.value.collections.map(c => ({',
+        '        slug: c.slug, labels: c.labels, auth: c.auth, upload: c.upload,',
+        '        timestamps: c.timestamps, fields: c.fields',
+        '      })),',
+        '      telemetry: r.value.telemetry',
+        '    }));',
         '  }',
         '})',
         '.catch(e => { process.stderr.write(e.message); process.exit(1); })'
@@ -988,7 +1010,8 @@ async function loadUserConfig (): Promise<ReadonlyArray<import('@valencets/cms')
         const parsed = JSON.parse(output)
         // Re-hydrate through collection() to get proper CollectionConfig objects
         const { collection: col } = await import('@valencets/cms')
-        return parsed.map((c: Record<string, unknown>) => col(c as Parameters<typeof col>[0]))
+        const collections = parsed.collections.map((c: Record<string, unknown>) => col(c as Parameters<typeof col>[0]))
+        return { collections, telemetry: parsed.telemetry }
       }
     } catch (e2) {
       log(`Config load via tsx failed: ${e2 instanceof Error ? e2.message : 'unknown'}`)
