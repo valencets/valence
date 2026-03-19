@@ -200,4 +200,38 @@ describe('createServerRouter', () => {
     expect(res._headers['X-Content-Type-Options']).toBe('nosniff')
     expect(res._headers['X-Frame-Options']).toBe('DENY')
   })
+
+  it('includes CSP nonce in security headers', async () => {
+    const router = createServerRouter<Ctx>()
+    router.register('/with-nonce', {
+      GET: async (_req, res) => {
+        res.writeHead(200)
+        res.end('ok')
+      }
+    })
+
+    const req = mockReq('/with-nonce')
+    const res = mockRes()
+    await router.handle(req, res, ctx)
+
+    const csp = res._headers['Content-Security-Policy']
+    expect(csp).toMatch(/nonce-[A-Za-z0-9+/]+=*/)
+  })
+
+  it('includes COOP and CORP headers', async () => {
+    const router = createServerRouter<Ctx>()
+    router.register('/cross-origin', {
+      GET: async (_req, res) => {
+        res.writeHead(200)
+        res.end('ok')
+      }
+    })
+
+    const req = mockReq('/cross-origin')
+    const res = mockRes()
+    await router.handle(req, res, ctx)
+
+    expect(res._headers['Cross-Origin-Opener-Policy']).toBe('same-origin')
+    expect(res._headers['Cross-Origin-Resource-Policy']).toBe('same-origin')
+  })
 })

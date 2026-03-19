@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { setSecurityHeaders } from './security-headers.js'
+import { setSecurityHeaders, generateNonce } from './security-headers.js'
 import { ResultAsync } from 'neverthrow'
 import { ServerErrorCode } from './server-types.js'
 import type { RouteHandler, RouteEntry, ServerRouter } from './server-types.js'
@@ -34,7 +34,8 @@ export function createServerRouter<TCtx> (): ServerRouter<TCtx> {
   }
 
   async function handle (req: IncomingMessage, res: ServerResponse, ctx: TCtx): Promise<void> {
-    setSecurityHeaders(res)
+    const nonce = generateNonce()
+    setSecurityHeaders(res, { nonce })
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
     const pathname = url.pathname
     const method = req.method ?? 'GET'
