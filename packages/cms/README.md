@@ -1,5 +1,7 @@
 # @valencets/cms
 
+> See the [CMS Guide on the wiki](https://github.com/valencets/valence/wiki/Packages:-Cms) for the latest documentation.
+
 Schema-driven CMS for Valence. Define a schema, get a database, admin interface, REST API, validation, auth, and media uploads out of the box.
 
 ## Quick Start
