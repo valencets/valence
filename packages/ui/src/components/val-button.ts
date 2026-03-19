@@ -60,7 +60,7 @@ template.innerHTML = `
 `
 
 export class ValButton extends ValElement {
-  static observedAttributes = ['disabled', 'loading']
+  static observedAttributes = ['disabled', 'loading', 'type']
 
   private buttonEl: HTMLButtonElement | null = null
 
@@ -76,6 +76,7 @@ export class ValButton extends ValElement {
     this.buttonEl!.addEventListener('click', this.handleClick)
     this.syncDisabled()
     this.syncLoading()
+    this.syncType()
   }
 
   disconnectedCallback (): void {
@@ -87,6 +88,7 @@ export class ValButton extends ValElement {
     if (this.buttonEl === null) return
     if (name === 'disabled') this.syncDisabled()
     if (name === 'loading') this.syncLoading()
+    if (name === 'type') this.syncType()
   }
 
   private syncDisabled (): void {
@@ -100,8 +102,19 @@ export class ValButton extends ValElement {
     this.buttonEl!.setAttribute('aria-busy', String(loading))
   }
 
+  private syncType (): void {
+    const type = this.getAttribute('type') ?? 'button'
+    this.buttonEl!.type = type
+  }
+
   private handleClick = (): void => {
     if (this.hasAttribute('disabled') || this.hasAttribute('loading')) return
+    const type = this.getAttribute('type')
+    if (type === 'submit') {
+      this.closest('form')?.requestSubmit()
+    } else if (type === 'reset') {
+      this.closest('form')?.reset()
+    }
     this.emitInteraction('click')
   }
 }

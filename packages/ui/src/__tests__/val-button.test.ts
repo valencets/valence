@@ -71,6 +71,69 @@ describe('ValButton', () => {
     })
   })
 
+  describe('type reflection', () => {
+    it('defaults inner button type to "button" when no type attr set', () => {
+      const el = create()
+      const button = el.shadowRoot!.querySelector('button')!
+      expect(button.type).toBe('button')
+    })
+
+    it('reflects type="submit" to inner button', () => {
+      const el = create({ type: 'submit' })
+      const button = el.shadowRoot!.querySelector('button')!
+      expect(button.type).toBe('submit')
+    })
+
+    it('reflects type="reset" to inner button', () => {
+      const el = create({ type: 'reset' })
+      const button = el.shadowRoot!.querySelector('button')!
+      expect(button.type).toBe('reset')
+    })
+  })
+
+  describe('native form bridging', () => {
+    it('type="submit" inside native <form> calls requestSubmit()', () => {
+      const form = document.createElement('form')
+      container.appendChild(form)
+      const el = create({ type: 'submit' })
+      form.appendChild(el)
+
+      const submitSpy = vi.fn((e: Event) => e.preventDefault())
+      form.addEventListener('submit', submitSpy)
+
+      el.shadowRoot!.querySelector('button')!.click()
+
+      expect(submitSpy).toHaveBeenCalledOnce()
+    })
+
+    it('type="button" inside native <form> does NOT submit', () => {
+      const form = document.createElement('form')
+      container.appendChild(form)
+      const el = create({ type: 'button' })
+      form.appendChild(el)
+
+      const submitSpy = vi.fn((e: Event) => e.preventDefault())
+      form.addEventListener('submit', submitSpy)
+
+      el.shadowRoot!.querySelector('button')!.click()
+
+      expect(submitSpy).not.toHaveBeenCalled()
+    })
+
+    it('type="reset" inside native <form> calls reset()', () => {
+      const form = document.createElement('form')
+      container.appendChild(form)
+      const el = create({ type: 'reset' })
+      form.appendChild(el)
+
+      const resetSpy = vi.spyOn(form, 'reset')
+
+      el.shadowRoot!.querySelector('button')!.click()
+
+      expect(resetSpy).toHaveBeenCalledOnce()
+    })
+  })
+
   describe('ARIA', () => {
     it('inner button has implicit button role', () => {
       const el = create()
