@@ -1,10 +1,52 @@
-# @valencets/valence
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-dark-animated.png">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/logo-light-animated.png">
+    <img alt="Valence" src="./assets/logo-light-animated.png" width="280">
+  </picture>
+</p>
 
-[![npm](https://img.shields.io/npm/v/@valencets/valence)](https://www.npmjs.com/package/@valencets/valence)
-[![Socket](https://socket.dev/api/badge/npm/package/@valencets/valence)](https://socket.dev/npm/package/@valencets/valence)
-[![License](https://img.shields.io/github/license/valencets/valence)](https://github.com/valencets/valence/blob/master/LICENSE)
+<p align="center"><strong>Schema-driven web framework for Node.js and PostgreSQL.</strong></p>
 
-CLI and runtime for the [Valence](https://github.com/valencets/valence) web framework. Define your schema in TypeScript -- get a database, admin UI, REST API, and analytics out of the box.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@valencets/valence"><img src="https://img.shields.io/npm/v/@valencets/valence" alt="npm"></a>
+  <a href="https://socket.dev/npm/package/@valencets/valence"><img src="https://socket.dev/api/badge/npm/package/@valencets/valence" alt="Socket"></a>
+  <a href="https://github.com/valencets/valence/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/valencets/valence/ci.yml?branch=master&label=CI" alt="CI"></a>
+  <a href="https://github.com/valencets/valence/blob/master/LICENSE"><img src="https://img.shields.io/github/license/valencets/valence" alt="License"></a>
+  <img src="https://img.shields.io/badge/TypeScript-strict-blue" alt="TypeScript">
+  <img src="https://img.shields.io/badge/PostgreSQL-16+-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
+</p>
+
+---
+
+Define collections and fields in one TypeScript config. Valence derives the database tables, admin UI, REST API, validators, and migrations from that single schema. No plugins. No vendor scripts. No third-party browser JS.
+
+```ts
+// valence.config.ts
+import { defineConfig, collection, field } from '@valencets/valence'
+
+export default defineConfig({
+  db: { host: 'localhost', port: 5432, database: 'mysite', username: 'postgres', password: '' },
+  server: { port: 3000 },
+  collections: [
+    collection({
+      slug: 'posts',
+      labels: { singular: 'Post', plural: 'Posts' },
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', slugFrom: 'title' }),
+        field.richtext({ name: 'body' }),
+        field.relation({ name: 'category', relationTo: 'categories' }),
+        field.boolean({ name: 'published' }),
+        field.date({ name: 'publishedAt' })
+      ]
+    })
+  ],
+  admin: { pathPrefix: '/admin', requireAuth: true }
+})
+```
+
+That config gives you a `posts` table in Postgres, a server-rendered admin panel with form validation, a REST API at `/api/posts`, Zod validators, and a migration file. Change the schema, everything follows.
 
 ## Quick Start
 
@@ -14,105 +56,92 @@ cd my-site
 pnpm dev
 ```
 
-## Init Walkthrough
+The init wizard walks you through:
 
-Running `valence init` walks you through an interactive setup:
+- **Database** -- name, user, password (creates the DB and runs migrations)
+- **Admin user** -- email + password for the admin panel (role set to `admin`)
+- **Seed data** -- optional sample content (category, post, page) to start with
+- **Framework** -- plain HTML templates, Astro, or bring your own
+- **Git** -- initializes a repo with the first commit
 
-```
-$ npx @valencets/valence init my-site
+Pass `--yes` to skip prompts and accept defaults (useful for CI).
 
-  Welcome to Valence.
+Open `http://localhost:3000/admin` to sign in. Open `http://localhost:3000` for the landing page.
 
-  Project name (my-site):
-  Database name (my_site):
-  Database user (postgres):
-  Database password ():
-  Server port (3000):
+## What You Get
 
-  Frontend framework:
-    1. None (plain HTML templates)
-    2. Astro (recommended for static + islands)
-    3. Bring your own
-  Choose (1):
-
-  Install dependencies? (Y/n):
-  Create database "my_site"? (Y/n):
-  Run initial migrations? (Y/n):
-  Insert sample seed data? (Y/n):
-  Initialize git repository? (Y/n):
-```
-
-Each prompt has a sensible default shown in parentheses -- press Enter to accept. Pass `--yes` or `-y` to skip all prompts and use defaults (useful for CI and scripting).
-
-### What gets scaffolded
-
-```
-my-site/
-  valence.config.ts    # Collections, fields, DB config, admin settings
-  package.json         # Dependencies and scripts
-  tsconfig.json        # Strict TypeScript config
-  migrations/
-    001-init.sql       # Tables for categories, posts, pages, users
-  collections/         # Custom collection files (empty, ready to extend)
-  templates/           # HTML templates
-  uploads/             # Media upload directory
-  public/              # Static assets
-  .env                 # DB credentials, port, CMS secret
-  .gitignore
-```
-
-### Default collections
-
-The init template includes four collections out of the box:
-
-- **Categories** -- name, slug, description, color select
-- **Posts** -- title, slug, richtext body, category relation, published boolean, date
-- **Pages** -- title, slug, richtext content, status select (draft/published/archived), SEO group
-- **Users** -- name, role (admin/editor), email, password (auth-enabled collection)
-
-### Admin user
-
-After init, create your admin user:
-
-```bash
-pnpm run user:create
-```
-
-This prompts for email, password, and name. The user is created with `role: 'admin'`.
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `valence init [name]` | Create a new project with interactive prompts |
-| `valence init --learn` | Create a project with the interactive tutorial |
-| `valence dev` | Start the development server |
-| `valence migrate` | Run pending database migrations |
-| `valence build` | Build for production |
-| `valence user:create` | Create an admin user |
-| `valence learn` | View learn mode status |
-| `valence learn --reset` | Reset tutorial progress |
-| `valence learn --off` | Disable learn mode |
-
-## Learn Mode
-
-New to Valence? Run `valence init --learn` to scaffold a project with an interactive 6-step tutorial built into the dev server. It teaches core concepts through real actions -- visiting the admin panel, creating content, hitting the API, adding a collection, and more.
-
-Progress is tracked automatically via `.valence/learn.json`. The tutorial detects your actions (DB inserts, API requests, config file changes via `fs.watch`) and advances through steps as you complete them. No checkboxes -- just do the thing and it knows.
-
-Access the tutorial at `http://localhost:3000/_learn` when the dev server is running.
+- **Database tables** derived from your field definitions. UUID primary keys, timestamps, soft deletes.
+- **Admin panel** at `/admin`. Server-rendered HTML forms, CSRF protection, session auth with Argon2id. Login page with proper error handling.
+- **REST API** at `/api/:collection`. CRUD with Zod validation, parameterized queries, `Result<T, E>` error handling.
+- **Migrations** generated from schema diffs. Deterministic SQL, idempotent, version-tracked.
+- **Web Components**. 18 custom elements with ARIA, i18n, telemetry hooks, and hydration directives. Work in any framework or plain HTML.
+- **First-party analytics**. Built-in telemetry that runs entirely in your Postgres -- no vendor scripts, no third-party dashboards, no data leaving your infrastructure.
+- **Learn mode**. Interactive 6-step tutorial embedded in `valence dev` that teaches core concepts through real actions. Run `valence init --learn` to try it.
 
 ## Telemetry
 
-Valence ships with a complete first-party analytics pipeline. No Google Analytics, no Plausible, no vendor scripts. User behavior data is captured client-side with HTML `data-telemetry-*` attributes, flushed via `navigator.sendBeacon()`, and aggregated into daily summaries in your own Postgres.
+Valence includes a complete, privacy-respecting analytics pipeline that runs entirely on your own infrastructure. No Google Analytics, no Plausible, no third-party scripts. Your data stays in your Postgres.
 
-The built-in analytics dashboard at `/admin/analytics` shows sessions, pageviews, conversions, top pages, and top referrers. Eleven intent types let you track conversion-oriented actions (calls, bookings, form submissions) natively.
+**How it works:**
 
-See `@valencets/telemetry` and `@valencets/core` for the full API.
+1. Annotate HTML elements with `data-telemetry-*` attributes:
+   ```html
+   <button data-telemetry-type="CLICK" data-telemetry-target="hero.cta">
+     Get Started
+   </button>
+   ```
+
+2. The client library captures user intent events in a **pre-allocated ring buffer** (zero allocation in the hot path) and auto-flushes via `navigator.sendBeacon()` every 30 seconds.
+
+3. The server ingests beacon payloads, stores raw events, and aggregates them into **daily summaries** -- sessions, pageviews, conversions, top pages, top referrers, device breakdowns.
+
+4. View it all in the built-in **analytics dashboard** at `/admin/analytics`.
+
+**11 intent types** beyond simple pageviews: `CLICK`, `SCROLL`, `VIEWPORT_INTERSECT`, `FORM_INPUT`, `INTENT_NAVIGATE`, `INTENT_CALL`, `INTENT_BOOK`, `INTENT_LEAD`, `LEAD_PHONE`, `LEAD_EMAIL`, `LEAD_FORM`. This means you can track conversion-oriented actions (calls, bookings, form submissions) natively, not just clicks.
+
+**Architecture:** The telemetry pipeline spans two packages. `@valencets/core` handles client-side capture (ring buffer, event delegation, beacon flush). `@valencets/telemetry` handles server-side ingestion, validation, daily aggregation, and query functions (`getDailyTrend`, `getDailyBreakdowns`). The CMS admin panel consumes these queries to render the dashboard.
+
+## Packages
+
+| Package | What it does | Deps |
+|---------|-------------|------|
+| **@valencets/ui** | 18 Web Components. ARIA, i18n, telemetry hooks, hydration directives. OKLCH design tokens. | zero |
+| **@valencets/core** | Router + server. `pushState` nav, fragment swaps, prefetch, view transitions, server islands. | zero |
+| **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | zero |
+| **@valencets/cms** | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media. | core, db, ui |
+| **@valencets/telemetry** | Beacon ingestion, event storage, daily summaries, fleet aggregation. | db |
+| **@valencets/valence** | CLI. `valence init`, `valence dev`, `valence migrate`, `valence build`. | cms, db |
+
+## Non-Negotiable
+
+| Rule | Why |
+|------|-----|
+| Complexity < 20 | Every function fits on one screen. No exceptions. |
+| `Result<T, E>` everywhere | If it can fail, the type signature says so. Both branches handled or it doesn't compile. |
+| 14kB critical shell | First paint in the first TCP data flight. CDN-ready with cache profiles and server islands. |
+| Pre-allocated ring buffer | Zero allocation in the telemetry hot path. |
+| Zero third-party browser JS | Your site. Your code. Your data. Nothing phones home. |
+| 1,337 tests | Strict TypeScript, neostandard, CI on every push. |
 
 ## Documentation
 
-See the [full documentation](https://github.com/valencets/valence/wiki) for guides on collections, fields, auth, media, and telemetry.
+- [Getting Started](https://github.com/valencets/valence/wiki/Getting-Started)
+- [Architecture](https://github.com/valencets/valence/wiki/Architecture)
+- [CMS Guide](https://github.com/valencets/valence/wiki/CMS-Guide)
+- [Developer Guide](https://github.com/valencets/valence/wiki/Developer-Guide)
+- [Troubleshooting](https://github.com/valencets/valence/wiki/Troubleshooting)
+
+## Contributing
+
+```bash
+git clone https://github.com/valencets/valence.git
+cd valence
+pnpm install
+pnpm build
+pnpm test
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for standards and the TDD workflow.
 
 ## License
 
