@@ -10,7 +10,6 @@ import { createPool, closePool, loadMigrations, runMigrations } from '@valencets
 import type { DbConfig } from '@valencets/db'
 import { buildCms } from '@valencets/cms'
 import type { RestRouteEntry } from '@valencets/cms'
-import { collection, field } from '@valencets/cms'
 
 const COMMANDS = {
   init: 'Create a new Valence project',
@@ -333,6 +332,13 @@ async function runDev (): Promise<void> {
   log('Running migrations...')
   await runMigrationsForProject(process.cwd(), config)
 
+  log('Loading config...')
+  const userConfig = await loadUserConfig()
+  if (!userConfig) {
+    console.error('  Error: could not load valence.config.ts. Make sure it exists and exports defineConfig().')
+    process.exit(1)
+  }
+
   log('Building CMS...')
   const pool = createPool(config)
 
@@ -340,26 +346,7 @@ async function runDev (): Promise<void> {
     db: pool,
     secret: process.env.CMS_SECRET ?? 'dev-secret',
     uploadDir: join(process.cwd(), 'uploads'),
-    collections: [
-      collection({
-        slug: 'posts',
-        labels: { singular: 'Post', plural: 'Posts' },
-        fields: [
-          field.text({ name: 'title', required: true }),
-          field.slug({ name: 'slug', required: true, unique: true }),
-          field.textarea({ name: 'body' }),
-          field.boolean({ name: 'published' }),
-          field.date({ name: 'publishedAt' })
-        ]
-      }),
-      collection({
-        slug: 'users',
-        auth: true,
-        fields: [
-          field.text({ name: 'name', required: true })
-        ]
-      })
-    ]
+    collections: userConfig
   })
 
   if (cmsResult.isErr()) {
@@ -663,4 +650,24 @@ function landingPage (port: number): string {
   </div>
 </body>
 </html>`
+}
+
+async function loadUserConfig (): Promise<ReadonlyArray<import('@valencets/cms').CollectionConfig> | null> {
+  const configPath = join(process.cwd(), 'valence.config.ts')
+  if (!existsSync(configPath)) {
+    log('No valence.config.ts found.')
+    return null
+  }
+
+  try {
+    const mod = await import(configPath)
+    const result = mod.default
+    if (result && typeof result.isOk === 'function' && result.isOk()) {
+      return result.value.collections ?? []
+    }
+    return null
+  } catch (e) {
+    log(`Config load failed: ${e instanceof Error ? e.message : 'unknown error'}`)
+    return null
+  }
 }

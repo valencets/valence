@@ -27,6 +27,7 @@
     "@valencets/db": "workspace:*",
     "@valencets/telemetry": "workspace:*",
     "neverthrow": "^8.2.0",
+    "tsx": "^4.21.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
