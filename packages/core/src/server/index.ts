@@ -4,3 +4,6 @@ export { sendHtml, sendJson, sendError, isFragmentRequest, readBody, sendIslandH
 export type { IslandHtmlOptions } from './http-helpers.js'
 export { cacheControl, setCacheHeaders, versionedUrl } from './cache-control.js'
 export type { CacheProfile, CacheOptions } from './cache-control.js'
+export { html, renderLayout } from './html-template.js'
+export type { LayoutConfig } from './html-template.js'
+export { resolveMimeType, resolveStaticPath } from './static-files.js'
