@@ -33,3 +33,13 @@ describe('CLI', () => {
     expect(output).toContain('build')
   })
 })
+
+describe('CLI security', () => {
+  it('does not use execSync with string concatenation for tsx script execution', async () => {
+    const { readFileSync } = await import('node:fs')
+    const source = readFileSync(new URL('../cli.ts', import.meta.url).pathname.replace('/dist/', '/src/'), 'utf-8')
+    // Should use execFileSync (array args, no shell) instead of execSync with template literal
+    expect(source).not.toMatch(/execSync\s*\(\s*`/)
+    expect(source).toMatch(/execFileSync/)
+  })
+})
