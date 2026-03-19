@@ -10,7 +10,7 @@ export function renderListView (col: CollectionConfig, docs: readonly DocRow[]):
   const label = escapeHtml(col.labels?.plural ?? col.slug)
 
   if (docs.length === 0) {
-    return `<p>No ${label} found.</p><a href="/admin/${escapeHtml(col.slug)}/new">Create one</a>`
+    return `<div class="empty-state"><p>No ${label} found.</p><a href="/admin/${escapeHtml(col.slug)}/new">Create one</a></div>`
   }
 
   const displayFields = col.fields.slice(0, 3)
@@ -22,7 +22,10 @@ export function renderListView (col: CollectionConfig, docs: readonly DocRow[]):
   }).join('\n')
 
   return `
-<a href="/admin/${escapeHtml(col.slug)}/new">New ${escapeHtml(col.labels?.singular ?? col.slug)}</a>
+<div class="list-header">
+  <span></span>
+  <a href="/admin/${escapeHtml(col.slug)}/new" class="btn btn-primary">New ${escapeHtml(col.labels?.singular ?? col.slug)}</a>
+</div>
 <table>
   <thead><tr><th>ID</th>${headerCells}</tr></thead>
   <tbody>${rows}</tbody>

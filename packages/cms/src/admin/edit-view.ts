@@ -21,9 +21,9 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
   const csrfField = csrfToken ? `<input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">` : ''
 
   return `
-<form action="${action}" method="POST">
+<form action="${action}" method="POST" class="admin-form">
   ${csrfField}
   ${fieldInputs}
-  <button type="submit">${isNew ? 'Create' : 'Save'}</button>
+  <button type="submit" class="btn btn-primary">${isNew ? 'Create' : 'Save'}</button>
 </form>`
 }
