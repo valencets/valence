@@ -256,6 +256,17 @@ CREATE TABLE IF NOT EXISTS "users" (
   "deleted_at" TIMESTAMPTZ
 );
 
+
+CREATE TABLE IF NOT EXISTS "document_revisions" (
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "collection_slug" TEXT NOT NULL,
+  "document_id" UUID NOT NULL,
+  "revision_number" INT NOT NULL,
+  "data" JSONB NOT NULL,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE("collection_slug", "document_id", "revision_number")
+);
+
 -- Telemetry tables
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 

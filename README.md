@@ -149,7 +149,7 @@ Valence includes a complete, privacy-respecting analytics pipeline that runs ent
 | 14kB critical shell | First paint in the first TCP data flight. CDN-ready with cache profiles and server islands. |
 | Pre-allocated ring buffer | Zero allocation in the telemetry hot path. |
 | Zero third-party JS on public pages | Your site ships your code. Lexical is admin-only. Nothing phones home. |
-| 1,359 tests | Strict TypeScript, neostandard, CI on every push. |
+| 1,378 tests | Strict TypeScript, neostandard, CI on every push. |
 
 ## Documentation
 
