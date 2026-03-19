@@ -8,7 +8,7 @@ export function createRequestContext (
 ): RequestContext {
   return {
     requestId: randomUUID(),
-    startTime: process.hrtime() as unknown as readonly [number, number],
+    startTime: process.hrtime(),
     url: new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`),
     params: params ?? {}
   }

@@ -57,12 +57,7 @@ export function createServerRouter (): ServerRouter {
       return
     }
 
-    const stored = routes.get(match.pattern)
-    if (!stored) {
-      sendError(res, { code: ServerErrorCode.NOT_FOUND, message: `Not found: ${pathname}`, statusCode: 404 })
-      return
-    }
-
+    const stored = routes.get(match.pattern)!
     const handler: RouteHandler | undefined = stored.entry[method as keyof RouteEntry]
 
     if (!handler) {

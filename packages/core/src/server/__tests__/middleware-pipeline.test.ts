@@ -110,4 +110,15 @@ describe('composeMiddleware', () => {
     await expect(composed(stubReq, stubRes, stubCtx(), final)).rejects.toThrow('handler boom')
     expect(afterNext).not.toHaveBeenCalled()
   })
+
+  it('throws if next() is called multiple times', async () => {
+    const mw: Middleware = async (_req, _res, _ctx, next) => {
+      await next()
+      await next()
+    }
+    const final = vi.fn(async () => {})
+
+    const composed = composeMiddleware([mw])
+    await expect(composed(stubReq, stubRes, stubCtx(), final)).rejects.toThrow('next() called multiple times')
+  })
 })
