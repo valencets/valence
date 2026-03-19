@@ -13,7 +13,7 @@ afterAll(async () => {
   await teardownTestDatabase()
 }, 10000)
 
-describe('schema — tables', () => {
+describe('schema: tables', () => {
   it('sessions table exists', async () => {
     const rows = await pool.sql`
       SELECT table_name FROM information_schema.tables
@@ -50,7 +50,7 @@ describe('schema — tables', () => {
   })
 })
 
-describe('schema — column types', () => {
+describe('schema: column types', () => {
   it('session_id is UUID', async () => {
     const rows = await pool.sql`
       SELECT data_type FROM information_schema.columns
@@ -101,7 +101,7 @@ describe('schema — column types', () => {
   })
 })
 
-describe('schema — constraints', () => {
+describe('schema: constraints', () => {
   it('FK constraint: events.session_id references sessions', async () => {
     const rows = await pool.sql`
       SELECT constraint_name FROM information_schema.table_constraints
@@ -184,7 +184,7 @@ describe('schema — constraints', () => {
   })
 })
 
-describe('schema — indexes', () => {
+describe('schema: indexes', () => {
   it('idx_events_session exists', async () => {
     const rows = await pool.sql`
       SELECT indexname FROM pg_indexes

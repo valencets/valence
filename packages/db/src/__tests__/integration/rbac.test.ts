@@ -15,7 +15,7 @@ afterAll(async () => {
   await teardownTestDatabase()
 }, 10000)
 
-describe('RBAC — allowed operations', () => {
+describe('RBAC: allowed operations', () => {
   it('app can INSERT into sessions', async () => {
     const rows = await appPool.sql`
       INSERT INTO sessions (device_type) VALUES ('desktop')
@@ -75,7 +75,7 @@ describe('RBAC — allowed operations', () => {
   })
 })
 
-describe('RBAC — denied operations', () => {
+describe('RBAC: denied operations', () => {
   it('app CANNOT UPDATE sessions', async () => {
     let errorCaught = false
     await appPool.sql`UPDATE sessions SET device_type = 'hacked' WHERE 1=0`

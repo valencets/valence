@@ -5,7 +5,7 @@ import type { DbConfig } from '../types.js'
 const validConfig: DbConfig = {
   host: 'localhost',
   port: 5432,
-  database: 'inertia',
+  database: 'valence',
   username: 'app',
   password: 'secret',
   max: 10,

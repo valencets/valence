@@ -40,28 +40,20 @@ export function validateDbConfig (config: unknown): Result<DbConfig, DbError> {
 }
 
 export function createPool (config: DbConfig): DbPool {
+  const base = {
+    host: config.host,
+    port: config.port,
+    database: config.database,
+    username: config.username,
+    password: config.password,
+    max: config.max,
+    idle_timeout: config.idle_timeout,
+    connect_timeout: config.connect_timeout
+  }
+
   const sql = config.query_timeout !== undefined
-    ? postgres({
-      host: config.host,
-      port: config.port,
-      database: config.database,
-      username: config.username,
-      password: config.password,
-      max: config.max,
-      idle_timeout: config.idle_timeout,
-      connect_timeout: config.connect_timeout,
-      connection: { statement_timeout: config.query_timeout }
-    })
-    : postgres({
-      host: config.host,
-      port: config.port,
-      database: config.database,
-      username: config.username,
-      password: config.password,
-      max: config.max,
-      idle_timeout: config.idle_timeout,
-      connect_timeout: config.connect_timeout
-    })
+    ? postgres({ ...base, connection: { statement_timeout: config.query_timeout } })
+    : postgres(base)
 
   return { sql }
 }
