@@ -4,6 +4,7 @@ import type { CollectionRegistry } from '../schema/registry.js'
 import type { GlobalRegistry } from '../schema/registry.js'
 import type { CmsError } from '../schema/types.js'
 import type { DocumentRow, DocumentData } from '../db/query-builder.js'
+import type { PaginatedResult } from '../db/query-types.js'
 import { createQueryBuilder } from '../db/query-builder.js'
 import { CmsErrorCode } from '../schema/types.js'
 import { isValidIdentifier } from '../db/sql-sanitize.js'
@@ -12,6 +13,10 @@ import { safeQuery } from '../db/safe-query.js'
 interface FindArgs {
   readonly collection: string
   readonly where?: Record<string, string | number | boolean | null> | undefined
+  readonly orderBy?: { field: string; direction: 'asc' | 'desc' } | undefined
+  readonly page?: number | undefined
+  readonly perPage?: number | undefined
+  readonly search?: string | undefined
   readonly limit?: number | undefined
 }
 
@@ -51,7 +56,7 @@ interface UpdateGlobalArgs {
 }
 
 export interface LocalApi {
-  find (args: FindArgs): ResultAsync<DocumentRow[], CmsError>
+  find (args: FindArgs): ResultAsync<DocumentRow[] | PaginatedResult<DocumentRow>, CmsError>
   findByID (args: FindByIDArgs): ResultAsync<DocumentRow | null, CmsError>
   create (args: CreateArgs): ResultAsync<DocumentRow, CmsError>
   update (args: UpdateArgs): ResultAsync<DocumentRow, CmsError>
@@ -75,6 +80,11 @@ export function createLocalApi (
         for (const [k, v] of Object.entries(args.where)) {
           builder = builder.where(k, v)
         }
+      }
+      if (args.search) builder = builder.search(args.search)
+      if (args.orderBy) builder = builder.orderBy(args.orderBy.field, args.orderBy.direction)
+      if (args.page !== undefined && args.perPage !== undefined) {
+        return builder.page(args.page, args.perPage)
       }
       if (args.limit) builder = builder.limit(args.limit)
       return builder.all()
