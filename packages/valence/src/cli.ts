@@ -86,6 +86,7 @@ function log (msg: string): void {
 async function runInit (args: ReadonlyArray<string>): Promise<void> {
   const nonFlagArgs = args.filter(a => !a.startsWith('--'))
   const useDefaults = args.includes('--yes') || args.includes('-y')
+  const learnMode = args.includes('--learn')
 
   console.log('\n  Welcome to Valence.\n')
 
@@ -155,105 +156,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
     }
   }, null, 2) + '\n')
 
-  await writeFile(join(dir, 'valence.config.ts'), `import { defineConfig, collection, field } from '@valencets/valence'
-
-export default defineConfig({
-  db: {
-    host: process.env.DB_HOST ?? 'localhost',
-    port: Number(process.env.DB_PORT ?? 5432),
-    database: process.env.DB_NAME ?? '${dbName}',
-    username: process.env.DB_USER ?? '${dbUser}',
-    password: process.env.DB_PASSWORD ?? '${dbPassword}'
-  },
-  server: {
-    port: Number(process.env.PORT ?? ${serverPort})
-  },
-  collections: [
-    collection({
-      slug: 'categories',
-      labels: { singular: 'Category', plural: 'Categories' },
-      fields: [
-        field.text({ name: 'name', required: true }),
-        field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'name' }),
-        field.textarea({ name: 'description' }),
-        field.select({
-          name: 'color',
-          options: [
-            { label: 'Blue', value: 'blue' },
-            { label: 'Green', value: 'green' },
-            { label: 'Red', value: 'red' },
-            { label: 'Purple', value: 'purple' },
-            { label: 'Amber', value: 'amber' }
-          ]
-        })
-      ]
-    }),
-
-    collection({
-      slug: 'posts',
-      labels: { singular: 'Post', plural: 'Posts' },
-      fields: [
-        field.text({ name: 'title', required: true }),
-        field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'title' }),
-        field.richtext({ name: 'body' }),
-        field.relation({ name: 'category', relationTo: 'categories' }),
-        field.boolean({ name: 'published' }),
-        field.date({ name: 'publishedAt' })
-      ]
-    }),
-
-    collection({
-      slug: 'pages',
-      labels: { singular: 'Page', plural: 'Pages' },
-      fields: [
-        field.text({ name: 'title', required: true }),
-        field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'title' }),
-        field.richtext({ name: 'content' }),
-        field.select({
-          name: 'status',
-          required: true,
-          defaultValue: 'draft',
-          options: [
-            { label: 'Draft', value: 'draft' },
-            { label: 'Published', value: 'published' },
-            { label: 'Archived', value: 'archived' }
-          ]
-        }),
-        field.date({ name: 'publishedAt' }),
-        field.group({
-          name: 'seo',
-          label: 'SEO',
-          fields: [
-            field.text({ name: 'metaTitle', label: 'Meta Title' }),
-            field.textarea({ name: 'metaDescription', label: 'Meta Description' })
-          ]
-        })
-      ]
-    }),
-
-    collection({
-      slug: 'users',
-      auth: true,
-      fields: [
-        field.text({ name: 'name', required: true }),
-        field.select({
-          name: 'role',
-          required: true,
-          defaultValue: 'editor',
-          options: [
-            { label: 'Admin', value: 'admin' },
-            { label: 'Editor', value: 'editor' }
-          ]
-        })
-      ]
-    })
-  ],
-  admin: {
-    pathPrefix: '/admin',
-    requireAuth: true
-  }
-})
-`)
+  await writeFile(join(dir, 'valence.config.ts'), generateConfigTemplate({ dbName, dbUser, dbPassword, serverPort, learnMode }))
 
   await writeFile(join(dir, 'tsconfig.json'), JSON.stringify({
     compilerOptions: {
@@ -285,12 +188,9 @@ CMS_SECRET=${generateSecret()}
   await writeFile(join(dir, '.env'), envContent)
   await writeFile(join(dir, '.env.example'), envContent.replace(dbPassword, '').replace(/CMS_SECRET=.*/, 'CMS_SECRET=change-me'))
 
-  await writeFile(join(dir, '.gitignore'), `node_modules/
-dist/
-.env
-uploads/
-*.log
-`)
+  const gitignoreLines = ['node_modules/', 'dist/', '.env', 'uploads/', '*.log']
+  if (learnMode) gitignoreLines.push('.valence/')
+  await writeFile(join(dir, '.gitignore'), gitignoreLines.join('\n') + '\n')
 
   await writeFile(join(dir, 'README.md'), `# ${projectName}
 
@@ -359,6 +259,14 @@ CREATE TABLE IF NOT EXISTS "users" (
 
   log('Project scaffolded.')
 
+  if (learnMode) {
+    const { ensureLearnDir } = await import('./learn/index.js')
+    await ensureLearnDir(dir)
+    const learnProgress = createInitialProgress({ posts: 0, users: 0 })
+    await writeLearnProgress(dir, learnProgress)
+    log('Learn mode enabled.')
+  }
+
   if (installDeps) {
     log('Installing dependencies...')
     const pm = detectPackageManager()
@@ -423,6 +331,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     }
   }
 
+  const learnUrl = learnMode ? `\n  Tutorial: http://localhost:${serverPort}/_learn` : ''
   console.log(`
   Done. Your project is ready.
 
@@ -430,7 +339,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     pnpm dev
 
   Site:  http://localhost:${serverPort}
-  Admin: http://localhost:${serverPort}/admin
+  Admin: http://localhost:${serverPort}/admin${learnUrl}
 `)
 }
 
@@ -642,6 +551,136 @@ function detectPackageManager (): string {
   if (existsSync(join(process.cwd(), 'pnpm-lock.yaml'))) return 'pnpm'
   if (existsSync(join(process.cwd(), 'yarn.lock'))) return 'yarn'
   return 'npm'
+}
+
+interface ConfigTemplateOptions {
+  readonly dbName: string
+  readonly dbUser: string
+  readonly dbPassword: string
+  readonly serverPort: string
+  readonly learnMode: boolean
+}
+
+function generateConfigTemplate (opts: ConfigTemplateOptions): string {
+  const { dbName, dbUser, dbPassword, serverPort, learnMode } = opts
+
+  const learnComment = (text: string) => learnMode ? `// ${text}\n    ` : ''
+
+  const tagsCollection = learnMode
+    ? `,
+
+    // ── LEARN MODE: Step 4 ──────────────────────────────────
+    // Uncomment the collection below and save this file.
+    // Valence will detect the change automatically!
+    //
+    // collection({
+    //   slug: 'tags',
+    //   labels: { singular: 'Tag', plural: 'Tags' },
+    //   fields: [
+    //     field.text({ name: 'name', required: true }),
+    //     field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'name' })
+    //   ]
+    // })`
+    : ''
+
+  return `import { defineConfig, collection, field } from '@valencets/valence'
+${learnMode ? '\n// This config defines your collections (data models), database connection,\n// and server settings. Each collection becomes a database table, an admin UI,\n// and a REST API endpoint automatically.\n' : ''}
+export default defineConfig({
+  db: {
+    host: process.env.DB_HOST ?? 'localhost',
+    port: Number(process.env.DB_PORT ?? 5432),
+    database: process.env.DB_NAME ?? '${dbName}',
+    username: process.env.DB_USER ?? '${dbUser}',
+    password: process.env.DB_PASSWORD ?? '${dbPassword}'
+  },
+  server: {
+    port: Number(process.env.PORT ?? ${serverPort})
+  },
+  collections: [
+    ${learnComment('Categories: a simple collection with text, slug, textarea, and select fields.')}collection({
+      slug: 'categories',
+      labels: { singular: 'Category', plural: 'Categories' },
+      fields: [
+        field.text({ name: 'name', required: true }),
+        field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'name' }),
+        field.textarea({ name: 'description' }),
+        field.select({
+          name: 'color',
+          options: [
+            { label: 'Blue', value: 'blue' },
+            { label: 'Green', value: 'green' },
+            { label: 'Red', value: 'red' },
+            { label: 'Purple', value: 'purple' },
+            { label: 'Amber', value: 'amber' }
+          ]
+        })
+      ]
+    }),
+
+    ${learnComment('Posts: uses richtext for the body, a relation to categories, and a boolean toggle.')}collection({
+      slug: 'posts',
+      labels: { singular: 'Post', plural: 'Posts' },
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'title' }),
+        field.richtext({ name: 'body' }),
+        field.relation({ name: 'category', relationTo: 'categories' }),
+        field.boolean({ name: 'published' }),
+        field.date({ name: 'publishedAt' })
+      ]
+    }),
+
+    ${learnComment('Pages: includes a status select, a date field, and a group for SEO metadata.')}collection({
+      slug: 'pages',
+      labels: { singular: 'Page', plural: 'Pages' },
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true, unique: true, slugFrom: 'title' }),
+        field.richtext({ name: 'content' }),
+        field.select({
+          name: 'status',
+          required: true,
+          defaultValue: 'draft',
+          options: [
+            { label: 'Draft', value: 'draft' },
+            { label: 'Published', value: 'published' },
+            { label: 'Archived', value: 'archived' }
+          ]
+        }),
+        field.date({ name: 'publishedAt' }),
+        field.group({
+          name: 'seo',
+          label: 'SEO',
+          fields: [
+            field.text({ name: 'metaTitle', label: 'Meta Title' }),
+            field.textarea({ name: 'metaDescription', label: 'Meta Description' })
+          ]
+        })
+      ]
+    }),
+
+    ${learnComment('Users: auth: true enables password hashing and session management.')}collection({
+      slug: 'users',
+      auth: true,
+      fields: [
+        field.text({ name: 'name', required: true }),
+        field.select({
+          name: 'role',
+          defaultValue: 'editor',
+          options: [
+            { label: 'Admin', value: 'admin' },
+            { label: 'Editor', value: 'editor' }
+          ]
+        })
+      ]
+    })${tagsCollection}
+  ],
+  admin: {
+    pathPrefix: '/admin',
+    requireAuth: true
+  }
+})
+`
 }
 
 function generateSecret (): string {
