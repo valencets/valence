@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { RequestContext, Middleware, ErrorHandler } from './middleware-types.js'
 
 export const ServerErrorCode = {
   NOT_FOUND: 'NOT_FOUND',
@@ -17,18 +18,26 @@ export interface ServerError {
   readonly statusCode: number
 }
 
-export type RouteHandler<TCtx = unknown> = (
+export type RouteHandler = (
   req: IncomingMessage,
   res: ServerResponse,
-  ctx: TCtx
+  ctx: RequestContext
 ) => Promise<void>
 
-export interface RouteEntry<TCtx = unknown> {
-  readonly GET?: RouteHandler<TCtx>
-  readonly POST?: RouteHandler<TCtx>
+export interface RouteEntry {
+  readonly GET?: RouteHandler
+  readonly POST?: RouteHandler
+  readonly PATCH?: RouteHandler
+  readonly DELETE?: RouteHandler
 }
 
-export interface ServerRouter<TCtx = unknown> {
-  readonly register: (path: string, entry: RouteEntry<TCtx>) => void
-  readonly handle: (req: IncomingMessage, res: ServerResponse, ctx: TCtx) => Promise<void>
+export interface RouteOptions {
+  readonly middleware?: readonly Middleware[]
+}
+
+export interface ServerRouter {
+  readonly register: (path: string, entry: RouteEntry, options?: RouteOptions) => void
+  readonly use: (middleware: Middleware) => void
+  readonly onError: (handler: ErrorHandler) => void
+  readonly handle: (req: IncomingMessage, res: ServerResponse) => Promise<void>
 }
