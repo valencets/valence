@@ -1,48 +1,24 @@
-```
-            __                    
- _   _____ / /__ ___  _______   
-| | / / _ `/ / -_) _ \/ __/ -_) 
-|_|/ /\_,_/_/\__/_//_/\__/\__/  
-  |___/                          
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/logo-light.svg">
+    <img alt="Valence" src="./assets/logo-light.svg" width="280">
+  </picture>
+</p>
 
-**Define the schema. Ship the site. Keep the data.**
+<p align="center"><strong>Define the schema. Ship the site. Keep the data.</strong></p>
+
+<p align="center">
+  <a href="https://github.com/valencets/valence/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/valencets/valence/ci.yml?branch=master&label=CI" alt="CI"></a>
+  <a href="https://github.com/valencets/valence/blob/master/LICENSE"><img src="https://img.shields.io/github/license/valencets/valence" alt="License"></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen" alt="Node >= 22">
+  <img src="https://img.shields.io/badge/pnpm-10.x-F69220" alt="pnpm">
+  <img src="https://img.shields.io/badge/TypeScript-strict-blue" alt="TypeScript">
+</p>
 
 ---
 
-Valence is a web framework where the CMS, telemetry, and UI components aren't plugins you bolt on — they're the foundation you build on. One schema definition gives you the database, the admin, the validation, the API, and the analytics. No glue code. No third-party scripts in your visitor's browser. No framework lock-in.
-
-It runs on Node.js and PostgreSQL. Deploy it wherever those run.
-
-## Packages
-
-| Package | What it does | Deps |
-|---------|-------------|------|
-| **@valencets/ui** | 18 Web Components + protocol base class. ARIA, i18n, telemetry, CMS traceability, declarative hydration directives (`hydrate:idle`, `hydrate:visible`, `hydrate:media`, `hydrate:load`). OKLCH design tokens, optional Tailwind preset, theme contract. | zero |
-| **@valencets/core** | Router, server, client telemetry engine. `pushState` nav, fragment swaps, hover-intent prefetch, ring buffer event capture. | zero |
-| **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized by default, `Result<T,E>` returns, migration runner. | zero |
-| **@valencets/cms** | Schema-driven content engine. `collection()` + `field.*` → tables, Zod validators, REST API, admin UI, auth, media. | db |
-| **@valencets/telemetry** | Beacon, ingestion, event storage, daily summaries. Zero third-party scripts. | db |
-
-```
-ui     ── standalone
-core   ── standalone
-db     ── standalone
-cms    ── db
-telemetry ── db
-```
-
-## The Opinionated Parts
-
-**Schema is the source of truth.** You define collections and fields in TypeScript. Valence derives everything else — database tables, API endpoints, admin views, Zod validators, migration SQL. Change the schema, the system follows.
-
-**Web Components, not framework components.** `val-*` elements are native Custom Elements with `ElementInternals`. They work in any HTML page, any framework, or no framework. Shadow DOM where isolation matters, light DOM where composition matters.
-
-**Telemetry is a platform contract.** Every `val-*` component dispatches `val:interaction` events on user actions. Always. If nobody's listening, the events vanish — zero cost. When `@valencets/telemetry` is installed, it registers one `document.addEventListener` and captures everything. The UI package doesn't know or care.
-
-**Errors are values.** Every fallible operation returns `Result<T, E>`. No try/catch, no uncaught promise rejections, no hidden failure modes.
-
-**Nothing in the browser you didn't write.** No analytics scripts, no tracking pixels, no CDN dependencies. The critical shell is 14kB. First paint in the first TCP data flight.
+Valence is a schema-driven web framework for Node.js and PostgreSQL. One TypeScript schema gives you the database, admin UI, REST API, validation, and analytics. 18 native Web Components work in any framework or none. Zero third-party scripts in your visitor's browser.
 
 ## Quick Start
 
@@ -51,8 +27,34 @@ git clone https://github.com/valencets/valence.git
 cd valence
 pnpm install
 pnpm build
-pnpm test         # 991+ tests
+pnpm test         # 1,028 tests
 ```
+
+## Packages
+
+| Package | What it does | Deps |
+|---------|-------------|------|
+| **@valencets/ui** | 18 Web Components + protocol base class. ARIA, i18n, telemetry hooks, CMS traceability, declarative hydration directives (`hydrate:idle`, `hydrate:visible`, `hydrate:media`, `hydrate:load`). OKLCH design tokens, optional Tailwind preset, theme contract. | zero |
+| **@valencets/core** | Router, server, client telemetry engine. `pushState` nav, fragment swaps, hover-intent prefetch, ring buffer event capture. | zero |
+| **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized by default, `Result<T,E>` returns, migration runner. | zero |
+| **@valencets/cms** | Schema-driven content engine. `collection()` + `field.*` produces tables, Zod validators, REST API, admin UI, auth, media. | db |
+| **@valencets/telemetry** | Beacon, ingestion, event storage, daily summaries. Zero third-party scripts. | db |
+
+```
+ui        standalone
+core      standalone
+db        standalone
+cms       db
+telemetry db
+```
+
+## Why Valence
+
+- **Schema is the source of truth.** Define collections and fields in TypeScript. Valence derives tables, endpoints, admin views, validators, and migrations.
+- **Native Web Components.** `val-*` elements use Custom Elements and `ElementInternals`. They work in React, Vue, Svelte, Astro, or plain HTML.
+- **Built-in telemetry.** Every component dispatches interaction events. When nobody listens, zero cost. When `@valencets/telemetry` is active, one event listener captures everything.
+- **Errors are values.** Every fallible operation returns `Result<T, E>`. No try/catch, no hidden failures.
+- **14kB critical shell.** First paint ships in the first TCP round trip. No CDN dependencies, no web fonts, no third-party scripts.
 
 ## Constraints
 
@@ -65,7 +67,7 @@ pnpm test         # 991+ tests
 | Zero `any`, strict mode | If it compiles, the types are right |
 | Zero third-party browser JS | Your site, your code, your data |
 
-## Docs
+## Documentation
 
 - [Getting Started](docs/GETTING-STARTED.md)
 - [Architecture](docs/ARCHITECTURE.md)
@@ -74,6 +76,10 @@ pnpm test         # 991+ tests
 - [CMS Reference](packages/cms/README.md)
 - [CMS Guide](packages/cms/docs/guide.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and the TDD workflow.
 
 ## License
 

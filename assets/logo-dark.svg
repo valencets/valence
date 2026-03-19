@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 56" fill="none">
+  <style>
+    .wordmark {
+      font-family: "Inter", "Segoe UI", "Helvetica Neue", "Arial", sans-serif;
+      font-size: 42px;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+      fill: #f0f0f0;
+    }
+  </style>
+  <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" class="wordmark">valence</text>
+</svg>
