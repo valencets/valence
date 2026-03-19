@@ -20,6 +20,8 @@ import { verifyPassword } from '../auth/password.js'
 import { parseCookie } from '../auth/cookie.js'
 import { renderLoginPage } from './login-view.js'
 import { renderAnalyticsView } from './analytics-view.js'
+import { renderRevisionList, renderRevisionDiff } from './revision-view.js'
+import { saveRevision, getRevisions, getRevision } from '../db/revision-queries.js'
 import { safeQuery } from '../db/safe-query.js'
 import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { readStringBody } from '../api/read-body.js'
@@ -480,7 +482,9 @@ export function createAdminRoutes (
         }
         const result = await api.update({ collection: col.slug, id, data: validation.data as DocumentData })
         result.match(
-          () => {
+          (updated) => {
+            // Save revision on successful update
+            saveRevision(pool, col.slug, id, updated as Record<string, string | number | boolean | null>)
             setFlashCookie(res, { type: 'success', text: `${col.labels?.singular ?? col.slug} updated successfully` })
             res.writeHead(302, { Location: `/admin/${col.slug}` })
             res.end()
@@ -491,6 +495,43 @@ export function createAdminRoutes (
             sendHtml(res, html, 400)
           }
         )
+      })
+    })
+
+    routes.set(`/admin/${col.slug}/:id/history`, {
+      GET: wrap(async (_req, res, ctx) => {
+        const id = ctx.id ?? ''
+        const result = await getRevisions(pool, col.slug, id)
+        const revisions = result.match(rows => rows, () => [])
+        const content = renderRevisionList(col.slug, id, revisions)
+        const html = renderLayout({
+          title: `History — ${col.labels?.singular ?? col.slug}`,
+          content,
+          collections: allCollections
+        })
+        sendHtml(res, html)
+      })
+    })
+
+    routes.set(`/admin/${col.slug}/:id/history/:rev`, {
+      GET: wrap(async (_req, res, ctx) => {
+        const id = ctx.id ?? ''
+        const rev = parseInt(ctx.rev ?? '0', 10)
+        const currentResult = await getRevision(pool, col.slug, id, rev)
+        const current = currentResult.match(r => r, () => null)
+        const prevResult = rev > 1
+          ? await getRevision(pool, col.slug, id, rev - 1)
+          : null
+        const prev = prevResult?.match(r => r, () => null) ?? null
+        const oldData = prev?.data ?? {}
+        const newData = current?.data ?? {}
+        const content = renderRevisionDiff(col.slug, id, rev, oldData, newData)
+        const html = renderLayout({
+          title: `Revision ${rev} — ${col.labels?.singular ?? col.slug}`,
+          content,
+          collections: allCollections
+        })
+        sendHtml(res, html)
       })
     })
   }

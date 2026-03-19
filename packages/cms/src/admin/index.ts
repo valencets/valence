@@ -7,3 +7,5 @@ export { createAdminRoutes } from './admin-routes.js'
 export { escapeHtml } from './escape.js'
 export { renderLoginPage } from './login-view.js'
 export { renderAnalyticsView } from './analytics-view.js'
+
+export { renderRevisionList, renderRevisionDiff } from './revision-view.js'

@@ -426,6 +426,14 @@ export function renderLayout (args: LayoutArgs): string {
       color: var(--val-color-text);
     }
 
+    /* --- Edit meta + revisions --- */
+    .edit-meta {
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+    }
+    .diff-table .diff-changed td {
+      background: oklch(0.3 0.05 80 / 0.3);
+    }
     /* --- Media upload --- */
     .media-upload {
       display: flex;

@@ -24,6 +24,10 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
 
   const csrfField = csrfToken ? `<input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">` : ''
 
+  const historyLink = !isNew && doc
+    ? `<a href="/admin/${escapeHtml(col.slug)}/${escapeHtml(String(doc.id ?? ''))}/history" class="action-link">View history</a>`
+    : ''
+
   const deleteSection = !isNew && doc
     ? `
   <div class="edit-danger-zone">
@@ -60,6 +64,6 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
     ${csrfField}
     ${fieldInputs}
     <button type="submit" class="btn btn-primary">${isNew ? 'Create' : 'Save'}</button>
-  </form>${deleteSection}
+  </form>${historyLink ? `<div class="edit-meta">${historyLink}</div>` : ''}${deleteSection}
 </div>`
 }

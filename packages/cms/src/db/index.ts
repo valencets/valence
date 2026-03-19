@@ -18,3 +18,6 @@ export type { MigrationOutput, SchemaChanges } from './migration-generator.js'
 export { isValidIdentifier, sanitizeIdentifier, getValidFieldNames, isAllowedField, sanitizeOptionValue } from './sql-sanitize.js'
 
 export { safeQuery } from './safe-query.js'
+
+export { saveRevision, getRevisions, getRevision } from './revision-queries.js'
+export type { RevisionRow } from './revision-queries.js'
