@@ -1,10 +1,13 @@
 import type { CollectionConfig } from '../schema/collection.js'
+import type { FlashMessage } from './flash.js'
 import { escapeHtml } from './escape.js'
+import { renderToast } from './toast.js'
 
 interface LayoutArgs {
   readonly title: string
   readonly content: string
   readonly collections: readonly CollectionConfig[]
+  readonly toast?: FlashMessage | undefined
 }
 
 export function renderLayout (args: LayoutArgs): string {
@@ -12,6 +15,8 @@ export function renderLayout (args: LayoutArgs): string {
     const label = escapeHtml(c.labels?.plural ?? c.slug)
     return `<li><a href="/admin/${escapeHtml(c.slug)}">${label}</a></li>`
   }).join('\n')
+
+  const toastHtml = args.toast ? renderToast(args.toast) : ''
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -283,6 +288,39 @@ export function renderLayout (args: LayoutArgs): string {
       align-items: center;
     }
 
+    /* --- Toast --- */
+    .toast {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: var(--val-radius-md);
+      box-shadow: var(--val-shadow-md);
+      font-size: var(--val-text-sm);
+      font-weight: var(--val-weight-medium);
+      color: var(--val-color-text);
+      z-index: 1000;
+      transition: opacity var(--val-duration-normal) var(--val-ease-in-out);
+    }
+    .toast-error { background: var(--val-color-error); }
+    .toast-success { background: var(--val-color-success); }
+    .toast-info { background: var(--val-blue-500); }
+    .toast-dismiss {
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: var(--val-text-lg);
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      opacity: 0.8;
+    }
+    .toast-dismiss:hover { opacity: 1; }
+    .toast-fade { opacity: 0; }
+
     /* --- Responsive --- */
     @media (max-width: 768px) {
       body { flex-direction: column; }
@@ -305,9 +343,21 @@ ${navItems}
     </ul>
   </nav>
   <main class="main">
+    ${toastHtml}
     <h1>${escapeHtml(args.title)}</h1>
     ${args.content}
   </main>
+  ${toastHtml
+    ? `<script>
+    (function () {
+      var t = document.querySelector('.toast')
+      if (!t) return
+      var btn = t.querySelector('.toast-dismiss')
+      if (btn) btn.addEventListener('click', function () { t.classList.add('toast-fade'); setTimeout(function () { t.remove() }, 200) })
+      setTimeout(function () { t.classList.add('toast-fade'); setTimeout(function () { t.remove() }, 200) }, 5000)
+    })()
+  </script>`
+    : ''}
 </body>
 </html>`
 }
