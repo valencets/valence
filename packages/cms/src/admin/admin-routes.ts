@@ -11,6 +11,7 @@ import type { CollectionConfig } from '../schema/collection.js'
 import { renderLayout } from './layout.js'
 import { renderDashboard } from './dashboard.js'
 import { renderListView } from './list-view.js'
+import type { ListViewPagination } from './list-view.js'
 import { renderEditView } from './edit-view.js'
 import type { RelationContext } from './field-renderers.js'
 import { createLocalApi } from '../api/local-api.js'
@@ -23,6 +24,8 @@ import { renderAnalyticsView } from './analytics-view.js'
 import { renderRevisionList, renderRevisionDiff } from './revision-view.js'
 import { saveRevision, getRevisions, getRevision } from '../db/revision-queries.js'
 import { safeQuery } from '../db/safe-query.js'
+import { getValidFieldNames, isAllowedField } from '../db/sql-sanitize.js'
+import type { PaginatedResult } from '../db/query-types.js'
 import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { readStringBody } from '../api/read-body.js'
 import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
@@ -333,12 +336,77 @@ export function createAdminRoutes (
         const flash = readFlash(cookieHeader)
         const toast = flash ?? undefined
         if (flash) clearFlashCookie(res)
-        const result = await api.find({ collection: col.slug })
-        const docs = result.match(
-          (rows) => rows as Array<{ id: string, [key: string]: string | number | boolean | null }>,
-          () => []
+
+        const rawUrl = req.url ?? ''
+        const qIndex = rawUrl.indexOf('?')
+        const qs = qIndex >= 0 ? rawUrl.slice(qIndex + 1) : ''
+        const params = new URLSearchParams(qs)
+
+        const query = params.get('q') ?? undefined
+        const rawSort = params.get('sort') ?? 'created_at'
+        const rawDir = params.get('dir') ?? 'desc'
+        const dir: 'asc' | 'desc' = rawDir === 'asc' ? 'asc' : 'desc'
+        const page = Math.max(1, parseInt(params.get('page') ?? '1', 10) || 1)
+        const perPage = 25
+
+        const allowedFields = getValidFieldNames(col)
+        if (!isAllowedField(rawSort, allowedFields)) {
+          sendHtml(res, '<p>Invalid sort field</p>', 400)
+          return
+        }
+        const sort = rawSort
+
+        const filters: Record<string, string> = {}
+        for (const [key, val] of params.entries()) {
+          if (key.startsWith('filter_') && val) {
+            const fieldName = key.slice('filter_'.length)
+            filters[fieldName] = val
+          }
+        }
+
+        const findArgs = {
+          collection: col.slug,
+          search: query,
+          orderBy: { field: sort, direction: dir },
+          page,
+          perPage,
+          filters: Object.keys(filters).length > 0 ? filters : undefined
+        }
+
+        const result = await api.find(findArgs)
+
+        type DocRow = { id: string; [key: string]: string | number | boolean | null }
+        let docs: readonly DocRow[] = []
+        let pagination: ListViewPagination | undefined
+
+        result.match(
+          (value) => {
+            if (value !== null && typeof value === 'object' && 'docs' in value) {
+              const paged = value as PaginatedResult<DocRow>
+              docs = paged.docs
+              pagination = {
+                totalDocs: paged.totalDocs,
+                page: paged.page,
+                totalPages: paged.totalPages,
+                hasNextPage: paged.hasNextPage,
+                hasPrevPage: paged.hasPrevPage
+              }
+            } else {
+              docs = value as DocRow[]
+            }
+          },
+          () => { docs = [] }
         )
-        const content = renderListView(col, docs)
+
+        const content = renderListView({
+          col,
+          docs,
+          pagination,
+          query,
+          sort,
+          dir,
+          filters: Object.keys(filters).length > 0 ? filters : undefined
+        })
         const html = renderLayout({
           title: col.labels?.plural ?? col.slug,
           content,

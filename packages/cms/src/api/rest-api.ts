@@ -5,6 +5,9 @@ import { createLocalApi } from './local-api.js'
 import { sendJson, sendErrorJson, safeReadBody, safeJsonParse } from './http-utils.js'
 import type { DocumentData } from '../db/query-builder.js'
 import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
+import type { CollectionConfig } from '../schema/collection.js'
+import type { PaginatedResult } from '../db/query-types.js'
+import type { DocumentRow } from '../db/query-builder.js'
 
 export type RestRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
@@ -15,6 +18,9 @@ export interface RestRouteEntry {
   readonly DELETE?: RestRouteHandler | undefined
 }
 
+const SYSTEM_COLUMNS = new Set(['id', 'created_at', 'updated_at', 'deleted_at'])
+const RESERVED_PARAMS = new Set(['search', 'sort', 'dir', 'page', 'limit'])
+
 function requireJsonContentType (req: IncomingMessage, res: ServerResponse): boolean {
   const ct = req.headers['content-type'] ?? ''
   if (!ct.includes('application/json')) {
@@ -22,6 +28,75 @@ function requireJsonContentType (req: IncomingMessage, res: ServerResponse): boo
     return false
   }
   return true
+}
+
+function sendPaginatedJson (res: ServerResponse, data: PaginatedResult<DocumentRow>): void {
+  const body = JSON.stringify(data)
+  res.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': Buffer.byteLength(body)
+  })
+  res.end(body)
+}
+
+function getAllowedFields (col: CollectionConfig): Set<string> {
+  const names = col.fields.map(f => f.name)
+  const allowed = new Set<string>(names)
+  for (const sys of SYSTEM_COLUMNS) allowed.add(sys)
+  return allowed
+}
+
+interface ParsedQueryArgs {
+  readonly search: string | undefined
+  readonly orderBy: { field: string; direction: 'asc' | 'desc' } | undefined
+  readonly page: number | undefined
+  readonly perPage: number
+  readonly where: Record<string, string> | undefined
+}
+
+function parseQueryParams (
+  url: string,
+  col: CollectionConfig
+): { ok: true; args: ParsedQueryArgs } | { ok: false; message: string } {
+  const qmark = url.indexOf('?')
+  const qs = qmark >= 0 ? url.slice(qmark + 1) : ''
+  const params = new URLSearchParams(qs)
+  const allowed = getAllowedFields(col)
+
+  const sortField = params.get('sort')
+  if (sortField !== null && !allowed.has(sortField)) {
+    return { ok: false, message: `Invalid sort field: ${sortField}` }
+  }
+
+  const dirRaw = params.get('dir') ?? 'asc'
+  const direction = dirRaw === 'desc' ? 'desc' : 'asc'
+
+  const pageRaw = params.get('page')
+  const page = pageRaw !== null ? parseInt(pageRaw, 10) : undefined
+  const limitRaw = params.get('limit')
+  const perPage = limitRaw !== null ? parseInt(limitRaw, 10) : 25
+
+  const searchVal = params.get('search') ?? undefined
+
+  const where: Record<string, string> = {}
+  for (const [key, value] of params.entries()) {
+    if (RESERVED_PARAMS.has(key)) continue
+    if (!allowed.has(key)) {
+      return { ok: false, message: `Invalid filter field: ${key}` }
+    }
+    where[key] = value
+  }
+
+  return {
+    ok: true,
+    args: {
+      search: searchVal,
+      orderBy: sortField !== null ? { field: sortField, direction } : undefined,
+      page,
+      perPage,
+      where: Object.keys(where).length > 0 ? where : undefined
+    }
+  }
 }
 
 export function createRestRoutes (
@@ -37,10 +112,30 @@ export function createRestRoutes (
     const zodSchema = generateZodSchema(col.fields)
 
     routes.set(`/api/${slug}`, {
-      GET: async (_req, res) => {
-        const result = await api.find({ collection: slug })
+      GET: async (req, res) => {
+        const url = req.url ?? `/${slug}`
+        const parsed = parseQueryParams(url, col)
+        if (!parsed.ok) {
+          sendErrorJson(res, parsed.message, 400)
+          return
+        }
+        const { search, orderBy, page, perPage, where } = parsed.args
+        const result = await api.find({
+          collection: slug,
+          search,
+          orderBy,
+          page,
+          perPage: page !== undefined ? perPage : undefined,
+          where
+        })
         result.match(
-          (docs) => sendJson(res, docs as DocumentData[]),
+          (docs) => {
+            if (page !== undefined) {
+              sendPaginatedJson(res, docs as PaginatedResult<DocumentRow>)
+            } else {
+              sendJson(res, docs as DocumentData[])
+            }
+          },
           (err) => sendErrorJson(res, err.message, 500)
         )
       },

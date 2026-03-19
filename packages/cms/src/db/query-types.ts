@@ -39,3 +39,8 @@ export interface PaginatedResult<T> {
   readonly hasNextPage: boolean
   readonly hasPrevPage: boolean
 }
+
+export interface SearchConfig {
+  readonly fields?: readonly string[] | undefined
+  readonly language?: string | undefined
+}

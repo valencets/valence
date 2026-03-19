@@ -27,20 +27,20 @@ describe('list view delete action', () => {
       { id: 'aaa', title: 'Post A', slug: 'post-a' },
       { id: 'bbb', title: 'Post B', slug: 'post-b' }
     ]
-    const html = renderListView(col, docs)
+    const html = renderListView({ col, docs })
     expect(html).toContain('/admin/posts/aaa/edit')
     expect(html).toContain('/admin/posts/bbb/edit')
   })
 
   it('renders an Actions column header', () => {
     const docs = [{ id: 'aaa', title: 'Post A', slug: 'post-a' }]
-    const html = renderListView(col, docs)
+    const html = renderListView({ col, docs })
     expect(html).toContain('<th>Actions</th>')
   })
 
   it('renders edit link in actions column', () => {
     const docs = [{ id: 'aaa', title: 'Post A', slug: 'post-a' }]
-    const html = renderListView(col, docs)
+    const html = renderListView({ col, docs })
     expect(html).toContain('Edit</a>')
   })
 })

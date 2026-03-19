@@ -102,7 +102,7 @@ describe('CMS integration: schema → migration → validation → query → adm
     const docs = [
       { id: '1', title: 'Home', slug: 'home', published: 'true', status: 'published', body: '', seo: '{}' }
     ]
-    const listHtml = renderListView(pages, docs)
+    const listHtml = renderListView({ col: pages, docs })
     expect(listHtml).toContain('Home')
     expect(listHtml).toContain('/admin/pages/1/edit')
 

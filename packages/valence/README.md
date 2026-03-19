@@ -6,7 +6,7 @@
   </picture>
 </p>
 
-<p align="center"><strong>Schema-driven web framework for Node.js and PostgreSQL.</strong></p>
+<p align="center"><strong>Schema-driven full-stack framework for Node.js and PostgreSQL.</strong></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@valencets/valence"><img src="https://img.shields.io/npm/v/@valencets/valence" alt="npm"></a>
@@ -20,7 +20,7 @@
 
 ---
 
-Define collections and fields in one TypeScript config. Valence derives the database tables, admin UI, REST API, first-party analytics, validators, and migrations from that single schema. No plugins. No vendor scripts. Minimal, audited dependencies.
+Define collections and fields in one TypeScript config. Valence derives the database tables, admin UI, REST API, typed frontend scaffold, entity codegen, page routing, first-party analytics, validators, and migrations from that single schema. No plugins. No vendor scripts. Minimal, audited dependencies.
 
 ```ts
 // valence.config.ts
@@ -43,7 +43,6 @@ export default defineConfig({
         field.text({ name: 'title', required: true }),
         field.slug({ name: 'slug', slugFrom: 'title', unique: true }),
         field.richtext({ name: 'body' }),
-        field.relation({ name: 'category', relationTo: 'categories' }),
         field.boolean({ name: 'published' }),
         field.date({ name: 'publishedAt' })
       ]
@@ -69,7 +68,7 @@ export default defineConfig({
 })
 ```
 
-That config gives you: `posts` and `users` tables in Postgres, a server-rendered admin panel with form validation and session auth (Argon2id), a REST API at `/api/posts` and `/api/users`, Zod validators, database migrations, and a first-party analytics pipeline that tracks user intent without any third-party scripts on your public pages. Change the schema, everything follows.
+That config gives you: `posts` and `users` tables in Postgres, a server-rendered admin panel with form validation and session auth (Argon2id), a REST API at `/api/posts` and `/api/users`, a typed `src/` scaffold with entity interfaces and API clients, Zod validators, database migrations, and a first-party analytics pipeline that tracks user intent without any third-party scripts on your public pages. Change the schema, everything follows.
 
 ## Quick Start
 
@@ -83,11 +82,11 @@ The init wizard walks you through:
 
 - **Database** -- name, user, password (creates the DB and runs migrations)
 - **Admin user** -- email + password for the admin panel (role set to `admin`)
-- **Seed data** -- optional sample content (category, post, page) to start with
+- **Seed data** -- optional sample post to start with
 - **Framework** -- plain HTML templates, Astro, or bring your own
 - **Git** -- initializes a repo with the first commit
 
-Pass `--yes` to skip prompts and accept defaults (useful for CI).
+Init also generates a `src/` directory with Feature-Sliced Design structure, typed entity interfaces, and API clients derived from your collections. Pass `--yes` to skip prompts and accept defaults (useful for CI).
 
 Open `http://localhost:3000/admin` to sign in. Open `http://localhost:3000` for the landing page.
 
@@ -99,6 +98,12 @@ Open `http://localhost:3000/admin` to sign in. Open `http://localhost:3000` for 
 - **Migrations** generated from schema diffs. Deterministic SQL, idempotent, version-tracked.
 - **18 field types**. text, textarea, richtext, number, boolean, select, date, slug, media, relation, group, email, url, password, json, color, multiselect, array.
 - **Rich text editor**. Lexical-powered editor in the admin panel with heading, list, blockquote, link, and code formatting.
+- **FSD scaffold**. `valence init` generates `src/` with Feature-Sliced Design: `app/`, `pages/`, `entities/`, `features/`, `shared/`.
+- **Entity codegen**. Typed interfaces + API clients generated from your schema. `// @generated` files regenerate on config change; user-edited files are never overwritten.
+- **Static file serving**. `public/` served with MIME types and path traversal protection.
+- **Page routing**. `src/pages/` maps to URL paths. List + detail page templates scaffold per collection.
+- **Config watcher**. Edit `valence.config.ts` during dev and entity types and API clients regenerate automatically.
+- **Admin headTags**. Inject custom `<link>`, `<meta>`, `<script>` tags into the admin `<head>` via config.
 - **First-party analytics**. Built-in telemetry that runs entirely in your Postgres -- no vendor scripts, no third-party dashboards, no data leaving your infrastructure.
 - **Learn mode**. Interactive 6-step tutorial embedded in `valence dev` that teaches core concepts through real actions. Run `valence init --learn` to try it.
 
@@ -134,7 +139,7 @@ Valence includes a complete, privacy-respecting analytics pipeline that runs ent
 | **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | [postgres](https://github.com/porsager/postgres), [neverthrow](https://github.com/supermacro/neverthrow), [zod](https://github.com/colinhacks/zod) |
 | **@valencets/cms** | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media. Rich text via Lexical. | [lexical](https://github.com/facebook/lexical), [argon2](https://github.com/ranisalt/node-argon2), [zod](https://github.com/colinhacks/zod), [neverthrow](https://github.com/supermacro/neverthrow) |
 | **@valencets/telemetry** | Beacon ingestion, event storage, daily summaries, fleet aggregation. | [postgres](https://github.com/porsager/postgres), [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/valence** | CLI. `valence init`, `valence dev`, `valence migrate`, `valence build`. | [tsx](https://github.com/privatenumber/tsx), [zod](https://github.com/colinhacks/zod), [neverthrow](https://github.com/supermacro/neverthrow) |
+| **@valencets/valence** | CLI + FSD scaffold + entity codegen. `valence init`, `valence dev`, `valence migrate`, `valence build`. | [tsx](https://github.com/privatenumber/tsx), [zod](https://github.com/colinhacks/zod), [neverthrow](https://github.com/supermacro/neverthrow) |
 
 **Total external runtime deps:** 6 — postgres, neverthrow, zod, lexical, argon2, tsx. All MIT-licensed, all audited via [Socket](https://socket.dev/npm/package/@valencets/valence).
 
@@ -149,7 +154,7 @@ Valence includes a complete, privacy-respecting analytics pipeline that runs ent
 | 14kB critical shell | First paint in the first TCP data flight. CDN-ready with cache profiles and server islands. |
 | Pre-allocated ring buffer | Zero allocation in the telemetry hot path. |
 | Zero third-party JS on public pages | Your site ships your code. Lexical is admin-only. Nothing phones home. |
-| 1,378 tests | Strict TypeScript, neostandard, CI on every push. |
+| 1,547 tests | Strict TypeScript, neostandard, CI on every push. |
 
 ## Documentation
 

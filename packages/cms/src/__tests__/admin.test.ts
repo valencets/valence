@@ -8,7 +8,7 @@ import { createAdminRoutes } from '../admin/admin-routes.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool } from './test-helpers.js'
+import { makeMockPool, makeSequentialPool } from './test-helpers.js'
 import type { CollectionConfig } from '../schema/collection.js'
 
 function makePostsCollection (): CollectionConfig {
@@ -78,14 +78,14 @@ describe('renderListView()', () => {
       { id: '1', title: 'Hello', slug: 'hello', published: 'true' },
       { id: '2', title: 'World', slug: 'world', published: 'false' }
     ]
-    const html = renderListView(makePostsCollection(), docs)
+    const html = renderListView({ col: makePostsCollection(), docs })
     expect(html).toContain('Hello')
     expect(html).toContain('World')
     expect(html).toContain('/admin/posts/1/edit')
   })
 
   it('shows empty state when no docs', () => {
-    const html = renderListView(makePostsCollection(), [])
+    const html = renderListView({ col: makePostsCollection(), docs: [] })
     expect(html).toContain('No')
   })
 })
@@ -355,5 +355,128 @@ describe('nonce threading', () => {
     const doc = { id: '1', title: 'T', slug: 's', published: 'true' }
     const html = renderEditView(makePostsCollection(), doc, 'tok', undefined, 'delete-nonce')
     expect(html).toContain('nonce="delete-nonce"')
+  })
+})
+
+describe('admin GET /admin/:slug query param wiring', () => {
+  it('passes q search param to api.find as search', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeSequentialPool([[{ count: '0' }], []])
+    const routes = createAdminRoutes(pool, registry)
+    const handler = routes.get('/admin/posts')?.GET
+    const req = {
+      headers: { cookie: '' },
+      url: '/admin/posts?q=hello',
+      method: 'GET'
+    }
+    const writes: string[] = []
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn((data: string) => { writes.push(data) }),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200)
+  })
+
+  it('defaults to page=1, perPage=25, sort=created_at, dir=desc when no params', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeSequentialPool([[{ count: '0' }], []])
+    const routes = createAdminRoutes(pool, registry)
+    const handler = routes.get('/admin/posts')?.GET
+    const req = {
+      headers: { cookie: '' },
+      url: '/admin/posts',
+      method: 'GET'
+    }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200)
+  })
+
+  it('parses ?sort= and ?dir= params', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeSequentialPool([[{ count: '0' }], []])
+    const routes = createAdminRoutes(pool, registry)
+    const handler = routes.get('/admin/posts')?.GET
+    const req = {
+      headers: { cookie: '' },
+      url: '/admin/posts?sort=title&dir=asc',
+      method: 'GET'
+    }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200)
+  })
+
+  it('parses ?page= param', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeSequentialPool([[{ count: '5' }], [{ id: '1', title: 'Hello', slug: 'hello', published: 'true' }]])
+    const routes = createAdminRoutes(pool, registry)
+    const handler = routes.get('/admin/posts')?.GET
+    const req = {
+      headers: { cookie: '' },
+      url: '/admin/posts?page=2',
+      method: 'GET'
+    }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200)
+  })
+
+  it('parses filter_* params and passes them as filters', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeSequentialPool([[{ count: '0' }], []])
+    const routes = createAdminRoutes(pool, registry)
+    const handler = routes.get('/admin/posts')?.GET
+    const req = {
+      headers: { cookie: '' },
+      url: '/admin/posts?filter_status=draft',
+      method: 'GET'
+    }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200)
+  })
+
+  it('rejects invalid sort field not in collection schema with 400', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry)
+    const handler = routes.get('/admin/posts')?.GET
+    const req = {
+      headers: { cookie: '' },
+      url: '/admin/posts?sort=evil_field',
+      method: 'GET'
+    }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(400)
   })
 })
