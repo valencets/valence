@@ -125,13 +125,13 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
     version: '0.1.0',
     type: 'module',
     scripts: {
-      dev: 'npx valence dev',
-      build: 'npx valence build',
-      migrate: 'npx valence migrate',
+      dev: 'valence dev',
+      build: 'valence build',
+      migrate: 'valence migrate',
       start: 'node dist/server.js'
     },
     dependencies: {
-      '@valencets/valence': '^0.1.0',
+      '@valencets/valence': '^0.2.0',
       '@valencets/cms': '^0.1.0',
       '@valencets/db': '^0.1.0',
       ...extraDeps
@@ -303,7 +303,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     if (migrated) {
       log('Migrations applied.')
     } else {
-      log('Warning: migrations failed. Run "npx valence migrate" after fixing your database connection.')
+      log('Warning: migrations failed. Run "valence migrate" after fixing your database connection.')
     }
   }
 
