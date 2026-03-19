@@ -123,8 +123,10 @@ export function renderLearnPage (progress: LearnProgress, port: number): string 
       <p>You've learned the core concepts of Valence. Here's what to explore next:</p>
       <div class="next-links">
         <a href="/admin">Admin Panel</a>
+        <a href="/admin/analytics">Analytics Dashboard</a>
         <a href="https://github.com/valencets/valence/wiki">Documentation</a>
       </div>
+      <p style="margin-top:1rem;font-size:0.85rem;color:#64748b">Valence includes built-in first-party analytics &mdash; no third-party scripts. Add <code>data-telemetry-*</code> attributes to your HTML to track user intent, and view the results at <code>/admin/analytics</code>.</p>
     </div>`
     : ''
 
@@ -288,6 +290,7 @@ export function renderLearnPage (progress: LearnProgress, port: number): string 
 
     <footer>
       <a href="/admin">Admin Panel</a>
+      <a href="/admin/analytics">Analytics</a>
       <a href="http://localhost:${port}/api/posts">REST API</a>
       <a href="https://github.com/valencets/valence/wiki">Documentation</a>
       <a href="/_splash">Exit Learn Mode</a>

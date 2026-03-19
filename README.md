@@ -72,11 +72,34 @@ Open `http://localhost:3000/admin` to sign in. Open `http://localhost:3000` for 
 
 - **Database tables** derived from your field definitions. UUID primary keys, timestamps, soft deletes.
 - **Admin panel** at `/admin`. Server-rendered HTML forms, CSRF protection, session auth with Argon2id. Login page with proper error handling.
-- **Analytics dashboard** at `/admin/analytics`. Session counts, pageviews, top pages, top referrers. Your data in your Postgres, not a vendor dashboard.
 - **REST API** at `/api/:collection`. CRUD with Zod validation, parameterized queries, `Result<T, E>` error handling.
 - **Migrations** generated from schema diffs. Deterministic SQL, idempotent, version-tracked.
 - **Web Components**. 18 custom elements with ARIA, i18n, telemetry hooks, and hydration directives. Work in any framework or plain HTML.
-- **Telemetry**. Beacon ingestion, ring buffer capture, daily summaries. Zero third-party scripts.
+- **First-party analytics**. Built-in telemetry that runs entirely in your Postgres -- no vendor scripts, no third-party dashboards, no data leaving your infrastructure.
+- **Learn mode**. Interactive 6-step tutorial embedded in `valence dev` that teaches core concepts through real actions. Run `valence init --learn` to try it.
+
+## Telemetry
+
+Valence includes a complete, privacy-respecting analytics pipeline that runs entirely on your own infrastructure. No Google Analytics, no Plausible, no third-party scripts. Your data stays in your Postgres.
+
+**How it works:**
+
+1. Annotate HTML elements with `data-telemetry-*` attributes:
+   ```html
+   <button data-telemetry-type="CLICK" data-telemetry-target="hero.cta">
+     Get Started
+   </button>
+   ```
+
+2. The client library captures user intent events in a **pre-allocated ring buffer** (zero allocation in the hot path) and auto-flushes via `navigator.sendBeacon()` every 30 seconds.
+
+3. The server ingests beacon payloads, stores raw events, and aggregates them into **daily summaries** -- sessions, pageviews, conversions, top pages, top referrers, device breakdowns.
+
+4. View it all in the built-in **analytics dashboard** at `/admin/analytics`.
+
+**11 intent types** beyond simple pageviews: `CLICK`, `SCROLL`, `VIEWPORT_INTERSECT`, `FORM_INPUT`, `INTENT_NAVIGATE`, `INTENT_CALL`, `INTENT_BOOK`, `INTENT_LEAD`, `LEAD_PHONE`, `LEAD_EMAIL`, `LEAD_FORM`. This means you can track conversion-oriented actions (calls, bookings, form submissions) natively, not just clicks.
+
+**Architecture:** The telemetry pipeline spans two packages. `@valencets/core` handles client-side capture (ring buffer, event delegation, beacon flush). `@valencets/telemetry` handles server-side ingestion, validation, daily aggregation, and query functions (`getDailyTrend`, `getDailyBreakdowns`). The CMS admin panel consumes these queries to render the dashboard.
 
 ## Packages
 
