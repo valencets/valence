@@ -61,7 +61,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
       start: 'node dist/server.js'
     },
     dependencies: {
-      valence: '^0.1.0',
+      '@valencets/valence': '^0.1.0',
       '@valencets/cms': '^0.1.0',
       '@valencets/db': '^0.1.0'
     },
@@ -71,7 +71,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
   }, null, 2) + '\n')
 
   // valence.config.ts
-  await writeFile(join(dir, 'valence.config.ts'), `import { defineConfig, collection, field } from 'valence'
+  await writeFile(join(dir, 'valence.config.ts'), `import { defineConfig, collection, field } from '@valencets/valence'
 
 export default defineConfig({
   db: {

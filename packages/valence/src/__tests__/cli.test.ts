@@ -60,7 +60,7 @@ describe('valence init', () => {
     await run(['init', 'hello'])
     const pkg = JSON.parse(await readFile(join(testDir, 'hello', 'package.json'), 'utf-8'))
 
-    expect(pkg.dependencies.valence).toBeDefined()
+    expect(pkg.dependencies['@valencets/valence']).toBeDefined()
     expect(pkg.scripts.dev).toBe('valence dev')
     expect(pkg.scripts.build).toBe('valence build')
     expect(pkg.scripts.migrate).toBe('valence migrate')
