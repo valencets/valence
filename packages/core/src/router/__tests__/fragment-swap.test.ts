@@ -28,7 +28,7 @@ describe('parseHtml', () => {
     if (result.isOk()) {
       // DOMParser in text/html mode does not execute scripts
       const scripts = result.value.querySelectorAll('script')
-      // Scripts are parsed but inert — they exist as nodes but never execute
+      // Scripts are parsed but inert -- they exist as nodes but never execute
       expect(result.value.querySelector('p')?.textContent).toBe('Safe')
       expect(scripts.length).toBeGreaterThanOrEqual(0)
     }

@@ -597,11 +597,11 @@ describe('initRouter', () => {
     main.innerHTML = '<p>Home</p>'
     document.body.appendChild(main)
 
-    // First visit — network fetch
+    // First visit -- network fetch
     await handle!.navigate('/bg-test')
     expect(fetchCount).toBe(1)
 
-    // Second visit — cache hit, but background revalidation fires
+    // Second visit -- cache hit, but background revalidation fires
     await handle!.navigate('/bg-test')
     // Allow background fetch to fire
     await new Promise(resolve => { setTimeout(resolve, 50) })
@@ -631,7 +631,7 @@ describe('initRouter', () => {
     await handle!.navigate('/swr-test')
     expect(document.querySelector('main p')?.textContent).toBe('Version 1')
 
-    // Second visit — cache serves V1, background fetches V2
+    // Second visit -- cache serves V1, background fetches V2
     await handle!.navigate('/swr-test')
     // Wait for background revalidation
     await new Promise(resolve => { setTimeout(resolve, 100) })
@@ -685,7 +685,7 @@ describe('initRouter', () => {
     main.innerHTML = '<p>Home</p>'
     document.body.appendChild(main)
 
-    // Navigate — should store in cache
+    // Navigate -- should store in cache
     await handle!.navigate('/ver-test')
     expect(handle!.pageCacheSize()).toBe(1)
 
@@ -706,14 +706,14 @@ describe('initRouter', () => {
     main.innerHTML = '<p>Home</p>'
     document.body.appendChild(main)
 
-    // First nav — response has new-version, mismatches old-version seeded from DOM
+    // First nav -- response has new-version, mismatches old-version seeded from DOM
     // performNavigation stores in cache, then navigate() calls setVersion which
     // detects mismatch and invalidates all entries
     await handle!.navigate('/page-a')
     // Cache was purged by version mismatch
     expect(handle!.pageCacheSize()).toBe(0)
 
-    // Second nav with same version — no mismatch now, entry survives
+    // Second nav with same version -- no mismatch now, entry survives
     await handle!.navigate('/page-b')
     expect(handle!.pageCacheSize()).toBe(1)
 
@@ -806,13 +806,13 @@ describe('initRouter', () => {
     main.innerHTML = '<p>Home</p>'
     document.body.appendChild(main)
 
-    // First visit — caches
+    // First visit -- caches
     await handle!.navigate('/revalidate-fail')
     expect(callCount).toBe(1)
 
-    // Second visit — cache hit triggers background revalidation which fails
+    // Second visit -- cache hit triggers background revalidation which fails
     await handle!.navigate('/revalidate-fail')
-    // Wait for background fetch to settle — should NOT throw unhandled rejection
+    // Wait for background fetch to settle -- should NOT throw unhandled rejection
     await new Promise(resolve => { setTimeout(resolve, 100) })
     expect(callCount).toBe(2)
   })
