@@ -19,34 +19,56 @@
 
 ---
 
-Define collections and fields in one TypeScript config. Valence derives the database tables, admin UI, REST API, validators, and migrations from that single schema. No plugins. No vendor scripts. No third-party browser JS.
+Define collections and fields in one TypeScript config. Valence derives the database tables, admin UI, REST API, first-party analytics, validators, and migrations from that single schema. No plugins. No vendor scripts. No third-party browser JS.
 
 ```ts
 // valence.config.ts
 import { defineConfig, collection, field } from '@valencets/valence'
 
 export default defineConfig({
-  db: { host: 'localhost', port: 5432, database: 'mysite', username: 'postgres', password: '' },
-  server: { port: 3000 },
+  db: {
+    host: process.env.DB_HOST ?? 'localhost',
+    port: Number(process.env.DB_PORT ?? 5432),
+    database: process.env.DB_NAME ?? 'mysite',
+    username: process.env.DB_USER ?? 'postgres',
+    password: process.env.DB_PASSWORD ?? ''
+  },
+  server: { port: Number(process.env.PORT ?? 3000) },
   collections: [
     collection({
       slug: 'posts',
       labels: { singular: 'Post', plural: 'Posts' },
       fields: [
         field.text({ name: 'title', required: true }),
-        field.slug({ name: 'slug', slugFrom: 'title' }),
+        field.slug({ name: 'slug', slugFrom: 'title', unique: true }),
         field.richtext({ name: 'body' }),
         field.relation({ name: 'category', relationTo: 'categories' }),
         field.boolean({ name: 'published' }),
         field.date({ name: 'publishedAt' })
       ]
+    }),
+    collection({
+      slug: 'users',
+      auth: true,
+      fields: [
+        field.text({ name: 'name', required: true }),
+        field.select({ name: 'role', defaultValue: 'editor', options: [
+          { label: 'Admin', value: 'admin' },
+          { label: 'Editor', value: 'editor' }
+        ]})
+      ]
     })
   ],
-  admin: { pathPrefix: '/admin', requireAuth: true }
+  admin: { pathPrefix: '/admin', requireAuth: true },
+  telemetry: {
+    enabled: true,
+    endpoint: '/api/telemetry',
+    siteId: 'mysite'
+  }
 })
 ```
 
-That config gives you a `posts` table in Postgres, a server-rendered admin panel with form validation, a REST API at `/api/posts`, Zod validators, and a migration file. Change the schema, everything follows.
+That config gives you: `posts` and `users` tables in Postgres, a server-rendered admin panel with form validation and session auth (Argon2id), a REST API at `/api/posts` and `/api/users`, Zod validators, database migrations, and a first-party analytics pipeline that tracks user intent with zero third-party scripts. Change the schema, everything follows.
 
 ## Quick Start
 
