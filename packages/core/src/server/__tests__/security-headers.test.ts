@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { ServerResponse } from 'node:http'
-import { setSecurityHeaders, SECURITY_HEADERS } from '../security-headers.js'
+import { setSecurityHeaders, SECURITY_HEADERS, generateNonce } from '../security-headers.js'
 
 function mockRes (): ServerResponse & { _headers: Record<string, string> } {
   const headers: Record<string, string> = {}
@@ -41,6 +41,13 @@ describe('SECURITY_HEADERS', () => {
     expect(csp).toContain("frame-ancestors 'none'")
   })
 
+  it('includes base-uri, form-action, and connect-src in CSP', () => {
+    const csp = SECURITY_HEADERS['Content-Security-Policy']
+    expect(csp).toContain("base-uri 'self'")
+    expect(csp).toContain("form-action 'self'")
+    expect(csp).toContain("connect-src 'self'")
+  })
+
   it('includes Strict-Transport-Security', () => {
     expect(SECURITY_HEADERS['Strict-Transport-Security']).toBe('max-age=31536000; includeSubDomains')
   })
@@ -54,6 +61,28 @@ describe('SECURITY_HEADERS', () => {
     expect(pp).toContain('camera=()')
     expect(pp).toContain('microphone=()')
     expect(pp).toContain('geolocation=()')
+  })
+
+  it('includes Cross-Origin-Opener-Policy', () => {
+    expect(SECURITY_HEADERS['Cross-Origin-Opener-Policy']).toBe('same-origin')
+  })
+
+  it('includes Cross-Origin-Resource-Policy', () => {
+    expect(SECURITY_HEADERS['Cross-Origin-Resource-Policy']).toBe('same-origin')
+  })
+})
+
+describe('generateNonce', () => {
+  it('returns a base64 string of 24 characters', () => {
+    const nonce = generateNonce()
+    expect(nonce).toMatch(/^[A-Za-z0-9+/]+=*$/)
+    expect(nonce).toHaveLength(24)
+  })
+
+  it('returns different values on each call', () => {
+    const a = generateNonce()
+    const b = generateNonce()
+    expect(a).not.toBe(b)
   })
 })
 
@@ -74,5 +103,22 @@ describe('setSecurityHeaders', () => {
 
     expect(res._headers['X-Custom']).toBe('keep-me')
     expect(res._headers['X-Content-Type-Options']).toBe('nosniff')
+  })
+
+  it('injects nonce into script-src when provided', () => {
+    const res = mockRes()
+    setSecurityHeaders(res, { nonce: 'abc123' })
+
+    const csp = res._headers['Content-Security-Policy']
+    expect(csp).toContain("script-src 'self' 'nonce-abc123'")
+  })
+
+  it('omits nonce from script-src when not provided', () => {
+    const res = mockRes()
+    setSecurityHeaders(res)
+
+    const csp = res._headers['Content-Security-Policy']
+    expect(csp).toContain("script-src 'self'")
+    expect(csp).not.toContain('nonce-')
   })
 })
