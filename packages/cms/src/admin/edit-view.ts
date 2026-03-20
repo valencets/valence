@@ -11,7 +11,8 @@ interface DocRow {
 
 function renderStatusBadge (status: string | null): string {
   if (status === null) return ''
-  return `<span class="status-badge status-${escapeHtml(status)}">${status === 'published' ? 'Published' : 'Draft'}</span>`
+  const label = status === 'published' ? 'Published' : 'Draft'
+  return `<span class="status-badge status-${escapeHtml(status)}">${label}</span>`
 }
 
 function renderActionButtons (isVersioned: boolean, isNew: boolean): string {
@@ -25,18 +26,43 @@ function renderActionButtons (isVersioned: boolean, isNew: boolean): string {
 }
 
 function renderUnpublishForm (col: CollectionConfig, doc: DocRow, csrfField: string): string {
-  return `<form action="/admin/${escapeHtml(col.slug)}/${escapeHtml(String(doc.id ?? ''))}/unpublish" method="POST" style="display:inline;">
+  const slug = escapeHtml(col.slug)
+  const id = escapeHtml(String(doc.id ?? ''))
+  return `<form action="/admin/${slug}/${id}/unpublish" method="POST" style="display:inline;">
       ${csrfField}
       <button type="submit" class="btn btn-ghost-danger">Unpublish</button>
     </form>`
 }
 
-function renderDeleteDialog (col: CollectionConfig, doc: DocRow, csrfField: string, nonce: string | undefined): string {
+function renderDeleteScript (nonce: string | undefined): string {
   const nonceAttr = nonce ? ` nonce="${nonce}"` : ' nonce="' + CSP_NONCE_PLACEHOLDER + '"'
+  return `<script${nonceAttr}>
+      (function () {
+        var trigger = document.querySelector('.delete-trigger')
+        var dialog = document.getElementById('delete-dialog')
+        var cancel = document.getElementById('delete-cancel')
+        var confirm = document.getElementById('delete-confirm')
+        var form = document.getElementById('delete-form')
+        if (trigger && dialog) trigger.addEventListener('click', function () { dialog.show() })
+        if (cancel && dialog) cancel.addEventListener('click', function () { dialog.close() })
+        if (confirm && form) confirm.addEventListener('click', function () { form.submit() })
+      })()
+    </script>`
+}
+
+function renderDangerZone (col: CollectionConfig, doc: DocRow, csrfField: string, nonce: string | undefined, isVersioned: boolean, status: string | null): string {
+  const slug = escapeHtml(col.slug)
+  const id = escapeHtml(String(doc.id ?? ''))
   const label = escapeHtml(col.labels?.singular ?? col.slug)
+
+  const unpublishHtml = isVersioned && status === 'published'
+    ? renderUnpublishForm(col, doc, csrfField)
+    : ''
+
   return `
   <div class="edit-danger-zone">
-    <form id="delete-form" action="/admin/${escapeHtml(col.slug)}/${escapeHtml(String(doc.id ?? ''))}/delete" method="POST" style="display:none;">
+    ${unpublishHtml}
+    <form id="delete-form" action="/admin/${slug}/${id}/delete" method="POST" style="display:none;">
       ${csrfField}
     </form>
     <button type="button" class="btn btn-ghost-danger delete-trigger">Delete ${label}</button>
@@ -48,36 +74,15 @@ function renderDeleteDialog (col: CollectionConfig, doc: DocRow, csrfField: stri
         <button type="button" class="btn btn-danger" id="delete-confirm">Delete</button>
       </div>
     </val-dialog>
-    <script${nonceAttr}>
-      (function () {
-        var trigger = document.querySelector('.delete-trigger')
-        var dialog = document.getElementById('delete-dialog')
-        var cancel = document.getElementById('delete-cancel')
-        var confirm = document.getElementById('delete-confirm')
-        var form = document.getElementById('delete-form')
-        if (trigger && dialog) trigger.addEventListener('click', function () { dialog.show() })
-        if (cancel && dialog) cancel.addEventListener('click', function () { dialog.close() })
-        if (confirm && form) confirm.addEventListener('click', function () { form.submit() })
-      })()
-    </script>
+    ${renderDeleteScript(nonce)}
   </div>`
-}
-
-function renderDangerZone (col: CollectionConfig, doc: DocRow, csrfField: string, nonce: string | undefined, isVersioned: boolean, status: string | null): string {
-  const unpublishSection = isVersioned && status === 'published'
-    ? renderUnpublishForm(col, doc, csrfField)
-    : ''
-
-  const deleteDialog = renderDeleteDialog(col, doc, csrfField, nonce)
-  const parts = deleteDialog.split('<form id="delete-form"')
-  return parts[0] + unpublishSection + '\n    <form id="delete-form"' + (parts[1] ?? '')
 }
 
 export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = '', relationContext?: RelationContext, nonce?: string): string {
   const isNew = doc === null
-  const action = isNew
-    ? `/admin/${escapeHtml(col.slug)}/new`
-    : `/admin/${escapeHtml(col.slug)}/${escapeHtml(String(doc.id ?? ''))}/edit`
+  const slug = escapeHtml(col.slug)
+  const id = !isNew ? escapeHtml(String(doc.id ?? '')) : ''
+  const action = isNew ? `/admin/${slug}/new` : `/admin/${slug}/${id}/edit`
 
   const fieldInputs = col.fields.map(f => {
     const raw = doc ? doc[f.name] : null
@@ -96,7 +101,7 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
   const actionButtons = renderActionButtons(isVersioned, isNew)
 
   const historyLink = !isNew && doc
-    ? `<a href="/admin/${escapeHtml(col.slug)}/${escapeHtml(String(doc.id ?? ''))}/history" class="action-link">View history</a>`
+    ? `<a href="/admin/${slug}/${id}/history" class="action-link">View history</a>`
     : ''
 
   const deleteSection = !isNew && doc
