@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { FieldConfig, TextFieldConfig } from '../schema/field-types.js'
 import type { FieldAccess } from '../access/access-types.js'
 import { createLocalApi } from '../api/local-api.js'
@@ -124,5 +124,92 @@ describe('field-level read filtering', () => {
     const doc = result._unsafeUnwrap() as Record<string, string | number | null>
     expect(doc).not.toHaveProperty('secret')
     expect(doc).toHaveProperty('visible', 'shown')
+  })
+})
+
+function setupWithWriteAccess (poolReturn: readonly Record<string, string | number | null>[] = []) {
+  const pool = makeMockPool(poolReturn)
+  const collections = createCollectionRegistry()
+  const globals = createGlobalRegistry()
+  collections.register(collection({
+    slug: 'articles',
+    fields: [
+      field.text({ name: 'title', required: true }),
+      field.text({ name: 'adminOnly', access: { create: () => false, update: () => false } }),
+      field.text({ name: 'createOnly', access: { create: () => true, update: () => false } }),
+      field.text({ name: 'noAccess' })
+    ]
+  }))
+  const api = createLocalApi(pool, collections, globals)
+  return { api, pool }
+}
+
+describe('field-level write filtering', () => {
+  it('ignores fields where access.create returns false on create', async () => {
+    const inserted = { id: 'new-1', title: 'New', noAccess: 'open' }
+    const { api, pool } = setupWithWriteAccess([inserted])
+    const result = await api.create({
+      collection: 'articles',
+      data: { title: 'New', adminOnly: 'secret', noAccess: 'open' }
+    })
+    expect(result.isOk()).toBe(true)
+    // Verify the query was called without adminOnly
+    const unsafeCalls = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls
+    const insertCallArgs = JSON.stringify(unsafeCalls)
+    expect(insertCallArgs).not.toContain('secret')
+  })
+
+  it('ignores fields where access.update returns false on update', async () => {
+    const updated = { id: '1', title: 'Updated', noAccess: 'open' }
+    const { api, pool } = setupWithWriteAccess([updated])
+    const result = await api.update({
+      collection: 'articles',
+      id: '1',
+      data: { title: 'Updated', adminOnly: 'secret', noAccess: 'open' }
+    })
+    expect(result.isOk()).toBe(true)
+    const unsafeCalls = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls
+    const updateCallArgs = JSON.stringify(unsafeCalls)
+    expect(updateCallArgs).not.toContain('secret')
+  })
+
+  it('passes through non-access-controlled fields on create', async () => {
+    const inserted = { id: 'new-1', title: 'New', noAccess: 'open' }
+    const { api, pool } = setupWithWriteAccess([inserted])
+    const result = await api.create({
+      collection: 'articles',
+      data: { title: 'New', noAccess: 'open' }
+    })
+    expect(result.isOk()).toBe(true)
+    const unsafeCalls = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls
+    const insertCallArgs = JSON.stringify(unsafeCalls)
+    expect(insertCallArgs).toContain('open')
+  })
+
+  it('allows fields where access.create returns true on create', async () => {
+    const inserted = { id: 'new-1', title: 'New', createOnly: 'allowed' }
+    const { api, pool } = setupWithWriteAccess([inserted])
+    const result = await api.create({
+      collection: 'articles',
+      data: { title: 'New', createOnly: 'allowed' }
+    })
+    expect(result.isOk()).toBe(true)
+    const unsafeCalls = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls
+    const insertCallArgs = JSON.stringify(unsafeCalls)
+    expect(insertCallArgs).toContain('allowed')
+  })
+
+  it('blocks fields where access.update returns false even if create allows', async () => {
+    const updated = { id: '1', title: 'Updated' }
+    const { api, pool } = setupWithWriteAccess([updated])
+    const result = await api.update({
+      collection: 'articles',
+      id: '1',
+      data: { title: 'Updated', createOnly: 'blocked' }
+    })
+    expect(result.isOk()).toBe(true)
+    const unsafeCalls = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls
+    const updateCallArgs = JSON.stringify(unsafeCalls)
+    expect(updateCallArgs).not.toContain('blocked')
   })
 })
