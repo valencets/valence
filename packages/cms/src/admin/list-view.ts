@@ -143,12 +143,13 @@ function safeParseJson (str: string): Record<string, string> | null {
 }
 
 function renderLocaleSelector (args: ListViewArgs): string {
-  if (!args.localeConfig) return ''
+  const config = args.localeConfig
+  if (!config) return ''
   const hasLocalizedFields = args.col.fields.some(f => f.localized)
   if (!hasLocalizedFields) return ''
 
-  const options = args.localeConfig.locales.map(l => {
-    const sel = l.code === args.localeConfig!.currentLocale ? ' selected' : ''
+  const options = config.locales.map(l => {
+    const sel = l.code === config.currentLocale ? ' selected' : ''
     return `<option value="${escapeHtml(l.code)}"${sel}>${escapeHtml(l.label)}</option>`
   }).join('')
 
