@@ -4,6 +4,7 @@ import type { CollectionConfig } from '../schema/collection.js'
 import { CmsErrorCode } from '../schema/types.js'
 import { isValidIdentifier } from './sql-sanitize.js'
 import type { CmsError } from '../schema/types.js'
+import { flattenFields } from '../schema/field-utils.js'
 
 const TEXT_FIELD_TYPES = new Set(['text', 'textarea', 'richtext', 'slug', 'email'])
 
@@ -12,7 +13,7 @@ function getSearchableFields (col: CollectionConfig): readonly string[] {
   if (searchConfig !== undefined && searchConfig.fields !== undefined && searchConfig.fields.length > 0) {
     return searchConfig.fields
   }
-  return col.fields
+  return flattenFields(col.fields)
     .filter(f => TEXT_FIELD_TYPES.has(f.type))
     .map(f => f.name)
 }

@@ -7,6 +7,7 @@ import type { CmsError } from '../schema/types.js'
 import { getColumnType, getColumnConstraints } from './column-map.js'
 import { isValidIdentifier } from './sql-sanitize.js'
 import { getUploadConfig } from '../media/media-config.js'
+import { flattenFields } from '../schema/field-utils.js'
 
 export interface MigrationOutput {
   readonly name: string
@@ -53,7 +54,7 @@ function buildIndexStatements (collection: CollectionConfig): Result<string[], C
   const slugErr = checkIdentifier(collection.slug)
   if (slugErr) return err(slugErr)
   const statements: string[] = []
-  for (const f of collection.fields) {
+  for (const f of flattenFields(collection.fields)) {
     const needsIndex = f.index === true || f.type === 'relation' || f.type === 'media'
     if (needsIndex) {
       const nameErr = checkIdentifier(f.name)
@@ -74,7 +75,7 @@ export function generateCreateTableSql (collection: CollectionConfig, hasLocaliz
     '  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid()'
   ]
 
-  for (const f of collection.fields) {
+  for (const f of flattenFields(collection.fields)) {
     const colResult = buildColumnDef(f, hasLocalization ?? false)
     if (colResult.isErr()) return `-- ERROR: ${colResult.error.message}`
     columns.push(`  ${colResult.value}`)
@@ -103,7 +104,7 @@ export function generateCreateTableSql (collection: CollectionConfig, hasLocaliz
 
   columns.push('  "deleted_at" TIMESTAMPTZ')
 
-  const fkResult = buildForeignKeys(collection.fields)
+  const fkResult = buildForeignKeys(flattenFields(collection.fields))
   if (fkResult.isErr()) return `-- ERROR: ${fkResult.error.message}`
   const allEntries = [...columns, ...fkResult.value]
 

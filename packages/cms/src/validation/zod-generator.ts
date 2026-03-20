@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { ZodObject, ZodTypeAny } from 'zod'
 import type { FieldConfig } from '../schema/field-types.js'
+import { flattenFields } from '../schema/field-utils.js'
 
 const FIELD_SCHEMA_MAP: Record<string, (field: FieldConfig) => ZodTypeAny> = {
   text: buildTextSchema,
@@ -173,7 +174,7 @@ function buildBlocksSchema (field: FieldConfig): ZodTypeAny {
 function buildObjectSchema (fields: readonly FieldConfig[], wrapLocalized?: boolean): ZodObject {
   const shape: Record<string, ZodTypeAny> = {}
 
-  for (const f of fields) {
+  for (const f of flattenFields(fields)) {
     const builder = FIELD_SCHEMA_MAP[f.type]
     if (builder === undefined) continue
     let fieldSchema = builder(f)

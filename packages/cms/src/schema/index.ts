@@ -32,6 +32,8 @@ export type {
   CollapsibleFieldConfig
 } from './field-types.js'
 
+export { flattenFields, isLayoutField } from './field-utils.js'
+
 export { field } from './fields.js'
 
 export { collection } from './collection.js'

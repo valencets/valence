@@ -5,6 +5,8 @@ export {
   StatusCode,
   FieldType,
   field,
+  flattenFields,
+  isLayoutField,
   collection,
   global,
   createCollectionRegistry,

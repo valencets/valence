@@ -4,6 +4,7 @@ import type { CmsError } from '../schema/types.js'
 import type { HookData } from './hook-types.js'
 import type { FieldConfig } from '../schema/field-types.js'
 import { runHooks } from './hook-runner.js'
+import { flattenFields } from '../schema/field-utils.js'
 
 export function runFieldHooks (
   hookName: 'beforeValidate' | 'beforeChange' | 'afterChange' | 'afterRead',
@@ -14,7 +15,7 @@ export function runFieldHooks (
 ): ResultAsync<HookData, CmsError> {
   let result = okAsync<HookData, CmsError>(data)
 
-  for (const f of fields) {
+  for (const f of flattenFields(fields)) {
     const hooks = f.hooks?.[hookName]
     if (!hooks || hooks.length === 0) continue
     result = result.andThen((currentData) =>

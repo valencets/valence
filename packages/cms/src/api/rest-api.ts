@@ -10,6 +10,7 @@ import type { CollectionConfig } from '../schema/collection.js'
 import type { PaginatedResult } from '../db/query-types.js'
 import type { DocumentRow } from '../db/query-builder.js'
 import type { CmsError } from '../schema/types.js'
+import { flattenFields } from '../schema/field-utils.js'
 
 export type RestRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
@@ -47,7 +48,7 @@ function sendPaginatedJson (res: ServerResponse, data: PaginatedResult<DocumentR
 }
 
 function getAllowedFields (col: CollectionConfig): Set<string> {
-  const names = col.fields.map(f => f.name)
+  const names = flattenFields(col.fields).map(f => f.name)
   const allowed = new Set<string>(names)
   for (const sys of SYSTEM_COLUMNS) allowed.add(sys)
   return allowed
