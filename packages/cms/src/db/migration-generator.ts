@@ -6,6 +6,7 @@ import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
 import { getColumnType, getColumnConstraints } from './column-map.js'
 import { isValidIdentifier } from './sql-sanitize.js'
+import { getUploadConfig } from '../media/media-config.js'
 
 export interface MigrationOutput {
   readonly name: string
@@ -20,10 +21,14 @@ function checkIdentifier (name: string): CmsError | null {
   return null
 }
 
-function buildColumnDef (f: FieldConfig): Result<string, CmsError> {
+function resolveColumnType (f: FieldConfig, hasLocalization: boolean): string {
+  return hasLocalization && f.localized ? 'JSONB' : getColumnType(f)
+}
+
+function buildColumnDef (f: FieldConfig, hasLocalization: boolean): Result<string, CmsError> {
   const idErr = checkIdentifier(f.name)
   if (idErr) return err(idErr)
-  const colType = getColumnType(f)
+  const colType = resolveColumnType(f, hasLocalization)
   const constraints = getColumnConstraints(f)
   const parts = [`"${f.name}" ${colType}`]
   if (constraints) parts.push(constraints)
@@ -61,7 +66,7 @@ function buildIndexStatements (collection: CollectionConfig): Result<string[], C
   return ok(statements)
 }
 
-export function generateCreateTableSql (collection: CollectionConfig): string {
+export function generateCreateTableSql (collection: CollectionConfig, hasLocalization?: boolean): string {
   const slugErr = checkIdentifier(collection.slug)
   if (slugErr) return `-- ERROR: ${slugErr.message}`
 
@@ -70,9 +75,25 @@ export function generateCreateTableSql (collection: CollectionConfig): string {
   ]
 
   for (const f of collection.fields) {
-    const colResult = buildColumnDef(f)
+    const colResult = buildColumnDef(f, hasLocalization ?? false)
     if (colResult.isErr()) return `-- ERROR: ${colResult.error.message}`
     columns.push(`  ${colResult.value}`)
+  }
+
+  const uploadConfig = getUploadConfig(collection)
+  if (uploadConfig !== null) {
+    if (uploadConfig.focalPoint) {
+      columns.push('  "focalX" NUMERIC DEFAULT 0.5')
+      columns.push('  "focalY" NUMERIC DEFAULT 0.5')
+    }
+    if (uploadConfig.imageSizes && uploadConfig.imageSizes.length > 0) {
+      columns.push('  "sizes" JSONB')
+    }
+  }
+
+  if (collection.versions?.drafts) {
+    columns.push('  "_status" TEXT NOT NULL DEFAULT \'draft\' CHECK ("_status" IN (\'draft\', \'published\'))')
+    columns.push('  "publish_at" TIMESTAMPTZ')
   }
 
   if (collection.timestamps) {
@@ -106,13 +127,13 @@ export interface SchemaChanges {
   readonly changed: readonly FieldConfig[]
 }
 
-export function generateAlterTableSql (slug: string, changes: SchemaChanges): string {
+export function generateAlterTableSql (slug: string, changes: SchemaChanges, hasLocalization?: boolean): string {
   const slugErr = checkIdentifier(slug)
   if (slugErr) return `-- ERROR: ${slugErr.message}`
   const statements: string[] = []
 
   for (const f of changes.added) {
-    const colResult = buildColumnDef(f)
+    const colResult = buildColumnDef(f, hasLocalization ?? false)
     if (colResult.isErr()) return `-- ERROR: ${colResult.error.message}`
     statements.push(`ADD COLUMN ${colResult.value}`)
   }
@@ -126,7 +147,7 @@ export function generateAlterTableSql (slug: string, changes: SchemaChanges): st
   for (const f of changes.changed) {
     const nameErr = checkIdentifier(f.name)
     if (nameErr) return `-- ERROR: ${nameErr.message}`
-    const colType = getColumnType(f)
+    const colType = resolveColumnType(f, hasLocalization ?? false)
     statements.push(`ALTER COLUMN "${f.name}" TYPE ${colType}`)
   }
 
@@ -134,13 +155,13 @@ export function generateAlterTableSql (slug: string, changes: SchemaChanges): st
   return `ALTER TABLE "${slug}"\n  ${statements.join(',\n  ')};`
 }
 
-export function generateCreateTable (collection: CollectionConfig): Result<MigrationOutput, CmsError> {
+export function generateCreateTable (collection: CollectionConfig, hasLocalization?: boolean): Result<MigrationOutput, CmsError> {
   const slugErr = checkIdentifier(collection.slug)
   if (slugErr) return err(slugErr)
   const timestamp = Date.now()
   return ok({
     name: `${timestamp}_create_${collection.slug}`,
-    up: generateCreateTableSql(collection),
+    up: generateCreateTableSql(collection, hasLocalization),
     down: `DROP TABLE IF EXISTS "${collection.slug}" CASCADE;`
   })
 }

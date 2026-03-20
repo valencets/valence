@@ -31,7 +31,6 @@ describe('generateCreateTableSql()', () => {
     const sql = generateCreateTableSql(logs)
     expect(sql).not.toContain('created_at')
     expect(sql).not.toContain('updated_at')
-    // deleted_at is always present (soft delete)
     expect(sql).toContain('"deleted_at"')
   })
 
@@ -135,6 +134,200 @@ describe('generateCreateTableSql()', () => {
     const sql = generateCreateTableSql(comments)
     expect(sql).toContain('CREATE INDEX')
     expect(sql).toContain('idx_comments_post')
+  })
+})
+
+describe('generateCreateTableSql() with upload config', () => {
+  it('injects focalX and focalY columns when focalPoint is true', () => {
+    const media = collection({
+      slug: 'media',
+      upload: { focalPoint: true },
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    expect(sql).toContain('"focalX" NUMERIC DEFAULT 0.5')
+    expect(sql).toContain('"focalY" NUMERIC DEFAULT 0.5')
+  })
+
+  it('injects sizes JSONB column when imageSizes is configured', () => {
+    const media = collection({
+      slug: 'media',
+      upload: {
+        imageSizes: [
+          { name: 'thumbnail', width: 150, height: 150 }
+        ]
+      },
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    expect(sql).toContain('"sizes" JSONB')
+  })
+
+  it('injects both focal and sizes columns when both configured', () => {
+    const media = collection({
+      slug: 'media',
+      upload: {
+        focalPoint: true,
+        imageSizes: [{ name: 'thumb', width: 100, height: 100 }]
+      },
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    expect(sql).toContain('"focalX" NUMERIC DEFAULT 0.5')
+    expect(sql).toContain('"focalY" NUMERIC DEFAULT 0.5')
+    expect(sql).toContain('"sizes" JSONB')
+  })
+
+  it('does NOT inject image columns for upload: true (boolean)', () => {
+    const media = collection({
+      slug: 'media',
+      upload: true,
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    expect(sql).not.toContain('focalX')
+    expect(sql).not.toContain('focalY')
+    expect(sql).not.toContain('"sizes"')
+  })
+
+  it('does NOT inject image columns for non-upload collections', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })]
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).not.toContain('focalX')
+    expect(sql).not.toContain('sizes')
+  })
+
+  it('places image columns before timestamps', () => {
+    const media = collection({
+      slug: 'media',
+      upload: { focalPoint: true },
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    const focalIdx = sql.indexOf('focalX')
+    const createdIdx = sql.indexOf('created_at')
+    expect(focalIdx).toBeLessThan(createdIdx)
+  })
+})
+
+describe('generateCreateTableSql() with versions', () => {
+  it('injects _status column with CHECK constraint when versions.drafts is true', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title', required: true })],
+      versions: { drafts: true }
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).toContain('"_status" TEXT NOT NULL DEFAULT \'draft\'')
+    expect(sql).toContain('CHECK ("_status" IN (\'draft\', \'published\'))')
+  })
+
+  it('injects publish_at column when versions.drafts is true', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })],
+      versions: { drafts: true }
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).toContain('"publish_at" TIMESTAMPTZ')
+  })
+
+  it('does NOT inject status columns when versions is undefined', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })]
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).not.toContain('_status')
+    expect(sql).not.toContain('publish_at')
+  })
+
+  it('does NOT inject status columns when versions.drafts is false', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })],
+      versions: { drafts: false }
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).not.toContain('_status')
+    expect(sql).not.toContain('publish_at')
+  })
+
+  it('places _status and publish_at before timestamps', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })],
+      versions: { drafts: true }
+    })
+    const sql = generateCreateTableSql(posts)
+    const statusIdx = sql.indexOf('_status')
+    const createdIdx = sql.indexOf('created_at')
+    expect(statusIdx).toBeLessThan(createdIdx)
+  })
+})
+
+describe('generateCreateTableSql() with localization', () => {
+  it('produces JSONB for a localized text field when hasLocalization is true', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true, localized: true }),
+        field.text({ name: 'slug', required: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts, true)
+    expect(sql).toContain('"title" JSONB NOT NULL')
+    expect(sql).toContain('"slug" TEXT NOT NULL')
+  })
+
+  it('produces JSONB for a localized number field', () => {
+    const products = collection({
+      slug: 'products',
+      fields: [
+        field.number({ name: 'price', localized: true }),
+        field.number({ name: 'stock' })
+      ]
+    })
+    const sql = generateCreateTableSql(products, true)
+    expect(sql).toContain('"price" JSONB')
+    expect(sql).toContain('"stock" INTEGER')
+  })
+
+  it('uses normal types when hasLocalization is false even if field has localized: true', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', localized: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts, false)
+    expect(sql).toContain('"title" TEXT')
+    expect(sql).not.toContain('JSONB')
+  })
+
+  it('uses normal types when hasLocalization is omitted', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', localized: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).toContain('"title" TEXT')
+  })
+
+  it('fields already JSONB stay JSONB when localized', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.json({ name: 'metadata', localized: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts, true)
+    expect(sql).toContain('"metadata" JSONB')
   })
 })
 

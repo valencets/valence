@@ -2,6 +2,7 @@
 
 export {
   CmsErrorCode,
+  StatusCode,
   FieldType,
   field,
   collection,
@@ -37,6 +38,7 @@ export type {
   BlocksFieldConfig,
   CollectionConfig,
   CollectionLabels,
+  VersionsConfig,
   GlobalConfig,
   CollectionRegistry,
   GlobalRegistry,
@@ -47,6 +49,8 @@ export type {
 export {
   generateZodSchema,
   generatePartialSchema,
+  generateDraftSchema,
+  generateLocalizedSchema,
   isValidSlug,
   isValidEmail
 } from './validation/index.js'
@@ -132,8 +136,11 @@ export {
   escapeHtml
 } from './admin/index.js'
 
-export { isUploadEnabled, getMediaFields, getMimeType, createServeHandler, createUploadHandler } from './media/index.js'
-export type { UploadResult } from './media/index.js'
+export { isUploadEnabled, getMediaFields, getMimeType, getUploadConfig, createServeHandler, buildMediaUrl, createUploadHandler, createLocalStorage, processImageSizes } from './media/index.js'
+export type { ImageSize, UploadConfig, UploadResult, SizeMetadata, StorageAdapter, ProcessedImage, FocalPoint } from './media/index.js'
 
 export { buildCms } from './config/index.js'
-export type { CmsConfig, CmsInstance, Plugin } from './config/index.js'
+export type { CmsConfig, CmsInstance, Plugin, LocaleConfig, LocalizationConfig } from './config/index.js'
+
+export { startPublishScheduler } from './scheduler.js'
+export type { SchedulerHandle } from './scheduler.js'

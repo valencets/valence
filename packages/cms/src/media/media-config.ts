@@ -1,8 +1,29 @@
 import type { CollectionConfig } from '../schema/collection.js'
 import type { FieldConfig } from '../schema/field-types.js'
 
+export interface ImageSize {
+  readonly name: string
+  readonly width: number
+  readonly height: number
+  readonly fit?: 'cover' | 'contain' | 'fill' | 'inside' | 'outside' | undefined
+}
+
+export interface UploadConfig {
+  readonly mimeTypes?: readonly string[] | undefined
+  readonly maxFileSize?: number | undefined
+  readonly imageSizes?: readonly ImageSize[] | undefined
+  readonly focalPoint?: boolean | undefined
+  readonly formats?: readonly string[] | undefined
+}
+
 export function isUploadEnabled (collection: CollectionConfig): boolean {
-  return collection.upload === true
+  return collection.upload !== undefined && collection.upload !== false
+}
+
+export function getUploadConfig (collection: CollectionConfig): UploadConfig | null {
+  if (collection.upload === true) return {}
+  if (collection.upload === false || collection.upload === undefined) return null
+  return collection.upload
 }
 
 export function getMediaFields (): readonly FieldConfig[] {

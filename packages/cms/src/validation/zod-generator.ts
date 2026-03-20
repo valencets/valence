@@ -170,13 +170,16 @@ function buildBlocksSchema (field: FieldConfig): ZodTypeAny {
   return schema
 }
 
-function buildObjectSchema (fields: readonly FieldConfig[]): ZodObject {
+function buildObjectSchema (fields: readonly FieldConfig[], wrapLocalized?: boolean): ZodObject {
   const shape: Record<string, ZodTypeAny> = {}
 
   for (const f of fields) {
     const builder = FIELD_SCHEMA_MAP[f.type]
     if (builder === undefined) continue
     let fieldSchema = builder(f)
+    if (wrapLocalized && f.localized) {
+      fieldSchema = z.record(z.string(), fieldSchema)
+    }
     if (!f.required) {
       if (f.type === 'relation' || f.type === 'media') {
         fieldSchema = z.preprocess(
@@ -199,4 +202,14 @@ export function generateZodSchema (fields: readonly FieldConfig[]): ZodObject {
 
 export function generatePartialSchema (fields: readonly FieldConfig[]): ZodObject {
   return buildObjectSchema(fields).partial()
+}
+
+/** Draft schema for incomplete saves. Currently identical to partial schema
+ *  but will diverge when draft-specific system field requirements are added. */
+export function generateDraftSchema (fields: readonly FieldConfig[]): ZodObject {
+  return buildObjectSchema(fields).partial()
+}
+
+export function generateLocalizedSchema (fields: readonly FieldConfig[]): ZodObject {
+  return buildObjectSchema(fields, true)
 }

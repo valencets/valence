@@ -500,8 +500,8 @@ export function renderLayout (args: LayoutArgs): string {
     .diff-table .diff-changed td {
       background: oklch(0.3 0.05 80 / 0.3);
     }
-    /* --- Media upload --- */
-    .media-upload {
+    /* --- Media upload / drop zone --- */
+    .media-drop-zone {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
@@ -515,6 +515,53 @@ export function renderLayout (args: LayoutArgs): string {
       max-height: 150px;
       border-radius: var(--val-radius-md);
       border: 1px solid var(--val-color-border);
+    }
+    .drop-zone-text {
+      font-size: var(--val-text-sm);
+      color: var(--val-color-text-muted);
+      text-align: center;
+      padding: 1rem;
+    }
+    .focal-point-selector {
+      position: relative;
+      display: inline-block;
+      cursor: crosshair;
+    }
+    .focal-point-image {
+      max-width: 400px;
+      max-height: 300px;
+      border-radius: var(--val-radius-md);
+      border: 1px solid var(--val-color-border);
+    }
+    .focal-point-marker {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 2px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .variant-thumbnails {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .variant-thumb {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .variant-thumb img {
+      border-radius: var(--val-radius-sm);
+      border: 1px solid var(--val-color-border);
+    }
+    .variant-label {
+      font-size: var(--val-text-xs);
+      color: var(--val-color-text-muted);
     }
     /* --- Edit page container --- */
     .edit-container {

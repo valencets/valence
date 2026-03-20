@@ -16,9 +16,9 @@ describe('media field renderer', () => {
     expect(html).toContain('value="existing-uuid"')
   })
 
-  it('has media-upload wrapper class', () => {
+  it('has media-drop-zone wrapper class', () => {
     const html = renderFieldInput(field.media({ name: 'image', relationTo: 'media' }), '')
-    expect(html).toContain('media-upload')
+    expect(html).toContain('media-drop-zone')
   })
 
   it('shows preview area', () => {

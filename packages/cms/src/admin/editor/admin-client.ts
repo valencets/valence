@@ -29,7 +29,7 @@ if (confirmBtn && form) {
 }
 
 // Wire up media upload fields
-const mediaUploads = document.querySelectorAll<HTMLElement>('.media-upload')
+const mediaUploads = document.querySelectorAll<HTMLElement>('.media-drop-zone')
 for (const wrap of mediaUploads) {
   const endpoint = wrap.getAttribute('data-upload-endpoint')
   const fileInput = wrap.querySelector<HTMLInputElement>('input[type="file"]')

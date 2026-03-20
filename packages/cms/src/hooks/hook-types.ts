@@ -1,5 +1,5 @@
 export interface HookData {
-  readonly [key: string]: string | number | boolean | null | undefined
+  readonly [key: string]: string | number | boolean | null | readonly string[] | readonly number[] | undefined
 }
 
 export interface HookArgs {
@@ -18,6 +18,10 @@ export interface CollectionHooks {
   readonly afterRead?: readonly HookFunction[] | undefined
   readonly beforeDelete?: readonly HookFunction[] | undefined
   readonly afterDelete?: readonly HookFunction[] | undefined
+  readonly beforePublish?: readonly HookFunction[] | undefined
+  readonly afterPublish?: readonly HookFunction[] | undefined
+  readonly beforeUnpublish?: readonly HookFunction[] | undefined
+  readonly afterUnpublish?: readonly HookFunction[] | undefined
 }
 
 export interface FieldHooks {
