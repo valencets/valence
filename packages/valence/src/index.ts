@@ -1,7 +1,7 @@
 export { defineConfig } from './define-config.js'
 export type { ValenceConfig, ResolvedValenceConfig, ConfigError, OnServerContext, RouteHandler, RouteConfig } from './define-config.js'
 
-export { generateCollectionRoutes } from './route-generator.js'
+export { generateCollectionRoutes, buildGeneratedRouteMap } from './route-generator.js'
 export type { GeneratedRoute } from './route-generator.js'
 
 // Re-export CMS schema primitives for convenience

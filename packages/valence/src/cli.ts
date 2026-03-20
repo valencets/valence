@@ -16,6 +16,7 @@ import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
 import type { RouteHandler } from './define-config.js'
 import { resolveCustomRoute } from './route-matcher.js'
+import { generateCollectionRoutes, buildGeneratedRouteMap } from './route-generator.js'
 import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig } from './codegen/regenerate.js'
@@ -618,6 +619,13 @@ async function runDev (): Promise<void> {
       return
     }
 
+    // Try schema-generated collection routes (after custom, before admin)
+    const generatedMatch = resolveCustomRoute(generatedRouteMap, method, url.pathname)
+    if (generatedMatch) {
+      await generatedMatch.handler(req, res, generatedMatch.params)
+      return
+    }
+
     // Try admin routes first
     const adminMatch = matchRoute(url.pathname, cms.adminRoutes)
     if (adminMatch) {
@@ -708,6 +716,10 @@ async function runDev (): Promise<void> {
   if (loadedConfig.onServer) {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
+
+  // Schema-driven generated route map (custom routes take priority)
+  const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
+  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
 
   server.listen(port, () => {
     console.log(`
@@ -809,6 +821,13 @@ export async function runStart (): Promise<void> {
       return
     }
 
+    // Try schema-generated collection routes (after custom, before admin)
+    const generatedMatch = resolveCustomRoute(generatedRouteMap, method, url.pathname)
+    if (generatedMatch) {
+      await generatedMatch.handler(req, res, generatedMatch.params)
+      return
+    }
+
     // Try admin routes first
     const adminMatch = matchRoute(url.pathname, cms.adminRoutes)
     if (adminMatch) {
@@ -874,6 +893,10 @@ export async function runStart (): Promise<void> {
   if (loadedConfig.onServer) {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
+
+  // Schema-driven generated route map (custom routes take priority)
+  const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
+  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
 
   server.listen(port, () => {
     console.log(`
