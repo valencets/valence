@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateZodSchema, generatePartialSchema, generateDraftSchema, generateLocalizedSchema } from '../validation/zod-generator.js'
+import { generateZodSchema, generatePartialSchema, generateDraftSchema, generateLocalizedSchema, generateConditionalSchema, generateConditionalPartialSchema } from '../validation/zod-generator.js'
 import { field } from '../schema/fields.js'
 import type { FieldConfig } from '../schema/field-types.js'
 
@@ -343,5 +343,119 @@ describe('generateLocalizedSchema()', () => {
     const schema = generateLocalizedSchema(fields)
     const result = schema.safeParse({})
     expect(result.success).toBe(true)
+  })
+})
+
+describe('generateConditionalSchema()', () => {
+  it('excludes field whose condition returns false', () => {
+    const fields: readonly FieldConfig[] = [
+      field.text({ name: 'type', required: true }),
+      field.text({
+        name: 'extra',
+        required: true,
+        condition: (data) => data['type'] === 'premium'
+      })
+    ]
+    const formData = { type: 'free' }
+    const schema = generateConditionalSchema(fields, formData)
+    // 'extra' should be excluded: required but absent data passes validation
+    const result = schema.safeParse({ type: 'free' })
+    expect(result.success).toBe(true)
+  })
+
+  it('includes fields without a condition', () => {
+    const fields: readonly FieldConfig[] = [
+      field.text({ name: 'title', required: true })
+    ]
+    const formData = {}
+    const schema = generateConditionalSchema(fields, formData)
+    const result = schema.safeParse({})
+    expect(result.success).toBe(false) // title required, should still fail
+  })
+
+  it('includes field whose condition returns true', () => {
+    const fields: readonly FieldConfig[] = [
+      field.text({ name: 'type', required: true }),
+      field.text({
+        name: 'extra',
+        required: true,
+        condition: (data) => data['type'] === 'premium'
+      })
+    ]
+    const formData = { type: 'premium' }
+    const schema = generateConditionalSchema(fields, formData)
+    // 'extra' visible and required — missing value should fail
+    const result = schema.safeParse({ type: 'premium' })
+    expect(result.success).toBe(false)
+  })
+
+  it('hidden required field does NOT cause validation failure', () => {
+    const fields: readonly FieldConfig[] = [
+      field.text({ name: 'category', required: true }),
+      field.text({
+        name: 'secretField',
+        required: true,
+        condition: (data) => data['category'] === 'special'
+      })
+    ]
+    const formData = { category: 'normal' }
+    const schema = generateConditionalSchema(fields, formData)
+    const result = schema.safeParse({ category: 'normal' })
+    expect(result.success).toBe(true)
+  })
+
+  it('visible required field still validates normally', () => {
+    const fields: readonly FieldConfig[] = [
+      field.text({ name: 'category', required: true }),
+      field.text({
+        name: 'secretField',
+        required: true,
+        condition: (data) => data['category'] === 'special'
+      })
+    ]
+    const formData = { category: 'special' }
+    const schema = generateConditionalSchema(fields, formData)
+    // secretField is visible, required, and missing — should fail
+    const result = schema.safeParse({ category: 'special' })
+    expect(result.success).toBe(false)
+  })
+
+  it('includes fields with no condition property set', () => {
+    const fields: readonly FieldConfig[] = [
+      field.text({ name: 'title', required: true }),
+      field.number({ name: 'order', required: true })
+    ]
+    const schema = generateConditionalSchema(fields, {})
+    // both required, both absent — should fail
+    const result = schema.safeParse({})
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('generateConditionalPartialSchema()', () => {
+  it('excludes hidden field from partial schema', () => {
+    const fields: readonly FieldConfig[] = [
+      field.text({ name: 'type', required: true }),
+      field.text({
+        name: 'extra',
+        required: true,
+        condition: (data) => data['type'] === 'premium'
+      })
+    ]
+    const formData = { type: 'free' }
+    const schema = generateConditionalPartialSchema(fields, formData)
+    // 'extra' excluded; as partial, 'type' is optional too — empty passes
+    const result = schema.safeParse({})
+    expect(result.success).toBe(true)
+  })
+
+  it('validates provided fields in partial schema', () => {
+    const fields: readonly FieldConfig[] = [
+      field.number({ name: 'count', required: true })
+    ]
+    const schema = generateConditionalPartialSchema(fields, {})
+    // No condition, partial means optional, but type still validates if provided
+    expect(schema.safeParse({}).success).toBe(true)
+    expect(schema.safeParse({ count: 'not-a-number' }).success).toBe(false)
   })
 })
