@@ -9,3 +9,11 @@ dist/
 .idea/
 pnpm-store/
 CLAUDE.md
+!.env.test
+/test-results/
+/playwright-report/
+/playwright/.cache/
+tests/e2e/.auth/
+coverage/
+.stryker-tmp/
+reports/
