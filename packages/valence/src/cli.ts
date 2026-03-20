@@ -509,7 +509,8 @@ async function runDev (): Promise<void> {
     uploadDir: join(projectDir, 'uploads'),
     collections: userConfig,
     telemetryPool: telemetryEnabled ? pool : undefined,
-    telemetrySiteId: loadedConfig.telemetry?.siteId
+    telemetrySiteId: loadedConfig.telemetry?.siteId,
+    requireAuth: loadedConfig.admin?.requireAuth
   })
 
   if (cmsResult.isErr()) {
@@ -805,7 +806,8 @@ export async function runStart (): Promise<void> {
     uploadDir: join(projectDir, 'uploads'),
     collections: userConfig,
     telemetryPool: telemetryEnabled ? pool : undefined,
-    telemetrySiteId: loadedConfig.telemetry?.siteId
+    telemetrySiteId: loadedConfig.telemetry?.siteId,
+    requireAuth: loadedConfig.admin?.requireAuth
   })
 
   if (cmsResult.isErr()) {

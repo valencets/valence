@@ -24,6 +24,9 @@ export async function registerTsxLoader (): Promise<void> {
 
 export interface UserConfig {
   readonly collections: ReadonlyArray<CollectionConfig>
+  readonly admin?: {
+    readonly requireAuth?: boolean | undefined
+  } | undefined
   readonly telemetry?: {
     readonly enabled: boolean
     readonly endpoint: string
@@ -96,6 +99,7 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
     if (result && typeof result.isOk === 'function' && result.isOk()) {
       return {
         collections: result.value?.collections ?? [],
+        admin: result.value?.admin,
         telemetry: result.value?.telemetry,
         // onServer and routes are functions/contain functions and can only be
         // preserved via direct import — serialisation through the tsx subprocess would lose them.
@@ -123,6 +127,7 @@ async function loadViaSubprocess (configPath: string): Promise<UserConfig | null
     '        slug: c.slug, labels: c.labels, auth: c.auth, upload: c.upload,',
     '        timestamps: c.timestamps, fields: c.fields',
     '      })),',
+    '      admin: r.value.admin,',
     '      telemetry: r.value.telemetry',
     '    }));',
     '  }',
@@ -151,11 +156,11 @@ async function loadViaSubprocess (configPath: string): Promise<UserConfig | null
 
   const parseResult = safeJsonParseConfig(output)
   if (parseResult.isErr() || parseResult.value === null) return null
-  const parsed = parseResult.value as { collections: import('@valencets/cms').CollectionConfig[]; telemetry?: UserConfig['telemetry'] }
+  const parsed = parseResult.value as { collections: import('@valencets/cms').CollectionConfig[]; admin?: UserConfig['admin']; telemetry?: UserConfig['telemetry'] }
 
   // Re-hydrate through collection() to get proper CollectionConfig objects.
   // onServer and routes cannot be recovered from the subprocess — functions are not serialisable.
   const { collection: col } = await import('@valencets/cms')
   const collections = parsed.collections.map((c) => col(c))
-  return { collections, telemetry: parsed.telemetry }
+  return { collections, admin: parsed.admin, telemetry: parsed.telemetry }
 }
