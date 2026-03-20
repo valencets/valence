@@ -152,7 +152,7 @@ export type FieldConfig =
   | JsonFieldConfig
   | ColorFieldConfig
   | MultiselectFieldConfig
-    | ArrayFieldConfig
+  | ArrayFieldConfig
   | BlocksFieldConfig
 
 export interface BlockDefinition {

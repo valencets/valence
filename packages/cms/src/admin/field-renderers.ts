@@ -144,11 +144,19 @@ function renderArrayField (f: FieldConfig, value: string): string {
   return `<div class="array-field"><label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span></label><input type="hidden" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"><div class="array-rows" data-field="${escapeHtml(f.name)}"></div><button type="button" class="array-add" data-field="${escapeHtml(f.name)}">+ Add row</button></div>`
 }
 
+interface BlockValue {
+  blockType?: string
+  [key: string]: string | undefined
+}
+
+/** JSON.parse boundary for blocks field value — sync equivalent of safeJsonParse. */
+function parseBlocksJson (value: string): Array<BlockValue> {
+  if (!value) return []
+  try { return JSON.parse(value) } catch { return [] }
+}
+
 function renderBlocksField (f: FieldConfig, value: string): string {
-  let blocks: Array<{ blockType?: string; [key: string]: string | undefined }> = []
-  if (value) {
-    try { blocks = JSON.parse(value) } catch { blocks = [] }
-  }
+  const blocks = parseBlocksJson(value)
   const blockDefs = 'blocks' in f ? f.blocks : []
   const blockOptions = blockDefs.map(b => {
     const label = b.labels?.singular ?? b.slug

@@ -9,14 +9,19 @@ interface BlockDef {
   readonly labels?: { readonly singular?: string; readonly plural?: string }
 }
 
+interface BlockEntry {
+  blockType: string
+  [key: string]: string
+}
+
 function serializeBlocks (container: HTMLElement): void {
   const hidden = container.querySelector<HTMLInputElement>('input[type="hidden"]')
   if (!hidden) return
   const items = container.querySelectorAll<HTMLElement>('.blocks-item')
-  const blocks: Array<Record<string, string>> = []
+  const blocks: Array<BlockEntry> = []
   for (const item of items) {
     const blockType = item.getAttribute('data-block-type') ?? ''
-    const entry: Record<string, string> = { blockType }
+    const entry: BlockEntry = { blockType }
     const inputs = item.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input:not([type="hidden"]), textarea, select')
     for (const input of inputs) {
       if (input.name) {
