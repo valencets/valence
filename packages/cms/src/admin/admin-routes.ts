@@ -28,7 +28,7 @@ import { getValidFieldNames, isAllowedField } from '../db/sql-sanitize.js'
 import type { PaginatedResult } from '../db/query-types.js'
 import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { readStringBody } from '../api/read-body.js'
-import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
+import { generateConditionalSchema, generateConditionalPartialSchema } from '../validation/zod-generator.js'
 import { setFlashCookie, readFlash, clearFlashCookie } from './flash.js'
 import { readFileSync } from 'node:fs'
 import { generateNonce, setSecurityHeaders, CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
@@ -462,7 +462,8 @@ export function createAdminRoutes (
           sendHtml(res, html, 403)
           return
         }
-        const zodSchema = generateZodSchema(col.fields)
+        const condData: Record<string, string> = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]))
+        const zodSchema = generateConditionalSchema(col.fields, condData)
         const validation = zodSchema.safeParse(data)
         if (!validation.success) {
           const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
@@ -562,7 +563,8 @@ export function createAdminRoutes (
           sendHtml(res, html, 403)
           return
         }
-        const zodSchema = generatePartialSchema(col.fields)
+        const condData: Record<string, string> = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]))
+        const zodSchema = generateConditionalPartialSchema(col.fields, condData)
         const validation = zodSchema.safeParse(data)
         if (!validation.success) {
           const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
