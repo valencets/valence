@@ -3,6 +3,7 @@ import type { CmsError } from '../schema/types.js'
 import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry } from '../schema/registry.js'
 import type { RestRouteEntry } from '../api/rest-api.js'
+import type { IncomingMessage } from 'node:http'
 import type { DocumentData } from '../db/query-builder.js'
 import { z } from 'zod'
 import { sendJson, sendErrorJson, safeReadBody, safeJsonParse } from '../api/http-utils.js'
@@ -13,6 +14,10 @@ import { safeQuery } from '../db/safe-query.js'
 import { createSession, validateSession, destroySession, buildSessionCookie, buildExpiredSessionCookie } from './session.js'
 import { sanitizeIdentifier, isValidIdentifier } from '../db/sql-sanitize.js'
 import { isAuthEnabled } from './auth-config.js'
+
+function isEncrypted (req: IncomingMessage): boolean {
+  return !!(req.socket as { encrypted?: boolean }).encrypted
+}
 
 interface UserRow {
   readonly id: string
@@ -90,7 +95,8 @@ export function createAuthRoutes (
       const sessionResult = await createSession(user.id, pool)
       if (sessionResult.isErr()) { sendErrorJson(res, 'Login failed', 500); return }
 
-      const cookie = buildSessionCookie(sessionResult.value)
+      const secure = isEncrypted(req)
+      const cookie = buildSessionCookie(sessionResult.value, 7200, secure)
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
         'Set-Cookie': cookie
@@ -106,9 +112,10 @@ export function createAuthRoutes (
       if (sessionId) {
         await destroySession(sessionId, pool)
       }
+      const secure = isEncrypted(req)
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
-        'Set-Cookie': buildExpiredSessionCookie()
+        'Set-Cookie': buildExpiredSessionCookie(secure)
       })
       res.end(JSON.stringify({ message: 'Logged out' }))
     }

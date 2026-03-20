@@ -6,11 +6,12 @@ import { field } from '../schema/fields.js'
 import { makeMockPool } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-function makeMockReq (method: string, cookie: string | undefined, body: string = ''): IncomingMessage {
+function makeMockReq (method: string, cookie: string | undefined, body: string = '', encrypted = false): IncomingMessage {
   const req = {
     method,
     url: '',
     headers: { cookie, 'content-type': 'application/json' },
+    socket: { encrypted: encrypted || undefined },
     on: vi.fn((event: string, cb: (data?: Buffer) => void) => {
       if (event === 'data' && body) cb(Buffer.from(body))
       if (event === 'end') cb()
@@ -67,6 +68,26 @@ describe('POST /api/users/logout', () => {
     expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
       'Set-Cookie': expect.stringContaining('Max-Age=0')
     }))
+  })
+
+  it('omits Secure flag in logout cookie on non-encrypted connection', async () => {
+    const registry = createCollectionRegistry()
+    const routes = createAuthRoutes(makeMockPool(), registry)
+    const handler = routes.get('/api/users/logout')?.POST
+    const req = makeMockReq('POST', 'cms_session=sess-1', '', false)
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.setCookie).not.toContain('Secure')
+  })
+
+  it('includes Secure flag in logout cookie on encrypted connection', async () => {
+    const registry = createCollectionRegistry()
+    const routes = createAuthRoutes(makeMockPool(), registry)
+    const handler = routes.get('/api/users/logout')?.POST
+    const req = makeMockReq('POST', 'cms_session=sess-1', '', true)
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.setCookie).toContain('Secure')
   })
 })
 

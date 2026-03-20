@@ -95,10 +95,16 @@ describe('buildSessionCookie()', () => {
     expect(cookie).toContain('cms_session=sess-123')
   })
 
-  it('includes HttpOnly and Secure flags', () => {
+  it('includes HttpOnly and Secure flags by default', () => {
     const cookie = buildSessionCookie('sess-123')
     expect(cookie).toContain('HttpOnly')
     expect(cookie).toContain('Secure')
+  })
+
+  it('omits Secure flag when secure is false', () => {
+    const cookie = buildSessionCookie('sess-123', 7200, false)
+    expect(cookie).toContain('HttpOnly')
+    expect(cookie).not.toContain('Secure')
   })
 
   it('includes SameSite=Strict', () => {
@@ -126,5 +132,15 @@ describe('buildExpiredSessionCookie()', () => {
   it('sets empty session value', () => {
     const cookie = buildExpiredSessionCookie()
     expect(cookie).toContain('cms_session=')
+  })
+
+  it('includes Secure flag by default', () => {
+    const cookie = buildExpiredSessionCookie()
+    expect(cookie).toContain('Secure')
+  })
+
+  it('omits Secure flag when secure is false', () => {
+    const cookie = buildExpiredSessionCookie(false)
+    expect(cookie).not.toContain('Secure')
   })
 })
