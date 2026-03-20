@@ -116,12 +116,10 @@ function parseLocaleFromUrl (url: string): string | undefined {
 
 function validateLocale (
   locale: string | undefined,
-  localization: LocalizationParam | undefined,
+  validCodes: ReadonlySet<string> | undefined,
   res: ServerResponse
 ): boolean {
-  if (locale === undefined) return true
-  if (localization === undefined) return true
-  const validCodes = new Set(localization.locales.map(l => l.code))
+  if (locale === undefined || validCodes === undefined) return true
   if (!validCodes.has(locale)) {
     sendErrorJson(res, `Invalid locale: ${locale}`, 400)
     return false
@@ -137,6 +135,9 @@ export function createRestRoutes (
 ): Map<string, RestRouteEntry> {
   const api = createLocalApi(pool, collections, globals, localization?.defaultLocale)
   const routes = new Map<string, RestRouteEntry>()
+  const validLocaleCodes = localization
+    ? new Set(localization.locales.map(l => l.code))
+    : undefined
 
   for (const col of collections.getAll()) {
     const slug = col.slug
@@ -151,7 +152,7 @@ export function createRestRoutes (
           return
         }
         const { search, orderBy, page, perPage, filters, locale } = parsed.args
-        if (!validateLocale(locale, localization, res)) return
+        if (!validateLocale(locale, validLocaleCodes, res)) return
         const result = await api.find({
           collection: slug,
           locale,
@@ -176,7 +177,7 @@ export function createRestRoutes (
         if (!requireJsonContentType(req, res)) return
         const url = req.url ?? `/${slug}`
         const locale = parseLocaleFromUrl(url)
-        if (!validateLocale(locale, localization, res)) return
+        if (!validateLocale(locale, validLocaleCodes, res)) return
         const bodyResult = await safeReadBody(req)
         if (bodyResult.isErr()) { sendErrorJson(res, bodyResult.error.message, 400); return }
         const parseResult = await safeJsonParse(bodyResult.value)
@@ -213,7 +214,7 @@ export function createRestRoutes (
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
         const url = req.url ?? `/${slug}/${id}`
         const locale = parseLocaleFromUrl(url)
-        if (!validateLocale(locale, localization, res)) return
+        if (!validateLocale(locale, validLocaleCodes, res)) return
         const bodyResult = await safeReadBody(req)
         if (bodyResult.isErr()) { sendErrorJson(res, bodyResult.error.message, 400); return }
         const parseResult = await safeJsonParse(bodyResult.value)
