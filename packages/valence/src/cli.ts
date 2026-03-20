@@ -14,6 +14,8 @@ import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig } from './config-loader.js'
+import type { RouteHandler } from './define-config.js'
+import { resolveCustomRoute } from './route-matcher.js'
 import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig } from './codegen/regenerate.js'
@@ -593,6 +595,13 @@ async function runDev (): Promise<void> {
       }
     }
 
+    // Try custom registered routes (from onServer registerRoute calls)
+    const customMatch = resolveCustomRoute(customRoutes, method, url.pathname)
+    if (customMatch) {
+      await customMatch.handler(req, res, customMatch.params)
+      return
+    }
+
     // Try admin routes first
     const adminMatch = matchRoute(url.pathname, cms.adminRoutes)
     if (adminMatch) {
@@ -666,10 +675,22 @@ async function runDev (): Promise<void> {
 
   const learnLine = learnActive ? `\n  Tutorial: http://localhost:${port}/_learn` : ''
 
+  // Custom route map: path → method → handler
+  const customRoutes = new Map<string, Map<string, RouteHandler>>()
+  const registerRoute = (method: string, path: string, handler: RouteHandler): void => {
+    const methodUpper = method.toUpperCase()
+    let methodMap = customRoutes.get(path)
+    if (!methodMap) {
+      methodMap = new Map<string, RouteHandler>()
+      customRoutes.set(path, methodMap)
+    }
+    methodMap.set(methodUpper, handler)
+  }
+
   // Allow the consuming app to attach WebSocket upgrade handlers or custom routes
   // before the server begins accepting connections.
   if (loadedConfig.onServer) {
-    await loadedConfig.onServer({ server, pool, cms })
+    await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
 
   server.listen(port, () => {

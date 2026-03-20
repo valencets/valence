@@ -1,9 +1,11 @@
 import { ok, err } from 'neverthrow'
 import type { Result } from 'neverthrow'
 import { z } from 'zod'
-import type { Server } from 'node:http'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { DbPool } from '@valencets/db'
 import type { CmsInstance } from '@valencets/cms'
+
+export type RouteHandler = (req: IncomingMessage, res: ServerResponse, params: Record<string, string>) => void | Promise<void>
 
 // Passed to onServer so consumers can attach WebSocket upgrade handlers,
 // register custom routes, etc., without abandoning `valence dev`.
@@ -11,6 +13,7 @@ export interface OnServerContext {
   readonly server: Server
   readonly pool: DbPool
   readonly cms: CmsInstance
+  readonly registerRoute: (method: string, path: string, handler: RouteHandler) => void
 }
 
 export interface ValenceConfig {

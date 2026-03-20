@@ -13,6 +13,12 @@ export interface VersionsConfig {
   readonly maxPerDoc?: number | undefined
 }
 
+export interface AdminConfig {
+  readonly group?: string | undefined
+  readonly hidden?: boolean | undefined
+  readonly position?: number | undefined
+}
+
 export interface CollectionConfig {
   readonly slug: string
   readonly labels?: CollectionLabels | undefined
@@ -23,6 +29,7 @@ export interface CollectionConfig {
   readonly search?: SearchConfig | undefined
   readonly versions?: VersionsConfig | undefined
   readonly hooks?: CollectionHooks | undefined
+  readonly admin?: AdminConfig | undefined
 }
 
 type CollectionInput = Omit<CollectionConfig, 'timestamps'> & {

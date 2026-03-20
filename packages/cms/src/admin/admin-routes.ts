@@ -329,7 +329,8 @@ export function createAdminRoutes (
           slug: col.slug,
           label: col.labels?.plural ?? col.slug,
           count,
-          recent
+          recent,
+          hidden: col.admin?.hidden === true ? true : undefined
         }
       })
       const stats = await Promise.all(statsPromises)

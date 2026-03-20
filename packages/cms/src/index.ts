@@ -39,6 +39,7 @@ export type {
   CollectionConfig,
   CollectionLabels,
   VersionsConfig,
+  AdminConfig,
   GlobalConfig,
   CollectionRegistry,
   GlobalRegistry,
@@ -144,7 +145,3 @@ export type { CmsConfig, CmsInstance, Plugin, LocaleConfig, LocalizationConfig }
 
 export { startPublishScheduler } from './scheduler.js'
 export type { SchedulerHandle } from './scheduler.js'
-export { startTelemetryScheduler } from './telemetry-scheduler.js'
-export type { TelemetrySchedulerHandle } from './telemetry-scheduler.js'
-
-export { SYSTEM_COLUMNS, toColumn, selectColumns } from './db/column-helpers.js'

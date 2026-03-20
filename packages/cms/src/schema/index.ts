@@ -31,7 +31,7 @@ export type {
 export { field } from './fields.js'
 
 export { collection } from './collection.js'
-export type { CollectionConfig, CollectionLabels, VersionsConfig } from './collection.js'
+export type { CollectionConfig, CollectionLabels, VersionsConfig, AdminConfig } from './collection.js'
 
 export { global } from './global.js'
 export type { GlobalConfig } from './global.js'

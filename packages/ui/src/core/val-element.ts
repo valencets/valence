@@ -8,6 +8,7 @@ import { localeObserver } from './locale-observer.js'
 import { themeManager } from '../tokens/theme-manager.js'
 import type { LocaleSubscriber } from './locale-observer.js'
 import { emitInteraction } from './interaction-emitter.js'
+import type { EntityStore, EntityData } from '../entity-store.js'
 
 export interface ValElementInit {
   shadow?: boolean
@@ -21,11 +22,19 @@ type HydrationDirective =
   | { type: 'load' }
   | { type: 'media'; value: string }
 
+interface EntityWatchRegistration {
+  readonly store: EntityStore
+  readonly id: string
+  readonly callback: (entity: EntityData) => void
+}
+
 export abstract class ValElement extends HTMLElement implements LocaleSubscriber {
   protected readonly internals: ElementInternals | null
   private _templateCloned = false
   private _hydrationState: HydrationState = 'none'
   private _hydrationCleanup: (() => void) | null = null
+  private _entityCleanups: Array<() => void> = []
+  private _entityWatches: EntityWatchRegistration[] = []
 
   constructor (init?: ValElementInit) {
     super()
@@ -105,6 +114,14 @@ export abstract class ValElement extends HTMLElement implements LocaleSubscriber
     }
   }
 
+  // --- Entity Store ---
+
+  protected watchEntity (store: EntityStore, id: string, callback: (entity: EntityData) => void): void {
+    this._entityWatches.push({ store, id, callback })
+    const unsub = store.subscribe(id, callback)
+    this._entityCleanups.push(unsub)
+  }
+
   // --- Lifecycle ---
 
   connectedCallback (): void {
@@ -133,6 +150,14 @@ export abstract class ValElement extends HTMLElement implements LocaleSubscriber
     if (this.shadowRoot !== null) {
       themeManager.subscribe(this.shadowRoot)
     }
+
+    // Re-subscribe entity watchers from previous connection
+    if (this._entityWatches.length > 0 && this._entityCleanups.length === 0) {
+      for (const reg of this._entityWatches) {
+        const unsub = reg.store.subscribe(reg.id, reg.callback)
+        this._entityCleanups.push(unsub)
+      }
+    }
   }
 
   disconnectedCallback (): void {
@@ -144,6 +169,12 @@ export abstract class ValElement extends HTMLElement implements LocaleSubscriber
       themeManager.unsubscribe(this.shadowRoot)
     }
     localeObserver.unsubscribe(this)
+
+    // Clean up entity store subscriptions
+    for (const cleanup of this._entityCleanups) {
+      cleanup()
+    }
+    this._entityCleanups = []
   }
 
   attributeChangedCallback (_name: string, _old: string | null, _val: string | null): void {

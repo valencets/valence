@@ -2,3 +2,5 @@
 export * from './core/index.js'
 export * from './components/index.js'
 export { TOKEN_PREFIX } from './tokens/index.js'
+export { createEntityStore } from './entity-store.js'
+export type { EntityStore, EntityData } from './entity-store.js'

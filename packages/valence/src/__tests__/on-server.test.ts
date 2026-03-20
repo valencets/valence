@@ -59,12 +59,14 @@ describe('onServer callback in defineConfig', () => {
     const mockPool = {} as OnServerContext['pool']
     const mockCms = {} as OnServerContext['cms']
 
-    callback({ server: mockServer, pool: mockPool, cms: mockCms })
+    const mockRegisterRoute = vi.fn()
+    callback({ server: mockServer, pool: mockPool, cms: mockCms, registerRoute: mockRegisterRoute })
 
     expect(callback).toHaveBeenCalledWith({
       server: mockServer,
       pool: mockPool,
-      cms: mockCms
+      cms: mockCms,
+      registerRoute: mockRegisterRoute
     })
   })
 
@@ -83,7 +85,7 @@ describe('onServer callback in defineConfig', () => {
     const mockCms = {} as OnServerContext['cms']
 
     // Ensure we can await the callback
-    await resolvedConfig.onServer?.({ server: mockServer, pool: mockPool, cms: mockCms })
+    await resolvedConfig.onServer?.({ server: mockServer, pool: mockPool, cms: mockCms, registerRoute: vi.fn() })
     expect(resolved).toBe(true)
   })
 })
@@ -95,7 +97,8 @@ describe('OnServerContext type', () => {
     const mockCtx: OnServerContext = {
       server: {} as Server,
       pool: {} as OnServerContext['pool'],
-      cms: {} as OnServerContext['cms']
+      cms: {} as OnServerContext['cms'],
+      registerRoute: vi.fn()
     }
     expect(mockCtx).toHaveProperty('server')
     expect(mockCtx).toHaveProperty('pool')

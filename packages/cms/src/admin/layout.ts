@@ -14,10 +14,36 @@ interface LayoutArgs {
 }
 
 export function renderLayout (args: LayoutArgs): string {
-  const collectionNav = args.collections.map(c => {
+  const visible = args.collections.filter(c => c.admin?.hidden !== true)
+  const sorted = [...visible].sort((a, b) => {
+    const posA = a.admin?.position ?? Infinity
+    const posB = b.admin?.position ?? Infinity
+    return posA - posB
+  })
+
+  const ungrouped = sorted.filter(c => c.admin?.group == null)
+  const groupMap = new Map<string, readonly CollectionConfig[]>()
+  for (const c of sorted) {
+    const g = c.admin?.group
+    if (g != null) {
+      const existing = groupMap.get(g) ?? []
+      groupMap.set(g, [...existing, c])
+    }
+  }
+
+  const renderNavItem = (c: CollectionConfig): string => {
     const label = escapeHtml(c.labels?.plural ?? c.slug)
     return `<li><a href="/admin/${escapeHtml(c.slug)}">${label}</a></li>`
+  }
+
+  const ungroupedNav = ungrouped.map(renderNavItem).join('\n')
+  const groupedNav = [...groupMap.entries()].map(([group, cols]) => {
+    const heading = `<li class="nav-group-heading">${escapeHtml(group)}</li>`
+    const items = cols.map(renderNavItem).join('\n')
+    return heading + '\n' + items
   }).join('\n')
+
+  const collectionNav = ungroupedNav + (groupedNav ? '\n' + groupedNav : '')
   const navItems = collectionNav + '\n<li style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--val-color-border);"><a href="/admin/analytics">Analytics</a></li>'
 
   const toastHtml = args.toast ? renderToast(args.toast) : ''
@@ -129,6 +155,16 @@ export function renderLayout (args: LayoutArgs): string {
     .sidebar-brand:hover { color: var(--val-blue-400); }
 
     .sidebar ul { list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
+
+    .nav-group-heading {
+      font-size: var(--val-text-xs);
+      font-weight: var(--val-weight-semibold);
+      color: var(--val-color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.75rem 0.75rem 0.25rem;
+      margin-top: 0.5rem;
+    }
 
     .sidebar a {
       display: block;
