@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, expectTypeOf } from 'vitest'
 import { FieldType } from '../schema/field-types.js'
 import type { BlocksFieldConfig, BlockDefinition, FieldConfig } from '../schema/field-types.js'
+import type { InferFieldType } from '../schema/infer.js'
 import { field } from '../schema/fields.js'
 import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
 import { getColumnType } from '../db/column-map.js'
@@ -178,5 +179,35 @@ describe('Column map for blocks field', () => {
       blocks: [{ slug: 'hero', fields: [{ type: 'text', name: 'heading' } as FieldConfig] }]
     }
     expect(getColumnType(blocksField)).toBe('JSONB')
+  })
+})
+
+describe('Type inference for blocks field', () => {
+  it('infers discriminated union array type from blocks config', () => {
+    const blocksConfig = {
+      type: 'blocks',
+      name: 'content',
+      blocks: [
+        {
+          slug: 'hero',
+          fields: [{ type: 'text', name: 'heading' }]
+        },
+        {
+          slug: 'cta',
+          fields: [
+            { type: 'text', name: 'label' },
+            { type: 'url', name: 'href' }
+          ]
+        }
+      ]
+    } as const
+
+    expect(blocksConfig.type).toBe('blocks')
+
+    type Result = InferFieldType<typeof blocksConfig>
+    expectTypeOf<Result>().toEqualTypeOf<Array<
+      | { readonly blockType: 'hero' } & { heading: string }
+      | { readonly blockType: 'cta' } & { label: string; href: string }
+    >>()
   })
 })
