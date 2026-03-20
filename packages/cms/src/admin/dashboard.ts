@@ -10,6 +10,7 @@ export interface CollectionStat {
   readonly label: string
   readonly count: number
   readonly recent: readonly RecentItem[]
+  readonly hidden?: boolean | undefined
 }
 
 export interface DashboardData {
@@ -17,14 +18,15 @@ export interface DashboardData {
 }
 
 export function renderDashboard (data: DashboardData): string {
-  const cards = data.stats.map(s => {
+  const visible = data.stats.filter(s => s.hidden !== true)
+  const cards = visible.map(s => {
     const label = escapeHtml(s.label)
     const slug = escapeHtml(s.slug)
     return `<div class="card"><a href="/admin/${slug}"><h3>${label}</h3><p class="stat-count">${s.count}</p></a></div>`
   }).join('\n')
 
   const allRecent: Array<{ collection: string; slug: string; label: string; created: string }> = []
-  for (const s of data.stats) {
+  for (const s of visible) {
     for (const item of s.recent) {
       const keys = Object.keys(item).filter(k => k !== 'id' && k !== 'created_at' && k !== 'updated_at' && k !== 'deleted_at')
       const label = keys.length > 0 ? String(item[keys[0]!] ?? '') : String(item.id)
