@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createAuthRoutes } from '../auth/auth-routes.js'
+import { createAuthRoutes, resolveDisplayField } from '../auth/auth-routes.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
@@ -100,5 +100,62 @@ describe('GET /api/users/me', () => {
     const res = makeMockRes()
     await handler!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object))
+  })
+})
+
+describe('resolveDisplayField()', () => {
+  it('returns the first non-email, non-password_hash text field from an auth collection', () => {
+    const registry = createCollectionRegistry()
+    registry.register(collection({
+      slug: 'users',
+      auth: true,
+      fields: [field.text({ name: 'username' })]
+    }))
+    expect(resolveDisplayField(registry)).toBe('username')
+  })
+
+  it('falls back to email when auth collection has no other text fields', () => {
+    const registry = createCollectionRegistry()
+    registry.register(collection({
+      slug: 'users',
+      auth: true,
+      fields: []
+    }))
+    expect(resolveDisplayField(registry)).toBe('email')
+  })
+
+  it('falls back to email when no auth collections are registered', () => {
+    const registry = createCollectionRegistry()
+    registry.register(collection({
+      slug: 'posts',
+      auth: false,
+      fields: [field.text({ name: 'title' })]
+    }))
+    expect(resolveDisplayField(registry)).toBe('email')
+  })
+
+  it('ignores email and password_hash fields when resolving display field', () => {
+    const registry = createCollectionRegistry()
+    registry.register(collection({
+      slug: 'users',
+      auth: true,
+      fields: [
+        field.text({ name: 'email' }),
+        field.text({ name: 'password_hash' }),
+        field.text({ name: 'display_name' })
+      ]
+    }))
+    expect(resolveDisplayField(registry)).toBe('display_name')
+  })
+
+  it('result is always a valid identifier', () => {
+    const registry = createCollectionRegistry()
+    registry.register(collection({
+      slug: 'users',
+      auth: true,
+      fields: [field.text({ name: 'username' })]
+    }))
+    const result = resolveDisplayField(registry)
+    expect(result).toMatch(/^[a-zA-Z][a-zA-Z0-9_-]*$/)
   })
 })
