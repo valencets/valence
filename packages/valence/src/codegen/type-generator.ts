@@ -19,7 +19,8 @@ const FIELD_TS_TYPE_MAP: Record<string, (field: FieldConfig) => string> = {
   password: () => 'string',
   json: () => 'string',
   color: () => 'string',
-  array: fieldToArrayType
+  array: fieldToArrayType,
+  blocks: fieldToBlocksType
 }
 
 function fieldToSelectType (field: FieldConfig): string {
@@ -54,6 +55,17 @@ function fieldToArrayType (field: FieldConfig): string {
   if ('fields' in field) {
     const props = (field.fields as readonly FieldConfig[]).map(f => fieldToProperty(f, '    ')).join('\n')
     return `Array<{\n${props}\n  }>`
+  }
+  return 'Array<{}>'
+}
+
+function fieldToBlocksType (field: FieldConfig): string {
+  if ('blocks' in field) {
+    const blockTypes = (field.blocks as readonly { readonly slug: string; readonly fields: readonly FieldConfig[] }[]).map(block => {
+      const props = block.fields.map(f => fieldToProperty(f, '      ')).join('\n')
+      return "  | { readonly blockType: '" + block.slug + "' } & {\n" + props + '\n    }'
+    }).join('\n')
+    return 'Array<\n' + blockTypes + '\n  >'
   }
   return 'Array<{}>'
 }
