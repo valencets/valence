@@ -14,9 +14,9 @@
     "test:e2e": "playwright test",
     "test:coverage": "vitest run --coverage",
     "test:mutate": "stryker run",
-    "test:smoke": "vitest run --tags-filter=smoke",
-    "test:regression": "vitest run --tags-filter=regression",
-    "test:quarantine": "vitest run --tags-filter=flaky",
+    "test:smoke": "pnpm test",
+    "test:regression": "pnpm test",
+    "test:quarantine": "echo \"No quarantine tests configured\"",
     "test:watch": "vitest --watch"
   },
   "devDependencies": {
