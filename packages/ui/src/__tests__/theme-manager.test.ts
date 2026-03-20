@@ -88,6 +88,47 @@ describe('theme-manager', () => {
     })
   })
 
+  describe('system preference auto-switch', () => {
+    let mockMql: { matches: boolean, listeners: Array<(e: MediaQueryListEvent) => void> }
+    let originalMatchMedia: typeof globalThis.matchMedia
+
+    beforeEach(() => {
+      originalMatchMedia = globalThis.matchMedia
+      mockMql = { matches: false, listeners: [] }
+      globalThis.matchMedia = (query: string) => ({
+        matches: mockMql.matches,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: (_: string, handler: EventListenerOrEventListenerObject) => {
+          mockMql.listeners.push(handler as (e: MediaQueryListEvent) => void)
+        },
+        removeEventListener: (_: string, handler: EventListenerOrEventListenerObject) => {
+          mockMql.listeners = mockMql.listeners.filter(h => h !== handler)
+        },
+        dispatchEvent: () => false,
+      }) as MediaQueryList
+      themeManager._reset()
+    })
+
+    afterEach(() => {
+      themeManager._reset()
+      globalThis.matchMedia = originalMatchMedia
+    })
+
+    it('system preference change auto-switches when mode is "system"', () => {
+      themeManager.setTheme(ThemeMode.System)
+
+      mockMql.matches = true
+      for (const listener of mockMql.listeners) {
+        listener({ matches: true } as MediaQueryListEvent)
+      }
+
+      expect(themeManager.getActiveSheet()).toBe(darkTokenSheet)
+    })
+  })
+
   describe('applyOverrides / clearOverrides', () => {
     it('applyOverrides merges override into active sheet', () => {
       const override = new CSSStyleSheet()
