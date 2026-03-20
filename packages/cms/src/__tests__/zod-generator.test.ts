@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
+import { generateZodSchema, generatePartialSchema, generateDraftSchema } from '../validation/zod-generator.js'
 import { field } from '../schema/fields.js'
 import type { FieldConfig } from '../schema/field-types.js'
 
@@ -240,5 +240,51 @@ describe('UUID field empty string handling', () => {
     const schema = generateZodSchema(fields)
     const result = schema.safeParse({ category: '550e8400-e29b-41d4-a716-446655440000' })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('generateDraftSchema()', () => {
+  it('makes all required fields optional', () => {
+    const fields: FieldConfig[] = [
+      { type: 'text', name: 'title', required: true },
+      { type: 'text', name: 'body', required: true },
+      { type: 'boolean', name: 'published' }
+    ]
+    const schema = generateDraftSchema(fields)
+    // Should accept empty object (all fields optional)
+    const result = schema.safeParse({})
+    expect(result.success).toBe(true)
+  })
+
+  it('still validates field types when values are provided', () => {
+    const fields: FieldConfig[] = [
+      { type: 'number', name: 'count', required: true },
+      { type: 'text', name: 'title', required: true }
+    ]
+    const schema = generateDraftSchema(fields)
+    // Valid partial data
+    const validResult = schema.safeParse({ title: 'Draft title' })
+    expect(validResult.success).toBe(true)
+  })
+
+  it('accepts completely empty object for draft save', () => {
+    const fields: FieldConfig[] = [
+      { type: 'text', name: 'title', required: true },
+      { type: 'text', name: 'slug', required: true, unique: true },
+      { type: 'richtext', name: 'body', required: true }
+    ]
+    const schema = generateDraftSchema(fields)
+    const result = schema.safeParse({})
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid field types even in draft mode', () => {
+    const fields: FieldConfig[] = [
+      { type: 'email', name: 'contactEmail', required: true }
+    ]
+    const schema = generateDraftSchema(fields)
+    // Providing an invalid email should still fail
+    const result = schema.safeParse({ contactEmail: 'not-an-email' })
+    expect(result.success).toBe(false)
   })
 })
