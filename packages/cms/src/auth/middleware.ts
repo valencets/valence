@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { DbPool } from '@valencets/db'
 import type { Middleware } from '@valencets/core/server'
 import { createAuthGuard } from '@valencets/core/server'
-import type { AuthResult } from '@valencets/core/server'
+import type { AuthResult, AuthGuardOptions } from '@valencets/core/server'
 import { validateSession } from './session.js'
 import { parseCookie } from './cookie.js'
 import { safeQuery } from '../db/safe-query.js'
@@ -85,9 +85,14 @@ export interface CmsAuthGuardOptions {
 }
 
 export function createCmsAuthGuard (pool: DbPool, options?: CmsAuthGuardOptions): Middleware {
-  return createAuthGuard({
-    validate: createCmsAuthValidator(pool),
-    redirectTo: options?.redirectTo,
-    role: options?.role
-  })
+  const guardOptions: AuthGuardOptions = {
+    validate: createCmsAuthValidator(pool)
+  }
+  if (options?.redirectTo !== undefined) {
+    (guardOptions as { redirectTo: string }).redirectTo = options.redirectTo
+  }
+  if (options?.role !== undefined) {
+    (guardOptions as { role: string }).role = options.role
+  }
+  return createAuthGuard(guardOptions)
 }
