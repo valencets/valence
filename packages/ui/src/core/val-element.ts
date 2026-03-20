@@ -5,6 +5,7 @@
 // hydrate:media, hydrate:load).
 
 import { localeObserver } from './locale-observer.js'
+import { themeManager } from '../tokens/theme-manager.js'
 import type { LocaleSubscriber } from './locale-observer.js'
 import { emitInteraction } from './interaction-emitter.js'
 
@@ -129,12 +130,18 @@ export abstract class ValElement extends HTMLElement implements LocaleSubscriber
       this._templateCloned = true
     }
     localeObserver.subscribe(this)
+    if (this.shadowRoot !== null) {
+      themeManager.subscribe(this.shadowRoot)
+    }
   }
 
   disconnectedCallback (): void {
     if (this._hydrationCleanup !== null) {
       this._hydrationCleanup()
       this._hydrationCleanup = null
+    }
+    if (this.shadowRoot !== null) {
+      themeManager.unsubscribe(this.shadowRoot)
     }
     localeObserver.unsubscribe(this)
   }
