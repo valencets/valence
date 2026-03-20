@@ -12,7 +12,7 @@ import { renderLayout } from './layout.js'
 import { renderDashboard } from './dashboard.js'
 import { renderListView } from './list-view.js'
 import type { ListViewPagination } from './list-view.js'
-import { renderEditView } from './edit-view.js'
+import { renderEditView, renderFormFieldsFragment } from './edit-view.js'
 import type { RelationContext } from './field-renderers.js'
 import { createLocalApi } from '../api/local-api.js'
 import { createGlobalRegistry } from '../schema/registry.js'
@@ -491,6 +491,35 @@ export function createAdminRoutes (
         )
       })
     })
+
+    const hasConditionalFields = col.fields.some(f => f.condition !== undefined)
+    if (hasConditionalFields) {
+      routes.set(`/admin/${col.slug}/new/form-fields`, {
+        POST: wrap(async (req, res) => {
+          const bodyResult = await safeReadFormBody(req)
+          const formData: Record<string, string> = bodyResult.isOk() ? bodyResult.value as Record<string, string> : {}
+          const relationContext = await buildRelationContext(col)
+          const fragment = renderFormFieldsFragment(col, formData, relationContext)
+          res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          res.setHeader('Content-Length', Buffer.byteLength(fragment))
+          res.writeHead(200)
+          res.end(fragment)
+        })
+      })
+
+      routes.set(`/admin/${col.slug}/:id/form-fields`, {
+        POST: wrap(async (req, res) => {
+          const bodyResult = await safeReadFormBody(req)
+          const formData: Record<string, string> = bodyResult.isOk() ? bodyResult.value as Record<string, string> : {}
+          const relationContext = await buildRelationContext(col)
+          const fragment = renderFormFieldsFragment(col, formData, relationContext)
+          res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          res.setHeader('Content-Length', Buffer.byteLength(fragment))
+          res.writeHead(200)
+          res.end(fragment)
+        })
+      })
+    }
 
     routes.set(`/admin/${col.slug}/:id/delete`, {
       POST: wrap(async (req, res, ctx) => {
