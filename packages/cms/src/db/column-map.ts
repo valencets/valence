@@ -19,7 +19,8 @@ const TYPE_MAP: Record<string, string> = {
   json: 'JSONB',
   color: 'TEXT',
   multiselect: 'JSONB',
-  array: 'JSONB'
+  array: 'JSONB',
+  blocks: 'JSONB'
 }
 
 export function getColumnType (field: FieldConfig): string {
