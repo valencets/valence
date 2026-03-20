@@ -86,3 +86,6 @@ export type { IngestionHandlerConfig } from './handler.js'
 // Analytics queries
 export { getEventCategorySummaries, getEventCountsByCategory, getPageviewsByPath, getDailyEventCounts } from './analytics-queries.js'
 export type { CategoryCount, PageviewCount, EventCategorySummary, DailyEventCount } from './analytics-queries.js'
+// Server-side event logger
+export { createServerEventLogger } from './server-events.js'
+export type { ServerEventLogger } from './server-events.js'
