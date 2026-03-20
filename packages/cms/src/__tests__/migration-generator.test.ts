@@ -138,6 +138,82 @@ describe('generateCreateTableSql()', () => {
   })
 })
 
+describe('generateCreateTableSql() with upload config', () => {
+  it('injects focalX and focalY columns when focalPoint is true', () => {
+    const media = collection({
+      slug: 'media',
+      upload: { focalPoint: true },
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    expect(sql).toContain('"focalX" NUMERIC DEFAULT 0.5')
+    expect(sql).toContain('"focalY" NUMERIC DEFAULT 0.5')
+  })
+
+  it('injects sizes JSONB column when imageSizes is configured', () => {
+    const media = collection({
+      slug: 'media',
+      upload: {
+        imageSizes: [
+          { name: 'thumbnail', width: 150, height: 150 }
+        ]
+      },
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    expect(sql).toContain('"sizes" JSONB')
+  })
+
+  it('injects both focal and sizes columns when both configured', () => {
+    const media = collection({
+      slug: 'media',
+      upload: {
+        focalPoint: true,
+        imageSizes: [{ name: 'thumb', width: 100, height: 100 }]
+      },
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    expect(sql).toContain('"focalX" NUMERIC DEFAULT 0.5')
+    expect(sql).toContain('"focalY" NUMERIC DEFAULT 0.5')
+    expect(sql).toContain('"sizes" JSONB')
+  })
+
+  it('does NOT inject image columns for upload: true (boolean)', () => {
+    const media = collection({
+      slug: 'media',
+      upload: true,
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    expect(sql).not.toContain('focalX')
+    expect(sql).not.toContain('focalY')
+    expect(sql).not.toContain('"sizes"')
+  })
+
+  it('does NOT inject image columns for non-upload collections', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })]
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).not.toContain('focalX')
+    expect(sql).not.toContain('sizes')
+  })
+
+  it('places image columns before timestamps', () => {
+    const media = collection({
+      slug: 'media',
+      upload: { focalPoint: true },
+      fields: [field.text({ name: 'alt' })]
+    })
+    const sql = generateCreateTableSql(media)
+    const focalIdx = sql.indexOf('focalX')
+    const createdIdx = sql.indexOf('created_at')
+    expect(focalIdx).toBeLessThan(createdIdx)
+  })
+})
+
 describe('generateCreateTable()', () => {
   it('returns up and down SQL strings', () => {
     const posts = collection({
