@@ -122,3 +122,53 @@ describe('createAuthGuard — API routes', () => {
     expect(next).toHaveBeenCalled()
   })
 })
+
+describe('createAuthGuard — HTML redirect flow', () => {
+  it('redirects unauthenticated HTML request to login with returnTo', async () => {
+    const validate = vi.fn<() => Promise<AuthResult>>().mockResolvedValue({ authenticated: false })
+    const guard = createAuthGuard({ validate, redirectTo: '/login' })
+    const req = makeMockReq({ accept: 'text/html' })
+    const res = makeMockRes()
+    const ctx = makeMockCtx('/admin/posts')
+    const next = vi.fn()
+
+    await guard(req, res, ctx, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({
+      Location: '/login?returnTo=/admin/posts'
+    }))
+  })
+
+  it('validates returnTo via safeRedirect', async () => {
+    const validate = vi.fn<() => Promise<AuthResult>>().mockResolvedValue({ authenticated: false })
+    const guard = createAuthGuard({ validate, redirectTo: '/login' })
+    const req = makeMockReq({ accept: 'text/html' })
+    const res = makeMockRes()
+    // Use a dangerous path that safeRedirect would reject
+    const ctx = makeMockCtx('//evil.com')
+    const next = vi.fn()
+
+    await guard(req, res, ctx, next)
+
+    expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({
+      Location: '/login?returnTo=/'
+    }))
+  })
+
+  it('sends 401 with X-Valence-Redirect for fragment requests', async () => {
+    const validate = vi.fn<() => Promise<AuthResult>>().mockResolvedValue({ authenticated: false })
+    const guard = createAuthGuard({ validate, redirectTo: '/login' })
+    const req = makeMockReq({ 'x-valence-fragment': '1' })
+    const res = makeMockRes()
+    const ctx = makeMockCtx('/admin/posts')
+    const next = vi.fn()
+
+    await guard(req, res, ctx, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.writeHead).toHaveBeenCalledWith(401, expect.objectContaining({
+      'X-Valence-Redirect': '/login?returnTo=/admin/posts'
+    }))
+  })
+})
