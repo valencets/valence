@@ -8,6 +8,14 @@ import { validateCollections } from './validate-collections.js'
 
 export type RouteHandler = (req: IncomingMessage, res: ServerResponse, params: Record<string, string>) => void | Promise<void>
 
+export interface RouteConfig {
+  readonly path: string
+  readonly method?: string | undefined
+  readonly handler?: RouteHandler | undefined
+  readonly collection?: string | undefined
+  readonly type?: 'list' | 'detail' | undefined
+}
+
 // Passed to onServer so consumers can attach WebSocket upgrade handlers,
 // register custom routes, etc., without abandoning `valence dev`.
 export interface OnServerContext {
@@ -52,6 +60,9 @@ export interface ValenceConfig {
   // Called after CMS is built and before the HTTP server starts listening.
   // Lets consuming apps attach WebSocket upgrade handlers or custom routes.
   readonly onServer?: ((ctx: OnServerContext) => void | Promise<void>) | undefined
+  // Schema-driven public routes. Handlers are not Zod-serializable, so
+  // routes are extracted before validation and re-attached after resolution.
+  readonly routes?: readonly RouteConfig[] | undefined
 }
 
 export interface ResolvedValenceConfig {
@@ -88,6 +99,8 @@ export interface ResolvedValenceConfig {
   } | undefined
   // Preserved from ValenceConfig — not validated by Zod since it is a function.
   readonly onServer?: ((ctx: OnServerContext) => void | Promise<void>) | undefined
+  // Preserved from ValenceConfig — handlers are functions and not Zod-serializable.
+  readonly routes?: readonly RouteConfig[] | undefined
 }
 
 export interface ConfigError {
@@ -136,10 +149,10 @@ const configSchema = z.object({
 })
 
 export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConfig, ConfigError> {
-  // Strip onServer before Zod validation — Zod cannot validate function types,
-  // so we preserve it separately and re-attach after resolution.
-  const { onServer, ...configWithoutCallback } = config
-  const parsed = configSchema.safeParse(configWithoutCallback)
+  // Strip onServer and routes before Zod validation — both may contain function
+  // values that Zod cannot validate. Preserve them and re-attach after resolution.
+  const { onServer, routes, ...configWithoutCallbacks } = config
+  const parsed = configSchema.safeParse(configWithoutCallbacks)
 
   if (!parsed.success) {
     const issues = parsed.error.issues.map((issue) =>
@@ -206,7 +219,8 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
           maxUploadBytes: data.media.maxUploadBytes ?? 10_000_000
         }
       : undefined,
-    onServer
+    onServer,
+    routes
   }
 
   return ok(resolved)

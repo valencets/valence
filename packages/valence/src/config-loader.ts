@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import type { DbConfig } from '@valencets/db'
 import type { CollectionConfig } from '@valencets/cms'
-import type { OnServerContext } from './define-config.js'
+import type { OnServerContext, RouteConfig } from './define-config.js'
 import { log } from './cli-utils.js'
 
 let tsxRegistered = false
@@ -32,6 +32,9 @@ export interface UserConfig {
   } | undefined
   // Preserved from ResolvedValenceConfig so runDev can invoke it.
   readonly onServer?: ((ctx: OnServerContext) => void | Promise<void>) | undefined
+  // Preserved from ResolvedValenceConfig — handlers are functions and cannot be
+  // serialised through the tsx subprocess, so only populated via direct import.
+  readonly routes?: readonly RouteConfig[] | undefined
 }
 
 export function loadEnvConfig (): DbConfig | null {
@@ -88,9 +91,10 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
       return {
         collections: result.value.collections ?? [],
         telemetry: result.value.telemetry,
-        // onServer is a function and can only be preserved via direct import —
-        // serialisation through the tsx subprocess would lose it.
-        onServer: result.value.onServer
+        // onServer and routes are functions/contain functions and can only be
+        // preserved via direct import — serialisation through the tsx subprocess would lose them.
+        onServer: result.value.onServer,
+        routes: result.value.routes
       }
     }
     return null
@@ -121,7 +125,7 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
       if (output) {
         const parsed = JSON.parse(output)
         // Re-hydrate through collection() to get proper CollectionConfig objects.
-        // onServer cannot be recovered from the subprocess — functions are not serialisable.
+        // onServer and routes cannot be recovered from the subprocess — functions are not serialisable.
         const { collection: col } = await import('@valencets/cms')
         const collections = parsed.collections.map((c: Parameters<typeof col>[0]) => col(c))
         return { collections, telemetry: parsed.telemetry }
