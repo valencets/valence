@@ -1,6 +1,6 @@
 import type { CollectionConfig } from '../schema/collection.js'
 
-const IDENTIFIER_RE = /^[a-zA-Z][a-zA-Z0-9_-]*$/
+const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_-]*$/
 
 const SYSTEM_COLUMNS = new Set([
   'id', 'created_at', 'updated_at', 'deleted_at'
@@ -21,6 +21,10 @@ export function getValidFieldNames (collection: CollectionConfig): Set<string> {
   const names = new Set<string>(SYSTEM_COLUMNS)
   for (const f of collection.fields) {
     names.add(f.name)
+  }
+  if (collection.versions?.drafts) {
+    names.add('_status')
+    names.add('publish_at')
   }
   return names
 }

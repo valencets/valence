@@ -19,6 +19,7 @@ export interface FindArgs {
   readonly search?: string | undefined
   readonly limit?: number | undefined
   readonly filters?: Record<string, string> | undefined
+  readonly includeDrafts?: boolean | undefined
 }
 
 interface FindByIDArgs {
@@ -29,12 +30,15 @@ interface FindByIDArgs {
 interface CreateArgs {
   readonly collection: string
   readonly data: DocumentData
+  readonly draft?: boolean | undefined
 }
 
 interface UpdateArgs {
   readonly collection: string
   readonly id: string
   readonly data: DocumentData
+  readonly publish?: boolean | undefined
+  readonly draft?: boolean | undefined
 }
 
 interface DeleteArgs {
@@ -56,6 +60,11 @@ interface UpdateGlobalArgs {
   readonly data: DocumentData
 }
 
+interface UnpublishArgs {
+  readonly collection: string
+  readonly id: string
+}
+
 export interface LocalApi {
   find (args: FindArgs): ResultAsync<DocumentRow[] | PaginatedResult<DocumentRow>, CmsError>
   findByID (args: FindByIDArgs): ResultAsync<DocumentRow | null, CmsError>
@@ -65,6 +74,7 @@ export interface LocalApi {
   count (args: CountArgs): ResultAsync<number, CmsError>
   findGlobal (args: FindGlobalArgs): ResultAsync<DocumentRow | null, CmsError>
   updateGlobal (args: UpdateGlobalArgs): ResultAsync<DocumentRow, CmsError>
+  unpublish (args: UnpublishArgs): ResultAsync<DocumentRow, CmsError>
 }
 
 export function createLocalApi (
@@ -77,6 +87,7 @@ export function createLocalApi (
   return {
     find (args) {
       let builder = qb.query(args.collection)
+      if (args.includeDrafts) builder = builder.includeDrafts()
       if (args.where) {
         for (const [k, v] of Object.entries(args.where)) {
           builder = builder.where(k, v)
@@ -105,14 +116,34 @@ export function createLocalApi (
     },
 
     create (args) {
-      return qb.query(args.collection)
-        .insert(args.data)
+      const col = collections.get(args.collection)
+      if (col.isErr()) return errAsync(col.error)
+      const isVersioned = col.value.versions?.drafts === true
+
+      const data = isVersioned && args.draft
+        ? { ...args.data, _status: 'draft' as const }
+        : isVersioned
+          ? { ...args.data, _status: 'published' as const }
+          : args.data
+
+      return qb.query(args.collection).insert(data)
     },
 
     update (args) {
+      const col = collections.get(args.collection)
+      if (col.isErr()) return errAsync(col.error)
+      const isVersioned = col.value.versions?.drafts === true
+
+      let data = args.data
+      if (isVersioned && args.publish) {
+        data = { ...data, _status: 'published' as const }
+      } else if (isVersioned && args.draft) {
+        data = { ...data, _status: 'draft' as const }
+      }
+
       return qb.query(args.collection)
         .where('id', args.id)
-        .update(args.data)
+        .update(data)
     },
 
     delete (args) {
@@ -161,6 +192,13 @@ export function createLocalApi (
       const table = `"global_${args.slug}"`
       return safeQuery<DocumentRow[]>(pool, `UPDATE ${table} SET ${setClauses} WHERE "deleted_at" IS NULL RETURNING *`, params)
         .map(rows => rows[0] as DocumentRow)
+    },
+
+    unpublish (args) {
+      return qb.query(args.collection)
+        .where('id', args.id)
+        .includeDrafts()
+        .update({ _status: 'draft' as const })
     }
   }
 }
