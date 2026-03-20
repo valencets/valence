@@ -1,9 +1,14 @@
 import { graphql } from 'graphql'
-import type { GraphQLSchema } from 'graphql'
+import type { GraphQLSchema, ExecutionResult } from 'graphql'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { RestRouteEntry } from '@valencets/cms'
-import type { CmsInstance } from '@valencets/cms'
+import type { RestRouteEntry, CmsInstance } from '@valencets/cms'
 import { generateGraphQLSchema } from './schema-generator.js'
+
+interface JsonErrorResponse {
+  readonly errors: ReadonlyArray<{ readonly message: string }>
+}
+
+type JsonResponse = ExecutionResult | JsonErrorResponse
 
 function readBody (req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -20,13 +25,12 @@ interface GraphQLRequestBody {
   readonly operationName?: string | undefined
 }
 
-function isGraphQLRequestBody (value: unknown): value is GraphQLRequestBody {
-  if (typeof value !== 'object' || value === null) return false
+function isGraphQLRequestBody (value: object): value is GraphQLRequestBody {
   const obj = value as { query?: unknown }
   return typeof obj.query === 'string'
 }
 
-function sendJson (res: ServerResponse, status: number, data: unknown): void {
+function sendJson (res: ServerResponse, status: number, data: JsonResponse): void {
   const body = JSON.stringify(data)
   res.writeHead(status, { 'Content-Type': 'application/json' })
   res.end(body)
@@ -46,9 +50,14 @@ export function createGraphQLHandler (schema: GraphQLSchema): (req: IncomingMess
       return
     }
 
-    let parsed: unknown
+    let parsed: object
     try {
-      parsed = JSON.parse(rawBody)
+      const value: unknown = JSON.parse(rawBody)
+      if (typeof value !== 'object' || value === null) {
+        sendJson(res, 400, { errors: [{ message: 'Request body must be a JSON object.' }] })
+        return
+      }
+      parsed = value
     } catch {
       sendJson(res, 400, { errors: [{ message: 'Invalid JSON body.' }] })
       return
