@@ -23,6 +23,15 @@ importers:
       '@types/supertest':
         specifier: ^7.2.0
         version: 7.2.0
+      '@valencets/cms':
+        specifier: ^0.2.2
+        version: 0.2.2(tailwindcss@4.2.2)
+      '@valencets/core':
+        specifier: ^0.1.1
+        version: 0.1.1
+      '@valencets/db':
+        specifier: ^0.1.2
+        version: 0.1.2
       '@vitest/coverage-v8':
         specifier: ^4.1.0
         version: 4.1.0(vitest@4.0.18(@types/node@25.4.0)(happy-dom@20.8.3)(lightningcss@1.32.0)(msw@2.12.13(@types/node@25.4.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
@@ -41,6 +50,9 @@ importers:
       neostandard:
         specifier: ^0.13.0
         version: 0.13.0(eslint@9.39.4)(typescript@5.9.3)
+      postgres:
+        specifier: ^3.4.8
+        version: 3.4.8
       supertest:
         specifier: ^7.2.2
         version: 7.2.2
@@ -1473,6 +1485,29 @@ packages:
   '@typescript-eslint/visitor-keys@8.57.0':
     resolution: {integrity: sha512-zm6xx8UT/Xy2oSr2ZXD0pZo7Jx2XsCoID2IUh9YSTFRu7z+WdwYTRk6LhUftm1crwqbuoF6I8zAFeCMw0YjwDg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@valencets/cms@0.2.2':
+    resolution: {integrity: sha512-/rUkDKt3xK2cSMRNq5CK2TT+4FR5iWhiWjEj7hEGqqRGSYqgk/pwvTLRHcgUikbMXWsN1c+yGaGs2BbJz24esA==}
+    engines: {node: '>=22'}
+
+  '@valencets/core@0.1.1':
+    resolution: {integrity: sha512-veizAQSxJIkNioCMUgs9nPo0Fe++2EwMdj6RB7lVnUXS83EYQze4SHdEXt+1p+6v9XX3lQqMFwPM+d7Zw8rpxA==}
+    engines: {node: '>=22'}
+
+  '@valencets/db@0.1.2':
+    resolution: {integrity: sha512-bFFHRJdDYdbrU7Yp1MzNYrZtJI3ecmhMQXv8EELEncgOiKdn4MVQcAMnVnV6sdqdlX3OjDfmRtOBvj02jJXExA==}
+
+  '@valencets/telemetry@0.1.3':
+    resolution: {integrity: sha512-muRY0bMo8yQL/WUlDdAiMk5VLnIQEA8LPmOy78ykT6p0RV4FBeSyN1kdaBQwAvYvrZoIVgQqrAppjszNMzkFvQ==}
+    engines: {node: '>=22'}
+
+  '@valencets/ui@0.1.1':
+    resolution: {integrity: sha512-ZA7Kqiyo6/yGKtoXV9FGdINEyD1Tofzee7qOW26dxcCVYHOPjgjrVUqxMh0LoZeh1krrsgnk/Oab76wvteKFiQ==}
+    peerDependencies:
+      tailwindcss: '>=3.4.0'
+    peerDependenciesMeta:
+      tailwindcss:
+        optional: true
 
   '@vitest/coverage-v8@4.1.0':
     resolution: {integrity: sha512-nDWulKeik2bL2Va/Wl4x7DLuTKAXa906iRFooIRPR+huHkcvp9QDkPQ2RJdmjOFrqOqvNfoSQLF68deE3xC3CQ==}
@@ -4772,6 +4807,47 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.57.0
       eslint-visitor-keys: 5.0.1
+
+  '@valencets/cms@0.2.2(tailwindcss@4.2.2)':
+    dependencies:
+      '@lexical/history': 0.41.0
+      '@lexical/html': 0.41.0
+      '@lexical/link': 0.41.0
+      '@lexical/list': 0.41.0
+      '@lexical/rich-text': 0.41.0
+      '@lexical/selection': 0.41.0
+      '@lexical/utils': 0.41.0
+      '@valencets/core': 0.1.1
+      '@valencets/db': 0.1.2
+      '@valencets/telemetry': 0.1.3
+      '@valencets/ui': 0.1.1(tailwindcss@4.2.2)
+      argon2: 0.44.0
+      lexical: 0.41.0
+      neverthrow: 8.2.0
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - tailwindcss
+
+  '@valencets/core@0.1.1':
+    dependencies:
+      neverthrow: 8.2.0
+
+  '@valencets/db@0.1.2':
+    dependencies:
+      neverthrow: 8.2.0
+      postgres: 3.4.8
+      zod: 4.3.6
+
+  '@valencets/telemetry@0.1.3':
+    dependencies:
+      '@valencets/core': 0.1.1
+      '@valencets/db': 0.1.2
+      neverthrow: 8.2.0
+      postgres: 3.4.8
+
+  '@valencets/ui@0.1.1(tailwindcss@4.2.2)':
+    optionalDependencies:
+      tailwindcss: 4.2.2
 
   '@vitest/coverage-v8@4.1.0(vitest@4.0.18(@types/node@25.4.0)(happy-dom@20.8.3)(lightningcss@1.32.0)(msw@2.12.13(@types/node@25.4.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
