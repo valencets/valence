@@ -22,6 +22,7 @@ import { regenerateFromConfig } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { scaffoldFsd } from './scaffold/fsd-scaffold.js'
+import { toDevDbConfig, ensureDevDatabase } from './dev-database.js'
 
 const COMMANDS = {
   init: 'Create a new Valence project',
@@ -473,11 +474,15 @@ async function runDev (): Promise<void> {
     process.exit(1)
   }
 
+  const devConfig = toDevDbConfig(config)
+
   const port = Number(process.env.PORT ?? 3000)
   const projectDir = process.cwd()
 
+  await ensureDevDatabase(devConfig, { createPool, closePool })
+
   log('Running migrations...')
-  await runMigrationsForProject(projectDir, config)
+  await runMigrationsForProject(projectDir, devConfig)
 
   log('Loading config...')
   const loadedConfig = await loadUserConfig()
@@ -490,7 +495,7 @@ async function runDev (): Promise<void> {
   const telemetryEnabled = loadedConfig.telemetry?.enabled ?? false
 
   log('Building CMS...')
-  const pool = createPool(config)
+  const pool = createPool(devConfig)
 
   const cmsResult = buildCms({
     db: pool,
