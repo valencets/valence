@@ -131,55 +131,77 @@ function buildHtmxFormAttrs (hasConditionalFields: boolean, slug: string, id: st
   return ` hx-post="${partialPath}" hx-trigger="change from:.condition-trigger" hx-target=".form-fields" hx-swap="innerHTML" hx-include="[name]"`
 }
 
-export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = '', relationContext?: RelationContext, nonce?: string, localeConfig?: EditViewLocaleConfig): string {
+function resolvePreviewUrl (preview: ((doc: Record<string, string>) => string) | string, formData: Record<string, string> | null): string {
+  if (formData === null) return ''
+  if (typeof preview === 'function') return preview(formData)
+  return preview.replace(/\[(\w+)\]/g, (_, key: string) => escapeHtml(formData[key] ?? ''))
+}
+
+function renderPreviewPane (previewUrl: string): string {
+  return `<div class="preview-right">
+    <div class="preview-toolbar">
+      <button type="button" class="preview-refresh btn btn-sm">Refresh</button>
+      <div class="preview-viewport-switcher">
+        <button type="button" class="btn btn-sm" data-viewport="desktop">Desktop</button>
+        <button type="button" class="btn btn-sm" data-viewport="tablet">Tablet</button>
+        <button type="button" class="btn btn-sm" data-viewport="mobile">Mobile</button>
+      </div>
+    </div>
+    <iframe class="preview-iframe" src="${escapeHtml(previewUrl)}" title="Live preview"></iframe>
+  </div>`
+}
+
+interface EditViewParts {
+  readonly formSection: string
+  readonly formData: Record<string, string> | null
+}
+
+function buildEditViewParts (col: CollectionConfig, doc: DocRow | null, csrfToken: string, relationContext: RelationContext | undefined, nonce: string | undefined, localeConfig: EditViewLocaleConfig | undefined): EditViewParts {
   const isNew = doc === null
   const slug = escapeHtml(col.slug)
   const id = !isNew ? escapeHtml(String(doc.id ?? '')) : ''
   const action = isNew ? `/admin/${slug}/new` : `/admin/${slug}/${id}/edit`
-
   const hasConditionalFields = col.fields.some(f => f.condition !== undefined)
-
   const hasLocalizedFields = col.fields.some(f => f.localized)
-  const localeTabs = localeConfig && hasLocalizedFields
-    ? renderLocaleTabs(col, doc, localeConfig)
-    : ''
-
+  const localeTabs = localeConfig && hasLocalizedFields ? renderLocaleTabs(col, doc, localeConfig) : ''
   const formData: Record<string, string> | null = doc
-    ? Object.fromEntries(
-      col.fields.map(f => [f.name, String(doc[f.name] ?? '')])
-    )
+    ? Object.fromEntries(col.fields.map(f => [f.name, String(doc[f.name] ?? '')]))
     : null
-
   const fieldInputs = renderFormFieldsFragment(col, formData, relationContext, localeConfig)
-
   const csrfField = csrfToken ? `<input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">` : ''
-
   const isVersioned = col.versions?.drafts === true
   const status = isVersioned && doc ? (doc._status as string ?? 'draft') : null
-
+  const historyLink = !isNew && doc ? `<a href="/admin/${slug}/${id}/history" class="action-link">View history</a>` : ''
+  const deleteSection = !isNew && doc ? renderDangerZone(col, doc, csrfField, nonce, isVersioned, status) : ''
+  const htmxAttrs = buildHtmxFormAttrs(hasConditionalFields, slug, id, isNew)
+  const fieldContainer = hasConditionalFields ? `<div class="form-fields">\n    ${fieldInputs}\n    </div>` : fieldInputs
   const statusBadge = renderStatusBadge(status)
   const actionButtons = renderActionButtons(isVersioned, isNew)
+  const historySection = historyLink ? `<div class="edit-meta">${historyLink}</div>` : ''
+  const formSection = `${statusBadge}
+    ${localeTabs}<form action="${action}" method="POST" class="admin-form"${htmxAttrs}>
+      ${csrfField}
+      ${fieldContainer}
+      ${actionButtons}
+    </form>${historySection}${deleteSection}`
+  return { formSection, formData }
+}
 
-  const historyLink = !isNew && doc
-    ? `<a href="/admin/${slug}/${id}/history" class="action-link">View history</a>`
-    : ''
-
-  const deleteSection = !isNew && doc
-    ? renderDangerZone(col, doc, csrfField, nonce, isVersioned, status)
-    : ''
-
-  const htmxAttrs = buildHtmxFormAttrs(hasConditionalFields, slug, id, isNew)
-  const fieldContainer = hasConditionalFields
-    ? `<div class="form-fields">\n    ${fieldInputs}\n    </div>`
-    : fieldInputs
-
+export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = '', relationContext?: RelationContext, nonce?: string, localeConfig?: EditViewLocaleConfig): string {
+  const { formSection, formData } = buildEditViewParts(col, doc, csrfToken, relationContext, nonce, localeConfig)
+  const preview = col.admin?.preview
+  if (preview !== undefined) {
+    const previewUrl = resolvePreviewUrl(preview, formData)
+    return `
+<div class="edit-container edit-split-pane">
+  <div class="preview-left">
+    ${formSection}
+  </div>
+  ${renderPreviewPane(previewUrl)}
+</div>`
+  }
   return `
 <div class="edit-container">
-  ${statusBadge}
-  ${localeTabs}<form action="${action}" method="POST" class="admin-form"${htmxAttrs}>
-    ${csrfField}
-    ${fieldContainer}
-    ${actionButtons}
-  </form>${historyLink ? `<div class="edit-meta">${historyLink}</div>` : ''}${deleteSection}
+  ${formSection}
 </div>`
 }

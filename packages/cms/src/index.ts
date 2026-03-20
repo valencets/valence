@@ -158,3 +158,5 @@ export type { TokenError } from './auth/index.js'
 
 export { createCustomSession, validateCustomSession, destroyCustomSession, SessionErrorCode } from './auth/index.js'
 export type { SessionError } from './auth/index.js'
+
+export { PREVIEW_MESSAGE_TYPE, isPreviewMessage, parsePreviewData } from './admin/preview-protocol.js'

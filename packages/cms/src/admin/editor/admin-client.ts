@@ -1,11 +1,13 @@
 import { initBlocksFields } from './blocks-client.js'
 import { initAllEditors } from './lexical-entry.js'
 import { initBulkActions } from './bulk-client.js'
+import { initLivePreview } from './preview-client.js'
 
 // Script is defer'd so DOM is ready — no need for DOMContentLoaded
 initAllEditors()
 initBlocksFields()
 initBulkActions()
+initLivePreview()
 
 // Wire up delete dialog triggers
 const trigger = document.querySelector<HTMLElement>('.delete-trigger')

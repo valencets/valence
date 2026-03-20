@@ -19,6 +19,7 @@ export interface AdminConfig {
   readonly position?: number | undefined
   readonly displayField?: string | undefined
   readonly listFields?: readonly string[] | undefined
+  readonly preview?: ((doc: Record<string, string>) => string) | string | undefined
 }
 
 export interface CollectionConfig {
