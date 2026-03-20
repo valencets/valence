@@ -189,7 +189,7 @@ function createBuilder (
   registry: CollectionRegistry,
   state: QueryState
 ): CollectionQueryBuilder {
-  function guard (): { error: CmsError } | { allowedFields: Set<string>, isVersioned: boolean } {
+  function guard (): { error: CmsError } | { allowedFields: Set<string>, resolved: QueryState } {
     if (!isValidIdentifier(state.slug)) {
       return { error: { code: CmsErrorCode.INVALID_INPUT, message: `Invalid collection slug: ${state.slug}` } }
     }
@@ -199,7 +199,7 @@ function createBuilder (
     const fieldErr = validateFields(state, allowedFields)
     if (fieldErr) return { error: fieldErr }
     const isVersioned = result.value.versions?.drafts === true
-    return { allowedFields, isVersioned }
+    return { allowedFields, resolved: { ...state, isVersioned } }
   }
 
   function whereImpl (fieldOrName: string, operatorOrValue: SqlValue | WhereOperator, maybeValue?: SqlValue): CollectionQueryBuilder {
@@ -249,26 +249,23 @@ function createBuilder (
     all<T> () {
       const g = guard()
       if ('error' in g) return errAsync(g.error)
-      const resolved = { ...state, isVersioned: g.isVersioned }
       const table = `"${state.slug}"`
-      return executeQuery<T[]>(pool, `${buildSelectSql(resolved, table)}${buildWhereSql(resolved)}${buildOrderSql(resolved)}${buildLimitOffsetSql(resolved)}`, getWhereValues(resolved))
+      return executeQuery<T[]>(pool, `${buildSelectSql(g.resolved, table)}${buildWhereSql(g.resolved)}${buildOrderSql(g.resolved)}${buildLimitOffsetSql(g.resolved)}`, getWhereValues(g.resolved))
     },
 
     first<T> () {
       const g = guard()
       if ('error' in g) return errAsync(g.error)
-      const resolved = { ...state, isVersioned: g.isVersioned }
       const table = `"${state.slug}"`
-      return executeQuery<T[]>(pool, `${buildSelectSql(resolved, table)}${buildWhereSql(resolved)}${buildOrderSql(resolved)} LIMIT 1`, getWhereValues(resolved))
+      return executeQuery<T[]>(pool, `${buildSelectSql(g.resolved, table)}${buildWhereSql(g.resolved)}${buildOrderSql(g.resolved)} LIMIT 1`, getWhereValues(g.resolved))
         .map((rows: T[]) => (rows[0] as T | undefined) ?? null)
     },
 
     count () {
       const g = guard()
       if ('error' in g) return errAsync(g.error)
-      const resolved = { ...state, isVersioned: g.isVersioned }
       const table = `"${state.slug}"`
-      return executeQuery<Array<{ count: string }>>(pool, `SELECT COUNT(*) as count FROM ${table}${buildWhereSql(resolved)}`, getWhereValues(resolved))
+      return executeQuery<Array<{ count: string }>>(pool, `SELECT COUNT(*) as count FROM ${table}${buildWhereSql(g.resolved)}`, getWhereValues(g.resolved))
         .map(rows => Number(rows[0]?.count ?? 0))
     },
 
@@ -290,31 +287,28 @@ function createBuilder (
       if ('error' in g) return errAsync(g.error)
       const dataErr = validateDataKeys(data, g.allowedFields)
       if (dataErr) return errAsync(dataErr)
-      const resolved = { ...state, isVersioned: g.isVersioned }
       const keys = Object.keys(data)
-      const whereParams = getWhereValues(resolved)
+      const whereParams = getWhereValues(g.resolved)
       const setClauses = keys.map((k, i) => `"${k}" = $${whereParams.length + i + 1}`).join(', ')
       const table = `"${state.slug}"`
-      return executeQuery<T[]>(pool, `UPDATE ${table} SET ${setClauses}${buildWhereSql(resolved)} RETURNING *`, [...whereParams, ...Object.values(data)])
+      return executeQuery<T[]>(pool, `UPDATE ${table} SET ${setClauses}${buildWhereSql(g.resolved)} RETURNING *`, [...whereParams, ...Object.values(data)])
         .map(rows => rows[0] as T)
     },
 
     delete<T> () {
       const g = guard()
       if ('error' in g) return errAsync(g.error)
-      const resolved = { ...state, isVersioned: g.isVersioned }
       const table = `"${state.slug}"`
-      return executeQuery<T[]>(pool, `UPDATE ${table} SET "deleted_at" = NOW()${buildWhereSql(resolved)} RETURNING *`, getWhereValues(resolved))
+      return executeQuery<T[]>(pool, `UPDATE ${table} SET "deleted_at" = NOW()${buildWhereSql(g.resolved)} RETURNING *`, getWhereValues(g.resolved))
         .map(rows => rows[0] as T)
     },
 
     page<T> (pageNum: number, perPage: number) {
       const g = guard()
       if ('error' in g) return errAsync(g.error)
-      const resolved = { ...state, isVersioned: g.isVersioned }
       const table = `"${state.slug}"`
-      const where = buildWhereSql(resolved)
-      const whereParams = getWhereValues(resolved)
+      const where = buildWhereSql(g.resolved)
+      const whereParams = getWhereValues(g.resolved)
       const safePerPage = Number(perPage)
       const safePageNum = Number(pageNum)
 
@@ -324,7 +318,7 @@ function createBuilder (
           const totalPages = Math.ceil(totalDocs / safePerPage)
           const pageOffset = (safePageNum - 1) * safePerPage
 
-          return executeQuery<T[]>(pool, `${buildSelectSql(resolved, table)}${where}${buildOrderSql(resolved)} LIMIT ${safePerPage} OFFSET ${pageOffset}`, whereParams)
+          return executeQuery<T[]>(pool, `${buildSelectSql(g.resolved, table)}${where}${buildOrderSql(g.resolved)} LIMIT ${safePerPage} OFFSET ${pageOffset}`, whereParams)
             .map((docs): PaginatedResult<T> => ({
               docs,
               totalDocs,
