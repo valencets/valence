@@ -10,15 +10,32 @@ interface TopReferrerEntry {
   readonly count: number
 }
 
+interface EventCategoryEntry {
+  readonly event_category: string
+  readonly count: number
+}
+
+interface PageviewEntry {
+  readonly path: string
+  readonly views: number
+}
+
+interface DailyEventEntry {
+  readonly day: string
+  readonly event_category: string
+  readonly dom_target: string | null
+  readonly count: number
+}
+
 interface AnalyticsData {
   readonly sessionCount: number
   readonly pageviewCount: number
   readonly conversionCount: number
   readonly topPages: ReadonlyArray<TopPageEntry>
   readonly topReferrers: ReadonlyArray<TopReferrerEntry>
-  readonly eventCategories?: ReadonlyArray<{ event_category: string; count: number }>
-  readonly pageviewsByPath?: ReadonlyArray<{ path: string; views: number }>
-  readonly dailyEvents?: ReadonlyArray<{ day: string; event_category: string; dom_target: string; count: number }>
+  readonly eventCategories?: ReadonlyArray<EventCategoryEntry>
+  readonly pageviewsByPath?: ReadonlyArray<PageviewEntry>
+  readonly dailyEvents?: ReadonlyArray<DailyEventEntry>
 }
 
 export function renderAnalyticsView (data: AnalyticsData | null): string {
@@ -96,7 +113,7 @@ ${data.pageviewsByPath.map(p => `        <tr><td>${escapeHtml(p.path)}</td><td>$
     <table class="val-table">
       <thead><tr><th>Day</th><th>Category</th><th>Target</th><th>Count</th></tr></thead>
       <tbody>
-${data.dailyEvents.map(e => `        <tr><td>${escapeHtml(e.day)}</td><td>${escapeHtml(e.event_category)}</td><td>${escapeHtml(e.dom_target)}</td><td>${e.count.toLocaleString()}</td></tr>`).join('\n')}
+${data.dailyEvents.map(e => `        <tr><td>${escapeHtml(e.day)}</td><td>${escapeHtml(e.event_category)}</td><td>${escapeHtml(e.dom_target ?? '')}</td><td>${e.count.toLocaleString()}</td></tr>`).join('\n')}
       </tbody>
     </table>
   </div>

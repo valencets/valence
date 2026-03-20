@@ -281,6 +281,7 @@ export function createAdminRoutes (
         return
       }
       const telPool = options.telemetryPool
+      // TODO: refactor analytics route to eliminate try/catch (pre-existing violation)
       try {
         const { getDailyBreakdowns, getDailyTrend } = await import('@valencets/telemetry/daily-summary-queries')
         const { getEventCategorySummaries, getPageviewsByPath, getDailyEventCounts } = await import('@valencets/telemetry')

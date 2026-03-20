@@ -82,7 +82,3 @@ export type { TelemetryConfig, TelemetryHandle } from './init.js'
 // Server ingestion handler
 export { createIngestionHandler } from './handler.js'
 export type { IngestionHandlerConfig } from './handler.js'
-
-// Analytics queries
-export { getEventCategorySummaries, getEventCountsByCategory, getPageviewsByPath, getDailyEventCounts } from './analytics-queries.js'
-export type { CategoryCount, PageviewCount, EventCategorySummary, DailyEventCount } from './analytics-queries.js'
