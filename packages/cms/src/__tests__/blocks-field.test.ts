@@ -5,6 +5,7 @@ import type { InferFieldType } from '../schema/infer.js'
 import { field } from '../schema/fields.js'
 import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
 import { getColumnType } from '../db/column-map.js'
+import { renderFieldInput } from '../admin/field-renderers.js'
 
 describe('FieldType.BLOCKS', () => {
   it('exists and equals "blocks"', () => {
@@ -209,5 +210,66 @@ describe('Type inference for blocks field', () => {
       | { readonly blockType: 'hero' } & { heading: string }
       | { readonly blockType: 'cta' } & { label: string; href: string }
     >>()
+  })
+})
+
+describe('Admin renderer for blocks field', () => {
+  it('renders container with class blocks-field', () => {
+    const f = field.blocks({
+      name: 'content',
+      blocks: [
+        { slug: 'hero', fields: [field.text({ name: 'heading' })] },
+        { slug: 'cta', fields: [field.text({ name: 'label' })] }
+      ]
+    })
+    const html = renderFieldInput(f, '[]')
+    expect(html).toContain('blocks-field')
+  })
+
+  it('renders hidden input with name and JSON value', () => {
+    const f = field.blocks({
+      name: 'content',
+      blocks: [{ slug: 'hero', fields: [field.text({ name: 'heading' })] }]
+    })
+    const value = JSON.stringify([{ blockType: 'hero', heading: 'Hello' }])
+    const html = renderFieldInput(f, value)
+    expect(html).toContain('name="content"')
+    expect(html).toContain('type="hidden"')
+  })
+
+  it('renders per-block fieldset with nested fields when value has blocks', () => {
+    const f = field.blocks({
+      name: 'content',
+      blocks: [{ slug: 'hero', fields: [field.text({ name: 'heading' })] }]
+    })
+    const value = JSON.stringify([{ blockType: 'hero', heading: 'Hello' }])
+    const html = renderFieldInput(f, value)
+    expect(html).toContain('<fieldset')
+    expect(html).toContain('heading')
+  })
+
+  it('renders block type select dropdown and add button', () => {
+    const f = field.blocks({
+      name: 'content',
+      blocks: [
+        { slug: 'hero', fields: [field.text({ name: 'heading' })] },
+        { slug: 'cta', fields: [field.text({ name: 'label' })] }
+      ]
+    })
+    const html = renderFieldInput(f, '[]')
+    expect(html).toContain('<select')
+    expect(html).toContain('hero')
+    expect(html).toContain('cta')
+    expect(html).toContain('Add block')
+  })
+
+  it('renders per-block remove button', () => {
+    const f = field.blocks({
+      name: 'content',
+      blocks: [{ slug: 'hero', fields: [field.text({ name: 'heading' })] }]
+    })
+    const value = JSON.stringify([{ blockType: 'hero', heading: 'Hello' }])
+    const html = renderFieldInput(f, value)
+    expect(html).toContain('Remove')
   })
 })
