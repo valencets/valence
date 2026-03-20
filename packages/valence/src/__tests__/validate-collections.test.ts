@@ -217,4 +217,264 @@ describe('validateCollections', () => {
       }
     })
   })
+
+  describe('reserved field name validation', () => {
+    it('rejects a field named "id"', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [{ type: 'text', name: 'id' }]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('RESERVED_FIELD_NAME')
+        expect(result.error.message).toContain('id')
+      }
+    })
+
+    it('rejects a field named "created_at"', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [{ type: 'text', name: 'created_at' }]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('RESERVED_FIELD_NAME')
+        expect(result.error.message).toContain('created_at')
+      }
+    })
+
+    it('rejects a field named "updated_at"', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [{ type: 'text', name: 'updated_at' }]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('RESERVED_FIELD_NAME')
+      }
+    })
+
+    it('rejects a field named "deleted_at"', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [{ type: 'text', name: 'deleted_at' }]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('RESERVED_FIELD_NAME')
+      }
+    })
+
+    it('rejects a field named "_status"', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [{ type: 'text', name: '_status' }]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('RESERVED_FIELD_NAME')
+      }
+    })
+
+    it('rejects a field named "publish_at"', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [{ type: 'text', name: 'publish_at' }]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('RESERVED_FIELD_NAME')
+      }
+    })
+
+    it('accepts fields with non-reserved names', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [
+            { type: 'text', name: 'title' },
+            { type: 'text', name: 'body' }
+          ]
+        })
+      ])
+      expect(result.isOk()).toBe(true)
+    })
+
+    it('includes the collection slug in the reserved name error message', () => {
+      const result = validateCollections([
+        makeCollection({
+          slug: 'articles',
+          fields: [{ type: 'text', name: 'id' }]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.message).toContain('articles')
+        expect(result.error.message).toContain('id')
+      }
+    })
+  })
+
+  describe('duplicate field name validation', () => {
+    it('rejects duplicate field names within a single collection', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [
+            { type: 'text', name: 'title' },
+            { type: 'text', name: 'title' }
+          ]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('DUPLICATE_FIELD_NAME')
+        expect(result.error.message).toContain('title')
+      }
+    })
+
+    it('rejects duplicate field names with different types', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [
+            { type: 'text', name: 'summary' },
+            { type: 'textarea', name: 'summary' }
+          ]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('DUPLICATE_FIELD_NAME')
+        expect(result.error.message).toContain('summary')
+      }
+    })
+
+    it('accepts fields with unique names', () => {
+      const result = validateCollections([
+        makeCollection({
+          fields: [
+            { type: 'text', name: 'title' },
+            { type: 'textarea', name: 'body' },
+            { type: 'slug', name: 'slug' }
+          ]
+        })
+      ])
+      expect(result.isOk()).toBe(true)
+    })
+
+    it('allows the same field name across different collections', () => {
+      const result = validateCollections([
+        makeCollection({
+          slug: 'posts',
+          fields: [{ type: 'text', name: 'title' }]
+        }),
+        makeCollection({
+          slug: 'pages',
+          fields: [{ type: 'text', name: 'title' }]
+        })
+      ])
+      expect(result.isOk()).toBe(true)
+    })
+
+    it('includes the collection slug in the duplicate field error message', () => {
+      const result = validateCollections([
+        makeCollection({
+          slug: 'articles',
+          fields: [
+            { type: 'text', name: 'name' },
+            { type: 'text', name: 'name' }
+          ]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.message).toContain('articles')
+        expect(result.error.message).toContain('name')
+      }
+    })
+  })
+
+  describe('relation field relationTo validation', () => {
+    it('accepts a relation field pointing to a valid collection slug', () => {
+      const result = validateCollections([
+        makeCollection({ slug: 'posts' }),
+        makeCollection({
+          slug: 'comments',
+          fields: [
+            { type: 'text', name: 'body' },
+            { type: 'relation', name: 'post', relationTo: 'posts' }
+          ]
+        })
+      ])
+      expect(result.isOk()).toBe(true)
+    })
+
+    it('rejects a relation field pointing to a non-existent collection slug', () => {
+      const result = validateCollections([
+        makeCollection({
+          slug: 'comments',
+          fields: [
+            { type: 'text', name: 'body' },
+            { type: 'relation', name: 'post', relationTo: 'nonexistent' }
+          ]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('INVALID_RELATION_TO')
+        expect(result.error.message).toContain('nonexistent')
+        expect(result.error.message).toContain('comments')
+      }
+    })
+
+    it('accepts a self-referencing relation', () => {
+      const result = validateCollections([
+        makeCollection({
+          slug: 'categories',
+          fields: [
+            { type: 'text', name: 'label' },
+            { type: 'relation', name: 'parent', relationTo: 'categories' }
+          ]
+        })
+      ])
+      expect(result.isOk()).toBe(true)
+    })
+
+    it('rejects a relation field in a second collection pointing to a non-existent slug', () => {
+      const result = validateCollections([
+        makeCollection({ slug: 'posts' }),
+        makeCollection({
+          slug: 'comments',
+          fields: [
+            { type: 'relation', name: 'author', relationTo: 'users' }
+          ]
+        })
+      ])
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error.code).toBe('INVALID_RELATION_TO')
+        expect(result.error.message).toContain('users')
+      }
+    })
+
+    it('accepts multiple valid relation fields', () => {
+      const result = validateCollections([
+        makeCollection({ slug: 'users' }),
+        makeCollection({ slug: 'posts' }),
+        makeCollection({
+          slug: 'comments',
+          fields: [
+            { type: 'text', name: 'body' },
+            { type: 'relation', name: 'post', relationTo: 'posts' },
+            { type: 'relation', name: 'author', relationTo: 'users' }
+          ]
+        })
+      ])
+      expect(result.isOk()).toBe(true)
+    })
+  })
 })
