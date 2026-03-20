@@ -188,6 +188,7 @@ export function serveStaticFile (
       })
       const stream = createReadStream(filePath)
       stream.on('end', resolve)
+      stream.on('error', () => { res.end(); resolve() })
       stream.pipe(res)
       return
     }
@@ -202,6 +203,7 @@ export function serveStaticFile (
     })
     const stream = createReadStream(filePath, { start: range.start, end: range.end })
     stream.on('end', resolve)
+    stream.on('error', () => { res.end(); resolve() })
     stream.pipe(res)
   })
 }
