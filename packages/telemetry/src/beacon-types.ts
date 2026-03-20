@@ -11,7 +11,8 @@ export const BeaconIntentType = {
   INTENT_LEAD: 'INTENT_LEAD',
   LEAD_PHONE: 'LEAD_PHONE',
   LEAD_EMAIL: 'LEAD_EMAIL',
-  LEAD_FORM: 'LEAD_FORM'
+  LEAD_FORM: 'LEAD_FORM',
+  PAGEVIEW: 'PAGEVIEW'
 } as const
 
 export type BeaconIntentType = typeof BeaconIntentType[keyof typeof BeaconIntentType]

@@ -46,7 +46,7 @@ describe('validateBeaconPayload', () => {
       const types = [
         'CLICK', 'SCROLL', 'VIEWPORT_INTERSECT', 'FORM_INPUT',
         'INTENT_NAVIGATE', 'INTENT_CALL', 'INTENT_BOOK', 'INTENT_LEAD',
-        'LEAD_PHONE', 'LEAD_EMAIL', 'LEAD_FORM'
+        'LEAD_PHONE', 'LEAD_EMAIL', 'LEAD_FORM', 'PAGEVIEW'
       ]
       for (const type of types) {
         const payload = JSON.stringify([makeValidEvent({ type })])

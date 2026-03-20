@@ -54,7 +54,7 @@ export function startTelemetryScheduler (
           'SELECT COALESCE(SUM(total_sessions), 0)::int AS c FROM session_summaries WHERE period_start >= $1 AND period_end <= $2', [s, e]
         ),
         pool.sql.unsafe<CountRow[]>(
-          'SELECT COALESCE(SUM(total_count), 0)::int AS c FROM event_summaries WHERE period_start >= $1 AND period_end <= $2 AND event_category IN (\'CLICK\', \'VIEWPORT_INTERSECT\')', [s, e]
+          'SELECT COALESCE(SUM(total_count), 0)::int AS c FROM event_summaries WHERE period_start >= $1 AND period_end <= $2 AND event_category IN (\'CLICK\', \'VIEWPORT_INTERSECT\', \'PAGEVIEW\')', [s, e]
         ),
         pool.sql.unsafe<CountRow[]>(
           'SELECT COALESCE(SUM(total_count), 0)::int AS c FROM event_summaries WHERE period_start >= $1 AND period_end <= $2 AND event_category IN (\'INTENT_LEAD\', \'LEAD_FORM\', \'LEAD_EMAIL\', \'LEAD_PHONE\')', [s, e]

@@ -3,7 +3,8 @@ import type { Result } from 'neverthrow'
 import {
   TelemetryRingBuffer,
   initEventDelegation,
-  scheduleAutoFlush
+  scheduleAutoFlush,
+  IntentType
 } from '@valencets/core'
 import type { TelemetryError } from '@valencets/core'
 
@@ -13,6 +14,7 @@ export interface TelemetryConfig {
   readonly bufferSize?: number | undefined
   readonly flushIntervalMs?: number | undefined
   readonly rootElement?: HTMLElement | undefined
+  readonly autoPageview?: boolean | undefined
 }
 
 export interface TelemetryHandle {
@@ -40,6 +42,23 @@ export function initTelemetry (config: TelemetryConfig): Result<TelemetryHandle,
   const delegation = delegationResult.value
 
   const flush = scheduleAutoFlush(buffer, config.endpoint, flushIntervalMs)
+
+  const autoPageview = config.autoPageview ?? true
+  if (autoPageview) {
+    const writeResult = buffer.write(
+      IntentType.PAGEVIEW,
+      'document',
+      0,
+      0,
+      Date.now()
+    )
+    if (writeResult.isOk()) {
+      const slot = writeResult.value
+      slot.site_id = config.siteId
+      slot.path = globalThis.location?.pathname ?? ''
+      slot.referrer = globalThis.document?.referrer ?? ''
+    }
+  }
 
   return ok({
     destroy: () => {

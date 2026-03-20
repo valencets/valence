@@ -18,6 +18,7 @@ describe('IntentType', () => {
     expect(IntentType.LEAD_PHONE).toBe('LEAD_PHONE')
     expect(IntentType.LEAD_EMAIL).toBe('LEAD_EMAIL')
     expect(IntentType.LEAD_FORM).toBe('LEAD_FORM')
+    expect(IntentType.PAGEVIEW).toBe('PAGEVIEW')
   })
 
   it('all values are strings', () => {
