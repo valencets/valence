@@ -1,3 +1,4 @@
+import type { FieldHooks } from '../hooks/hook-types.js'
 export const FieldType = {
   TEXT: 'text',
   TEXTAREA: 'textarea',
@@ -33,6 +34,7 @@ export interface FieldBaseConfig {
   readonly hidden?: boolean | undefined
   readonly localized?: boolean | undefined
   readonly label?: string | undefined
+  readonly hooks?: FieldHooks | undefined
 }
 
 // --- Per-type configs ---
