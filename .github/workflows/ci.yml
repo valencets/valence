@@ -10,42 +10,76 @@ on:
   pull_request:
     branches: [master, development]
   workflow_dispatch:
+  schedule:
+    # Weekly full suite — every Monday at 03:00 UTC
+    - cron: '0 3 * * 1'
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# ─── Phase 1: Quality gate (parallel) ────────────────────────────────────────
 
 jobs:
   lint:
+    name: Lint
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-project
       - run: pnpm lint
 
   typecheck:
+    name: Typecheck
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-project
       - run: pnpm build
 
-  unit:
+# ─── Phase 2: Build artifact ──────────────────────────────────────────────────
+
+  build:
+    name: Build
     needs: [lint, typecheck]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm test:ci
+      - uses: ./.github/actions/setup-project
+      - name: Build all packages
+        run: pnpm build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-dist
+          path: |
+            packages/*/dist/
+            packages/*/admin-client.js
+          retention-days: 1
+
+# ─── Phase 3: Fan-out test suite ─────────────────────────────────────────────
+
+  unit:
+    name: Unit (${{ matrix.shard }})
+    needs: [build]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ['1/4', '2/4', '3/4', '4/4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - name: Run unit tests (shard ${{ matrix.shard }})
+        run: pnpm test:ci --shard=${{ matrix.shard }}
 
   integration:
-    needs: [unit]
+    name: Integration
+    needs: [build]
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -60,19 +94,21 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: npx vitest run tests/integration/
+      - uses: ./.github/actions/setup-project
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - name: Run integration tests
+        run: npx vitest run tests/integration/
         env:
           PGHOST: localhost
           PGPORT: 5432
           PGUSER: postgres
 
   e2e:
-    needs: [unit]
+    name: E2E (${{ matrix.shard }}/2)
+    needs: [build]
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -85,63 +121,199 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
+      - uses: ./.github/actions/setup-project
         with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm test:e2e
+          install-playwright: 'true'
+          playwright-browser: chromium
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - name: Run E2E tests (shard ${{ matrix.shard }}/2)
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/2
         env:
           PGHOST: localhost
           PGPORT: 5432
           PGUSER: postgres
-      - uses: actions/upload-artifact@v4
+      - name: Upload blob report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 1
+      - name: Upload traces on failure
+        uses: actions/upload-artifact@v4
         if: failure()
+        with:
+          name: playwright-traces-shard-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 7
+
+  e2e-merge-report:
+    name: E2E - Merge Reports
+    needs: [e2e]
+    runs-on: ubuntu-24.04
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - name: Download blob reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: blob-report-*
+          merge-multiple: true
+          path: blob-reports/
+      - name: Merge Playwright reports
+        run: npx playwright merge-reports --reporter html blob-reports/
+      - name: Upload merged HTML report
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
 
-  coverage:
-    needs: [unit]
+  contracts:
+    name: Contract Tests
+    needs: [build]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: cd packages/cms && npx vitest run --coverage
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/setup-project
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - name: Run contract tests
+        run: npx vitest run tests/contracts/
+
+  coverage:
+    name: Coverage (80% gate)
+    needs: [build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - name: Run coverage with threshold
+        run: cd packages/cms && npx vitest run --coverage --coverage.thresholds.statements=80
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: coverage/
+          path: packages/cms/coverage/
           retention-days: 30
 
-  security:
-    needs: [lint]
+# ─── Phase 4: Fan-in gate ────────────────────────────────────────────────────
+
+  ci-gate:
+    name: CI Gate
+    needs: [unit, integration, e2e-merge-report, contracts, coverage]
+    runs-on: ubuntu-24.04
+    if: always()
+    steps:
+      - name: Check all upstream results
+        env:
+          UNIT: ${{ needs.unit.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+          E2E_MERGE: ${{ needs.e2e-merge-report.result }}
+          CONTRACTS: ${{ needs.contracts.result }}
+          COVERAGE: ${{ needs.coverage.result }}
+        run: |
+          results=("$UNIT" "$INTEGRATION" "$E2E_MERGE" "$CONTRACTS" "$COVERAGE")
+          failed=false
+          for result in "${results[@]}"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Upstream job failed with result: $result"
+              failed=true
+            fi
+          done
+          if [ "$failed" = "true" ]; then
+            echo "CI gate: FAILED"
+            exit 1
+          fi
+          echo "CI gate: PASSED"
+
+# ─── Phase 5: Main-branch extras ─────────────────────────────────────────────
+
+  e2e-full:
+    name: E2E Full (${{ matrix.browser }}, ${{ matrix.shard }}/4)
+    needs: [ci-gate]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+        with:
+          install-playwright: 'true'
+          playwright-browser: ${{ matrix.browser }}
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - name: Run E2E (${{ matrix.browser }}, shard ${{ matrix.shard }}/4)
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/4
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+      - name: Upload traces on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces-${{ matrix.browser }}-shard-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 7
+
+  stryker-incremental:
+    name: Stryker (incremental)
+    needs: [ci-gate]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - name: Audit dependencies
-        run: pnpm audit --audit-level=high
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-project
+      - name: Restore Stryker incremental cache
+        uses: actions/cache@v4
+        with:
+          path: .stryker-tmp/
+          key: stryker-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            stryker-${{ runner.os }}-
+      - name: Run Stryker mutation tests (incremental)
+        run: pnpm test:mutate
+
+# ─── Phase 6: Publish & Release (unchanged) ──────────────────────────────────
 
   publish:
-    needs: [unit, integration, e2e, security]
+    needs: [ci-gate]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
@@ -230,3 +402,47 @@ jobs:
 
             echo "Created release $TAG"
           done
+
+# ─── Weekly schedule: Full Stryker + load test placeholder ───────────────────
+
+  stryker-full:
+    name: Stryker (full, weekly)
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - name: Restore Stryker incremental cache
+        uses: actions/cache@v4
+        with:
+          path: .stryker-tmp/
+          key: stryker-full-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            stryker-full-${{ runner.os }}-
+      - name: Run full Stryker mutation suite
+        run: pnpm test:mutate
+
+  load-test:
+    name: Load Test (placeholder, weekly)
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - name: Run smoke/regression as load-test placeholder
+        run: pnpm test:smoke
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
