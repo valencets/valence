@@ -138,6 +138,8 @@ function renderPagination (args: ListViewArgs): string {
 </nav>`
 }
 
+/** JSON parse boundary u2014 see CLAUDE.md safeJsonParse exception */
+/** JSON parse boundary — see CLAUDE.md safeJsonParse exception */
 function safeParseJson (str: string): Record<string, string> | null {
   try { return JSON.parse(str) } catch { return null }
 }
@@ -153,7 +155,7 @@ function renderLocaleSelector (args: ListViewArgs): string {
     return `<option value="${escapeHtml(l.code)}"${sel}>${escapeHtml(l.label)}</option>`
   }).join('')
 
-  return `<select name="locale" class="form-select locale-selector" onchange="window.location.search='locale='+this.value">
+  return `<select name="locale" class="form-select locale-selector" onchange="var p=new URLSearchParams(window.location.search);p.set('locale',this.value);window.location.search=p.toString()">
     ${options}
   </select>`
 }

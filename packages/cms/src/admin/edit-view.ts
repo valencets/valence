@@ -15,6 +15,8 @@ export interface EditViewLocaleConfig {
   readonly locales: readonly { readonly code: string; readonly label: string }[]
 }
 
+/** JSON parse boundary u2014 see CLAUDE.md safeJsonParse exception */
+/** JSON parse boundary — see CLAUDE.md safeJsonParse exception */
 function safeParseJson (str: string): Record<string, string> | null {
   try { return JSON.parse(str) } catch { return null }
 }

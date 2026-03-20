@@ -73,18 +73,57 @@ describe('local API locale support', () => {
     expect(params).toContain('Hello')
   })
 
-  it('update with locale wraps localized fields', async () => {
+  it('update with locale uses JSONB merge (does not overwrite other locales)', async () => {
     const { pool, api } = setupLocalizedApi()
     await api.update({
       collection: 'posts',
       id: '1',
-      data: { title: 'Updated' },
+      data: { title: 'Hola' },
       locale: 'es'
     })
     const calls = (pool.sql as ReturnType<typeof import('vitest').vi.fn> & { unsafe: ReturnType<typeof import('vitest').vi.fn> }).unsafe.mock.calls
     const lastCall = calls[calls.length - 1]
+    const sql: string = lastCall?.[0] ?? ''
     const params = lastCall?.[1] ?? []
-    const wrappedParam = params.find((p: string) => typeof p === 'string' && p.includes('"es"'))
-    expect(wrappedParam).toBeDefined()
+    // Should use COALESCE + jsonb merge, NOT JSON.stringify replacement
+    expect(sql).toContain('COALESCE')
+    expect(sql).toContain('jsonb_build_object')
+    expect(sql).toContain("'es'")
+    // The raw value should be passed as a parameter, not pre-wrapped as JSON
+    expect(params).toContain('Hola')
+    // Should NOT contain a JSON-stringified wrapper like {"es":"Hola"}
+    const hasJsonWrapped = params.some((p: string) => typeof p === 'string' && p.startsWith('{'))
+    expect(hasJsonWrapped).toBe(false)
+  })
+
+  it('update without locale does not use JSONB merge', async () => {
+    const { pool, api } = setupLocalizedApi()
+    await api.update({
+      collection: 'posts',
+      id: '1',
+      data: { title: 'Updated' }
+    })
+    const calls = (pool.sql as ReturnType<typeof import('vitest').vi.fn> & { unsafe: ReturnType<typeof import('vitest').vi.fn> }).unsafe.mock.calls
+    const lastCall = calls[calls.length - 1]
+    const sql: string = lastCall?.[0] ?? ''
+    // Without locale, should use the normal query builder (no jsonb_build_object)
+    expect(sql).not.toContain('jsonb_build_object')
+  })
+
+  it('update with locale passes non-localized fields as plain SET', async () => {
+    const { pool, api } = setupLocalizedApi()
+    await api.update({
+      collection: 'posts',
+      id: '1',
+      data: { title: 'Hola', slug: 'hola' },
+      locale: 'es'
+    })
+    const calls = (pool.sql as ReturnType<typeof import('vitest').vi.fn> & { unsafe: ReturnType<typeof import('vitest').vi.fn> }).unsafe.mock.calls
+    const lastCall = calls[calls.length - 1]
+    const sql: string = lastCall?.[0] ?? ''
+    // slug is not localized, so should be plain SET
+    expect(sql).toContain('"slug" = $')
+    // title is localized, should use JSONB merge
+    expect(sql).toContain('"title" = COALESCE')
   })
 })

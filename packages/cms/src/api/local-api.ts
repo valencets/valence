@@ -87,6 +87,45 @@ function wrapLocalizedFields (
   return wrapped
 }
 
+function mergeLocalizedUpdate (
+  pool: DbPool,
+  slug: string,
+  id: string,
+  data: DocumentData,
+  localizedNames: ReadonlySet<string>,
+  locale: string
+): ResultAsync<DocumentRow, CmsError> {
+  if (!isValidIdentifier(slug)) {
+    return errAsync({ code: CmsErrorCode.INVALID_INPUT, message: `Invalid collection slug: ${slug}` })
+  }
+  if (!isValidIdentifier(locale)) {
+    return errAsync({ code: CmsErrorCode.INVALID_INPUT, message: `Invalid locale: ${locale}` })
+  }
+  const setClauses: string[] = []
+  const params: SqlValue[] = []
+  let paramIdx = 0
+
+  for (const [key, value] of Object.entries(data)) {
+    if (!isValidIdentifier(key)) {
+      return errAsync({ code: CmsErrorCode.INVALID_INPUT, message: `Invalid field name: ${key}` })
+    }
+    paramIdx++
+    if (localizedNames.has(key)) {
+      setClauses.push(`"${key}" = COALESCE("${key}", '{}'::jsonb) || jsonb_build_object('${locale}', $${paramIdx}::text)::jsonb`)
+      params.push(value)
+    } else {
+      setClauses.push(`"${key}" = $${paramIdx}`)
+      params.push(value)
+    }
+  }
+
+  paramIdx++
+  params.push(id)
+  const sql = `UPDATE "${slug}" SET ${setClauses.join(', ')} WHERE "id" = $${paramIdx} AND "deleted_at" IS NULL RETURNING *`
+  return safeQuery<DocumentRow[]>(pool, sql, params)
+    .map(rows => rows[0] as DocumentRow)
+}
+
 export function createLocalApi (
   pool: DbPool,
   collections: CollectionRegistry,
@@ -143,14 +182,14 @@ export function createLocalApi (
       const col = collections.get(args.collection)
       if (col.isErr()) return errAsync(col.error)
 
-      let data = args.data
-      if (args.locale) {
-        data = wrapLocalizedFields(args.data, col.value.fields, args.locale)
+      const localizedNames = new Set(col.value.fields.filter(f => f.localized).map(f => f.name))
+      if (args.locale && localizedNames.size > 0) {
+        return mergeLocalizedUpdate(pool, col.value.slug, args.id, args.data, localizedNames, args.locale)
       }
 
       return qb.query(args.collection)
         .where('id', args.id)
-        .update(data)
+        .update(args.data)
     },
 
     delete (args) {

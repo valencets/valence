@@ -20,7 +20,7 @@ export interface RestRouteEntry {
 
 interface LocalizationParam {
   readonly defaultLocale: string
-  readonly locales: readonly { code: string }[]
+  readonly locales: readonly { readonly code: string }[]
 }
 
 const SYSTEM_COLUMNS = new Set(['id', 'created_at', 'updated_at', 'deleted_at'])

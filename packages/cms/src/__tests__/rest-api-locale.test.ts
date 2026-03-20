@@ -6,8 +6,24 @@ import { field } from '../schema/fields.js'
 import { makeMockPool } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
+interface MockReq {
+  method: string
+  url: string
+  headers: Record<string, string>
+  on: ReturnType<typeof vi.fn>
+  removeAllListeners: ReturnType<typeof vi.fn>
+}
+
+interface MockRes {
+  writeHead: ReturnType<typeof vi.fn>
+  end: ReturnType<typeof vi.fn>
+  body: string
+  _status: number
+  statusCode: number
+}
+
 function makeMockReq (method: string, url: string, body: string = ''): IncomingMessage {
-  const req = {
+  const req: MockReq = {
     method,
     url,
     headers: { 'content-type': 'application/json' },
@@ -18,18 +34,18 @@ function makeMockReq (method: string, url: string, body: string = ''): IncomingM
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req as unknown as IncomingMessage
+  return req as IncomingMessage
 }
 
 function makeMockRes (): ServerResponse & { body: string; _status: number } {
-  const res = {
+  const res: MockRes = {
     writeHead: vi.fn((status: number) => { res._status = status }),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     body: '',
     _status: 0,
     statusCode: 200
   }
-  return res as unknown as ServerResponse & { body: string; _status: number }
+  return res as ServerResponse & { body: string; _status: number }
 }
 
 function setupLocaleRoutes () {
