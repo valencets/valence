@@ -11,12 +11,23 @@ export default defineConfig({
     ? [['html', { open: 'never' }], ['github']]
     : [['html', { open: 'on-failure' }]],
 
+  snapshotPathTemplate: '{testDir}/__snapshots__/{testFilePath}/{arg}-{projectName}{ext}',
+
   globalSetup: './tests/e2e/global-setup.ts',
 
   use: {
     baseURL: 'http://localhost:3111',
     trace: 'on-first-retry',
-    screenshot: 'only-on-failure'
+    screenshot: 'only-on-failure',
+    animations: 'disabled'
+  },
+
+  expect: {
+    toHaveScreenshot: {
+      animations: 'disabled',
+      caret: 'hide',
+      threshold: 0.2
+    }
   },
 
   projects: [
