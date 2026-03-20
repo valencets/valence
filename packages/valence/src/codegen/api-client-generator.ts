@@ -1,8 +1,9 @@
 import type { CollectionConfig } from '@valencets/cms'
-import { pascalCase, singularize } from './naming.js'
+import { camelCase, pascalCase, singularize } from './naming.js'
 
 export function generateApiClient (collection: CollectionConfig): string {
   const typeName = pascalCase(singularize(collection.slug))
+  const varName = camelCase(collection.slug)
 
   return `// @generated — regenerated from valence.config.ts. DO NOT EDIT.
 
@@ -11,7 +12,7 @@ import { apiClient } from '../../../shared/api/base-client.js'
 
 const client = apiClient<${typeName}>('/api/${collection.slug}')
 
-export const ${collection.slug} = {
+export const ${varName} = {
   list: client.list,
   get: client.get,
   create: client.create,
