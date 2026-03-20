@@ -213,3 +213,23 @@ export function generateDraftSchema (fields: readonly FieldConfig[]): ZodObject 
 export function generateLocalizedSchema (fields: readonly FieldConfig[]): ZodObject {
   return buildObjectSchema(fields, true)
 }
+
+export function generateConditionalSchema (
+  fields: readonly FieldConfig[],
+  formData: Record<string, string>
+): ZodObject {
+  const visibleFields = fields.filter(
+    (f) => f.condition === undefined || f.condition(formData)
+  )
+  return buildObjectSchema(visibleFields)
+}
+
+export function generateConditionalPartialSchema (
+  fields: readonly FieldConfig[],
+  formData: Record<string, string>
+): ZodObject {
+  const visibleFields = fields.filter(
+    (f) => f.condition === undefined || f.condition(formData)
+  )
+  return buildObjectSchema(visibleFields).partial()
+}

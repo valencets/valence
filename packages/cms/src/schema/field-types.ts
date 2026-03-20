@@ -37,6 +37,7 @@ export interface FieldBaseConfig {
   readonly label?: string | undefined
   readonly access?: FieldAccess | undefined
   readonly hooks?: FieldHooks | undefined
+  readonly condition?: ((data: Record<string, string>) => boolean) | undefined
 }
 
 // --- Per-type configs ---

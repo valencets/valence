@@ -28,6 +28,40 @@ if (confirmBtn && form) {
   })
 }
 
+// Wire up conditional field partial re-render (htmx-compatible data attributes)
+const conditionalForm = document.querySelector<HTMLFormElement>('form[hx-post][hx-trigger][hx-target]')
+if (conditionalForm) {
+  const postUrl = conditionalForm.getAttribute('hx-post')
+  const targetSelector = conditionalForm.getAttribute('hx-target')
+  if (postUrl && targetSelector) {
+    const target = document.querySelector(targetSelector)
+    const handleConditionalChange = async (): Promise<void> => {
+      const formData = new FormData(conditionalForm)
+      const params = new URLSearchParams()
+      for (const [key, val] of formData.entries()) {
+        if (typeof val === 'string') params.append(key, val)
+      }
+      try {
+        const res = await fetch(postUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString()
+        })
+        if (res.ok && target) {
+          target.innerHTML = await res.text()
+          initAllEditors()
+        }
+      } catch { /* ignore fetch errors */ }
+    }
+    conditionalForm.addEventListener('change', (e) => {
+      const el = e.target as Element | null
+      if (el?.closest('.condition-trigger')) {
+        handleConditionalChange().catch(() => { /* ignore */ })
+      }
+    })
+  }
+}
+
 // Wire up media upload fields
 const mediaUploads = document.querySelectorAll<HTMLElement>('.media-drop-zone')
 for (const wrap of mediaUploads) {

@@ -102,27 +102,55 @@ function resolveFieldValue (raw: string | number | boolean | Date | null | undef
     : String(raw ?? '')
 }
 
+/** Renders the inner HTML of the form-fields container for a given set of form values.
+ * Used both for initial page render and for the htmx partial re-render endpoint. */
+export function renderFormFieldsFragment (col: CollectionConfig, formData: Record<string, string> | null, relationContext?: RelationContext, localeConfig?: EditViewLocaleConfig): string {
+  const hasConditions = col.fields.some(f => f.condition !== undefined)
+  return col.fields.filter(f =>
+    formData === null || f.condition === undefined || f.condition(formData)
+  ).map(f => {
+    const raw = formData ? formData[f.name] : undefined
+    const value = resolveFieldValue(raw, f.localized, localeConfig)
+    const inputHtml = renderFieldInput(f, value, relationContext)
+    return hasConditions ? `<div class="condition-trigger">${inputHtml}</div>` : inputHtml
+  }).join('\n')
+}
+
+function renderLocaleTabs (col: CollectionConfig, doc: DocRow | null, localeConfig: EditViewLocaleConfig): string {
+  const slug = escapeHtml(col.slug)
+  return `<nav class="locale-tabs">${localeConfig.locales.map(l => {
+    const active = l.code === localeConfig.currentLocale ? ' locale-tab-active' : ''
+    const idSuffix = doc ? `/${escapeHtml(String(doc.id ?? ''))}/edit` : '/new'
+    return `<a href="/admin/${slug}${idSuffix}?locale=${escapeHtml(l.code)}" class="locale-tab${active}">${escapeHtml(l.label)}</a>`
+  }).join('')}</nav>`
+}
+
+function buildHtmxFormAttrs (hasConditionalFields: boolean, slug: string, id: string, isNew: boolean): string {
+  if (!hasConditionalFields) return ''
+  const partialPath = isNew ? `/admin/${slug}/new/form-fields` : `/admin/${slug}/${id}/form-fields`
+  return ` hx-post="${partialPath}" hx-trigger="change from:.condition-trigger" hx-target=".form-fields" hx-swap="innerHTML" hx-include="[name]"`
+}
+
 export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = '', relationContext?: RelationContext, nonce?: string, localeConfig?: EditViewLocaleConfig): string {
   const isNew = doc === null
   const slug = escapeHtml(col.slug)
   const id = !isNew ? escapeHtml(String(doc.id ?? '')) : ''
   const action = isNew ? `/admin/${slug}/new` : `/admin/${slug}/${id}/edit`
 
+  const hasConditionalFields = col.fields.some(f => f.condition !== undefined)
+
   const hasLocalizedFields = col.fields.some(f => f.localized)
   const localeTabs = localeConfig && hasLocalizedFields
-    ? `<nav class="locale-tabs">${localeConfig.locales.map(l => {
-        const active = l.code === localeConfig.currentLocale ? ' locale-tab-active' : ''
-        const slug = escapeHtml(col.slug)
-        const id = doc ? `/${escapeHtml(String(doc.id ?? ''))}/edit` : '/new'
-        return `<a href="/admin/${slug}${id}?locale=${escapeHtml(l.code)}" class="locale-tab${active}">${escapeHtml(l.label)}</a>`
-      }).join('')}</nav>`
+    ? renderLocaleTabs(col, doc, localeConfig)
     : ''
 
-  const fieldInputs = col.fields.map(f => {
-    const raw = doc ? doc[f.name] : null
-    const value = resolveFieldValue(raw, f.localized, localeConfig)
-    return renderFieldInput(f, value, relationContext)
-  }).join('\n')
+  const formData: Record<string, string> | null = doc
+    ? Object.fromEntries(
+      col.fields.map(f => [f.name, String(doc[f.name] ?? '')])
+    )
+    : null
+
+  const fieldInputs = renderFormFieldsFragment(col, formData, relationContext, localeConfig)
 
   const csrfField = csrfToken ? `<input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">` : ''
 
@@ -140,12 +168,17 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
     ? renderDangerZone(col, doc, csrfField, nonce, isVersioned, status)
     : ''
 
+  const htmxAttrs = buildHtmxFormAttrs(hasConditionalFields, slug, id, isNew)
+  const fieldContainer = hasConditionalFields
+    ? `<div class="form-fields">\n    ${fieldInputs}\n    </div>`
+    : fieldInputs
+
   return `
 <div class="edit-container">
   ${statusBadge}
-  ${localeTabs}<form action="${action}" method="POST" class="admin-form">
+  ${localeTabs}<form action="${action}" method="POST" class="admin-form"${htmxAttrs}>
     ${csrfField}
-    ${fieldInputs}
+    ${fieldContainer}
     ${actionButtons}
   </form>${historyLink ? `<div class="edit-meta">${historyLink}</div>` : ''}${deleteSection}
 </div>`

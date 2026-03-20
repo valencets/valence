@@ -12,7 +12,7 @@ import { renderLayout } from './layout.js'
 import { renderDashboard } from './dashboard.js'
 import { renderListView } from './list-view.js'
 import type { ListViewPagination } from './list-view.js'
-import { renderEditView } from './edit-view.js'
+import { renderEditView, renderFormFieldsFragment } from './edit-view.js'
 import type { RelationContext } from './field-renderers.js'
 import { createLocalApi } from '../api/local-api.js'
 import { createGlobalRegistry } from '../schema/registry.js'
@@ -28,7 +28,7 @@ import { getValidFieldNames, isAllowedField } from '../db/sql-sanitize.js'
 import type { PaginatedResult } from '../db/query-types.js'
 import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { readStringBody } from '../api/read-body.js'
-import { generateZodSchema, generatePartialSchema } from '../validation/zod-generator.js'
+import { generateConditionalSchema, generateConditionalPartialSchema } from '../validation/zod-generator.js'
 import { setFlashCookie, readFlash, clearFlashCookie } from './flash.js'
 import { readFileSync } from 'node:fs'
 import { generateNonce, setSecurityHeaders, CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
@@ -93,6 +93,11 @@ interface FormSnapshot {
 function stripUndefined (data: DocumentData): DocumentData {
   const entries = Object.entries(data).filter((pair): pair is [string, Exclude<DocumentData[string], undefined>] => pair[1] !== undefined)
   return Object.fromEntries(entries) as DocumentData
+}
+
+/** Converts DocumentData values to strings for condition evaluation. */
+function toStringRecord (data: Omit<DocumentData, '_csrf'>): Record<string, string> {
+  return Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]))
 }
 
 function renderErrorPage (
@@ -462,7 +467,7 @@ export function createAdminRoutes (
           sendHtml(res, html, 403)
           return
         }
-        const zodSchema = generateZodSchema(col.fields)
+        const zodSchema = generateConditionalSchema(col.fields, toStringRecord(data))
         const validation = zodSchema.safeParse(data)
         if (!validation.success) {
           const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
@@ -486,6 +491,35 @@ export function createAdminRoutes (
         )
       })
     })
+
+    const hasConditionalFields = col.fields.some(f => f.condition !== undefined)
+    if (hasConditionalFields) {
+      routes.set(`/admin/${col.slug}/new/form-fields`, {
+        POST: wrap(async (req, res) => {
+          const bodyResult = await safeReadFormBody(req)
+          const formData: Record<string, string> = bodyResult.isOk() ? bodyResult.value as Record<string, string> : {}
+          const relationContext = await buildRelationContext(col)
+          const fragment = renderFormFieldsFragment(col, formData, relationContext)
+          res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          res.setHeader('Content-Length', Buffer.byteLength(fragment))
+          res.writeHead(200)
+          res.end(fragment)
+        })
+      })
+
+      routes.set(`/admin/${col.slug}/:id/form-fields`, {
+        POST: wrap(async (req, res) => {
+          const bodyResult = await safeReadFormBody(req)
+          const formData: Record<string, string> = bodyResult.isOk() ? bodyResult.value as Record<string, string> : {}
+          const relationContext = await buildRelationContext(col)
+          const fragment = renderFormFieldsFragment(col, formData, relationContext)
+          res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          res.setHeader('Content-Length', Buffer.byteLength(fragment))
+          res.writeHead(200)
+          res.end(fragment)
+        })
+      })
+    }
 
     routes.set(`/admin/${col.slug}/:id/delete`, {
       POST: wrap(async (req, res, ctx) => {
@@ -562,7 +596,7 @@ export function createAdminRoutes (
           sendHtml(res, html, 403)
           return
         }
-        const zodSchema = generatePartialSchema(col.fields)
+        const zodSchema = generateConditionalPartialSchema(col.fields, toStringRecord(data))
         const validation = zodSchema.safeParse(data)
         if (!validation.success) {
           const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
