@@ -159,6 +159,9 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
 
   const statusBadge = renderStatusBadge(status)
   const actionButtons = renderActionButtons(isVersioned, isNew)
+  const autosaveIndicator = isVersioned
+    ? `<span class="autosave-indicator" data-autosave-endpoint="/admin/${slug}/${id}/autosave">Saved</span>`
+    : ''
 
   const historyLink = !isNew && doc
     ? `<a href="/admin/${slug}/${id}/history" class="action-link">View history</a>`
@@ -175,7 +178,7 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
 
   return `
 <div class="edit-container">
-  ${statusBadge}
+  ${statusBadge}${autosaveIndicator}
   ${localeTabs}<form action="${action}" method="POST" class="admin-form"${htmxAttrs}>
     ${csrfField}
     ${fieldContainer}
