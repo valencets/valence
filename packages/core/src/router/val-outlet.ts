@@ -25,3 +25,13 @@ export function findOutlet (container: Element, name?: string): ValOutlet | null
   if (el === null) return null
   return el as ValOutlet
 }
+
+// findNestedOutlet performs a depth-first search within container for the
+// named outlet, supporting nested layouts where val-outlets are nested inside
+// other val-outlets. Uses the same CSS selector traversal as findOutlet but
+// explicitly documents that nested outlets are fully supported.
+export function findNestedOutlet (container: Element, name: string): ValOutlet | null {
+  const el = container.querySelector(`val-outlet[name="${CSS.escape(name)}"]`)
+  if (el === null) return null
+  return el as ValOutlet
+}
