@@ -79,6 +79,19 @@ export interface LocalApi {
   unpublish (args: UnpublishArgs): ResultAsync<DocumentRow, CmsError>
 }
 
+function runAfterHooks (
+  hooks: readonly HookFunction[] | undefined,
+  result: DocumentRow,
+  id: string,
+  collectionSlug: string
+): ResultAsync<DocumentRow, CmsError> {
+  if (hooks && hooks.length > 0) {
+    return runHooks(hooks, { data: result as unknown as HookData, id, collection: collectionSlug })
+      .map(() => result)
+  }
+  return okAsync(result)
+}
+
 function executeWithHooks (
   beforeHooks: readonly HookFunction[] | undefined,
   afterHooks: readonly HookFunction[] | undefined,
@@ -87,27 +100,12 @@ function executeWithHooks (
   collectionSlug: string,
   execute: (finalData: DocumentData) => ResultAsync<DocumentRow, CmsError>
 ): ResultAsync<DocumentRow, CmsError> {
-  const hookArgs = { data: data as HookData, id, collection: collectionSlug }
-
-  if (beforeHooks && beforeHooks.length > 0) {
-    return runHooks(beforeHooks, hookArgs)
+  const beforeResult = (beforeHooks && beforeHooks.length > 0)
+    ? runHooks(beforeHooks, { data: data as HookData, id, collection: collectionSlug })
       .andThen((hookData) => execute(hookData as DocumentData))
-      .andThen((result) => {
-        if (afterHooks && afterHooks.length > 0) {
-          return runHooks(afterHooks, { data: result as unknown as HookData, id, collection: collectionSlug })
-            .map(() => result)
-        }
-        return okAsync(result)
-      })
-  }
+    : execute(data)
 
-  return execute(data).andThen((result) => {
-    if (afterHooks && afterHooks.length > 0) {
-      return runHooks(afterHooks, { data: result as unknown as HookData, id, collection: collectionSlug })
-        .map(() => result)
-    }
-    return okAsync(result)
-  })
+  return beforeResult.andThen((result) => runAfterHooks(afterHooks, result, id, collectionSlug))
 }
 
 export function createLocalApi (
