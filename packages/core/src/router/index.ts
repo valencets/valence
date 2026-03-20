@@ -9,7 +9,7 @@ export type {
   PageCacheEntry,
   NavigationPerformance
 } from './router-types.js'
-export { parseHtml, extractFragment, extractTitle, swapContent, supportsMoveBefore } from './fragment-swap.js'
+export { parseHtml, extractFragment, extractTitle, swapContent, supportsMoveBefore, validateFragmentResponse, stripScripts, getCsrfToken } from './fragment-swap.js'
 export { calculateVelocity, initPrefetch } from './prefetch.js'
 export type { PrefetchHandle } from './prefetch.js'
 export { initPageCache } from './page-cache.js'

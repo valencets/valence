@@ -7,7 +7,8 @@ export const RouterErrorCode = {
   PREFETCH_FAILED: 'PREFETCH_FAILED',
   NOT_HTML_RESPONSE: 'NOT_HTML_RESPONSE',
   CACHE_STALE: 'CACHE_STALE',
-  VERSION_MISMATCH: 'VERSION_MISMATCH'
+  VERSION_MISMATCH: 'VERSION_MISMATCH',
+  AUTH_REDIRECT: 'AUTH_REDIRECT'
 } as const
 
 export type RouterErrorCode = typeof RouterErrorCode[keyof typeof RouterErrorCode]

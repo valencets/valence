@@ -49,6 +49,14 @@ export function buildExpiredSessionCookie (secure = true): string {
   return `cms_session=; Path=/; HttpOnly; SameSite=Strict${secureFlag}; Max-Age=0`
 }
 
+export function destroyUserSessions (userId: string, pool: DbPool): ResultAsync<void, CmsError> {
+  return safeQuery<SessionRow[]>(
+    pool,
+    'UPDATE cms_sessions SET deleted_at = NOW() WHERE user_id = $1 AND deleted_at IS NULL',
+    [userId]
+  ).map(() => undefined)
+}
+
 export function destroySession (sessionId: string, pool: DbPool): ResultAsync<void, CmsError> {
   return safeQuery<SessionRow[]>(
     pool,

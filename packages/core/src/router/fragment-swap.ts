@@ -80,3 +80,44 @@ export function swapContent (liveContainer: Element, newFragment: Element): Resu
 
   return ok(undefined)
 }
+
+export function validateFragmentResponse (response: Response): Result<void, RouterError> {
+  const contentType = response.headers.get('Content-Type') ?? ''
+  if (!contentType.includes('text/html')) {
+    return err({
+      code: RouterErrorCode.NOT_HTML_RESPONSE,
+      message: `Expected text/html but got ${contentType}`
+    })
+  }
+
+  const fragmentHeader = response.headers.get('X-Valence-Fragment')
+  if (fragmentHeader !== '1') {
+    return err({
+      code: RouterErrorCode.PARSE_FAILED,
+      message: 'Missing X-Valence-Fragment header'
+    })
+  }
+
+  return ok(undefined)
+}
+
+export function stripScripts (doc: Document, nonce?: string): void {
+  const scripts = doc.querySelectorAll('script')
+  for (const script of scripts) {
+    if (nonce !== undefined && script.getAttribute('nonce') === nonce) {
+      continue
+    }
+    script.remove()
+  }
+}
+
+export function getCsrfToken (): string | undefined {
+  const cookies = document.cookie.split(';')
+  for (const raw of cookies) {
+    const trimmed = raw.trim()
+    if (trimmed.startsWith('__val_csrf=')) {
+      return trimmed.slice('__val_csrf='.length)
+    }
+  }
+  return undefined
+}

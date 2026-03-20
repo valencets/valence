@@ -11,7 +11,7 @@ import { verifyPassword } from './password.js'
 import { createRateLimiter } from './rate-limit.js'
 import { parseCookie } from './cookie.js'
 import { safeQuery } from '../db/safe-query.js'
-import { createSession, validateSession, destroySession, buildSessionCookie, buildExpiredSessionCookie } from './session.js'
+import { createSession, validateSession, destroySession, destroyUserSessions, buildSessionCookie, buildExpiredSessionCookie } from './session.js'
 import { sanitizeIdentifier, isValidIdentifier } from '../db/sql-sanitize.js'
 import { isAuthEnabled } from './auth-config.js'
 
@@ -92,6 +92,7 @@ export function createAuthRoutes (
       }
 
       loginLimiter.reset(email)
+      await destroyUserSessions(user.id, pool)
       const sessionResult = await createSession(user.id, pool)
       if (sessionResult.isErr()) { sendErrorJson(res, 'Login failed', 500); return }
 
