@@ -87,6 +87,28 @@ export type ThemeMode = typeof ThemeMode[keyof typeof ThemeMode];
 export const TOKEN_PREFIX: "val";
 
 // @public (undocumented)
+export class ValAutosave extends ValElement {
+    // (undocumented)
+    connectedCallback(): void;
+    // (undocumented)
+    protected createTemplate(): HTMLTemplateElement;
+    // (undocumented)
+    get csrfToken(): string;
+    // (undocumented)
+    get debounceMs(): number;
+    // (undocumented)
+    disconnectedCallback(): void;
+    // (undocumented)
+    get endpoint(): string;
+    // (undocumented)
+    static observedAttributes: string[];
+    // Warning: (ae-forgotten-export) The symbol "AutosaveState" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    get state(): AutosaveState;
+}
+
+// @public (undocumented)
 export class ValBadge extends ValElement {
     constructor();
     // (undocumented)
@@ -97,6 +119,28 @@ export class ValBadge extends ValElement {
     protected createTemplate(): HTMLTemplateElement;
     // (undocumented)
     static observedAttributes: string[];
+}
+
+// @public (undocumented)
+export class ValBulkBar extends ValElement {
+    // (undocumented)
+    get checkboxSelector(): string;
+    // (undocumented)
+    connectedCallback(): void;
+    // (undocumented)
+    get count(): number;
+    // (undocumented)
+    protected createTemplate(): HTMLTemplateElement;
+    // (undocumented)
+    deselectAll(): void;
+    // (undocumented)
+    disconnectedCallback(): void;
+    // (undocumented)
+    static observedAttributes: string[];
+    // (undocumented)
+    selectAll(): void;
+    // (undocumented)
+    update(): void;
 }
 
 // @public (undocumented)
@@ -312,6 +356,26 @@ export class ValNav extends ValElement {
 }
 
 // @public (undocumented)
+export class ValPreviewPane extends ValElement {
+    // (undocumented)
+    attributeChangedCallback(name: string, old: string | null, val: string | null): void;
+    // (undocumented)
+    connectedCallback(): void;
+    // (undocumented)
+    protected createTemplate(): HTMLTemplateElement;
+    // (undocumented)
+    disconnectedCallback(): void;
+    // (undocumented)
+    static observedAttributes: string[];
+    // (undocumented)
+    refresh(): void;
+    // (undocumented)
+    setViewport(viewport: string): void;
+    // (undocumented)
+    get viewport(): string;
+}
+
+// @public (undocumented)
 export class ValSection extends ValElement {
     constructor();
     // (undocumented)
@@ -329,6 +393,9 @@ export class ValSelect extends ValFormElement {
     // (undocumented)
     attributeChangedCallback(name: string, old: string | null, val: string | null): void;
     // (undocumented)
+    close(): void;
+    _confirmFocused(): void;
+    // (undocumented)
     connectedCallback(): void;
     // (undocumented)
     protected createTemplate(): HTMLTemplateElement;
@@ -338,6 +405,7 @@ export class ValSelect extends ValFormElement {
     formDisabledCallback(disabled: boolean): void;
     // (undocumented)
     formResetCallback(): void;
+    _moveFocus(delta: number): void;
     // (undocumented)
     static observedAttributes: string[];
     // (undocumented)
