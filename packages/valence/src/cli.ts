@@ -14,7 +14,7 @@ import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig } from './config-loader.js'
-import { resolveStaticPath, resolveMimeType, sendHtml } from '@valencets/core/server'
+import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
@@ -577,10 +577,9 @@ async function runDev (): Promise<void> {
     if (staticResult.isOk()) {
       const filePath = staticResult.value
       if (existsSync(filePath) && statSync(filePath).isFile()) {
-        const fileContent = readFileSync(filePath)
         const mime = resolveMimeType(filePath)
-        res.writeHead(200, { 'Content-Type': mime })
-        res.end(fileContent)
+        const rangeHeader = typeof req.headers['range'] === 'string' ? req.headers['range'] : undefined
+        await serveStaticFile(filePath, mime, rangeHeader, res)
         return
       }
     }

@@ -3,6 +3,7 @@ import { parseRangeHeader, serveStaticFile } from '../static-files.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeFileSync, mkdirSync } from 'node:fs'
+import { Writable } from 'node:stream'
 import type { ServerResponse } from 'node:http'
 
 // ---------------------------------------------------------------------------
@@ -17,41 +18,29 @@ function makeTmpFile (content: Buffer | string): string {
   return filePath
 }
 
-interface MockResponse {
-  _status: number
-  _headers: Record<string, string | number>
-  _chunks: Buffer[]
-  _ended: boolean
-  readonly written: Buffer
-  writeHead: (status: number, headers?: Record<string, string | number>) => MockResponse
-  write: (chunk: Buffer | string) => void
-  end: (chunk?: Buffer | string) => void
+// A Writable stream with observable writeHead, _status, _headers, and written
+class MockResponse extends Writable {
+  _status: number = 0
+  _headers: Record<string, string | number> = {}
+  private _chunks: Buffer[] = []
+
+  get written (): Buffer {
+    return Buffer.concat(this._chunks)
+  }
+
+  writeHead (status: number, headers?: Record<string, string | number>): void {
+    this._status = status
+    if (headers != null) Object.assign(this._headers, headers)
+  }
+
+  override _write (chunk: Buffer, _enc: string, cb: () => void): void {
+    this._chunks.push(chunk)
+    cb()
+  }
 }
 
 function mockRes (): MockResponse & ServerResponse {
-  const chunks: Buffer[] = []
-  const res: MockResponse = {
-    _status: 0,
-    _headers: {},
-    _chunks: chunks,
-    _ended: false,
-    get written (): Buffer { return Buffer.concat(chunks) },
-    writeHead (status: number, headers?: Record<string, string | number>): MockResponse {
-      res._status = status
-      if (headers != null) Object.assign(res._headers, headers)
-      return res
-    },
-    write (chunk: Buffer | string): void {
-      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
-    },
-    end (chunk?: Buffer | string): void {
-      if (chunk != null) {
-        chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
-      }
-      res._ended = true
-    }
-  }
-  return res as unknown as MockResponse & ServerResponse
+  return new MockResponse() as MockResponse & ServerResponse
 }
 
 // ---------------------------------------------------------------------------
