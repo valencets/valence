@@ -2,7 +2,7 @@ export { isUploadEnabled, getMediaFields, getMimeType, getUploadConfig } from '.
 export type { ImageSize, UploadConfig } from './media-config.js'
 export { createServeHandler } from './serve-handler.js'
 export { createUploadHandler } from './upload-handler.js'
-export type { UploadResult } from './upload-handler.js'
+export type { UploadResult, SizeMetadata } from './upload-handler.js'
 export { createLocalStorage } from './storage-adapter.js'
 export type { StorageAdapter } from './storage-adapter.js'
 export { processImageSizes } from './image-processor.js'
