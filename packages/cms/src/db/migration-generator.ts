@@ -75,6 +75,11 @@ export function generateCreateTableSql (collection: CollectionConfig): string {
     columns.push(`  ${colResult.value}`)
   }
 
+  if (collection.versions?.drafts) {
+    columns.push('  "_status" TEXT NOT NULL DEFAULT \'draft\' CHECK ("_status" IN (\'draft\', \'published\'))')
+    columns.push('  "publish_at" TIMESTAMPTZ')
+  }
+
   if (collection.timestamps) {
     columns.push('  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()')
     columns.push('  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()')
