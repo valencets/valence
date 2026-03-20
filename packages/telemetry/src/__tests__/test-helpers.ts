@@ -25,3 +25,21 @@ export function makeErrorPool (error: Error): DbPool {
   Object.defineProperty(sql, 'json', { value: (v: unknown) => v })
   return { sql }
 }
+
+/**
+ * Returns a pool that resolves successfully for the first N calls (one per entry
+ * in `successRows`), then rejects with `error` on all subsequent calls. Useful
+ * for testing partial-failure pipelines such as "session creation succeeds,
+ * event insertion fails".
+ */
+export function makeErrorAfterPool (successRows: ReadonlyArray<ReadonlyArray<object>>, error: Error): DbPool {
+  let callIndex = 0
+  const sql = vi.fn(() => {
+    const rows = successRows[callIndex]
+    callIndex++
+    if (rows !== undefined) return Promise.resolve(rows)
+    return Promise.reject(error)
+  }) as unknown as DbPool['sql']
+  Object.defineProperty(sql, 'json', { value: (v: object) => v })
+  return { sql }
+}

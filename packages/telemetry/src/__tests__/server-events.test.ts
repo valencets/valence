@@ -1,25 +1,32 @@
 import { describe, it, expect } from 'vitest'
-import { makeSequentialMockPool, makeErrorPool, makeMockPool } from './test-helpers.js'
+import { makeSequentialMockPool, makeErrorPool, makeMockPool, makeErrorAfterPool } from './test-helpers.js'
 import { createServerEventLogger } from '../server-events.js'
-
-const mockSession = {
-  session_id: 'sess-001',
-  created_at: new Date(),
-  referrer: 'server',
-  device_type: 'server',
-  operating_system: ''
-}
-
-const mockEvent = {
-  event_id: 1,
-  session_id: 'sess-001',
-  created_at: new Date(),
-  event_category: 'USER_REGISTER',
-  dom_target: 'api.register',
-  payload: {}
-}
+import type { SessionRow, EventRow } from '../event-types.js'
 
 describe('createServerEventLogger', () => {
+  function makeMockSession (overrides: Partial<SessionRow> = {}): SessionRow {
+    return {
+      session_id: 'sess-001',
+      created_at: new Date(),
+      referrer: 'server',
+      device_type: 'server',
+      operating_system: '',
+      ...overrides
+    }
+  }
+
+  function makeMockEvent (overrides: Partial<EventRow> = {}): EventRow {
+    return {
+      event_id: 1,
+      session_id: 'sess-001',
+      created_at: new Date(),
+      event_category: 'USER_REGISTER',
+      dom_target: 'api.register',
+      payload: {},
+      ...overrides
+    }
+  }
+
   it('returns a logger with a log method', () => {
     const pool = makeMockPool([])
     const logger = createServerEventLogger(pool)
@@ -28,8 +35,8 @@ describe('createServerEventLogger', () => {
 
   it('logs an event successfully', async () => {
     const pool = makeSequentialMockPool({
-      session: [mockSession],
-      event: [mockEvent]
+      session: [makeMockSession()],
+      event: [makeMockEvent()]
     })
     const logger = createServerEventLogger(pool)
     const result = await logger.log('USER_REGISTER', 'api.register', { userId: '123' })
@@ -47,18 +54,8 @@ describe('createServerEventLogger', () => {
   })
 
   it('propagates event insertion error', async () => {
-    // Session succeeds on first call, event fails on second call
-    let callCount = 0
-    const sql = Object.assign(
-      () => {
-        callCount++
-        if (callCount === 1) return Promise.resolve([mockSession])
-        return Promise.reject(new Error('insert failed'))
-      },
-      { json: (v: unknown) => v }
-    ) as any
-    const pool = { sql } as any
-
+    // Session creation succeeds (first SQL call), event insert rejects (second call)
+    const pool = makeErrorAfterPool([[makeMockSession()]], new Error('insert failed'))
     const logger = createServerEventLogger(pool)
     const result = await logger.log('FAIL_TEST', 'target')
     expect(result.isErr()).toBe(true)
@@ -66,8 +63,8 @@ describe('createServerEventLogger', () => {
 
   it('defaults payload to empty object', async () => {
     const pool = makeSequentialMockPool({
-      session: [mockSession],
-      event: [{ ...mockEvent, event_category: 'TEST', dom_target: 'test' }]
+      session: [makeMockSession()],
+      event: [makeMockEvent({ event_category: 'TEST', dom_target: 'test' })]
     })
     const logger = createServerEventLogger(pool)
     const result = await logger.log('TEST', 'test')
