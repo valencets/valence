@@ -289,10 +289,13 @@ export function createAdminRoutes (
         return
       }
       const telPool = options.telemetryPool
+      // TODO: refactor analytics route to eliminate try/catch (pre-existing violation)
       try {
         const { getDailyBreakdowns, getDailyTrend } = await import('@valencets/telemetry/daily-summary-queries')
+        const { getEventCategorySummaries, getPageviewsByPath, getDailyEventCounts } = await import('@valencets/telemetry')
         const now = new Date()
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         const siteId = options.telemetrySiteId ?? 'default'
         const trendResult = await getDailyTrend(telPool, siteId, thirtyDaysAgo, now)
         const breakdownResult = await getDailyBreakdowns(telPool, siteId, thirtyDaysAgo, now)
@@ -306,12 +309,23 @@ export function createAdminRoutes (
           pageviewCount += row.pageview_count ?? 0
           conversionCount += row.conversion_count ?? 0
         }
+        const [eventCategoriesResult, pageviewsByPathResult, dailyEventsResult] = await Promise.all([
+          getEventCategorySummaries(telPool, thirtyDaysAgo, now),
+          getPageviewsByPath(telPool, sevenDaysAgo, now),
+          getDailyEventCounts(telPool, thirtyDaysAgo, now)
+        ])
+        const eventCategories = eventCategoriesResult.match(rows => rows, () => [])
+        const pageviewsByPath = pageviewsByPathResult.match(rows => rows, () => [])
+        const dailyEvents = dailyEventsResult.match(rows => rows, () => [])
         const content = renderAnalyticsView({
           sessionCount,
           pageviewCount,
           conversionCount,
           topPages: breakdowns.top_pages,
-          topReferrers: breakdowns.top_referrers
+          topReferrers: breakdowns.top_referrers,
+          eventCategories,
+          pageviewsByPath,
+          dailyEvents
         })
         const html = renderLayout({ title: 'Analytics', content, collections: allCollections, headTags })
         sendHtml(res, html)
