@@ -205,3 +205,160 @@ describe('renderListView() — empty state', () => {
     expect(html).toContain('/admin/posts/new')
   })
 })
+
+describe('renderListView() — listFields config', () => {
+  function makeColWithListFields (): CollectionConfig {
+    return collection({
+      slug: 'articles',
+      labels: { singular: 'Article', plural: 'Articles' },
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.text({ name: 'author', required: true }),
+        field.text({ name: 'category' }),
+        field.text({ name: 'excerpt' }),
+        field.boolean({ name: 'featured' })
+      ],
+      admin: {
+        listFields: ['title', 'author', 'category']
+      }
+    })
+  }
+
+  const docs = [
+    { id: 'a1', title: 'Article One', author: 'Alice', category: 'Tech', excerpt: 'Short description', featured: 'true' },
+    { id: 'a2', title: 'Article Two', author: 'Bob', category: 'Life', excerpt: 'Another desc', featured: 'false' }
+  ]
+
+  it('renders columns specified in listFields when configured', () => {
+    const html = renderListView({ col: makeColWithListFields(), docs })
+    expect(html).toContain('sort=title')
+    expect(html).toContain('sort=author')
+    expect(html).toContain('sort=category')
+  })
+
+  it('does not render columns excluded from listFields', () => {
+    const html = renderListView({ col: makeColWithListFields(), docs })
+    expect(html).not.toContain('sort=excerpt')
+    expect(html).not.toContain('sort=featured')
+  })
+
+  it('renders cell values for listFields columns', () => {
+    const html = renderListView({ col: makeColWithListFields(), docs })
+    expect(html).toContain('Article One')
+    expect(html).toContain('Alice')
+    expect(html).toContain('Tech')
+  })
+
+  it('does not render cell values for excluded fields', () => {
+    const html = renderListView({ col: makeColWithListFields(), docs })
+    expect(html).not.toContain('Short description')
+  })
+
+  it('falls back to first 3 fields when listFields is not configured', () => {
+    const html = renderListView({ col: makeCol(), docs: baseDocs })
+    expect(html).toContain('sort=title')
+    expect(html).toContain('sort=slug')
+    expect(html).toContain('sort=published')
+    expect(html).not.toContain('sort=status')
+  })
+})
+
+describe('renderListView() — displayField config', () => {
+  function makeColWithDisplayField (): CollectionConfig {
+    return collection({
+      slug: 'members',
+      labels: { singular: 'Member', plural: 'Members' },
+      fields: [
+        field.text({ name: 'email', required: true }),
+        field.text({ name: 'fullName', required: true }),
+        field.text({ name: 'role' })
+      ],
+      admin: {
+        displayField: 'fullName'
+      }
+    })
+  }
+
+  const docs = [
+    { id: 'm1', email: 'alice@example.com', fullName: 'Alice Smith', role: 'Admin' },
+    { id: 'm2', email: 'bob@example.com', fullName: 'Bob Jones', role: 'Editor' }
+  ]
+
+  it('renders displayField as the primary column header', () => {
+    const html = renderListView({ col: makeColWithDisplayField(), docs })
+    expect(html).toContain('sort=fullName')
+  })
+
+  it('renders cell values for the displayField', () => {
+    const html = renderListView({ col: makeColWithDisplayField(), docs })
+    expect(html).toContain('Alice Smith')
+    expect(html).toContain('Bob Jones')
+  })
+
+  it('uses displayField as the first column', () => {
+    const html = renderListView({ col: makeColWithDisplayField(), docs })
+    const fullNameIdx = html.indexOf('sort=fullName')
+    const emailIdx = html.indexOf('sort=email')
+    expect(fullNameIdx).toBeLessThan(emailIdx)
+  })
+
+  it('falls back to default column order when displayField is not set', () => {
+    const html = renderListView({ col: makeCol(), docs: baseDocs })
+    const titleIdx = html.indexOf('sort=title')
+    const slugIdx = html.indexOf('sort=slug')
+    expect(titleIdx).toBeLessThan(slugIdx)
+  })
+})
+
+describe('renderListView() — displayField + listFields combined', () => {
+  function makeColWithBoth (): CollectionConfig {
+    return collection({
+      slug: 'products',
+      labels: { singular: 'Product', plural: 'Products' },
+      fields: [
+        field.text({ name: 'sku', required: true }),
+        field.text({ name: 'name', required: true }),
+        field.text({ name: 'description' }),
+        field.text({ name: 'price' }),
+        field.text({ name: 'stock' })
+      ],
+      admin: {
+        displayField: 'name',
+        listFields: ['name', 'sku', 'price']
+      }
+    })
+  }
+
+  const docs = [
+    { id: 'p1', sku: 'SKU-001', name: 'Widget A', description: 'A widget', price: '9.99', stock: '100' },
+    { id: 'p2', sku: 'SKU-002', name: 'Gadget B', description: 'A gadget', price: '19.99', stock: '50' }
+  ]
+
+  it('renders only the listFields columns', () => {
+    const html = renderListView({ col: makeColWithBoth(), docs })
+    expect(html).toContain('sort=name')
+    expect(html).toContain('sort=sku')
+    expect(html).toContain('sort=price')
+    expect(html).not.toContain('sort=description')
+    expect(html).not.toContain('sort=stock')
+  })
+
+  it('renders displayField as the first column when it is in listFields', () => {
+    const html = renderListView({ col: makeColWithBoth(), docs })
+    const nameIdx = html.indexOf('sort=name')
+    const skuIdx = html.indexOf('sort=sku')
+    expect(nameIdx).toBeLessThan(skuIdx)
+  })
+
+  it('renders cell values for the specified fields', () => {
+    const html = renderListView({ col: makeColWithBoth(), docs })
+    expect(html).toContain('Widget A')
+    expect(html).toContain('SKU-001')
+    expect(html).toContain('9.99')
+  })
+
+  it('does not render excluded field values', () => {
+    const html = renderListView({ col: makeColWithBoth(), docs })
+    expect(html).not.toContain('A widget')
+  })
+})
