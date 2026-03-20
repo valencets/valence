@@ -1,0 +1,37 @@
+{
+  "name": "@valencets/plugin-cloud-storage",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@valencets/cms": "workspace:*"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.782.0",
+    "neverthrow": "^8.2.0"
+  },
+  "devDependencies": {
+    "@valencets/cms": "workspace:*",
+    "@types/node": "^25.4.0",
+    "neverthrow": "^8.2.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  }
+}
