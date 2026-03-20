@@ -23,6 +23,7 @@ export interface ListViewArgs {
   readonly sort?: string | undefined
   readonly dir?: 'asc' | 'desc' | undefined
   readonly filters?: Record<string, string> | undefined
+  readonly viewMode?: 'table' | 'grid' | undefined
 }
 
 function baseParams (args: ListViewArgs): Record<string, string> {
@@ -151,6 +152,48 @@ function renderTable (args: ListViewArgs): string {
 </table>`
 }
 
+function renderGrid (args: ListViewArgs): string {
+  const { col, docs } = args
+  const safeSlug = escapeHtml(col.slug)
+
+  const cards = docs.map(doc => {
+    const safeId = escapeHtml(doc.id)
+    const filename = escapeHtml(String(doc.storedPath ?? doc.filename ?? ''))
+    const alt = escapeHtml(String(doc.altText ?? doc.alt ?? ''))
+    const mimeType = String(doc.mimeType ?? '')
+    const isImage = mimeType.startsWith('image/')
+
+    const thumbnail = isImage && filename
+      ? `<img src="/media/${filename}" alt="${alt}" class="grid-thumb">`
+      : `<div class="grid-thumb grid-thumb-file"><span>${escapeHtml(mimeType || 'File')}</span></div>`
+
+    const label = escapeHtml(String(doc.filename ?? doc.id))
+
+    return `<a href="/admin/${safeSlug}/${safeId}/edit" class="grid-card">
+      ${thumbnail}
+      <span class="grid-label">${label}</span>
+    </a>`
+  }).join('\n')
+
+  return `<div class="grid-view">${cards}</div>`
+}
+
+function renderViewToggle (args: ListViewArgs): string {
+  const isUpload = args.col.upload !== undefined && args.col.upload !== false
+  if (!isUpload) return ''
+
+  const base = baseParams(args)
+  const tableQs = buildQuery(base, { view: 'table' })
+  const gridQs = buildQuery(base, { view: 'grid' })
+  const tableActive = args.viewMode !== 'grid' ? ' view-toggle-active' : ''
+  const gridActive = args.viewMode === 'grid' ? ' view-toggle-active' : ''
+
+  return `<div class="view-toggle">
+    <a href="?${tableQs}" class="view-toggle-btn${tableActive}">Table</a>
+    <a href="?${gridQs}" class="view-toggle-btn${gridActive}">Grid</a>
+  </div>`
+}
+
 export function renderListView (args: ListViewArgs): string {
   const { col, docs } = args
   const label = escapeHtml(col.labels?.plural ?? col.slug)
@@ -163,17 +206,23 @@ export function renderListView (args: ListViewArgs): string {
 
   const searchBar = renderSearchBar(args)
   const filters = renderFilters(args)
-  const table = docs.length === 0
-    ? `<div class="empty-state"><p>No ${label} found.</p></div>`
-    : renderTable(args)
+  const viewToggle = renderViewToggle(args)
+
+  const content = args.viewMode === 'grid'
+    ? renderGrid(args)
+    : (docs.length === 0
+        ? `<div class="empty-state"><p>No ${label} found.</p></div>`
+        : renderTable(args))
+
   const pagination = renderPagination(args)
 
   return `
 <div class="list-header">
   ${searchBar}
+  ${viewToggle}
   <a href="/admin/${safeSlug}/new" class="btn btn-primary">New ${singularLabel}</a>
 </div>
 ${filters}
-${table}
+${content}
 ${pagination}`
 }
