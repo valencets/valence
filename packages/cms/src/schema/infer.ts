@@ -1,7 +1,9 @@
 import type {
   FieldConfig,
   GroupFieldConfig,
-  ArrayFieldConfig
+  ArrayFieldConfig,
+  BlocksFieldConfig,
+  BlockDefinition
 } from './field-types.js'
 
 interface FieldValueMap {
@@ -23,14 +25,18 @@ interface FieldValueMap {
   multiselect: string[]
 }
 
+type InferBlockType<B extends BlockDefinition> = { readonly blockType: B['slug'] } & InferFieldsType<B['fields']>
+
 export type InferFieldType<F extends FieldConfig> =
-    F extends GroupFieldConfig
-      ? InferFieldsType<F['fields']>
-      : F extends ArrayFieldConfig
-        ? InferFieldsType<F['fields']>[]
-        : F extends { readonly type: infer T extends keyof FieldValueMap }
-          ? FieldValueMap[T]
-          : never
+    F extends BlocksFieldConfig
+      ? Array<InferBlockType<F['blocks'][number]>>
+      : F extends GroupFieldConfig
+        ? InferFieldsType<F['fields']>
+        : F extends ArrayFieldConfig
+          ? InferFieldsType<F['fields']>[]
+          : F extends { readonly type: infer T extends keyof FieldValueMap }
+            ? FieldValueMap[T]
+            : never
 
 export type InferFieldsType<Fields extends readonly FieldConfig[]> = {
   [K in Fields[number] as K['name']]: InferFieldType<K>
