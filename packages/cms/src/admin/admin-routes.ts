@@ -95,6 +95,11 @@ function stripUndefined (data: DocumentData): DocumentData {
   return Object.fromEntries(entries) as DocumentData
 }
 
+/** Converts DocumentData values to strings for condition evaluation. */
+function toStringRecord (data: Omit<DocumentData, '_csrf'>): Record<string, string> {
+  return Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]))
+}
+
 function renderErrorPage (
   col: CollectionConfig,
   allCollections: readonly CollectionConfig[],
@@ -462,8 +467,7 @@ export function createAdminRoutes (
           sendHtml(res, html, 403)
           return
         }
-        const condData: Record<string, string> = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]))
-        const zodSchema = generateConditionalSchema(col.fields, condData)
+        const zodSchema = generateConditionalSchema(col.fields, toStringRecord(data))
         const validation = zodSchema.safeParse(data)
         if (!validation.success) {
           const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
@@ -563,8 +567,7 @@ export function createAdminRoutes (
           sendHtml(res, html, 403)
           return
         }
-        const condData: Record<string, string> = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]))
-        const zodSchema = generateConditionalPartialSchema(col.fields, condData)
+        const zodSchema = generateConditionalPartialSchema(col.fields, toStringRecord(data))
         const validation = zodSchema.safeParse(data)
         if (!validation.success) {
           const issues = validation.error.issues.map((i: { path: PropertyKey[], message: string }) => `${i.path.join('.')}: ${i.message}`).join('; ')
