@@ -719,6 +719,46 @@ export function createAdminRoutes (
         sendHtml(res, html)
       })
     })
+
+    if (col.versions?.drafts === true) {
+      routes.set(`/admin/${col.slug}/:id/autosave`, {
+        POST: wrap(async (req, res, ctx) => {
+          const id = ctx.id ?? ''
+          res.setHeader('Content-Type', 'application/json; charset=utf-8')
+          const bodyResult = await safeReadFormBody(req)
+          if (bodyResult.isErr()) {
+            res.writeHead(400)
+            res.end(JSON.stringify({ success: false, error: 'Bad request' }))
+            return
+          }
+          const formData = bodyResult.value
+          const submittedToken = String(formData._csrf ?? '')
+          if (!submittedToken || !validateCsrf(submittedToken)) {
+            res.writeHead(403)
+            res.end(JSON.stringify({ success: false, error: 'Invalid CSRF token' }))
+            return
+          }
+          const { _csrf, ...data } = formData
+          const zodSchema = generateConditionalPartialSchema(col.fields, toStringRecord(data))
+          const validation = zodSchema.safeParse(data)
+          const saveData = validation.success
+            ? stripUndefined(validation.data as DocumentData)
+            : stripUndefined(data as DocumentData)
+          const result = await api.update({ collection: col.slug, id, data: saveData })
+          result.match(
+            () => {
+              const savedAt = new Date().toISOString()
+              res.writeHead(200)
+              res.end(JSON.stringify({ success: true, savedAt }))
+            },
+            (err) => {
+              res.writeHead(500)
+              res.end(JSON.stringify({ success: false, error: err.message }))
+            }
+          )
+        })
+      })
+    }
   }
 
   return routes

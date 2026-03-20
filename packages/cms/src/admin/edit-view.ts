@@ -1,4 +1,5 @@
 import type { CollectionConfig } from '../schema/collection.js'
+import type { FieldConfig } from '../schema/field-types.js'
 import { CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
 import { renderFieldInput } from './field-renderers.js'
 import type { RelationContext } from './field-renderers.js'
@@ -131,6 +132,8 @@ function buildHtmxFormAttrs (hasConditionalFields: boolean, slug: string, id: st
   return ` hx-post="${partialPath}" hx-trigger="change from:.condition-trigger" hx-target=".form-fields" hx-swap="innerHTML" hx-include="[name]"`
 }
 
+// --- VAL-137: Live preview support ---
+
 function resolvePreviewUrl (preview: ((doc: Record<string, string>) => string) | string, formData: Record<string, string> | null): string {
   if (formData === null) return ''
   if (typeof preview === 'function') return preview(formData)
@@ -151,6 +154,60 @@ function renderPreviewPane (previewUrl: string): string {
   </div>`
 }
 
+// --- VAL-139: Ghost editor layout support ---
+
+interface GhostLayoutFields {
+  readonly titleField: FieldConfig | null
+  readonly richtextField: FieldConfig
+  readonly sidebarFields: readonly FieldConfig[]
+}
+
+function detectGhostLayout (col: CollectionConfig): GhostLayoutFields | null {
+  const richtextField = col.fields.find(f => f.type === 'richtext')
+  if (!richtextField) return null
+  const titleField = col.fields.find(f => f.type === 'text') ?? null
+  const mainFieldNames = new Set([titleField?.name, richtextField.name].filter(Boolean))
+  const sidebarFields = col.fields.filter(f => !mainFieldNames.has(f.name))
+  return { titleField, richtextField, sidebarFields }
+}
+
+function renderTitleInput (f: FieldConfig, value: string): string {
+  const req = f.required ? ' required' : ''
+  const placeholder = escapeHtml(f.label ?? f.name)
+  return `<input class="form-input content-title" type="text" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}" placeholder="${placeholder}"${req}>`
+}
+
+function renderGhostLayout (
+  fields: GhostLayoutFields,
+  formData: Record<string, string> | null,
+  relationContext: RelationContext | undefined,
+  localeConfig: EditViewLocaleConfig | undefined
+): string {
+  const titleValue = formData && fields.titleField ? (formData[fields.titleField.name] ?? '') : ''
+  const titleHtml = fields.titleField ? renderTitleInput(fields.titleField, titleValue) : ''
+
+  const richtextValue = formData ? (formData[fields.richtextField.name] ?? '') : ''
+  const richtextHtml = renderFieldInput(fields.richtextField, richtextValue, relationContext)
+
+  const sidebarHtml = fields.sidebarFields.map(f => {
+    const raw = formData ? formData[f.name] : undefined
+    const value = resolveFieldValue(raw, f.localized, localeConfig)
+    return renderFieldInput(f, value, relationContext)
+  }).join('\n')
+
+  return `<div class="ghost-layout">
+  <div class="ghost-main">
+    ${titleHtml}
+    ${richtextHtml}
+  </div>
+  <div class="ghost-sidebar">
+    ${sidebarHtml}
+  </div>
+</div>`
+}
+
+// --- Shared build helpers ---
+
 interface EditViewParts {
   readonly formSection: string
   readonly formData: Record<string, string> | null
@@ -167,18 +224,30 @@ function buildEditViewParts (col: CollectionConfig, doc: DocRow | null, csrfToke
   const formData: Record<string, string> | null = doc
     ? Object.fromEntries(col.fields.map(f => [f.name, String(doc[f.name] ?? '')]))
     : null
-  const fieldInputs = renderFormFieldsFragment(col, formData, relationContext, localeConfig)
+
+  const ghostLayout = detectGhostLayout(col)
+  const fieldContainer = ghostLayout
+    ? renderGhostLayout(ghostLayout, formData, relationContext, localeConfig)
+    : (() => {
+        const fieldInputs = renderFormFieldsFragment(col, formData, relationContext, localeConfig)
+        return hasConditionalFields
+          ? `<div class="form-fields">\n    ${fieldInputs}\n    </div>`
+          : fieldInputs
+      })()
+
   const csrfField = csrfToken ? `<input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">` : ''
   const isVersioned = col.versions?.drafts === true
   const status = isVersioned && doc ? (doc._status as string ?? 'draft') : null
   const historyLink = !isNew && doc ? `<a href="/admin/${slug}/${id}/history" class="action-link">View history</a>` : ''
   const deleteSection = !isNew && doc ? renderDangerZone(col, doc, csrfField, nonce, isVersioned, status) : ''
   const htmxAttrs = buildHtmxFormAttrs(hasConditionalFields, slug, id, isNew)
-  const fieldContainer = hasConditionalFields ? `<div class="form-fields">\n    ${fieldInputs}\n    </div>` : fieldInputs
   const statusBadge = renderStatusBadge(status)
   const actionButtons = renderActionButtons(isVersioned, isNew)
+  const autosaveIndicator = isVersioned && !isNew
+    ? `<span class="autosave-indicator" data-autosave-endpoint="/admin/${slug}/${id}/autosave">Saved</span>`
+    : ''
   const historySection = historyLink ? `<div class="edit-meta">${historyLink}</div>` : ''
-  const formSection = `${statusBadge}
+  const formSection = `${statusBadge}${autosaveIndicator}
     ${localeTabs}<form action="${action}" method="POST" class="admin-form"${htmxAttrs}>
       ${csrfField}
       ${fieldContainer}

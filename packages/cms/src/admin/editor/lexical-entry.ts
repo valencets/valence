@@ -5,6 +5,7 @@ import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link'
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html'
 import { registerHistory, createEmptyHistoryState } from '@lexical/history'
 import { $setBlocksType } from '@lexical/selection'
+import { SLASH_COMMANDS, filterCommands, createSlashMenu, positionMenu } from './slash-commands.js'
 
 export interface ToolbarActionDef {
   readonly label: string
@@ -40,6 +41,21 @@ const ACTION_HANDLERS: Readonly<Record<string, (editor: LexicalEditor) => void>>
   'bullet-list': (e) => e.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined),
   'number-list': (e) => e.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined),
   blockquote: (e) => setBlockType(e, () => $createQuoteNode())
+}
+
+const SLASH_ACTION_HANDLERS: Readonly<Record<string, (editor: LexicalEditor) => void>> = {
+  'heading-2': (e) => setBlockType(e, () => $createHeadingNode('h2')),
+  'heading-3': (e) => setBlockType(e, () => $createHeadingNode('h3')),
+  'bullet-list': (e) => e.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined),
+  'ordered-list': (e) => e.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined),
+  quote: (e) => setBlockType(e, () => $createQuoteNode()),
+  'code-block': (e) => e.dispatchCommand(FORMAT_TEXT_COMMAND, 'code'),
+  divider: (_e) => { /* divider not natively supported by Lexical basic — no-op */ }
+}
+
+function applySlashCommand (editor: LexicalEditor, commandId: string): void {
+  const handler = SLASH_ACTION_HANDLERS[commandId]
+  if (handler) handler(editor)
 }
 
 function dispatchAction (editor: LexicalEditor, action: ToolbarActionDef): void {
@@ -133,6 +149,76 @@ function initEditor (container: HTMLElement): void {
   registerRichText(editor)
   registerList(editor)
   registerHistory(editor, createEmptyHistoryState(), 300)
+
+  // Wire up slash commands
+  let slashQuery = ''
+  let slashMenu: HTMLDivElement | null = null
+
+  function closeSlashMenu (): void {
+    slashMenu?.remove()
+    slashMenu = null
+    slashQuery = ''
+  }
+
+  function openSlashMenu (x: number, y: number): void {
+    closeSlashMenu()
+    slashMenu = createSlashMenu(SLASH_COMMANDS, (commandId) => {
+      closeSlashMenu()
+      applySlashCommand(editor, commandId)
+    })
+    positionMenu(slashMenu, x, y)
+    document.body.appendChild(slashMenu)
+  }
+
+  function updateSlashMenuFilter (): void {
+    if (!slashMenu) return
+    const filtered = filterCommands(SLASH_COMMANDS, slashQuery)
+    const items = slashMenu.querySelectorAll<HTMLElement>('.slash-menu-item')
+    items.forEach((item) => {
+      const cmd = item.dataset['command'] ?? ''
+      item.style.display = filtered.some(c => c.id === cmd) ? '' : 'none'
+    })
+  }
+
+  contentEditable.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && slashMenu) {
+      closeSlashMenu()
+      e.preventDefault()
+      return
+    }
+    if (slashMenu) {
+      if (e.key === 'Backspace') {
+        slashQuery = slashQuery.slice(0, -1)
+        if (!slashQuery) { closeSlashMenu(); return }
+        updateSlashMenuFilter()
+      }
+    }
+  })
+
+  contentEditable.addEventListener('input', () => {
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0) return
+    const range = sel.getRangeAt(0)
+    const text = range.startContainer.textContent ?? ''
+    const offset = range.startOffset
+
+    const lastSlash = text.lastIndexOf('/', offset)
+    if (lastSlash === -1) { closeSlashMenu(); return }
+
+    const query = text.slice(lastSlash + 1, offset)
+    if (query.includes(' ')) { closeSlashMenu(); return }
+
+    slashQuery = query
+    const rect = range.getBoundingClientRect()
+    openSlashMenu(rect.left, rect.bottom + 4)
+    updateSlashMenuFilter()
+  })
+
+  document.addEventListener('click', (e: MouseEvent) => {
+    if (slashMenu && !slashMenu.contains(e.target as Node)) {
+      closeSlashMenu()
+    }
+  }, { capture: true })
 
   // Load initial HTML content
   if (initialHtml) {

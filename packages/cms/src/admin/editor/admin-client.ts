@@ -2,12 +2,20 @@ import { initBlocksFields } from './blocks-client.js'
 import { initAllEditors } from './lexical-entry.js'
 import { initBulkActions } from './bulk-client.js'
 import { initLivePreview } from './preview-client.js'
+import { initAutosave } from './autosave-client.js'
 
 // Script is defer'd so DOM is ready — no need for DOMContentLoaded
 initAllEditors()
 initBlocksFields()
 initBulkActions()
 initLivePreview()
+
+// Wire up autosave for versioned collections
+const autosaveIndicator = document.querySelector<HTMLElement>('.autosave-indicator')
+const adminForm = document.querySelector<HTMLFormElement>('.admin-form')
+if (autosaveIndicator && adminForm) {
+  initAutosave(adminForm, autosaveIndicator)
+}
 
 // Wire up delete dialog triggers
 const trigger = document.querySelector<HTMLElement>('.delete-trigger')
