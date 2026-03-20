@@ -78,17 +78,49 @@ function renderDangerZone (col: CollectionConfig, doc: DocRow, csrfField: string
   </div>`
 }
 
-export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = '', relationContext?: RelationContext, nonce?: string): string {
+export interface EditViewLocaleConfig {
+  readonly currentLocale: string
+  readonly defaultLocale: string
+  readonly locales: readonly { readonly code: string; readonly label: string }[]
+}
+
+/** JSON parse boundary — see CLAUDE.md safeJsonParse exception */
+function safeParseJson (str: string): Record<string, string> | null {
+  try { return JSON.parse(str) } catch { return null }
+}
+
+function resolveFieldValue (raw: string | number | boolean | Date | null | undefined, localized: boolean | undefined, localeConfig: EditViewLocaleConfig | undefined): string {
+  if (localized && localeConfig && raw !== null && raw !== undefined) {
+    const parsed = typeof raw === 'string' ? safeParseJson(raw) : raw
+    if (parsed !== null && typeof parsed === 'object' && !(parsed instanceof Date)) {
+      return String((parsed as Record<string, string>)[localeConfig.currentLocale] ?? '')
+    }
+    return String(raw ?? '')
+  }
+  return raw instanceof Date
+    ? raw.toISOString().slice(0, 10)
+    : String(raw ?? '')
+}
+
+export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = '', relationContext?: RelationContext, nonce?: string, localeConfig?: EditViewLocaleConfig): string {
   const isNew = doc === null
   const slug = escapeHtml(col.slug)
   const id = !isNew ? escapeHtml(String(doc.id ?? '')) : ''
   const action = isNew ? `/admin/${slug}/new` : `/admin/${slug}/${id}/edit`
 
+  const hasLocalizedFields = col.fields.some(f => f.localized)
+  const localeTabs = localeConfig && hasLocalizedFields
+    ? `<nav class="locale-tabs">${localeConfig.locales.map(l => {
+        const active = l.code === localeConfig.currentLocale ? ' locale-tab-active' : ''
+        const slug = escapeHtml(col.slug)
+        const id = doc ? `/${escapeHtml(String(doc.id ?? ''))}/edit` : '/new'
+        return `<a href="/admin/${slug}${id}?locale=${escapeHtml(l.code)}" class="locale-tab${active}">${escapeHtml(l.label)}</a>`
+      }).join('')}</nav>`
+    : ''
+
   const fieldInputs = col.fields.map(f => {
     const raw = doc ? doc[f.name] : null
-    const value = raw instanceof Date
-      ? raw.toISOString().slice(0, 10)
-      : String(raw ?? '')
+    const value = resolveFieldValue(raw, f.localized, localeConfig)
     return renderFieldInput(f, value, relationContext)
   }).join('\n')
 
@@ -111,7 +143,7 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
   return `
 <div class="edit-container">
   ${statusBadge}
-  <form action="${action}" method="POST" class="admin-form">
+  ${localeTabs}<form action="${action}" method="POST" class="admin-form">
     ${csrfField}
     ${fieldInputs}
     ${actionButtons}

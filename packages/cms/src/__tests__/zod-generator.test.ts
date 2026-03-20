@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateZodSchema, generatePartialSchema, generateDraftSchema } from '../validation/zod-generator.js'
+import { generateZodSchema, generatePartialSchema, generateDraftSchema, generateLocalizedSchema } from '../validation/zod-generator.js'
 import { field } from '../schema/fields.js'
 import type { FieldConfig } from '../schema/field-types.js'
 
@@ -286,5 +286,62 @@ describe('generateDraftSchema()', () => {
     // Providing an invalid email should still fail
     const result = schema.safeParse({ contactEmail: 'not-an-email' })
     expect(result.success).toBe(false)
+  })
+})
+
+describe('generateLocalizedSchema()', () => {
+  it('accepts locale object for localized text fields', () => {
+    const fields: FieldConfig[] = [
+      field.text({ name: 'title', required: true, localized: true }),
+      field.text({ name: 'slug', required: true })
+    ]
+    const schema = generateLocalizedSchema(fields)
+    const result = schema.safeParse({
+      title: { en: 'Hello', es: 'Hola' },
+      slug: 'hello'
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects plain string for localized field in multi-locale mode', () => {
+    const fields: FieldConfig[] = [
+      field.text({ name: 'title', required: true, localized: true })
+    ]
+    const schema = generateLocalizedSchema(fields)
+    const result = schema.safeParse({ title: 'plain string' })
+    expect(result.success).toBe(false)
+  })
+
+  it('non-localized fields validate normally', () => {
+    const fields: FieldConfig[] = [
+      field.text({ name: 'title', localized: true }),
+      field.boolean({ name: 'published' })
+    ]
+    const schema = generateLocalizedSchema(fields)
+    const result = schema.safeParse({
+      title: { en: 'Hello' },
+      published: true
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid values inside locale object', () => {
+    const fields: FieldConfig[] = [
+      field.number({ name: 'price', required: true, localized: true })
+    ]
+    const schema = generateLocalizedSchema(fields)
+    const result = schema.safeParse({
+      price: { en: 'not a number' }
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('optional localized fields can be omitted', () => {
+    const fields: FieldConfig[] = [
+      field.text({ name: 'subtitle', localized: true })
+    ]
+    const schema = generateLocalizedSchema(fields)
+    const result = schema.safeParse({})
+    expect(result.success).toBe(true)
   })
 })

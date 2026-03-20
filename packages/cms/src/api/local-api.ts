@@ -1,11 +1,11 @@
 import { ResultAsync, errAsync, okAsync } from 'neverthrow'
 import type { DbPool } from '@valencets/db'
-import type { CollectionRegistry } from '../schema/registry.js'
-import type { GlobalRegistry } from '../schema/registry.js'
+import type { CollectionRegistry, GlobalRegistry } from '../schema/registry.js'
 import type { CmsError } from '../schema/types.js'
 import type { DocumentRow, DocumentData } from '../db/query-builder.js'
-import type { PaginatedResult } from '../db/query-types.js'
+import type { PaginatedResult, SqlValue } from '../db/query-types.js'
 import type { HookFunction } from '../hooks/hook-types.js'
+import type { FieldConfig } from '../schema/field-types.js'
 import { createQueryBuilder } from '../db/query-builder.js'
 import { CmsErrorCode, StatusCode } from '../schema/types.js'
 import { isValidIdentifier } from '../db/sql-sanitize.js'
@@ -22,6 +22,7 @@ export interface FindArgs {
   readonly limit?: number | undefined
   readonly filters?: Record<string, string> | undefined
   readonly includeDrafts?: boolean | undefined
+  readonly locale?: string | undefined
 }
 
 interface FindByIDArgs {
@@ -33,6 +34,7 @@ interface CreateArgs {
   readonly collection: string
   readonly data: DocumentData
   readonly draft?: boolean | undefined
+  readonly locale?: string | undefined
 }
 
 interface UpdateArgs {
@@ -41,6 +43,7 @@ interface UpdateArgs {
   readonly data: DocumentData
   readonly publish?: boolean | undefined
   readonly draft?: boolean | undefined
+  readonly locale?: string | undefined
 }
 
 interface DeleteArgs {
@@ -108,17 +111,75 @@ function executeWithHooks (
   return beforeResult.andThen((result) => runAfterHooks(afterHooks, result, id, collectionSlug))
 }
 
+function wrapLocalizedFields (
+  data: DocumentData,
+  fields: readonly FieldConfig[],
+  locale: string
+): DocumentData {
+  const localizedNames = new Set(fields.filter(f => f.localized).map(f => f.name))
+  const wrapped: Record<string, SqlValue> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (localizedNames.has(key) && value !== null && value !== undefined) {
+      wrapped[key] = JSON.stringify({ [locale]: value }) as SqlValue
+    } else {
+      wrapped[key] = value
+    }
+  }
+  return wrapped
+}
+
+function mergeLocalizedUpdate (
+  pool: DbPool,
+  slug: string,
+  id: string,
+  data: DocumentData,
+  localizedNames: ReadonlySet<string>,
+  locale: string
+): ResultAsync<DocumentRow, CmsError> {
+  if (!isValidIdentifier(slug)) {
+    return errAsync({ code: CmsErrorCode.INVALID_INPUT, message: `Invalid collection slug: ${slug}` })
+  }
+  if (!isValidIdentifier(locale)) {
+    return errAsync({ code: CmsErrorCode.INVALID_INPUT, message: `Invalid locale: ${locale}` })
+  }
+  const setClauses: string[] = []
+  const params: SqlValue[] = []
+  let paramIdx = 0
+
+  for (const [key, value] of Object.entries(data)) {
+    if (!isValidIdentifier(key)) {
+      return errAsync({ code: CmsErrorCode.INVALID_INPUT, message: `Invalid field name: ${key}` })
+    }
+    paramIdx++
+    if (localizedNames.has(key)) {
+      setClauses.push(`"${key}" = COALESCE("${key}", '{}'::jsonb) || jsonb_build_object('${locale}', $${paramIdx}::text)::jsonb`)
+      params.push(value)
+    } else {
+      setClauses.push(`"${key}" = $${paramIdx}`)
+      params.push(value)
+    }
+  }
+
+  paramIdx++
+  params.push(id)
+  const sql = `UPDATE "${slug}" SET ${setClauses.join(', ')} WHERE "id" = $${paramIdx} AND "deleted_at" IS NULL RETURNING *`
+  return safeQuery<DocumentRow[]>(pool, sql, params)
+    .map(rows => rows[0] as DocumentRow)
+}
+
 export function createLocalApi (
   pool: DbPool,
   collections: CollectionRegistry,
-  globals: GlobalRegistry
+  globals: GlobalRegistry,
+  defaultLocale?: string
 ): LocalApi {
-  const qb = createQueryBuilder(pool, collections)
+  const qb = createQueryBuilder(pool, collections, defaultLocale)
 
   return {
     find (args) {
       let builder = qb.query(args.collection)
       if (args.includeDrafts) builder = builder.includeDrafts()
+      if (args.locale) builder = builder.locale(args.locale)
       if (args.where) {
         for (const [k, v] of Object.entries(args.where)) {
           builder = builder.where(k, v)
@@ -152,11 +213,15 @@ export function createLocalApi (
       if (col.isErr()) return errAsync(col.error)
       const isVersioned = col.value.versions?.drafts === true
 
-      const data = isVersioned && args.draft
+      let data = isVersioned && args.draft
         ? { ...args.data, _status: StatusCode.DRAFT }
         : isVersioned
           ? { ...args.data, _status: StatusCode.PUBLISHED }
           : args.data
+
+      if (args.locale) {
+        data = wrapLocalizedFields(data, col.value.fields, args.locale)
+      }
 
       return qb.query(args.collection).insert(data)
     },
@@ -171,6 +236,11 @@ export function createLocalApi (
         data = { ...data, _status: StatusCode.PUBLISHED }
       } else if (isVersioned && args.draft) {
         data = { ...data, _status: StatusCode.DRAFT }
+      }
+
+      const localizedNames = new Set(col.value.fields.filter(f => f.localized).map(f => f.name))
+      if (args.locale && localizedNames.size > 0) {
+        return mergeLocalizedUpdate(pool, col.value.slug, args.id, data, localizedNames, args.locale)
       }
 
       if (isVersioned && args.publish && col.value.hooks) {

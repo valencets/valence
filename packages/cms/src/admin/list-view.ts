@@ -15,6 +15,11 @@ export interface ListViewPagination {
   readonly hasPrevPage: boolean
 }
 
+export interface ListViewLocaleConfig {
+  readonly currentLocale: string
+  readonly locales: readonly { readonly code: string; readonly label: string }[]
+}
+
 export interface ListViewArgs {
   readonly col: CollectionConfig
   readonly docs: readonly DocumentRow[]
@@ -24,6 +29,7 @@ export interface ListViewArgs {
   readonly dir?: 'asc' | 'desc' | undefined
   readonly filters?: Record<string, string> | undefined
   readonly viewMode?: 'table' | 'grid' | undefined
+  readonly localeConfig?: ListViewLocaleConfig | undefined
 }
 
 function baseParams (args: ListViewArgs): Record<string, string> {
@@ -153,6 +159,39 @@ function renderPagination (args: ListViewArgs): string {
 </nav>`
 }
 
+/** JSON parse boundary — see CLAUDE.md safeJsonParse exception */
+function safeParseJson (str: string): Record<string, string> | null {
+  try { return JSON.parse(str) } catch { return null }
+}
+
+function renderLocaleSelector (args: ListViewArgs): string {
+  const config = args.localeConfig
+  if (!config) return ''
+  const hasLocalizedFields = args.col.fields.some(f => f.localized)
+  if (!hasLocalizedFields) return ''
+
+  const options = config.locales.map(l => {
+    const sel = l.code === config.currentLocale ? ' selected' : ''
+    return `<option value="${escapeHtml(l.code)}"${sel}>${escapeHtml(l.label)}</option>`
+  }).join('')
+
+  return `<select name="locale" class="form-select locale-selector" onchange="var p=new URLSearchParams(window.location.search);p.set('locale',this.value);window.location.search=p.toString()">
+    ${options}
+  </select>`
+}
+
+function resolveCellValue (raw: string | number | boolean | null, localized: boolean | undefined, localeConfig: ListViewLocaleConfig | undefined): string {
+  if (localized && localeConfig && raw !== null && raw !== undefined) {
+    if (typeof raw === 'string') {
+      const parsed = safeParseJson(raw)
+      if (parsed !== null) {
+        return String(parsed[localeConfig.currentLocale] ?? '')
+      }
+    }
+  }
+  return String(raw ?? '')
+}
+
 function renderTable (args: ListViewArgs): string {
   const { col, docs } = args
   const isVersioned = col.versions?.drafts === true
@@ -163,7 +202,10 @@ function renderTable (args: ListViewArgs): string {
     return `<th>${sortLink(args, f.name, label)}</th>`
   }).join('')
   const rows = docs.map(doc => {
-    const cells = displayFields.map(f => `<td>${escapeHtml(String(doc[f.name] ?? ''))}</td>`).join('')
+    const cells = displayFields.map(f => {
+      const cellValue = resolveCellValue(doc[f.name] ?? null, f.localized, args.localeConfig)
+      return `<td>${escapeHtml(cellValue)}</td>`
+    }).join('')
     const safeId = escapeHtml(doc.id)
     const safeSlug = escapeHtml(col.slug)
     const statusCell = isVersioned
@@ -230,6 +272,7 @@ export function renderListView (args: ListViewArgs): string {
   }
 
   const searchBar = renderSearchBar(args)
+  const localeSelector = renderLocaleSelector(args)
   const filters = renderFilters(args)
   const viewToggle = renderViewToggle(args)
 
@@ -245,6 +288,7 @@ export function renderListView (args: ListViewArgs): string {
 <div class="list-header">
   ${searchBar}
   ${viewToggle}
+  ${localeSelector}
   <a href="/admin/${safeSlug}/new" class="btn btn-primary">New ${singularLabel}</a>
 </div>
 ${filters}

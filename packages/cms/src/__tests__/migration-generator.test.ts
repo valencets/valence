@@ -269,6 +269,68 @@ describe('generateCreateTableSql() with versions', () => {
   })
 })
 
+describe('generateCreateTableSql() with localization', () => {
+  it('produces JSONB for a localized text field when hasLocalization is true', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true, localized: true }),
+        field.text({ name: 'slug', required: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts, true)
+    expect(sql).toContain('"title" JSONB NOT NULL')
+    expect(sql).toContain('"slug" TEXT NOT NULL')
+  })
+
+  it('produces JSONB for a localized number field', () => {
+    const products = collection({
+      slug: 'products',
+      fields: [
+        field.number({ name: 'price', localized: true }),
+        field.number({ name: 'stock' })
+      ]
+    })
+    const sql = generateCreateTableSql(products, true)
+    expect(sql).toContain('"price" JSONB')
+    expect(sql).toContain('"stock" INTEGER')
+  })
+
+  it('uses normal types when hasLocalization is false even if field has localized: true', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', localized: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts, false)
+    expect(sql).toContain('"title" TEXT')
+    expect(sql).not.toContain('JSONB')
+  })
+
+  it('uses normal types when hasLocalization is omitted', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', localized: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).toContain('"title" TEXT')
+  })
+
+  it('fields already JSONB stay JSONB when localized', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [
+        field.json({ name: 'metadata', localized: true })
+      ]
+    })
+    const sql = generateCreateTableSql(posts, true)
+    expect(sql).toContain('"metadata" JSONB')
+  })
+})
+
 describe('generateCreateTable()', () => {
   it('returns up and down SQL strings', () => {
     const posts = collection({

@@ -18,8 +18,13 @@ export interface RestRouteEntry {
   readonly DELETE?: RestRouteHandler | undefined
 }
 
+interface LocalizationParam {
+  readonly defaultLocale: string
+  readonly locales: readonly { readonly code: string }[]
+}
+
 const SYSTEM_COLUMNS = new Set(['id', 'created_at', 'updated_at', 'deleted_at'])
-const RESERVED_PARAMS = new Set(['search', 'sort', 'dir', 'page', 'limit', 'draft', 'publish'])
+const RESERVED_PARAMS = new Set(['search', 'sort', 'dir', 'page', 'limit', 'draft', 'publish', 'locale'])
 
 function requireJsonContentType (req: IncomingMessage, res: ServerResponse): boolean {
   const ct = req.headers['content-type'] ?? ''
@@ -59,6 +64,7 @@ interface ParsedQueryArgs {
   readonly perPage: number
   readonly filters: Record<string, string> | undefined
   readonly includeDrafts: boolean
+  readonly locale: string | undefined
 }
 
 function parseQueryParams (
@@ -83,6 +89,7 @@ function parseQueryParams (
 
   const searchVal = params.get('search') ?? undefined
   const includeDrafts = params.get('draft') === 'true'
+  const localeVal = params.get('locale') ?? undefined
 
   const where: Record<string, string> = {}
   for (const [key, value] of params.entries()) {
@@ -101,18 +108,43 @@ function parseQueryParams (
       page,
       perPage,
       filters: Object.keys(where).length > 0 ? where : undefined,
-      includeDrafts
+      includeDrafts,
+      locale: localeVal
     }
   }
+}
+
+function parseLocaleFromUrl (url: string): string | undefined {
+  const qmark = url.indexOf('?')
+  if (qmark < 0) return undefined
+  const params = new URLSearchParams(url.slice(qmark + 1))
+  return params.get('locale') ?? undefined
+}
+
+function validateLocale (
+  locale: string | undefined,
+  validCodes: ReadonlySet<string> | undefined,
+  res: ServerResponse
+): boolean {
+  if (locale === undefined || validCodes === undefined) return true
+  if (!validCodes.has(locale)) {
+    sendErrorJson(res, `Invalid locale: ${locale}`, 400)
+    return false
+  }
+  return true
 }
 
 export function createRestRoutes (
   pool: DbPool,
   collections: CollectionRegistry,
-  globals: GlobalRegistry
+  globals: GlobalRegistry,
+  localization?: LocalizationParam
 ): Map<string, RestRouteEntry> {
-  const api = createLocalApi(pool, collections, globals)
+  const api = createLocalApi(pool, collections, globals, localization?.defaultLocale)
   const routes = new Map<string, RestRouteEntry>()
+  const validLocaleCodes = localization
+    ? new Set(localization.locales.map(l => l.code))
+    : undefined
 
   for (const col of collections.getAll()) {
     const slug = col.slug
@@ -128,9 +160,11 @@ export function createRestRoutes (
           sendErrorJson(res, parsed.message, 400)
           return
         }
-        const { search, orderBy, page, perPage, filters, includeDrafts } = parsed.args
+        const { search, orderBy, page, perPage, filters, includeDrafts, locale } = parsed.args
+        if (!validateLocale(locale, validLocaleCodes, res)) return
         const result = await api.find({
           collection: slug,
+          locale,
           search,
           orderBy,
           page,
@@ -151,11 +185,13 @@ export function createRestRoutes (
       },
       POST: async (req, res) => {
         if (!requireJsonContentType(req, res)) return
+        const url = req.url ?? `/${slug}`
+        const locale = parseLocaleFromUrl(url)
+        if (!validateLocale(locale, validLocaleCodes, res)) return
         const bodyResult = await safeReadBody(req)
         if (bodyResult.isErr()) { sendErrorJson(res, bodyResult.error.message, 400); return }
         const parseResult = await safeJsonParse(bodyResult.value)
         if (parseResult.isErr()) { sendErrorJson(res, parseResult.error.message, 400); return }
-        const url = req.url ?? ''
         const urlParams = parseUrlParams(url)
         const isDraft = urlParams.get('draft') === 'true'
         const schema = isDraft && draftSchema !== undefined ? draftSchema : zodSchema
@@ -165,7 +201,7 @@ export function createRestRoutes (
           sendErrorJson(res, `Validation failed: ${issues}`, 400)
           return
         }
-        const result = await api.create({ collection: slug, data: parseResult.value, draft: isDraft })
+        const result = await api.create({ collection: slug, data: parseResult.value, draft: isDraft, locale })
         result.match(
           (doc) => sendJson(res, doc as DocumentData, 201),
           (err) => sendErrorJson(res, err.message, 400)
@@ -189,6 +225,9 @@ export function createRestRoutes (
         const rawId = req.url?.split('/').pop() ?? ''
         const id = rawId.split('?')[0] ?? ''
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
+        const url = req.url ?? `/${slug}/${id}`
+        const locale = parseLocaleFromUrl(url)
+        if (!validateLocale(locale, validLocaleCodes, res)) return
         const bodyResult = await safeReadBody(req)
         if (bodyResult.isErr()) { sendErrorJson(res, bodyResult.error.message, 400); return }
         const parseResult = await safeJsonParse(bodyResult.value)
@@ -200,7 +239,6 @@ export function createRestRoutes (
           sendErrorJson(res, `Validation failed: ${issues}`, 400)
           return
         }
-        const url = req.url ?? ''
         const urlParams = parseUrlParams(url)
         const isDraft = urlParams.get('draft') === 'true'
         const isPublish = urlParams.get('publish') === 'true'
@@ -209,7 +247,8 @@ export function createRestRoutes (
           id,
           data: parseResult.value,
           draft: isDraft,
-          publish: isPublish
+          publish: isPublish,
+          locale
         })
         result.match(
           (doc) => sendJson(res, doc as DocumentData),
