@@ -19,6 +19,19 @@ function safeParseJson (str: string): Record<string, string> | null {
   try { return JSON.parse(str) } catch { return null }
 }
 
+function resolveFieldValue (raw: string | number | boolean | Date | null | undefined, localized: boolean | undefined, localeConfig: EditViewLocaleConfig | undefined): string {
+  if (localized && localeConfig && raw !== null && raw !== undefined) {
+    const parsed = typeof raw === 'string' ? safeParseJson(raw) : raw
+    if (parsed !== null && typeof parsed === 'object' && !(parsed instanceof Date)) {
+      return String((parsed as Record<string, string>)[localeConfig.currentLocale] ?? '')
+    }
+    return String(raw ?? '')
+  }
+  return raw instanceof Date
+    ? raw.toISOString().slice(0, 10)
+    : String(raw ?? '')
+}
+
 export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = '', relationContext?: RelationContext, nonce?: string, localeConfig?: EditViewLocaleConfig): string {
   const isNew = doc === null
   const action = isNew
@@ -37,21 +50,7 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
 
   const fieldInputs = col.fields.map(f => {
     const raw = doc ? doc[f.name] : null
-
-    let value: string
-    if (f.localized && localeConfig && raw !== null && raw !== undefined) {
-      const parsed = typeof raw === 'string' ? safeParseJson(raw) : raw
-      if (parsed !== null && typeof parsed === 'object' && !(parsed instanceof Date)) {
-        value = String((parsed as Record<string, string>)[localeConfig.currentLocale] ?? '')
-      } else {
-        value = String(raw ?? '')
-      }
-    } else {
-      value = raw instanceof Date
-        ? raw.toISOString().slice(0, 10)
-        : String(raw ?? '')
-    }
-
+    const value = resolveFieldValue(raw, f.localized, localeConfig)
     return renderFieldInput(f, value, relationContext)
   }).join('\n')
 
