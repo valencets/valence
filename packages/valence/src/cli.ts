@@ -16,7 +16,7 @@ import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
 import type { RouteHandler } from './define-config.js'
 import { resolveCustomRoute } from './route-matcher.js'
-import { generateCollectionRoutes, buildGeneratedRouteMap } from './route-generator.js'
+import { generateCollectionRoutes, buildGeneratedRouteMap, buildUserRouteMap } from './route-generator.js'
 import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig } from './codegen/regenerate.js'
@@ -619,6 +619,13 @@ async function runDev (): Promise<void> {
       return
     }
 
+    // Try user-defined routes with loaders/actions (from loadedConfig.routes)
+    const userMatch = resolveCustomRoute(userRouteMap, method, url.pathname)
+    if (userMatch) {
+      await userMatch.handler(req, res, userMatch.params)
+      return
+    }
+
     // Try schema-generated collection routes (after custom, before admin)
     const generatedMatch = resolveCustomRoute(generatedRouteMap, method, url.pathname)
     if (generatedMatch) {
@@ -721,6 +728,9 @@ async function runDev (): Promise<void> {
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
   const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
 
+  // User-defined routes with loaders/actions
+  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
+
   server.listen(port, () => {
     console.log(`
   Valence dev server running.
@@ -821,6 +831,13 @@ export async function runStart (): Promise<void> {
       return
     }
 
+    // Try user-defined routes with loaders/actions (from loadedConfig.routes)
+    const userMatch = resolveCustomRoute(userRouteMap, method, url.pathname)
+    if (userMatch) {
+      await userMatch.handler(req, res, userMatch.params)
+      return
+    }
+
     // Try schema-generated collection routes (after custom, before admin)
     const generatedMatch = resolveCustomRoute(generatedRouteMap, method, url.pathname)
     if (generatedMatch) {
@@ -897,6 +914,9 @@ export async function runStart (): Promise<void> {
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
   const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
+
+  // User-defined routes with loaders/actions
+  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
 
   server.listen(port, () => {
     console.log(`
