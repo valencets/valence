@@ -6,6 +6,7 @@ import type { DocumentRow, DocumentData } from '../db/query-builder.js'
 import type { PaginatedResult, SqlValue } from '../db/query-types.js'
 import type { HookFunction } from '../hooks/hook-types.js'
 import type { FieldConfig } from '../schema/field-types.js'
+import type { AccessArgs } from '../access/access-types.js'
 import { createQueryBuilder } from '../db/query-builder.js'
 import { CmsErrorCode, StatusCode } from '../schema/types.js'
 import { isValidIdentifier } from '../db/sql-sanitize.js'
@@ -128,6 +129,23 @@ function wrapLocalizedFields (
   return wrapped
 }
 
+function filterReadAccess (
+  doc: DocumentRow,
+  fields: readonly FieldConfig[],
+  context: AccessArgs
+): DocumentRow {
+  const filtered: Record<string, SqlValue | undefined> = { ...doc }
+  for (const f of fields) {
+    if (f.access?.read) {
+      const allowed = f.access.read(context)
+      if (allowed === false) {
+        delete filtered[f.name]
+      }
+    }
+  }
+  return filtered as DocumentRow
+}
+
 function mergeLocalizedUpdate (
   pool: DbPool,
   slug: string,
@@ -175,6 +193,13 @@ export function createLocalApi (
 ): LocalApi {
   const qb = createQueryBuilder(pool, collections, defaultLocale)
 
+  function applyReadFilter (doc: DocumentRow, collectionSlug: string): DocumentRow {
+    const col = collections.get(collectionSlug)
+    if (col.isErr()) return doc
+    const context: AccessArgs = { id: doc.id }
+    return filterReadAccess(doc, col.value.fields, context)
+  }
+
   return {
     find (args) {
       let builder = qb.query(args.collection)
@@ -195,10 +220,13 @@ export function createLocalApi (
       if (args.search) builder = builder.search(args.search)
       if (args.orderBy) builder = builder.orderBy(args.orderBy.field, args.orderBy.direction)
       if (args.page !== undefined && args.perPage !== undefined) {
-        return builder.page(args.page, args.perPage)
+        return builder.page(args.page, args.perPage).map((paginated) => ({
+          ...paginated,
+          docs: paginated.docs.map((d) => applyReadFilter(d as DocumentRow, args.collection))
+        }))
       }
       if (args.limit) builder = builder.limit(args.limit)
-      return builder.all()
+      return builder.all().map((rows) => rows.map((r) => applyReadFilter(r, args.collection)))
     },
 
     // findByID intentionally bypasses status filter — admin lookups need access to drafts
@@ -206,6 +234,7 @@ export function createLocalApi (
       return qb.query(args.collection)
         .where('id', args.id)
         .first()
+        .map((doc) => doc ? applyReadFilter(doc, args.collection) : null)
     },
 
     create (args) {
@@ -224,6 +253,7 @@ export function createLocalApi (
       }
 
       return qb.query(args.collection).insert(data)
+        .map((doc) => applyReadFilter(doc, args.collection))
     },
 
     update (args) {
@@ -241,6 +271,7 @@ export function createLocalApi (
       const localizedNames = new Set(col.value.fields.filter(f => f.localized).map(f => f.name))
       if (args.locale && localizedNames.size > 0) {
         return mergeLocalizedUpdate(pool, col.value.slug, args.id, data, localizedNames, args.locale)
+          .map((doc) => applyReadFilter(doc, args.collection))
       }
 
       if (isVersioned && args.publish && col.value.hooks) {
@@ -251,12 +282,13 @@ export function createLocalApi (
           args.id,
           args.collection,
           (finalData) => qb.query(args.collection).where('id', args.id).update(finalData)
-        )
+        ).map((doc) => applyReadFilter(doc, args.collection))
       }
 
       return qb.query(args.collection)
         .where('id', args.id)
         .update(data)
+        .map((doc) => applyReadFilter(doc, args.collection))
     },
 
     delete (args) {
