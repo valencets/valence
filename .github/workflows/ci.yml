@@ -19,6 +19,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # ─── Phase 1: Quality gate (parallel) ────────────────────────────────────────
+    # Weekly flaky detection: every Sunday at 02:00 UTC
+    - cron: '0 2 * * 0'
 
 jobs:
   lint:
@@ -86,6 +88,36 @@ jobs:
           name: build-dist
       - name: Run unit tests (shard ${{ matrix.shard }})
         run: pnpm test:ci --shard=${{ matrix.shard }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Run unit tests excluding quarantined flaky tests
+      - name: Run unit tests (excluding quarantined)
+        run: pnpm test:ci
+
+  # Separate job: run quarantined tests in isolation, failures allowed
+  quarantine:
+    needs: [unit]
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Run quarantined flaky tests
+        run: pnpm test:quarantine
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quarantine-results
+          path: quarantine-report.json
+          retention-days: 30
 
   integration:
     name: Integration
@@ -487,6 +519,108 @@ jobs:
         run: pnpm test:mutate
 
 # ─── Phase 6: Publish & Release (unchanged) ──────────────────────────────────
+
+  # Weekly: detect flaky tests by running suite twice and comparing results
+  flaky-detection:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Install jq
+        run: sudo apt-get install -y jq
+      - name: Run Vitest flaky detection (2 runs, compare results)
+        run: bash scripts/detect-flaky-vitest.sh --output=vitest-flaky-report.json
+        continue-on-error: true
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Run Playwright flaky detection (5x repeat-each)
+        run: npx playwright test --config=tests/e2e/flaky-detection.config.ts
+        continue-on-error: true
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+      - name: Upload flaky detection reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flaky-detection-report-${{ github.run_id }}
+          path: |
+            vitest-flaky-report.json
+            flaky-detection-report.json
+            playwright-report-flaky/
+          retention-days: 90
+
+  # Weekly: check that no quarantined test has exceeded its 30-day SLA
+  flaky-deadline-check:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install jq
+        run: sudo apt-get install -y jq
+      - name: Check flaky test deadlines
+        id: deadline-check
+        run: bash scripts/check-flaky-deadlines.sh
+        continue-on-error: true
+      - name: Create GitHub issue for expired quarantined tests
+        if: steps.deadline-check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          EXPIRED_LIST=$(jq -r \
+            '.quarantined[] | select(.deadline <= "'"$TODAY"'") | "- **\(.testName)**  \n  File: `\(.file)`  \n  Deadline: \(.deadline)  \n  Reason: \(.reason)"' \
+            flaky-tests.json)
+
+          gh issue create \
+            --title "ALERT: Quarantined flaky tests have exceeded 30-day SLA ($TODAY)" \
+            --label "flaky-test" \
+            --body "## Expired Flaky Test Quarantine
+
+          The following tests were quarantined more than 30 days ago and have exceeded their resolution SLA.
+
+          **Action required:** Each test must be either fixed or deleted within 48 hours.
+
+          ### Expired Tests
+
+          ${EXPIRED_LIST}
+
+          ### Resolution Process
+
+          1. Fix the root cause and remove the \`@flaky\` tag and \`flaky-tests.json\` entry
+          2. If the test is no longer valid, delete it entirely
+          3. If more time is needed, create a new issue and re-quarantine with a justification
+
+          See [FLAKY-TESTS.md](../blob/development/FLAKY-TESTS.md) for the full process."
 
   publish:
     needs: [ci-gate]

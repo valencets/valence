@@ -145,3 +145,15 @@ GitHub Actions runs these jobs in order:
 - E2E tests use `storageState` for auth (login once, reuse)
 - Pre-commit: lint-staged (eslint --fix on staged files)
 - Pre-push: build + full test suite
+
+## Flaky Test Quarantine
+
+Flaky tests are tagged `@flaky` and registered in `flaky-tests.json`. They are excluded from the main CI suite and run in an isolated quarantine job with `continue-on-error`. Every quarantined test has a **30-day SLA** — it must be fixed or deleted before its deadline.
+
+See [FLAKY-TESTS.md](./FLAKY-TESTS.md) for the full identify → tag → register → isolate → fix/remove → alert cycle.
+
+```bash
+pnpm test:quarantine        # Run only quarantined flaky tests
+pnpm test:flaky:deadlines   # Check for expired quarantine SLAs
+pnpm test:flaky:detect      # Detect new flaky tests (2x Vitest + 5x Playwright)
+```

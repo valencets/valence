@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Flaky Test Quarantine Manifest",
+  "description": "Registry of quarantined flaky tests with 30-day SLA for resolution",
+  "type": "object",
+  "required": ["quarantined"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "quarantined": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/QuarantinedTest"
+      }
+    }
+  },
+  "definitions": {
+    "QuarantinedTest": {
+      "type": "object",
+      "required": ["testName", "file", "quarantinedAt", "reason", "deadline", "rootCause"],
+      "additionalProperties": false,
+      "properties": {
+        "testName": {
+          "type": "string",
+          "description": "Full test name as reported by Vitest or Playwright"
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to the test file relative to repo root"
+        },
+        "quarantinedAt": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO 8601 date when the test was quarantined (YYYY-MM-DD)"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Human-readable description of why the test is flaky"
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO 8601 date by which the test must be fixed or removed (quarantinedAt + 30 days)"
+        },
+        "rootCause": {
+          "type": "string",
+          "enum": ["timing", "state", "network", "resource", "database"],
+          "description": "Category of the root cause of flakiness"
+        },
+        "linkedIssue": {
+          "type": "string",
+          "description": "Optional GitHub issue URL or Linear ticket ID tracking the fix"
+        }
+      }
+    }
+  }
+}

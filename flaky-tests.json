@@ -1,0 +1,4 @@
+{
+  "$schema": "./flaky-tests.schema.json",
+  "quarantined": []
+}
