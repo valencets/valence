@@ -147,4 +147,15 @@ describe('resolveDisplayField()', () => {
     }))
     expect(resolveDisplayField(registry)).toBe('display_name')
   })
+
+  it('result is always a valid identifier', () => {
+    const registry = createCollectionRegistry()
+    registry.register(collection({
+      slug: 'users',
+      auth: true,
+      fields: [field.text({ name: 'username' })]
+    }))
+    const result = resolveDisplayField(registry)
+    expect(result).toMatch(/^[a-zA-Z][a-zA-Z0-9_-]*$/)
+  })
 })

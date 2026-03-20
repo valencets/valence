@@ -11,14 +11,13 @@ import { createRateLimiter } from './rate-limit.js'
 import { parseCookie } from './cookie.js'
 import { safeQuery } from '../db/safe-query.js'
 import { createSession, validateSession, destroySession, buildSessionCookie, buildExpiredSessionCookie } from './session.js'
-import { sanitizeIdentifier } from '../db/sql-sanitize.js'
+import { sanitizeIdentifier, isValidIdentifier } from '../db/sql-sanitize.js'
 import { isAuthEnabled } from './auth-config.js'
 
 interface UserRow {
   readonly id: string
   readonly email: string
   readonly password_hash: string
-  readonly [key: string]: string
 }
 
 const loginSchema = z.object({
@@ -49,7 +48,8 @@ export function createAuthRoutes (
   pool: DbPool,
   collections: CollectionRegistry
 ): Map<string, RestRouteEntry> {
-  const displayField = resolveDisplayField(collections)
+  const rawDisplayField = resolveDisplayField(collections)
+  const displayField = isValidIdentifier(rawDisplayField) ? rawDisplayField : 'email'
   const safeDisplayCol = sanitizeIdentifier(displayField)
   const routes = new Map<string, RestRouteEntry>()
   const loginLimiter = createRateLimiter({ maxAttempts: 5, windowMs: 900_000 })
@@ -95,7 +95,7 @@ export function createAuthRoutes (
         'Content-Type': 'application/json; charset=utf-8',
         'Set-Cookie': cookie
       })
-      res.end(JSON.stringify({ user: { id: user.id, email: user.email, [displayField]: user[displayField] } }))
+      res.end(JSON.stringify({ user: { id: user.id, email: user.email, [displayField]: Reflect.get(user, displayField) as string | undefined ?? user.email } }))
     }
   })
 
@@ -136,7 +136,7 @@ export function createAuthRoutes (
       }
 
       const user = userResult.value
-      sendJson(res, { id: user.id, email: user.email, [displayField]: user[displayField] } as DocumentData)
+      sendJson(res, { id: user.id, email: user.email, [displayField]: Reflect.get(user, displayField) as string | undefined ?? user.email } as DocumentData)
     }
   })
 
