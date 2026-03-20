@@ -14,6 +14,8 @@ export interface RouteConfig {
   readonly handler?: RouteHandler | undefined
   readonly collection?: string | undefined
   readonly type?: 'list' | 'detail' | undefined
+  readonly outlet?: string | undefined
+  readonly layout?: string | undefined
 }
 
 // Passed to onServer so consumers can attach WebSocket upgrade handlers,

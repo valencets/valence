@@ -8,3 +8,5 @@ export { generateRouteTypes, extractParams } from './codegen/route-type-generato
 
 // Re-export CMS schema primitives for convenience
 export { collection, field, global } from '@valencets/cms'
+
+export { setOutletHeader, isFragmentRequest } from './outlet-header.js'
