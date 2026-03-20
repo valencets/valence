@@ -1,5 +1,5 @@
 export interface HookData {
-  readonly [key: string]: string | number | boolean | null | undefined
+  readonly [key: string]: string | number | boolean | null | readonly string[] | readonly number[] | undefined
 }
 
 export interface HookArgs {

@@ -5,7 +5,7 @@ import type { GlobalRegistry } from '../schema/registry.js'
 import type { CmsError } from '../schema/types.js'
 import type { DocumentRow, DocumentData } from '../db/query-builder.js'
 import type { PaginatedResult } from '../db/query-types.js'
-import type { HookFunction, HookData } from '../hooks/hook-types.js'
+import type { HookFunction } from '../hooks/hook-types.js'
 import { createQueryBuilder } from '../db/query-builder.js'
 import { CmsErrorCode, StatusCode } from '../schema/types.js'
 import { isValidIdentifier } from '../db/sql-sanitize.js'
@@ -86,7 +86,7 @@ function runAfterHooks (
   collectionSlug: string
 ): ResultAsync<DocumentRow, CmsError> {
   if (hooks && hooks.length > 0) {
-    return runHooks(hooks, { data: result as unknown as HookData, id, collection: collectionSlug })
+    return runHooks(hooks, { data: result, id, collection: collectionSlug })
       .map(() => result)
   }
   return okAsync(result)
@@ -101,7 +101,7 @@ function executeWithHooks (
   execute: (finalData: DocumentData) => ResultAsync<DocumentRow, CmsError>
 ): ResultAsync<DocumentRow, CmsError> {
   const beforeResult = (beforeHooks && beforeHooks.length > 0)
-    ? runHooks(beforeHooks, { data: data as HookData, id, collection: collectionSlug })
+    ? runHooks(beforeHooks, { data, id, collection: collectionSlug })
       .andThen((hookData) => execute(hookData as DocumentData))
     : execute(data)
 
@@ -140,6 +140,7 @@ export function createLocalApi (
       return builder.all()
     },
 
+    // findByID intentionally bypasses status filter — admin lookups need access to drafts
     findByID (args) {
       return qb.query(args.collection)
         .where('id', args.id)

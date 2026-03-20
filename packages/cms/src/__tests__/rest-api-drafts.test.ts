@@ -6,8 +6,27 @@ import { field } from '../schema/fields.js'
 import { makeMockPool } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
+interface MockReq {
+  method: string
+  url: string
+  headers: Record<string, string>
+  on: ReturnType<typeof vi.fn>
+  removeAllListeners: ReturnType<typeof vi.fn>
+}
+
+interface MockRes {
+  writeHead: ReturnType<typeof vi.fn>
+  end: ReturnType<typeof vi.fn>
+  body: string
+  statusCode: number
+}
+
+interface MockSql {
+  unsafe: ReturnType<typeof vi.fn> & { mock: { calls: readonly (readonly string[])[] } }
+}
+
 function makeMockReq (method: string, url: string, body: string = ''): IncomingMessage {
-  const req = {
+  const req: MockReq = {
     method,
     url,
     headers: { 'content-type': 'application/json' },
@@ -18,17 +37,17 @@ function makeMockReq (method: string, url: string, body: string = ''): IncomingM
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req as unknown as IncomingMessage
+  return req as IncomingMessage
 }
 
 function makeMockRes (): ServerResponse & { body: string } {
-  const res = {
+  const res: MockRes = {
     writeHead: vi.fn(),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     body: '',
     statusCode: 200
   }
-  return res as unknown as ServerResponse & { body: string }
+  return res as ServerResponse & { body: string }
 }
 
 function setupVersioned (poolReturn: readonly Record<string, string | number | null>[] = []) {
@@ -59,8 +78,8 @@ describe('REST API draft query param', () => {
       await handler!(req, res, {})
 
       // The query builder should add _status = 'published' filter
-      const calls = (pool.sql as ReturnType<typeof vi.fn> & { unsafe: ReturnType<typeof vi.fn> }).unsafe.mock.calls
-      const sql = calls.map((c: string[]) => c[0]).join(' ')
+      const calls = (pool.sql as MockSql).unsafe.mock.calls
+      const sql = calls.map((c) => c[0]).join(' ')
       expect(sql).toContain('published')
     })
 
@@ -76,8 +95,8 @@ describe('REST API draft query param', () => {
       await handler!(req, res, {})
 
       // Should NOT filter by _status = 'published' when includeDrafts
-      const calls = (pool.sql as ReturnType<typeof vi.fn> & { unsafe: ReturnType<typeof vi.fn> }).unsafe.mock.calls
-      const allSql = calls.map((c: string[]) => c[0]).join(' ')
+      const calls = (pool.sql as MockSql).unsafe.mock.calls
+      const allSql = calls.map((c) => c[0]).join(' ')
       expect(allSql).not.toContain("= 'published'")
     })
 
@@ -110,8 +129,8 @@ describe('REST API draft query param', () => {
       await handler!(req, res, {})
 
       // Should pass draft data with _status = 'draft' to insert
-      const calls = (pool.sql as ReturnType<typeof vi.fn> & { unsafe: ReturnType<typeof vi.fn> }).unsafe.mock.calls
-      const insertCall = calls.find((c: string[]) => c[0]?.includes('INSERT'))
+      const calls = (pool.sql as MockSql).unsafe.mock.calls
+      const insertCall = calls.find((c) => c[0]?.includes('INSERT'))
       expect(insertCall).toBeDefined()
       expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object))
     })

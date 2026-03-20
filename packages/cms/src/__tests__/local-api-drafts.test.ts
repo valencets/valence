@@ -4,6 +4,11 @@ import { createCollectionRegistry, createGlobalRegistry } from '../schema/regist
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 import { makeMockPool } from './test-helpers.js'
+import type { SqlValue } from '../db/query-types.js'
+
+interface MockSqlCalls {
+  unsafe: { mock: { calls: readonly (readonly [string, readonly SqlValue[]])[] } }
+}
 
 function setupDraftApi (poolReturn: readonly Record<string, string | number | null>[] = [{ id: '1', title: 'Test', _status: 'published' }]) {
   const pool = makeMockPool(poolReturn)
@@ -23,11 +28,11 @@ function setupDraftApi (poolReturn: readonly Record<string, string | number | nu
 }
 
 function getExecutedSql (pool: ReturnType<typeof makeMockPool>, callIndex = 0): string {
-  return (pool.sql as { unsafe: { mock: { calls: string[][] } } }).unsafe.mock.calls[callIndex]?.[0] ?? ''
+  return (pool.sql as MockSqlCalls).unsafe.mock.calls[callIndex]?.[0] ?? ''
 }
 
-function getExecutedParams (pool: ReturnType<typeof makeMockPool>, callIndex = 0): readonly unknown[] {
-  return (pool.sql as { unsafe: { mock: { calls: unknown[][] } } }).unsafe.mock.calls[callIndex]?.[1] as readonly unknown[] ?? []
+function getExecutedParams (pool: ReturnType<typeof makeMockPool>, callIndex = 0): readonly SqlValue[] {
+  return (pool.sql as MockSqlCalls).unsafe.mock.calls[callIndex]?.[1] ?? []
 }
 
 describe('local API draft/publish — create', () => {

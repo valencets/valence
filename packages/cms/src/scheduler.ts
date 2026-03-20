@@ -18,7 +18,7 @@ export function startPublishScheduler (
       pool.sql.unsafe(
         `UPDATE "${col.slug}" SET "_status" = 'published', "publish_at" = NULL, "updated_at" = NOW() WHERE "_status" = 'draft' AND "publish_at" IS NOT NULL AND "publish_at" <= NOW() AND "deleted_at" IS NULL`,
         []
-      )
+      ).catch(() => { /* scheduled publish — error is non-fatal */ })
     }
   }, intervalMs)
 
