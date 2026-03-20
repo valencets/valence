@@ -259,28 +259,15 @@ export function createLocalApi (
       }
 
       const fields = col.value.fields
-      const collectionHooks = col.value.hooks
 
       return runFieldHooks('beforeChange', fields, data, undefined, args.collection)
-        .andThen((fieldData) => {
-          const insertData = fieldData as DocumentData
-          const beforeHooks = collectionHooks?.beforeChange
-          const afterHooks = collectionHooks?.afterChange
-
-          if (beforeHooks && beforeHooks.length > 0) {
-            return executeWithHooks(beforeHooks, afterHooks, insertData, '', args.collection,
-              (finalData) => qb.query(args.collection).insert(finalData)
-            )
-          }
-
-          return qb.query(args.collection).insert(insertData).andThen((result) => {
-            if (afterHooks && afterHooks.length > 0) {
-              return runAfterHooks(afterHooks, result, result.id as string, args.collection)
-            }
-            return runFieldHooks('afterChange', fields, result, result.id as string | undefined, args.collection)
-              .map((transformed) => transformed as DocumentRow)
-          })
-        })
+        .andThen((fieldData) =>
+          qb.query(args.collection).insert(fieldData as DocumentData)
+        )
+        .andThen((result) =>
+          runFieldHooks('afterChange', fields, result, result.id as string | undefined, args.collection)
+            .map((transformed) => transformed as DocumentRow)
+        )
     },
 
     update (args) {

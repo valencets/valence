@@ -128,10 +128,10 @@ describe('Local API field hooks integration', () => {
     expect(calls).toEqual([])
   })
 
-  it('field hooks and collection hooks both fire', async () => {
+  it('field hooks coexist with collection publish hooks on update', async () => {
     const calls: string[] = []
-    const inserted = { id: 'new-1', title: 'New', slug: 'new' }
-    const pool = makeMockPool([inserted])
+    const updated = { id: 'abc', title: 'Published', slug: 'published', _status: 'published' }
+    const pool = makeMockPool([updated])
     const collections = createCollectionRegistry()
     const globals = createGlobalRegistry()
     collections.register(collection({
@@ -146,14 +146,16 @@ describe('Local API field hooks integration', () => {
         }),
         field.slug({ name: 'slug', required: true })
       ],
+      versions: { drafts: true },
       hooks: {
-        beforeChange: [({ data }: HookArgs) => { calls.push('collection-beforeChange'); return data }]
+        beforePublish: [({ data }: HookArgs) => { calls.push('collection-beforePublish'); return data }],
+        afterPublish: [({ data }: HookArgs) => { calls.push('collection-afterPublish'); return data }]
       }
     }))
     const api = createLocalApi(pool, collections, globals)
-    const result = await api.create({ collection: 'posts', data: { title: 'New', slug: 'new' } })
+    const result = await api.update({ collection: 'posts', id: 'abc', data: { title: 'Published' }, publish: true })
     expect(result.isOk()).toBe(true)
     expect(calls).toContain('field-beforeChange')
-    expect(calls).toContain('collection-beforeChange')
+    expect(calls).toContain('collection-beforePublish')
   })
 })
