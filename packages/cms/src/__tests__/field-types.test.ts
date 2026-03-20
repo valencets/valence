@@ -17,7 +17,7 @@ describe('FieldType', () => {
   })
 
   it('has exactly 11 types', () => {
-    expect(Object.keys(FieldType)).toHaveLength(18)
+    expect(Object.keys(FieldType)).toHaveLength(19)
   })
 })
 
