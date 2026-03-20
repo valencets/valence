@@ -84,7 +84,9 @@ export function createLocalApi (
       }
       if (args.filters) {
         for (const [k, v] of Object.entries(args.filters)) {
-          if (v !== '') builder = builder.where(k, v)
+          if (v === '') continue
+          const coerced = v === 'true' ? true : v === 'false' ? false : v
+          builder = builder.where(k, coerced)
         }
       }
       if (args.search) builder = builder.search(args.search)

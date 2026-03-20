@@ -51,7 +51,7 @@ interface ParsedQueryArgs {
   readonly orderBy: { field: string; direction: 'asc' | 'desc' } | undefined
   readonly page: number | undefined
   readonly perPage: number
-  readonly where: Record<string, string> | undefined
+  readonly filters: Record<string, string> | undefined
 }
 
 function parseQueryParams (
@@ -94,7 +94,7 @@ function parseQueryParams (
       orderBy: sortField !== null ? { field: sortField, direction } : undefined,
       page,
       perPage,
-      where: Object.keys(where).length > 0 ? where : undefined
+      filters: Object.keys(where).length > 0 ? where : undefined
     }
   }
 }
@@ -119,14 +119,14 @@ export function createRestRoutes (
           sendErrorJson(res, parsed.message, 400)
           return
         }
-        const { search, orderBy, page, perPage, where } = parsed.args
+        const { search, orderBy, page, perPage, filters } = parsed.args
         const result = await api.find({
           collection: slug,
           search,
           orderBy,
           page,
           perPage: page !== undefined ? perPage : undefined,
-          where
+          filters
         })
         result.match(
           (docs) => {
