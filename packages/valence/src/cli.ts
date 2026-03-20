@@ -27,6 +27,7 @@ import { toDevDbConfig, ensureDevDatabase } from './dev-database.js'
 const COMMANDS = {
   init: 'Create a new Valence project',
   dev: 'Start the development server',
+  start: 'Start the production server',
   migrate: 'Run pending database migrations',
   build: 'Build the project for production',
   'user:create': 'Create an admin user',
@@ -39,6 +40,7 @@ type Command = keyof typeof COMMANDS
 const commandMap: Record<Command, (args: ReadonlyArray<string>) => Promise<void>> = {
   init: runInit,
   dev: runDev,
+  start: runStart,
   migrate: runMigrate,
   build: runBuild,
   'user:create': runUserCreate,
@@ -725,6 +727,175 @@ async function runDev (): Promise<void> {
     await closePool(pool)
     process.exit(0)
   })
+}
+
+// -- start --
+
+export async function runStart (): Promise<void> {
+  await registerTsxLoader()
+  const config = loadEnvConfig()
+  if (!config) {
+    console.error('  Error: missing .env or database configuration. Run from your project root.')
+    process.exit(1)
+  }
+
+  const rawPort = process.env.PORT ?? '3000'
+  const port = Number(rawPort)
+  if (!Number.isFinite(port) || port < 1 || port > 65535) {
+    console.error(`  Error: invalid PORT "${rawPort}". Must be a number between 1 and 65535.`)
+    process.exit(1)
+  }
+
+  const cmsSecret = process.env.CMS_SECRET
+  if (!cmsSecret) {
+    console.error('  Error: CMS_SECRET must be set in .env for production.')
+    process.exit(1)
+  }
+
+  const projectDir = process.cwd()
+
+  log('Running migrations...')
+  const migrated = await runMigrationsForProject(projectDir, config)
+  if (!migrated) {
+    console.error('  Error: migrations failed. Fix your database before starting.')
+    process.exit(1)
+  }
+
+  log('Loading config...')
+  const loadedConfig = await loadUserConfig()
+  if (!loadedConfig) {
+    console.error('  Error: could not load valence.config.ts. Make sure it exists and exports defineConfig().')
+    process.exit(1)
+  }
+
+  const userConfig = loadedConfig.collections
+  const telemetryEnabled = loadedConfig.telemetry?.enabled ?? false
+
+  log('Building CMS...')
+  const pool = createPool(config)
+
+  const cmsResult = buildCms({
+    db: pool,
+    secret: cmsSecret,
+    uploadDir: join(projectDir, 'uploads'),
+    collections: userConfig,
+    telemetryPool: telemetryEnabled ? pool : undefined,
+    telemetrySiteId: loadedConfig.telemetry?.siteId
+  })
+
+  if (cmsResult.isErr()) {
+    console.error('  CMS build failed:', cmsResult.error.message)
+    process.exit(1)
+  }
+
+  const cms = cmsResult.value
+
+  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
+    const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
+
+    // Trailing-slash redirect (301) — before any route matching
+    const redirectTarget = stripTrailingSlash(req.url ?? '/')
+    if (redirectTarget !== null) {
+      res.writeHead(301, { Location: redirectTarget })
+      res.end()
+      return
+    }
+
+    // Try custom registered routes (from onServer registerRoute calls)
+    const customMatch = resolveCustomRoute(customRoutes, method, url.pathname)
+    if (customMatch) {
+      await customMatch.handler(req, res, customMatch.params)
+      return
+    }
+
+    // Try admin routes first
+    const adminMatch = matchRoute(url.pathname, cms.adminRoutes)
+    if (adminMatch) {
+      const handler = adminMatch.entry[method]
+      if (handler) {
+        await handler(req, res, adminMatch.params)
+        return
+      }
+    }
+
+    // Try REST API routes
+    const restMatch = matchRoute(url.pathname, cms.restRoutes)
+    if (restMatch) {
+      const handler = restMatch.entry[method]
+      if (handler) {
+        await handler(req, res, restMatch.params)
+        return
+      }
+      res.writeHead(405, { 'Content-Type': 'text/plain' })
+      res.end('Method not allowed')
+      return
+    }
+
+    // Static files from public/
+    const publicDir = join(projectDir, 'public')
+    const staticResult = resolveStaticPath(url.pathname, publicDir)
+    if (staticResult.isOk()) {
+      const filePath = staticResult.value
+      if (existsSync(filePath) && statSync(filePath).isFile()) {
+        const mime = resolveMimeType(filePath)
+        const rangeHeader = typeof req.headers['range'] === 'string' ? req.headers['range'] : undefined
+        await serveStaticFile(filePath, mime, rangeHeader, res)
+        return
+      }
+    }
+
+    // User pages from src/pages/
+    const srcDir = join(projectDir, 'src')
+    const pageHtmlPath = resolvePageRoute(url.pathname, srcDir)
+    if (pageHtmlPath !== null && existsSync(pageHtmlPath)) {
+      const pageContent = readFileSync(pageHtmlPath, 'utf-8')
+      sendHtml(res, pageContent)
+      return
+    }
+
+    res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end('<h1>404</h1><p>Not found</p>')
+  })
+
+  // Custom route map: path → method → handler
+  const customRoutes = new Map<string, Map<string, RouteHandler>>()
+  const registerRoute = (method: string, path: string, handler: RouteHandler): void => {
+    const methodUpper = method.toUpperCase()
+    let methodMap = customRoutes.get(path)
+    if (!methodMap) {
+      methodMap = new Map<string, RouteHandler>()
+      customRoutes.set(path, methodMap)
+    }
+    methodMap.set(methodUpper, handler)
+  }
+
+  // Allow the consuming app to attach WebSocket upgrade handlers or custom routes
+  if (loadedConfig.onServer) {
+    await loadedConfig.onServer({ server, pool, cms, registerRoute })
+  }
+
+  server.listen(port, () => {
+    console.log(`
+  Valence server running.
+
+  Site:  http://localhost:${port}
+  Admin: http://localhost:${port}/admin
+
+  Press Ctrl+C to stop.
+`)
+  })
+
+  const shutdown = async () => {
+    log('Shutting down...')
+    server.close(async () => {
+      await closePool(pool)
+      process.exit(0)
+    })
+  }
+
+  process.on('SIGINT', shutdown)
+  process.on('SIGTERM', shutdown)
 }
 
 // -- migrate --

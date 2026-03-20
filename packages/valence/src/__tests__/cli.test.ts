@@ -34,6 +34,23 @@ describe('CLI', () => {
   })
 })
 
+describe('start command', () => {
+  it('lists start in available commands', async () => {
+    const logs: string[] = []
+    const originalLog = console.log
+    console.log = (msg: string) => { logs.push(msg) }
+    await run([])
+    console.log = originalLog
+    const output = logs.join('\n')
+    expect(output).toContain('start')
+  })
+
+  it('exports runStart function', async () => {
+    const { runStart } = await import('../cli.js')
+    expect(typeof runStart).toBe('function')
+  })
+})
+
 describe('CLI security', () => {
   it('does not use execSync with string concatenation for tsx script execution', async () => {
     const { readFileSync } = await import('node:fs')
