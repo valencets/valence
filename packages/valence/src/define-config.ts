@@ -91,7 +91,7 @@ export interface ResolvedValenceConfig {
 }
 
 export interface ConfigError {
-  readonly code: 'INVALID_CONFIG' | 'INVALID_COLLECTION_SLUG' | 'DUPLICATE_COLLECTION_SLUG' | 'INVALID_SLUG_FROM'
+  readonly code: 'INVALID_CONFIG' | 'INVALID_COLLECTION_SLUG' | 'DUPLICATE_COLLECTION_SLUG' | 'INVALID_SLUG_FROM' | 'RESERVED_FIELD_NAME' | 'DUPLICATE_FIELD_NAME' | 'INVALID_RELATION_TO'
   readonly message: string
 }
 
