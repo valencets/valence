@@ -1,5 +1,5 @@
 import type { FieldAccess } from '../access/access-types.js'
-
+import type { FieldHooks } from '../hooks/hook-types.js'
 export const FieldType = {
   TEXT: 'text',
   TEXTAREA: 'textarea',
@@ -36,6 +36,7 @@ export interface FieldBaseConfig {
   readonly localized?: boolean | undefined
   readonly label?: string | undefined
   readonly access?: FieldAccess | undefined
+  readonly hooks?: FieldHooks | undefined
 }
 
 // --- Per-type configs ---

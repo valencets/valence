@@ -12,6 +12,7 @@ import { CmsErrorCode, StatusCode } from '../schema/types.js'
 import { isValidIdentifier } from '../db/sql-sanitize.js'
 import { safeQuery } from '../db/safe-query.js'
 import { runHooks } from '../hooks/hook-runner.js'
+import { runFieldHooks } from '../hooks/field-hook-runner.js'
 
 export interface FindArgs {
   readonly collection: string
@@ -110,6 +111,24 @@ function executeWithHooks (
     : execute(data)
 
   return beforeResult.andThen((result) => runAfterHooks(afterHooks, result, id, collectionSlug))
+}
+
+function applyFieldAfterRead (
+  fields: readonly FieldConfig[],
+  rows: readonly DocumentRow[],
+  collection: string
+): ResultAsync<DocumentRow[], CmsError> {
+  const hasAfterRead = fields.some(f => f.hooks?.afterRead && f.hooks.afterRead.length > 0)
+  if (!hasAfterRead) return okAsync([...rows])
+
+  let result = okAsync<DocumentRow[], CmsError>([])
+  for (const row of rows) {
+    result = result.andThen((acc) =>
+      runFieldHooks('afterRead', fields, row, row.id as string | undefined, collection)
+        .map((transformed) => [...acc, transformed as DocumentRow])
+    )
+  }
+  return result
 }
 
 function wrapLocalizedFields (
@@ -229,6 +248,9 @@ export function createLocalApi (
 
   return {
     find (args) {
+      const col = collections.get(args.collection)
+      if (col.isErr()) return errAsync(col.error)
+
       let builder = qb.query(args.collection)
       if (args.includeDrafts) builder = builder.includeDrafts()
       if (args.locale) builder = builder.locale(args.locale)
@@ -247,21 +269,37 @@ export function createLocalApi (
       if (args.search) builder = builder.search(args.search)
       if (args.orderBy) builder = builder.orderBy(args.orderBy.field, args.orderBy.direction)
       if (args.page !== undefined && args.perPage !== undefined) {
-        return builder.page(args.page, args.perPage).map((paginated) => ({
-          ...paginated,
-          docs: paginated.docs.map((d) => applyReadFilter(d as DocumentRow, args.collection))
-        }))
+        return builder.page(args.page, args.perPage).andThen((paginated) =>
+          applyFieldAfterRead(col.value.fields, paginated.docs, args.collection)
+            .map((docs) => ({
+              ...paginated,
+              docs: docs.map((d) => applyReadFilter(d, args.collection))
+            }))
+        )
       }
       if (args.limit) builder = builder.limit(args.limit)
-      return builder.all().map((rows) => rows.map((r) => applyReadFilter(r, args.collection)))
+      return builder.all().andThen((rows) =>
+        applyFieldAfterRead(col.value.fields, rows, args.collection)
+          .map((docs) => docs.map((r) => applyReadFilter(r, args.collection)))
+      )
     },
 
     // findByID intentionally bypasses status filter — admin lookups need access to drafts
     findByID (args) {
+      const col = collections.get(args.collection)
+      if (col.isErr()) return errAsync(col.error)
+
       return qb.query(args.collection)
         .where('id', args.id)
         .first()
-        .map((doc) => doc ? applyReadFilter(doc, args.collection) : null)
+        .andThen((row) => {
+          if (row === null) return okAsync(null)
+          return applyFieldAfterRead(col.value.fields, [row], args.collection)
+            .map((rows) => {
+              const doc = rows[0] ?? null
+              return doc ? applyReadFilter(doc, args.collection) : null
+            })
+        })
     },
 
     create (args) {
@@ -279,10 +317,17 @@ export function createLocalApi (
         data = wrapLocalizedFields(data, col.value.fields, args.locale)
       }
 
-      data = applyWriteFilter(data, args.collection, 'create')
+      const fields = col.value.fields
 
-      return qb.query(args.collection).insert(data)
-        .map((doc) => applyReadFilter(doc, args.collection))
+      return runFieldHooks('beforeChange', fields, data, undefined, args.collection)
+        .map((fieldData) => applyWriteFilter(fieldData as DocumentData, args.collection, 'create'))
+        .andThen((filteredData) =>
+          qb.query(args.collection).insert(filteredData)
+        )
+        .andThen((result) =>
+          runFieldHooks('afterChange', fields, result, result.id as string | undefined, args.collection)
+            .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
+        )
     },
 
     update (args) {
@@ -305,21 +350,33 @@ export function createLocalApi (
           .map((doc) => applyReadFilter(doc, args.collection))
       }
 
+      const fields = col.value.fields
+
       if (isVersioned && args.publish && col.value.hooks) {
-        return executeWithHooks(
-          col.value.hooks.beforePublish,
-          col.value.hooks.afterPublish,
-          data,
-          args.id,
-          args.collection,
-          (finalData) => qb.query(args.collection).where('id', args.id).update(finalData)
-        ).map((doc) => applyReadFilter(doc, args.collection))
+        return runFieldHooks('beforeChange', fields, data, args.id, args.collection)
+          .andThen((fieldData) =>
+            executeWithHooks(
+              col.value.hooks?.beforePublish,
+              col.value.hooks?.afterPublish,
+              fieldData as DocumentData,
+              args.id,
+              args.collection,
+              (finalData) => qb.query(args.collection).where('id', args.id).update(finalData)
+            )
+          )
+          .map((doc) => applyReadFilter(doc, args.collection))
       }
 
-      return qb.query(args.collection)
-        .where('id', args.id)
-        .update(data)
-        .map((doc) => applyReadFilter(doc, args.collection))
+      return runFieldHooks('beforeChange', fields, data, args.id, args.collection)
+        .andThen((fieldData) =>
+          qb.query(args.collection)
+            .where('id', args.id)
+            .update(fieldData as DocumentData)
+        )
+        .andThen((result) =>
+          runFieldHooks('afterChange', fields, result, args.id, args.collection)
+            .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
+        )
     },
 
     delete (args) {

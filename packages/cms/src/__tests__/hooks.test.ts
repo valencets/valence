@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { runHooks } from '../hooks/hook-runner.js'
 import type { CollectionHooks, HookArgs } from '../hooks/hook-types.js'
+import type { TextFieldConfig } from '../schema/field-types.js'
 
 describe('CollectionHooks', () => {
   it('accepts all lifecycle hook arrays', () => {
@@ -23,6 +24,46 @@ describe('CollectionHooks', () => {
     }
     expect(hooks.afterChange).toHaveLength(1)
     expect(hooks.beforeChange).toBeUndefined()
+  })
+})
+
+describe('FieldHooks on FieldBaseConfig', () => {
+  it('field config accepts hooks with all lifecycle events', () => {
+    const fieldConfig: TextFieldConfig = {
+      type: 'text',
+      name: 'title',
+      hooks: {
+        beforeValidate: [({ data }) => ({ ...data, validated: true })],
+        beforeChange: [({ data }) => data],
+        afterChange: [({ data }) => data],
+        afterRead: [({ data }) => data]
+      }
+    }
+    expect(fieldConfig.hooks).toBeDefined()
+    expect(fieldConfig.hooks?.beforeValidate).toHaveLength(1)
+    expect(fieldConfig.hooks?.beforeChange).toHaveLength(1)
+    expect(fieldConfig.hooks?.afterChange).toHaveLength(1)
+    expect(fieldConfig.hooks?.afterRead).toHaveLength(1)
+  })
+
+  it('field config works without hooks (backward compat)', () => {
+    const fieldConfig: TextFieldConfig = {
+      type: 'text',
+      name: 'title'
+    }
+    expect(fieldConfig.hooks).toBeUndefined()
+  })
+
+  it('field config accepts partial hooks', () => {
+    const fieldConfig: TextFieldConfig = {
+      type: 'text',
+      name: 'title',
+      hooks: {
+        afterRead: [({ data }) => ({ ...data, transformed: true })]
+      }
+    }
+    expect(fieldConfig.hooks?.afterRead).toHaveLength(1)
+    expect(fieldConfig.hooks?.beforeChange).toBeUndefined()
   })
 })
 
