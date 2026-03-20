@@ -49,6 +49,7 @@ export type {
 export {
   generateZodSchema,
   generatePartialSchema,
+  generateDraftSchema,
   isValidSlug,
   isValidEmail
 } from './validation/index.js'

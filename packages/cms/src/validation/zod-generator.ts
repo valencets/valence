@@ -200,3 +200,7 @@ export function generateZodSchema (fields: readonly FieldConfig[]): ZodObject {
 export function generatePartialSchema (fields: readonly FieldConfig[]): ZodObject {
   return buildObjectSchema(fields).partial()
 }
+
+export function generateDraftSchema (fields: readonly FieldConfig[]): ZodObject {
+  return buildObjectSchema(fields).partial()
+}
