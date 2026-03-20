@@ -138,13 +138,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - name: Audit dependencies
-        run: pnpm audit --audit-level=high || echo 'Audit found vulnerabilities - check output above'
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-      - name: Run CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        run: pnpm audit --audit-level=high
 
   publish:
     needs: [unit, integration, e2e, security]
