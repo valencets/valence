@@ -199,6 +199,36 @@ describe('generateEntityInterface', () => {
     }))).toContain('interface Post')
   })
 
+  it('maps blocks to discriminated union array type', () => {
+    const col = collection({
+      slug: 'pages',
+      fields: [field.blocks({
+        name: 'content',
+        required: true,
+        blocks: [
+          {
+            slug: 'hero',
+            fields: [field.text({ name: 'heading', required: true })]
+          },
+          {
+            slug: 'cta',
+            fields: [
+              field.text({ name: 'label', required: true }),
+              field.url({ name: 'href', required: true })
+            ]
+          }
+        ]
+      })]
+    })
+    const output = generateEntityInterface(col)
+    expect(output).toContain('readonly content: Array<')
+    expect(output).toContain("blockType: 'hero'")
+    expect(output).toContain('readonly heading: string')
+    expect(output).toContain("blockType: 'cta'")
+    expect(output).toContain('readonly label: string')
+    expect(output).toContain('readonly href: string')
+  })
+
   it('handles hyphenated slugs with PascalCase', () => {
     const col = collection({ slug: 'blog-posts', fields: [] })
     const output = generateEntityInterface(col)
