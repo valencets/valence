@@ -17,6 +17,8 @@ export interface AdminConfig {
   readonly group?: string | undefined
   readonly hidden?: boolean | undefined
   readonly position?: number | undefined
+  readonly displayField?: string | undefined
+  readonly listFields?: readonly string[] | undefined
 }
 
 export interface CollectionConfig {

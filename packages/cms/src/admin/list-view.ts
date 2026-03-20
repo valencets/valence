@@ -1,5 +1,5 @@
 import type { CollectionConfig } from '../schema/collection.js'
-import type { SelectFieldConfig, BooleanFieldConfig } from '../schema/field-types.js'
+import type { FieldConfig, SelectFieldConfig, BooleanFieldConfig } from '../schema/field-types.js'
 import { escapeHtml } from './escape.js'
 
 export interface DocumentRow {
@@ -192,10 +192,35 @@ function resolveCellValue (raw: string | number | boolean | null, localized: boo
   return String(raw ?? '')
 }
 
+function resolveDisplayFields (args: ListViewArgs): readonly FieldConfig[] {
+  const { col } = args
+  const { listFields, displayField } = col.admin ?? {}
+
+  if (listFields !== undefined) {
+    const nameToField = new Map(col.fields.map(f => [f.name, f]))
+    const resolved = listFields.flatMap(name => {
+      const f = nameToField.get(name)
+      return f !== undefined ? [f] : []
+    })
+    if (displayField === undefined) return resolved
+    const withoutDisplay = resolved.filter(f => f.name !== displayField)
+    const displayF = resolved.find(f => f.name === displayField)
+    return displayF !== undefined ? [displayF, ...withoutDisplay] : resolved
+  }
+
+  if (displayField !== undefined) {
+    const displayF = col.fields.find(f => f.name === displayField)
+    const others = col.fields.filter(f => f.name !== displayField).slice(0, 2)
+    return displayF !== undefined ? [displayF, ...others] : col.fields.slice(0, 3)
+  }
+
+  return col.fields.slice(0, 3)
+}
+
 function renderTable (args: ListViewArgs): string {
   const { col, docs } = args
   const isVersioned = col.versions?.drafts === true
-  const displayFields = col.fields.slice(0, 3)
+  const displayFields = resolveDisplayFields(args)
   const statusHeader = isVersioned ? '<th>Status</th>' : ''
   const headerCells = displayFields.map(f => {
     const label = f.label ?? f.name

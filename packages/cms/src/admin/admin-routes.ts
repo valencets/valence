@@ -162,10 +162,13 @@ export function createAdminRoutes (
         (r) => r as Array<{ id: string; [key: string]: string | number | boolean | null }>,
         () => []
       )
-      const firstTextField = relCol.value.fields.find(rf => rf.type === 'text')
+      const displayFieldName = relCol.value.admin?.displayField
+      const labelField = displayFieldName
+        ? relCol.value.fields.find(rf => rf.name === displayFieldName)
+        : relCol.value.fields.find(rf => rf.type === 'text')
       context[f.name] = rows.map(row => ({
         id: String(row.id),
-        label: firstTextField ? String(row[firstTextField.name] ?? row.id) : String(row.id)
+        label: labelField ? String(row[labelField.name] ?? row.id) : String(row.id)
       }))
     }
     return context
