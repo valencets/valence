@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry, GlobalRegistry } from '../schema/registry.js'
+import { ResultAsync } from 'neverthrow'
 import { createLocalApi } from './local-api.js'
 import { sendJson, sendErrorJson, safeReadBody, safeJsonParse } from './http-utils.js'
 import type { DocumentData } from '../db/query-builder.js'
@@ -8,6 +9,7 @@ import { generateZodSchema, generatePartialSchema, generateDraftSchema } from '.
 import type { CollectionConfig } from '../schema/collection.js'
 import type { PaginatedResult } from '../db/query-types.js'
 import type { DocumentRow } from '../db/query-builder.js'
+import type { CmsError } from '../schema/types.js'
 
 export type RestRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
@@ -276,6 +278,48 @@ export function createRestRoutes (
           (doc) => sendJson(res, doc as DocumentData),
           (err) => sendErrorJson(res, err.message, 400)
         )
+      }
+    })
+
+    routes.set(`/api/${slug}/bulk`, {
+      POST: async (req, res) => {
+        if (!requireJsonContentType(req, res)) return
+        const bodyResult = await safeReadBody(req)
+        if (bodyResult.isErr()) { sendErrorJson(res, bodyResult.error.message, 400); return }
+        const parseResult = await safeJsonParse(bodyResult.value)
+        if (parseResult.isErr()) { sendErrorJson(res, parseResult.error.message, 400); return }
+
+        const parsed = parseResult.value
+        const action = typeof parsed.action === 'string' ? parsed.action : undefined
+        const ids = Array.isArray(parsed.ids) ? (parsed.ids as string[]) : undefined
+
+        if (!action) { sendErrorJson(res, 'Missing action', 400); return }
+        if (!ids || ids.length === 0) { sendErrorJson(res, 'ids must be a non-empty array', 400); return }
+
+        const ACTIONS: Record<string, (id: string) => ResultAsync<DocumentRow, CmsError>> = {
+          delete: (id) => api.delete({ collection: slug, id }),
+          publish: (id) => api.update({ collection: slug, id, data: {}, publish: true }),
+          unpublish: (id) => api.unpublish({ collection: slug, id })
+        }
+
+        const handler = ACTIONS[action]
+        if (!handler) { sendErrorJson(res, `Unknown action: ${action}`, 400); return }
+
+        const resultPromises = ids.map(async (id) => {
+          const opResult = await handler(id)
+          return opResult.match(
+            (doc): { id: string; success: true; doc: DocumentData } => ({ id, success: true, doc: doc as DocumentData }),
+            (err): { id: string; success: false; error: string } => ({ id, success: false, error: err.message })
+          )
+        })
+
+        const results = await Promise.all(resultPromises)
+        const responseBody = JSON.stringify({ results })
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Length': Buffer.byteLength(responseBody)
+        })
+        res.end(responseBody)
       }
     })
   }
