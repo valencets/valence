@@ -255,6 +255,74 @@ jobs:
   coverage:
     name: Coverage (80% gate)
     needs: [build]
+  perf:
+    needs: [unit]
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: grafana/setup-k6-action@v1
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Start perf test server
+        run: node tests/perf/server.mjs &
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PORT: 3000
+      - name: Wait for server to be ready
+        run: |
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3000/ > /dev/null 2>&1; then
+              echo "Server ready"; break
+            fi
+            echo "Waiting for server... attempt $i"
+            sleep 2
+          done
+      - name: Seed test data
+        run: k6 run --env BASE_URL=http://localhost:3000 tests/perf/seed.js
+        env:
+          SEED_COUNT: 200
+        continue-on-error: true
+      - name: Run smoke test (PR) or full load test (main)
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/master" ] || [ "${{ github.ref }}" = "refs/heads/development" ]; then
+            k6 run --env BASE_URL=http://localhost:3000 tests/perf/load.js
+          else
+            k6 run --env BASE_URL=http://localhost:3000 tests/perf/smoke.js
+          fi
+      - name: Generate k6 summary artifact
+        if: always()
+        run: |
+          if [ -f k6-summary.json ]; then
+            echo "k6 summary artifact found"
+          else
+            echo '{"note":"k6 summary not generated (no --summary-export flag used)"}' > k6-summary.json
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-summary
+          path: k6-summary.json
+          retention-days: 30
+
+  security:
+    needs: [lint]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

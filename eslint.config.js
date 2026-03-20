@@ -58,5 +58,18 @@ export default [
     rules: {
       'no-restricted-syntax': 'off'
     }
+  },
+  // k6 performance test scripts use k6's own runtime globals
+  {
+    files: ['tests/perf/**/*.js'],
+    languageOptions: {
+      globals: {
+        __ENV: 'readonly',
+        __VU: 'readonly',
+        __ITER: 'readonly',
+        __SCENARIO: 'readonly',
+        open: 'readonly'
+      }
+    }
   }
 ]
