@@ -1,4 +1,5 @@
 import type { CollectionConfig } from '../schema/collection.js'
+import type { FieldConfig } from '../schema/field-types.js'
 import { CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
 import { renderFieldInput } from './field-renderers.js'
 import type { RelationContext } from './field-renderers.js'
@@ -131,6 +132,56 @@ function buildHtmxFormAttrs (hasConditionalFields: boolean, slug: string, id: st
   return ` hx-post="${partialPath}" hx-trigger="change from:.condition-trigger" hx-target=".form-fields" hx-swap="innerHTML" hx-include="[name]"`
 }
 
+interface GhostLayoutFields {
+  readonly titleField: FieldConfig | null
+  readonly richtextField: FieldConfig
+  readonly sidebarFields: readonly FieldConfig[]
+}
+
+function detectGhostLayout (col: CollectionConfig): GhostLayoutFields | null {
+  const richtextField = col.fields.find(f => f.type === 'richtext')
+  if (!richtextField) return null
+  const titleField = col.fields.find(f => f.type === 'text') ?? null
+  const mainFieldNames = new Set([titleField?.name, richtextField.name].filter(Boolean))
+  const sidebarFields = col.fields.filter(f => !mainFieldNames.has(f.name))
+  return { titleField, richtextField, sidebarFields }
+}
+
+function renderTitleInput (f: FieldConfig, value: string): string {
+  const req = f.required ? ' required' : ''
+  const placeholder = escapeHtml(f.label ?? f.name)
+  return `<input class="form-input content-title" type="text" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}" placeholder="${placeholder}"${req}>`
+}
+
+function renderGhostLayout (
+  fields: GhostLayoutFields,
+  formData: Record<string, string> | null,
+  relationContext: RelationContext | undefined,
+  localeConfig: EditViewLocaleConfig | undefined
+): string {
+  const titleValue = formData && fields.titleField ? (formData[fields.titleField.name] ?? '') : ''
+  const titleHtml = fields.titleField ? renderTitleInput(fields.titleField, titleValue) : ''
+
+  const richtextValue = formData ? (formData[fields.richtextField.name] ?? '') : ''
+  const richtextHtml = renderFieldInput(fields.richtextField, richtextValue, relationContext)
+
+  const sidebarHtml = fields.sidebarFields.map(f => {
+    const raw = formData ? formData[f.name] : undefined
+    const value = resolveFieldValue(raw, f.localized, localeConfig)
+    return renderFieldInput(f, value, relationContext)
+  }).join('\n')
+
+  return `<div class="ghost-layout">
+  <div class="ghost-main">
+    ${titleHtml}
+    ${richtextHtml}
+  </div>
+  <div class="ghost-sidebar">
+    ${sidebarHtml}
+  </div>
+</div>`
+}
+
 export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfToken: string = '', relationContext?: RelationContext, nonce?: string, localeConfig?: EditViewLocaleConfig): string {
   const isNew = doc === null
   const slug = escapeHtml(col.slug)
@@ -150,7 +201,15 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
     )
     : null
 
-  const fieldInputs = renderFormFieldsFragment(col, formData, relationContext, localeConfig)
+  const ghostLayout = detectGhostLayout(col)
+  const fieldContainer = ghostLayout
+    ? renderGhostLayout(ghostLayout, formData, relationContext, localeConfig)
+    : (() => {
+        const fieldInputs = renderFormFieldsFragment(col, formData, relationContext, localeConfig)
+        return hasConditionalFields
+          ? `<div class="form-fields">\n    ${fieldInputs}\n    </div>`
+          : fieldInputs
+      })()
 
   const csrfField = csrfToken ? `<input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">` : ''
 
@@ -172,9 +231,6 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
     : ''
 
   const htmxAttrs = buildHtmxFormAttrs(hasConditionalFields, slug, id, isNew)
-  const fieldContainer = hasConditionalFields
-    ? `<div class="form-fields">\n    ${fieldInputs}\n    </div>`
-    : fieldInputs
 
   return `
 <div class="edit-container">
