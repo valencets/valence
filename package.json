@@ -14,7 +14,10 @@
     "test:e2e": "playwright test",
     "test:coverage": "vitest run --coverage",
     "test:mutate": "stryker run",
-    "test:smoke": "vitest run --tags-filter=smoke"
+    "test:smoke": "vitest run --tags-filter=smoke",
+    "test:regression": "vitest run --tags-filter=regression",
+    "test:quarantine": "vitest run --tags-filter=flaky",
+    "test:watch": "vitest --watch"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
@@ -29,6 +32,7 @@
     "eslint": "^9.22.0",
     "happy-dom": "^20.8.3",
     "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "msw": "^2.12.13",
     "neostandard": "^0.13.0",
     "postgres": "^3.4.8",
