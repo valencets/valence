@@ -911,13 +911,13 @@ async function runMigrationsForProject (projectDir: string, config: DbConfig): P
     const tables = await pool.sql.unsafe(
       "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
     )
-    for (const t of tables as any[]) {
-      const tableName = t.table_name
+    for (const t of tables) {
+      const tableName = String(Reflect.get(t, 'table_name') ?? '')
       const cols = await pool.sql.unsafe(
         "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
         [tableName]
       )
-      const colNames = (cols as any[]).map(c => c.column_name)
+      const colNames = Array.from(cols).map(c => String(Reflect.get(c, 'column_name') ?? ''))
       // Check for camelCase system columns (common mistake)
       const camelCaseSystemCols = ['createdAt', 'updatedAt', 'deletedAt']
       for (const bad of camelCaseSystemCols) {
