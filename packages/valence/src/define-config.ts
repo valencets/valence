@@ -153,7 +153,17 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
 
   const collectionValidation = validateCollections(config.collections)
   if (collectionValidation.isErr()) {
-    return err(collectionValidation.error)
+    const errors = collectionValidation.error
+    const firstError = errors[0]
+    if (firstError === undefined) {
+      return err({ code: 'INVALID_CONFIG', message: 'Collection validation failed with no details.' })
+    }
+    return err({
+      code: firstError.code,
+      message: errors.length === 1
+        ? firstError.message
+        : errors.map((e) => e.message).join('\n')
+    })
   }
 
   const data = parsed.data
