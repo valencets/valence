@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry, GlobalRegistry } from '../schema/registry.js'
-import { ResultAsync } from 'neverthrow'
+import type { ResultAsync } from 'neverthrow'
 import { createLocalApi } from './local-api.js'
 import { sendJson, sendErrorJson, safeReadBody, safeJsonParse } from './http-utils.js'
 import type { DocumentData } from '../db/query-builder.js'
