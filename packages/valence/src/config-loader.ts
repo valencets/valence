@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import type { DbConfig } from '@valencets/db'
 import type { CollectionConfig } from '@valencets/cms'
+import type { OnServerContext } from './define-config.js'
 import { log } from './cli-utils.js'
 
 export interface UserConfig {
@@ -14,6 +15,8 @@ export interface UserConfig {
     readonly bufferSize?: number | undefined
     readonly flushIntervalMs?: number | undefined
   } | undefined
+  // Preserved from ResolvedValenceConfig so runDev can invoke it.
+  readonly onServer?: ((ctx: OnServerContext) => void | Promise<void>) | undefined
 }
 
 export function loadEnvConfig (): DbConfig | null {
@@ -63,7 +66,13 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
     const mod = await import(configPath)
     const result = mod.default
     if (result && typeof result.isOk === 'function' && result.isOk()) {
-      return { collections: result.value.collections ?? [], telemetry: result.value.telemetry }
+      return {
+        collections: result.value.collections ?? [],
+        telemetry: result.value.telemetry,
+        // onServer is a function and can only be preserved via direct import —
+        // serialisation through the tsx subprocess would lose it.
+        onServer: result.value.onServer
+      }
     }
     return null
   } catch {
@@ -92,7 +101,8 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
         : execFileSync('npx', ['tsx', ...tsxArgs], { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'], timeout: 15000 }).toString().trim()
       if (output) {
         const parsed = JSON.parse(output)
-        // Re-hydrate through collection() to get proper CollectionConfig objects
+        // Re-hydrate through collection() to get proper CollectionConfig objects.
+        // onServer cannot be recovered from the subprocess — functions are not serialisable.
         const { collection: col } = await import('@valencets/cms')
         const collections = parsed.collections.map((c: Parameters<typeof col>[0]) => col(c))
         return { collections, telemetry: parsed.telemetry }

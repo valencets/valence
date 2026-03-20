@@ -1,6 +1,17 @@
 import { ok, err } from 'neverthrow'
 import type { Result } from 'neverthrow'
 import { z } from 'zod'
+import type { Server } from 'node:http'
+import type { DbPool } from '@valencets/db'
+import type { CmsInstance } from '@valencets/cms'
+
+// Passed to onServer so consumers can attach WebSocket upgrade handlers,
+// register custom routes, etc., without abandoning `valence dev`.
+export interface OnServerContext {
+  readonly server: Server
+  readonly pool: DbPool
+  readonly cms: CmsInstance
+}
 
 export interface ValenceConfig {
   readonly db: {
@@ -34,6 +45,9 @@ export interface ValenceConfig {
     readonly uploadDir: string
     readonly maxUploadBytes?: number | undefined
   } | undefined
+  // Called after CMS is built and before the HTTP server starts listening.
+  // Lets consuming apps attach WebSocket upgrade handlers or custom routes.
+  readonly onServer?: ((ctx: OnServerContext) => void | Promise<void>) | undefined
 }
 
 export interface ResolvedValenceConfig {
@@ -68,6 +82,8 @@ export interface ResolvedValenceConfig {
     readonly uploadDir: string
     readonly maxUploadBytes: number
   } | undefined
+  // Preserved from ValenceConfig — not validated by Zod since it is a function.
+  readonly onServer?: ((ctx: OnServerContext) => void | Promise<void>) | undefined
 }
 
 export interface ConfigError {
@@ -110,7 +126,10 @@ const configSchema = z.object({
 })
 
 export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConfig, ConfigError> {
-  const parsed = configSchema.safeParse(config)
+  // Strip onServer before Zod validation — Zod cannot validate function types,
+  // so we preserve it separately and re-attach after resolution.
+  const { onServer, ...configWithoutCallback } = config
+  const parsed = configSchema.safeParse(configWithoutCallback)
 
   if (!parsed.success) {
     const issues = parsed.error.issues.map((issue) =>
@@ -161,7 +180,8 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
           uploadDir: data.media.uploadDir,
           maxUploadBytes: data.media.maxUploadBytes ?? 10_000_000
         }
-      : undefined
+      : undefined,
+    onServer
   }
 
   return ok(resolved)
