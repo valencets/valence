@@ -25,36 +25,40 @@ interface MockRes {
   _headers: Record<string, string>
   _body: string
   _ended: boolean
+  setHeader: (name: string, value: string) => void
+  getHeader: (name: string) => string | undefined
+  writeHead: (statusCode: number, headers?: Record<string, string | number>) => void
+  end: (body?: string) => void
 }
 
 function mockRes (): ServerResponse & MockRes {
-  const res: MockRes = {
+  const mock = {
     statusCode: 200,
-    _headers: {},
+    _headers: {} as Record<string, string>,
     _body: '',
     _ended: false
+  } as MockRes
+
+  mock.setHeader = (name: string, value: string) => {
+    mock._headers[name.toLowerCase()] = value
   }
-  return {
-    ...res,
-    setHeader (name: string, value: string) {
-      res._headers[name.toLowerCase()] = value
-    },
-    getHeader (name: string): string | undefined {
-      return res._headers[name.toLowerCase()]
-    },
-    writeHead (statusCode: number, headers?: Record<string, string | number>) {
-      res.statusCode = statusCode
-      if (headers) {
-        for (const [k, v] of Object.entries(headers)) {
-          res._headers[k.toLowerCase()] = String(v)
-        }
+  mock.getHeader = (name: string): string | undefined => {
+    return mock._headers[name.toLowerCase()]
+  }
+  mock.writeHead = (statusCode: number, headers?: Record<string, string | number>) => {
+    mock.statusCode = statusCode
+    if (headers) {
+      for (const [k, v] of Object.entries(headers)) {
+        mock._headers[k.toLowerCase()] = String(v)
       }
-    },
-    end (body?: string) {
-      res._body = body ?? ''
-      res._ended = true
     }
-  } as unknown as ServerResponse & MockRes
+  }
+  mock.end = (body?: string) => {
+    mock._body = body ?? ''
+    mock._ended = true
+  }
+
+  return mock as unknown as ServerResponse & MockRes
 }
 
 describe('createCsrfMiddleware', () => {
@@ -120,7 +124,7 @@ describe('createCsrfMiddleware', () => {
   it('validates POST: cookie value matches X-CSRF-Token header', async () => {
     const token = 'a'.repeat(64)
     const req = mockReq('POST', {
-      cookie: `__val_csrf=${token}`,
+      cookie: '__val_csrf=' + token,
       'x-csrf-token': token
     })
     const res = mockRes()
@@ -134,11 +138,11 @@ describe('createCsrfMiddleware', () => {
   it('validates POST: cookie value matches _csrf body field', async () => {
     const token = 'b'.repeat(64)
     const req = mockReq('POST', {
-      cookie: `__val_csrf=${token}`,
+      cookie: '__val_csrf=' + token,
       'content-type': 'application/x-www-form-urlencoded'
     })
 
-    const bodyChunks = [`_csrf=${token}`]
+    const bodyChunks = ['_csrf=' + token]
     req.on = vi.fn((event: string, cb: (chunk: Buffer) => void) => {
       if (event === 'data') {
         for (const chunk of bodyChunks) {
