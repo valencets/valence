@@ -1,295 +1,266 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import postgres from 'postgres'
-import { createPool, closePool } from '@valencets/db'
+import {
+  setupTestDatabase,
+  teardownTestDatabase,
+  getAppPool
+} from '../../packages/telemetry/src/__tests__/integration/setup.js'
+import {
+  ingestBeacon,
+  validateBeaconPayload,
+  generateDailySummary,
+  BeaconValidationErrorCode
+} from '@valencets/telemetry'
 import type { DbPool } from '@valencets/db'
-
-const TEST_DB = 'valence_telemetry_integration_test'
-
-const INIT_SQL = `
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
-CREATE TABLE IF NOT EXISTS "sessions" (
-  "session_id" UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  "referrer" TEXT,
-  "device_type" VARCHAR(50) NOT NULL DEFAULT 'desktop',
-  "operating_system" TEXT,
-  "created_at" TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "events" (
-  "event_id" BIGSERIAL PRIMARY KEY,
-  "session_id" UUID NOT NULL REFERENCES "sessions"("session_id") ON DELETE RESTRICT,
-  "event_category" VARCHAR(100) NOT NULL,
-  "dom_target" TEXT,
-  "payload" JSONB DEFAULT '{}',
-  "created_at" TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "daily_summaries" (
-  "id" SERIAL PRIMARY KEY,
-  "site_id" TEXT NOT NULL,
-  "date" DATE NOT NULL,
-  "business_type" TEXT,
-  "schema_version" INT DEFAULT 1,
-  "session_count" INT,
-  "pageview_count" INT,
-  "conversion_count" INT,
-  "top_referrers" JSONB DEFAULT '[]',
-  "top_pages" JSONB DEFAULT '[]',
-  "intent_counts" JSONB DEFAULT '{}',
-  "avg_flush_ms" FLOAT DEFAULT 0,
-  "rejection_count" INT DEFAULT 0,
-  "synced_at" TIMESTAMPTZ,
-  "created_at" TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE("site_id", "date")
-);
-`
+import type { BeaconEvent } from '@valencets/telemetry'
 
 let pool: DbPool
 
 beforeAll(async () => {
-  const adminSql = postgres({ database: 'postgres', max: 2 })
-
-  const existing = await adminSql`SELECT 1 FROM pg_database WHERE datname = ${TEST_DB}`
-  if (existing.length > 0) {
-    await adminSql`
-      SELECT pg_terminate_backend(pid)
-      FROM pg_stat_activity
-      WHERE datname = ${TEST_DB} AND pid <> pg_backend_pid()
-    `
-    await adminSql.unsafe(`DROP DATABASE ${TEST_DB}`)
-  }
-  await adminSql.unsafe(`CREATE DATABASE ${TEST_DB}`)
-  await adminSql.end()
-
-  pool = createPool({
-    host: 'localhost',
-    port: 5432,
-    database: TEST_DB,
-    username: '',
-    password: '',
-    max: 5,
-    idle_timeout: 10,
-    connect_timeout: 5
-  })
-
-  await pool.sql.unsafe(INIT_SQL)
+  await setupTestDatabase()
+  pool = getAppPool()
 }, 30_000)
 
 afterAll(async () => {
-  await closePool(pool)
-
-  const adminSql = postgres({ database: 'postgres', max: 2 })
-  await adminSql`
-    SELECT pg_terminate_backend(pid)
-    FROM pg_stat_activity
-    WHERE datname = ${TEST_DB} AND pid <> pg_backend_pid()
-  `
-  await adminSql.unsafe(`DROP DATABASE IF EXISTS ${TEST_DB}`)
-  await adminSql.end()
+  await teardownTestDatabase()
 }, 15_000)
 
 beforeEach(async () => {
-  await pool.sql.unsafe('TRUNCATE TABLE "events", "daily_summaries", "sessions" CASCADE')
+  await pool.sql`DELETE FROM daily_summaries`
+  await pool.sql`DELETE FROM ingestion_health`
+  await pool.sql`DELETE FROM conversion_summaries`
+  await pool.sql`DELETE FROM event_summaries`
+  await pool.sql`DELETE FROM session_summaries`
+  await pool.sql`DELETE FROM events`
+  await pool.sql`DELETE FROM sessions`
 })
 
+function makeEvent (overrides: Partial<BeaconEvent> = {}): BeaconEvent {
+  return {
+    id: 'evt-001',
+    timestamp: Date.now(),
+    type: 'CLICK',
+    targetDOMNode: 'button.cta',
+    x_coord: 100,
+    y_coord: 200,
+    schema_version: 1,
+    site_id: 'site-test',
+    business_type: 'dental',
+    path: '/home',
+    referrer: 'google.com',
+    ...overrides
+  }
+}
+
 describe('Telemetry pipeline integration tests', () => {
-  describe('sessions', () => {
-    it('inserts a session and returns session_id', async () => {
-      const rows = await pool.sql.unsafe(
-        `INSERT INTO "sessions" ("referrer", "device_type", "operating_system")
-         VALUES ($1, $2, $3)
-         RETURNING "session_id"`,
-        ['https://example.com', 'mobile', 'iOS']
-      )
+  describe('ingestBeacon — valid ingestion', () => {
+    it('stores a single event and returns session_id + eventsInserted', async () => {
+      const result = await ingestBeacon(pool, [makeEvent()])
 
-      expect(rows).toHaveLength(1)
-      const row = rows[0] as { session_id: string }
-      expect(row.session_id).toBeDefined()
-      expect(typeof row.session_id).toBe('string')
+      expect(result.isOk()).toBe(true)
+      const value = result._unsafeUnwrap()
+      expect(value.eventsInserted).toBe(1)
+      expect(value.sessionId).toBeTruthy()
+
+      const sessions = await pool.sql<Array<{ session_id: string }>>`
+        SELECT session_id FROM sessions WHERE session_id = ${value.sessionId}::uuid
+      `
+      expect(sessions).toHaveLength(1)
     })
 
-    it('uses default device_type when not specified', async () => {
-      const rows = await pool.sql.unsafe(
-        'INSERT INTO "sessions" ("referrer") VALUES ($1) RETURNING "session_id", "device_type"',
-        ['https://example.com']
-      )
+    it('stores all events in a batch linked to the same session', async () => {
+      const events: ReadonlyArray<BeaconEvent> = [
+        makeEvent({ id: 'evt-001', type: 'CLICK' }),
+        makeEvent({ id: 'evt-002', type: 'SCROLL' }),
+        makeEvent({ id: 'evt-003', type: 'LEAD_FORM' })
+      ]
 
-      const row = rows[0] as { session_id: string; device_type: string }
-      expect(row.device_type).toBe('desktop')
+      const result = await ingestBeacon(pool, events)
+
+      expect(result.isOk()).toBe(true)
+      const { eventsInserted, sessionId } = result._unsafeUnwrap()
+      expect(eventsInserted).toBe(3)
+
+      const stored = await pool.sql<Array<{ event_category: string }>>`
+        SELECT event_category FROM events
+        WHERE session_id = ${sessionId}::uuid
+        ORDER BY event_id
+      `
+      expect(stored).toHaveLength(3)
+      expect(stored[0]!.event_category).toBe('CLICK')
+      expect(stored[1]!.event_category).toBe('SCROLL')
+      expect(stored[2]!.event_category).toBe('LEAD_FORM')
+    })
+
+    it('stores event payload including path and coordinates', async () => {
+      const result = await ingestBeacon(pool, [
+        makeEvent({ path: '/pricing', x_coord: 42, y_coord: 88, targetDOMNode: 'a.plan-link' })
+      ])
+
+      expect(result.isOk()).toBe(true)
+      const { sessionId } = result._unsafeUnwrap()
+
+      const rows = await pool.sql<Array<{ payload: { path: string; x_coord: number; y_coord: number }; dom_target: string }>>`
+        SELECT payload, dom_target FROM events WHERE session_id = ${sessionId}::uuid
+      `
+      expect(rows).toHaveLength(1)
+      expect(rows[0]!.payload.path).toBe('/pricing')
+      expect(rows[0]!.payload.x_coord).toBe(42)
+      expect(rows[0]!.payload.y_coord).toBe(88)
+      expect(rows[0]!.dom_target).toBe('a.plan-link')
+    })
+
+    it('creates separate sessions for separate ingest calls', async () => {
+      const r1 = await ingestBeacon(pool, [makeEvent({ referrer: 'google.com' })])
+      const r2 = await ingestBeacon(pool, [makeEvent({ referrer: 'bing.com' })])
+
+      expect(r1.isOk()).toBe(true)
+      expect(r2.isOk()).toBe(true)
+      expect(r1._unsafeUnwrap().sessionId).not.toBe(r2._unsafeUnwrap().sessionId)
+
+      const sessions = await pool.sql`SELECT session_id FROM sessions`
+      expect(sessions).toHaveLength(2)
     })
   })
 
-  describe('events', () => {
-    it('inserts an event with a valid session_id', async () => {
-      const sessionRows = await pool.sql.unsafe(
-        'INSERT INTO "sessions" ("device_type") VALUES ($1) RETURNING "session_id"',
-        ['desktop']
-      )
-      const { session_id: sessionId } = sessionRows[0] as { session_id: string }
+  describe('validateBeaconPayload — malformed rejection', () => {
+    it('rejects invalid JSON without touching the database', async () => {
+      const result = validateBeaconPayload('not-json')
 
-      const eventRows = await pool.sql.unsafe(
-        `INSERT INTO "events" ("session_id", "event_category", "dom_target", "payload")
-         VALUES ($1, $2, $3, $4)
-         RETURNING "event_id", "event_category"`,
-        [sessionId, 'click', '#cta-button', JSON.stringify({ label: 'Buy now' })]
-      )
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_JSON)
 
-      expect(eventRows).toHaveLength(1)
-      const row = eventRows[0] as { event_id: number; event_category: string }
-      expect(row.event_category).toBe('click')
-      expect(row.event_id).toBeDefined()
+      const rows = await pool.sql`SELECT session_id FROM sessions`
+      expect(rows).toHaveLength(0)
     })
 
-    it('rejects an event with an invalid session_id (foreign key violation)', async () => {
-      const fakeSessionId = '00000000-0000-0000-0000-000000000000'
+    it('rejects an empty array payload', async () => {
+      const result = validateBeaconPayload('[]')
 
-      await expect(
-        pool.sql.unsafe(
-          'INSERT INTO "events" ("session_id", "event_category") VALUES ($1, $2)',
-          [fakeSessionId, 'pageview']
-        )
-      ).rejects.toThrow()
-    })
-  })
-
-  describe('daily_summaries', () => {
-    it('inserts a daily summary with correct fields', async () => {
-      const rows = await pool.sql.unsafe(
-        `INSERT INTO "daily_summaries"
-           ("site_id", "date", "business_type", "session_count", "pageview_count", "conversion_count",
-            "top_referrers", "top_pages", "intent_counts", "avg_flush_ms", "rejection_count")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         RETURNING *`,
-        [
-          'site-abc',
-          '2026-03-19',
-          'ecommerce',
-          42,
-          150,
-          7,
-          JSON.stringify([{ url: 'https://google.com', count: 30 }]),
-          JSON.stringify([{ path: '/products', count: 80 }]),
-          JSON.stringify({ purchase: 7, browse: 35 }),
-          123.45,
-          2
-        ]
-      )
-
-      expect(rows).toHaveLength(1)
-      const row = rows[0] as {
-        site_id: string
-        session_count: number
-        pageview_count: number
-        conversion_count: number
-        avg_flush_ms: number
-        rejection_count: number
-        schema_version: number
-      }
-      expect(row.site_id).toBe('site-abc')
-      expect(row.session_count).toBe(42)
-      expect(row.pageview_count).toBe(150)
-      expect(row.conversion_count).toBe(7)
-      expect(row.avg_flush_ms).toBe(123.45)
-      expect(row.rejection_count).toBe(2)
-      expect(row.schema_version).toBe(1)
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.EMPTY_PAYLOAD)
     })
 
-    it('upserts a daily summary when site_id + date already exists', async () => {
-      await pool.sql.unsafe(
-        `INSERT INTO "daily_summaries" ("site_id", "date", "session_count", "pageview_count")
-         VALUES ($1, $2, $3, $4)`,
-        ['site-xyz', '2026-03-19', 10, 50]
-      )
+    it('rejects a payload with a missing required field', async () => {
+      const raw = JSON.stringify([{ id: 'x', type: 'CLICK' }])
+      const result = validateBeaconPayload(raw)
 
-      await pool.sql.unsafe(
-        `INSERT INTO "daily_summaries" ("site_id", "date", "session_count", "pageview_count")
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT ("site_id", "date") DO UPDATE
-           SET "session_count" = EXCLUDED."session_count",
-               "pageview_count" = EXCLUDED."pageview_count"`,
-        ['site-xyz', '2026-03-19', 25, 120]
-      )
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.MISSING_FIELD)
+    })
 
-      const rows = await pool.sql.unsafe(
-        'SELECT * FROM "daily_summaries" WHERE "site_id" = $1 AND "date" = $2',
-        ['site-xyz', '2026-03-19']
-      )
+    it('rejects a payload with an invalid intent type', async () => {
+      const raw = JSON.stringify([{
+        id: 'x',
+        timestamp: Date.now(),
+        type: 'INVALID_TYPE',
+        targetDOMNode: 'div',
+        x_coord: 0,
+        y_coord: 0,
+        schema_version: 1,
+        site_id: 'site-a',
+        business_type: 'dental',
+        path: '/home',
+        referrer: 'google.com'
+      }])
+      const result = validateBeaconPayload(raw)
 
-      expect(rows).toHaveLength(1)
-      const row = rows[0] as { session_count: number; pageview_count: number }
-      expect(row.session_count).toBe(25)
-      expect(row.pageview_count).toBe(120)
+      expect(result.isErr()).toBe(true)
+      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_INTENT_TYPE)
     })
   })
 
-  describe('queries', () => {
-    it('queries events by session_id', async () => {
-      const sessionRows = await pool.sql.unsafe(
-        'INSERT INTO "sessions" ("device_type") VALUES ($1) RETURNING "session_id"',
-        ['desktop']
-      )
-      const { session_id: sessionId } = sessionRows[0] as { session_id: string }
+  describe('generateDailySummary — aggregation', () => {
+    it('produces zero counts when no data exists for the day', async () => {
+      const testDate = new Date(2026, 2, 19)
+      const result = await generateDailySummary(pool, 'site-empty', 'plumbing', testDate)
 
-      await pool.sql.unsafe(
-        'INSERT INTO "events" ("session_id", "event_category") VALUES ($1, $2), ($1, $3)',
-        [sessionId, 'pageview', 'click']
-      )
-
-      const rows = await pool.sql.unsafe(
-        'SELECT * FROM "events" WHERE "session_id" = $1 ORDER BY "event_id"',
-        [sessionId]
-      )
-
-      expect(rows).toHaveLength(2)
-      const categories = (rows as Array<{ event_category: string }>).map(r => r.event_category)
-      expect(categories).toEqual(['pageview', 'click'])
+      expect(result.isOk()).toBe(true)
+      const row = result._unsafeUnwrap()
+      expect(row.session_count).toBe(0)
+      expect(row.pageview_count).toBe(0)
+      expect(row.conversion_count).toBe(0)
+      expect(row.avg_flush_ms).toBeCloseTo(0)
+      expect(row.rejection_count).toBe(0)
     })
 
-    it('queries events by event_category', async () => {
-      const sessionRows = await pool.sql.unsafe(
-        'INSERT INTO "sessions" ("device_type") VALUES ($1) RETURNING "session_id"',
-        ['mobile']
-      )
-      const { session_id: sessionId } = sessionRows[0] as { session_id: string }
+    it('aggregates pre-seeded summary tables into a daily summary row', async () => {
+      const testDate = new Date(2026, 2, 19)
+      const dayStart = new Date(testDate.getFullYear(), testDate.getMonth(), testDate.getDate())
+      const dayEnd = new Date(dayStart.getTime() + 86_400_000)
+      const ts = new Date(dayStart.getTime() + 6 * 3600_000)
 
-      await pool.sql.unsafe(
-        `INSERT INTO "events" ("session_id", "event_category")
-         VALUES ($1, $2), ($1, $3), ($1, $2)`,
-        [sessionId, 'pageview', 'click']
-      )
+      const s1Rows = await pool.sql<Array<{ session_id: string }>>`
+        INSERT INTO sessions (device_type, referrer, created_at)
+        VALUES ('mobile', 'google.com', ${ts})
+        RETURNING session_id
+      `
+      const s2Rows = await pool.sql<Array<{ session_id: string }>>`
+        INSERT INTO sessions (device_type, referrer, created_at)
+        VALUES ('desktop', 'bing.com', ${ts})
+        RETURNING session_id
+      `
+      const sid1 = s1Rows[0]!.session_id
+      const sid2 = s2Rows[0]!.session_id
 
-      const rows = await pool.sql.unsafe(
-        'SELECT * FROM "events" WHERE "event_category" = $1',
-        ['pageview']
-      )
+      await pool.sql`
+        INSERT INTO events (session_id, event_category, created_at)
+        VALUES
+          (${sid1}, 'VIEWPORT_INTERSECT', ${ts}),
+          (${sid2}, 'VIEWPORT_INTERSECT', ${ts}),
+          (${sid1}, 'INTENT_CALL', ${ts})
+      `
 
-      expect(rows).toHaveLength(2)
-      const categories = (rows as Array<{ event_category: string }>).map(r => r.event_category)
-      expect(categories.every(c => c === 'pageview')).toBe(true)
+      await pool.sql`
+        INSERT INTO session_summaries
+          (period_start, period_end, total_sessions, unique_referrers, device_mobile, device_desktop, device_tablet)
+        VALUES (${dayStart}, ${dayEnd}, 2, 2, 1, 1, 0)
+      `
+      await pool.sql`
+        INSERT INTO event_summaries
+          (period_start, period_end, event_category, total_count, unique_sessions)
+        VALUES
+          (${dayStart}, ${dayEnd}, 'VIEWPORT_INTERSECT', 2, 2),
+          (${dayStart}, ${dayEnd}, 'INTENT_CALL', 1, 1)
+      `
+      await pool.sql`
+        INSERT INTO ingestion_health
+          (period_start, payloads_accepted, payloads_rejected, avg_processing_ms, buffer_saturation_pct)
+        VALUES (${dayStart}, 10, 1, 5.0, 0.1)
+      `
+
+      const result = await generateDailySummary(pool, 'site-test', 'dental', testDate)
+      expect(result.isOk()).toBe(true)
+
+      const row = result._unsafeUnwrap()
+      expect(row.site_id).toBe('site-test')
+      expect(row.session_count).toBe(2)
+      expect(row.pageview_count).toBeGreaterThanOrEqual(2)
+      expect(row.conversion_count).toBe(1)
+      expect(row.avg_flush_ms).toBeCloseTo(5.0)
+      expect(row.rejection_count).toBe(1)
     })
 
-    it('inserts multiple sessions and events with matching counts', async () => {
-      await pool.sql.unsafe(
-        'INSERT INTO "sessions" ("device_type") VALUES ($1), ($2), ($3)',
-        ['desktop', 'mobile', 'tablet']
-      )
+    it('upserts on same site_id + date, updating counts', async () => {
+      const testDate = new Date(2026, 2, 19)
+      const dayStart = new Date(testDate.getFullYear(), testDate.getMonth(), testDate.getDate())
+      const dayEnd = new Date(dayStart.getTime() + 86_400_000)
 
-      const allSessions = await pool.sql.unsafe('SELECT "session_id" FROM "sessions"')
-      expect(allSessions).toHaveLength(3)
+      const r1 = await generateDailySummary(pool, 'site-dup', 'dental', testDate)
+      expect(r1.isOk()).toBe(true)
 
-      const sessionIds = (allSessions as Array<{ session_id: string }>).map(r => r.session_id)
+      await pool.sql`
+        INSERT INTO session_summaries
+          (period_start, period_end, total_sessions, unique_referrers, device_mobile, device_desktop, device_tablet)
+        VALUES (${dayStart}, ${dayEnd}, 7, 3, 3, 3, 1)
+        ON CONFLICT (period_start, period_end) DO UPDATE SET total_sessions = 7
+      `
 
-      for (const sid of sessionIds) {
-        await pool.sql.unsafe(
-          'INSERT INTO "events" ("session_id", "event_category") VALUES ($1, $2), ($1, $3)',
-          [sid, 'pageview', 'scroll']
-        )
-      }
+      const r2 = await generateDailySummary(pool, 'site-dup', 'dental', testDate)
+      expect(r2.isOk()).toBe(true)
+      expect(r2._unsafeUnwrap().session_count).toBe(7)
 
-      const countRows = await pool.sql.unsafe('SELECT COUNT(*) AS total FROM "events"')
-      const total = Number((countRows[0] as { total: string }).total)
-      expect(total).toBe(6)
+      const rows = await pool.sql`SELECT id FROM daily_summaries WHERE site_id = 'site-dup'`
+      expect(rows).toHaveLength(1)
     })
   })
 })

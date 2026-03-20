@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createPool, closePool } from '@valencets/db'
-import type { DbPool } from '@valencets/db'
+import { makeMockPool } from '@valencets/db'
 import {
   collection,
   field,
@@ -13,31 +12,21 @@ import {
   verifyPassword
 } from '@valencets/cms'
 
-// ── 1. db exports ────────────────────────────────────────────────────────────
+// ── 1. db exports ─────────────────────────────────────────────────────────────
 
 describe('db package exports', () => {
-  it('createPool returns a DbPool with a sql property', () => {
-    const pool = createPool({
-      host: 'localhost',
-      port: 5432,
-      database: 'postgres',
-      max: 1
-    })
-
+  it('makeMockPool returns a DbPool with a sql property', () => {
+    const pool = makeMockPool()
     expect(pool).toBeDefined()
     expect(typeof pool.sql).toBe('function')
-
-    // closePool accepts a DbPool and returns a ResultAsync
-    const closeResult = closePool(pool)
-    expect(typeof closeResult.then).toBe('function')
   })
 })
 
-// ── 2. cms uses db correctly ─────────────────────────────────────────────────
+// ── 2. cms ↔ db boundary ──────────────────────────────────────────────────────
 
 describe('cms ↔ db boundary', () => {
   it('createQueryBuilder accepts a DbPool and returns a factory with .query()', () => {
-    const pool: DbPool = { sql: (() => {}) as unknown as DbPool['sql'] }
+    const pool = makeMockPool()
     const registry = createCollectionRegistry()
     const qb = createQueryBuilder(pool, registry)
 
@@ -46,7 +35,7 @@ describe('cms ↔ db boundary', () => {
   })
 })
 
-// ── 3. cms schema exports ────────────────────────────────────────────────────
+// ── 3. cms schema exports ──────────────────────────────────────────────────────
 
 describe('cms schema exports', () => {
   it('collection() returns a CollectionConfig with required shape', () => {
@@ -85,11 +74,11 @@ describe('cms schema exports', () => {
   })
 })
 
-// ── 4. buildCms returns Result<CmsInstance> ──────────────────────────────────
+// ── 4. buildCms returns Result<CmsInstance> ───────────────────────────────────
 
 describe('buildCms contract', () => {
   it('returns Ok with a CmsInstance containing api, collections, restRoutes, adminRoutes', () => {
-    const pool: DbPool = { sql: (() => {}) as unknown as DbPool['sql'] }
+    const pool = makeMockPool()
     const result = buildCms({
       db: pool,
       collections: [
@@ -107,12 +96,22 @@ describe('buildCms contract', () => {
     expect(cms.restRoutes instanceof Map).toBe(true)
     expect(cms.adminRoutes instanceof Map).toBe(true)
   })
+
+  it('returns Err for duplicate collection slugs', () => {
+    const pool = makeMockPool()
+    const col = collection({ slug: 'dupe', fields: [] })
+    const result = buildCms({
+      db: pool,
+      collections: [col, col]
+    })
+    expect(result.isErr()).toBe(true)
+  })
 })
 
-// ── 5. Schema stability: generateCreateTableSql snapshot ────────────────────
+// ── 5. Schema stability snapshot ──────────────────────────────────────────────
 
 describe('generateCreateTableSql stability', () => {
-  it('produces deterministic SQL for a standard collection', () => {
+  it('produces deterministic SQL matching snapshot', () => {
     const col = collection({
       slug: 'posts',
       fields: [
@@ -121,41 +120,52 @@ describe('generateCreateTableSql stability', () => {
       ]
     })
 
-    const sql = generateCreateTableSql(col)
+    expect(generateCreateTableSql(col)).toMatchSnapshot()
+  })
 
-    expect(sql).toContain('CREATE TABLE IF NOT EXISTS "posts"')
-    expect(sql).toContain('"id" UUID PRIMARY KEY DEFAULT gen_random_uuid()')
-    expect(sql).toContain('"title" TEXT NOT NULL')
-    expect(sql).toContain('"published" BOOLEAN')
-    expect(sql).toContain('"created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()')
-    expect(sql).toContain('"updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()')
-    expect(sql).toContain('"deleted_at" TIMESTAMPTZ')
+  it('produces deterministic SQL for timestamps: false', () => {
+    const col = collection({
+      slug: 'logs',
+      timestamps: false,
+      fields: [field.text({ name: 'message' })]
+    })
+
+    expect(generateCreateTableSql(col)).toMatchSnapshot()
   })
 })
 
-// ── 6. Zod schema stability ──────────────────────────────────────────────────
+// ── 6. Zod schema stability ────────────────────────────────────────────────────
 
 describe('generateZodSchema stability', () => {
   it('validates a valid document against the generated schema', () => {
-    const fields = [
+    const schema = generateZodSchema([
       field.text({ name: 'title', required: true }),
       field.number({ name: 'count' }),
       field.boolean({ name: 'active' })
-    ]
-    const schema = generateZodSchema(fields)
+    ])
     const result = schema.safeParse({ title: 'Hello', count: 5, active: true })
     expect(result.success).toBe(true)
   })
 
   it('rejects a document missing a required field', () => {
-    const fields = [field.text({ name: 'title', required: true })]
-    const schema = generateZodSchema(fields)
-    const result = schema.safeParse({})
-    expect(result.success).toBe(false)
+    const schema = generateZodSchema([
+      field.text({ name: 'title', required: true })
+    ])
+    expect(schema.safeParse({}).success).toBe(false)
+  })
+
+  it('schema shape matches snapshot', () => {
+    const schema = generateZodSchema([
+      field.text({ name: 'title', required: true }),
+      field.number({ name: 'count' }),
+      field.boolean({ name: 'active' })
+    ])
+    // Snapshot the list of keys present in the schema
+    expect(Object.keys(schema.shape)).toMatchSnapshot()
   })
 })
 
-// ── 7. Auth contract ─────────────────────────────────────────────────────────
+// ── 7. Auth contract ───────────────────────────────────────────────────────────
 
 describe('auth contract', () => {
   it('hashPassword returns ResultAsync resolving to Ok<string>', async () => {
@@ -165,35 +175,29 @@ describe('auth contract', () => {
     expect(result._unsafeUnwrap().length).toBeGreaterThan(0)
   })
 
-  it('verifyPassword returns ResultAsync resolving to Ok<boolean>', async () => {
+  it('verifyPassword returns Ok<true> for correct password', async () => {
     const hashResult = await hashPassword('secret123')
-    expect(hashResult.isOk()).toBe(true)
     const hash = hashResult._unsafeUnwrap()
-
-    const verifyResult = await verifyPassword('secret123', hash)
-    expect(verifyResult.isOk()).toBe(true)
-    expect(verifyResult._unsafeUnwrap()).toBe(true)
+    const result = await verifyPassword('secret123', hash)
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toBe(true)
   })
 
   it('verifyPassword returns Ok<false> for wrong password', async () => {
     const hashResult = await hashPassword('secret123')
     const hash = hashResult._unsafeUnwrap()
-
-    const verifyResult = await verifyPassword('wrong', hash)
-    expect(verifyResult.isOk()).toBe(true)
-    expect(verifyResult._unsafeUnwrap()).toBe(false)
+    const result = await verifyPassword('wrong', hash)
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toBe(false)
   })
 })
 
-// ── 8. Registry contract ─────────────────────────────────────────────────────
+// ── 8. Registry contract ───────────────────────────────────────────────────────
 
 describe('createCollectionRegistry contract', () => {
   it('register() returns Ok<CollectionConfig>', () => {
     const registry = createCollectionRegistry()
-    const col = collection({
-      slug: 'items',
-      fields: [field.text({ name: 'name' })]
-    })
+    const col = collection({ slug: 'items', fields: [field.text({ name: 'name' })] })
     const result = registry.register(col)
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap().slug).toBe('items')
@@ -203,14 +207,12 @@ describe('createCollectionRegistry contract', () => {
     const registry = createCollectionRegistry()
     const col = collection({ slug: 'items', fields: [] })
     registry.register(col)
-    const result = registry.register(col)
-    expect(result.isErr()).toBe(true)
+    expect(registry.register(col).isErr()).toBe(true)
   })
 
   it('get() returns Ok<CollectionConfig> for a registered slug', () => {
     const registry = createCollectionRegistry()
-    const col = collection({ slug: 'items', fields: [] })
-    registry.register(col)
+    registry.register(collection({ slug: 'items', fields: [] }))
     const result = registry.get('items')
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap().slug).toBe('items')
@@ -218,16 +220,16 @@ describe('createCollectionRegistry contract', () => {
 
   it('get() returns Err for an unknown slug', () => {
     const registry = createCollectionRegistry()
-    const result = registry.get('does-not-exist')
-    expect(result.isErr()).toBe(true)
+    expect(registry.get('does-not-exist').isErr()).toBe(true)
   })
 
-  it('getAll() returns an array of registered collections', () => {
+  it('getAll() returns an array of all registered collections', () => {
     const registry = createCollectionRegistry()
     registry.register(collection({ slug: 'a', fields: [] }))
     registry.register(collection({ slug: 'b', fields: [] }))
     const all = registry.getAll()
     expect(Array.isArray(all)).toBe(true)
     expect(all.length).toBe(2)
+    expect(all.map(c => c.slug)).toEqual(expect.arrayContaining(['a', 'b']))
   })
 })

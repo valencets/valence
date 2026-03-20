@@ -1,0 +1,28 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generateCreateTableSql stability > produces deterministic SQL for timestamps: false 1`] = `
+"CREATE TABLE IF NOT EXISTS "logs" (
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "message" TEXT,
+  "deleted_at" TIMESTAMPTZ
+);"
+`;
+
+exports[`generateCreateTableSql stability > produces deterministic SQL matching snapshot 1`] = `
+"CREATE TABLE IF NOT EXISTS "posts" (
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "title" TEXT NOT NULL,
+  "published" BOOLEAN,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "deleted_at" TIMESTAMPTZ
+);"
+`;
+
+exports[`generateZodSchema stability > schema shape matches snapshot 1`] = `
+[
+  "title",
+  "count",
+  "active",
+]
+`;
