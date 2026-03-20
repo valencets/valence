@@ -87,6 +87,12 @@ interface FormSnapshot {
   readonly [key: string]: string
 }
 
+/** Strips keys with undefined values from Zod output (e.g. empty date fields parsed as undefined). */
+function stripUndefined (data: DocumentData): DocumentData {
+  const entries = Object.entries(data).filter((pair): pair is [string, Exclude<DocumentData[string], undefined>] => pair[1] !== undefined)
+  return Object.fromEntries(entries) as DocumentData
+}
+
 function renderErrorPage (
   col: CollectionConfig,
   allCollections: readonly CollectionConfig[],
@@ -457,7 +463,7 @@ export function createAdminRoutes (
           sendHtml(res, html, 400)
           return
         }
-        const result = await api.create({ collection: col.slug, data: validation.data as DocumentData })
+        const result = await api.create({ collection: col.slug, data: stripUndefined(validation.data as DocumentData) })
         result.match(
           () => {
             setFlashCookie(res, { type: 'success', text: `${col.labels?.singular ?? col.slug} created successfully` })
@@ -557,7 +563,7 @@ export function createAdminRoutes (
           sendHtml(res, html, 400)
           return
         }
-        const result = await api.update({ collection: col.slug, id, data: validation.data as DocumentData })
+        const result = await api.update({ collection: col.slug, id, data: stripUndefined(validation.data as DocumentData) })
         result.match(
           (updated) => {
             // Save revision on successful update

@@ -1,15 +1,16 @@
 /** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
 export default {
+  plugins: ['@stryker-mutator/vitest-runner'],
   testRunner: 'vitest',
   vitest: {
-    configFile: 'vitest.workspace.ts'
+    dir: 'packages/cms'
   },
   mutate: [
-    'packages/*/src/**/*.ts',
-    '!packages/*/src/**/__tests__/**',
-    '!packages/*/src/**/index.ts'
+    'packages/cms/src/**/*.ts',
+    '!packages/cms/src/**/__tests__/**',
+    '!packages/cms/src/**/index.ts'
   ],
-  reporters: ['html', 'clear-text', 'progress'],
+  reporters: ['clear-text', 'progress'],
   thresholds: {
     high: 80,
     low: 70,

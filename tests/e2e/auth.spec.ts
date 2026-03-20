@@ -36,4 +36,11 @@ test.describe('Auth flow (authenticated)', () => {
     await page.goto('/admin')
     await expect(page.locator('h1')).toHaveText('Dashboard')
   })
+
+  test('logout endpoint destroys session', async ({ page }) => {
+    // POST to logout — verify it redirects to login
+    const response = await page.request.post('/admin/logout', { maxRedirects: 0 })
+    expect(response.status()).toBe(302)
+    expect(response.headers()['location']).toBe('/admin/login')
+  })
 })

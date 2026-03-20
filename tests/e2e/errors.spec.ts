@@ -18,4 +18,29 @@ test.describe('Error handling', () => {
     await page.goBack()
     await expect(page).toHaveURL(/\/admin$/)
   })
+
+  test('editing nonexistent post returns 404', async ({ page }) => {
+    const fakeId = '00000000-0000-0000-0000-000000000000'
+    const response = await page.goto(`/admin/posts/${fakeId}/edit`)
+    expect(response?.status()).toBe(404)
+  })
+
+  test('nonexistent collection returns 404', async ({ page }) => {
+    const response = await page.goto('/admin/nonexistent-collection')
+    expect(response?.status()).toBe(404)
+  })
+
+  test('creating post with duplicate slug shows error', async ({ page }) => {
+    // The seeded "welcome-post" slug already exists — submitting a duplicate triggers a DB error
+    await page.goto('/admin/posts/new')
+    await page.locator('input[name="title"]').fill('Duplicate Slug Test')
+    await page.locator('input[name="slug"]').fill('welcome-post')
+    await page.locator('button[type="submit"].btn-primary').click()
+
+    // Server should return 400 with error toast (unique constraint violation)
+    const toast = page.locator('.toast-error')
+    await expect(toast).toBeVisible({ timeout: 5000 })
+    const toastText = await page.locator('.toast-message').textContent()
+    expect(toastText).toBeTruthy()
+  })
 })

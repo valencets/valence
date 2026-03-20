@@ -143,29 +143,38 @@ describe('CMS CRUD integration tests', () => {
       expect(res.body[0].title).toBeDefined()
     })
 
-    // Query builder sort/filter/pagination have integration gaps (VAL-128)
-    // These are skipped until the query builder SQL generation is fixed
-    it.skip('returns paginated results with page param', async () => {
+    it('returns paginated results with page param', async () => {
       for (let i = 1; i <= 5; i++) {
         await createPost({ title: `Post ${i}`, slug: `post-${i}` })
       }
       const res = await request.get('/api/posts?page=1&limit=2').expect(200)
       expect(res.body.docs).toHaveLength(2)
       expect(res.body.totalDocs).toBe(5)
+      expect(res.body.totalPages).toBe(3)
+      expect(res.body.hasNextPage).toBe(true)
+      expect(res.body.hasPrevPage).toBe(false)
     })
 
-    it.skip('sorts by field', async () => {
+    it('sorts by field', async () => {
       await createPost({ title: 'Zebra', slug: 'zebra' })
       await createPost({ title: 'Apple', slug: 'apple' })
       const res = await request.get('/api/posts?sort=title&dir=asc').expect(200)
       expect(res.body[0].title).toBe('Apple')
+      expect(res.body[1].title).toBe('Zebra')
     })
 
-    it.skip('filters by field value', async () => {
+    it('filters by field value', async () => {
       await createPost({ title: 'Draft', slug: 'draft', published: false })
       await createPost({ title: 'Published', slug: 'published', published: true })
       const res = await request.get('/api/posts?published=true').expect(200)
       expect(res.body).toHaveLength(1)
+      expect(res.body[0].title).toBe('Published')
+    })
+
+    it('returns 400 for invalid sort field', async () => {
+      const res = await request.get('/api/posts?sort=nonexistent')
+      expect(res.status).toBe(400)
+      expect(res.body.error).toMatch(/Invalid sort field/)
     })
   })
 

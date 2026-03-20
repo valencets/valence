@@ -213,3 +213,107 @@ describe('GET /api/:collection query params', () => {
     expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
   })
 })
+
+describe('GET /api/:collection/:id', () => {
+  it('returns document by ID', async () => {
+    const doc = { id: 'abc-123', title: 'Found', slug: 'found' }
+    const { pool, collections, globals } = setup([doc])
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/:id')?.GET
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('GET', '/api/posts/abc-123')
+    const res = makeMockRes()
+    await handler!(req, res, { id: 'abc-123' })
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
+    const body = JSON.parse(res.body)
+    expect(body.title).toBe('Found')
+  })
+
+  it('returns 404 for nonexistent document', async () => {
+    const { pool, collections, globals } = setup([])
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/:id')?.GET
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('GET', '/api/posts/nonexistent')
+    const res = makeMockRes()
+    await handler!(req, res, { id: 'nonexistent' })
+    expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object))
+  })
+})
+
+describe('PATCH /api/:collection/:id', () => {
+  it('updates document and returns it', async () => {
+    const updated = { id: 'abc-123', title: 'Updated', slug: 'original' }
+    const { pool, collections, globals } = setup([updated])
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/:id')?.PATCH
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('PATCH', '/api/posts/abc-123', JSON.stringify({ title: 'Updated' }))
+    const res = makeMockRes()
+    await handler!(req, res, { id: 'abc-123' })
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
+    const body = JSON.parse(res.body)
+    expect(body.title).toBe('Updated')
+  })
+
+  it('returns 415 without Content-Type', async () => {
+    const { pool, collections, globals } = setup()
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/:id')?.PATCH
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('PATCH', '/api/posts/abc-123', '{"title":"x"}')
+    req.headers = {}
+    const res = makeMockRes()
+    await handler!(req, res, { id: 'abc-123' })
+    expect(res.writeHead).toHaveBeenCalledWith(415, expect.any(Object))
+  })
+
+  it('returns 400 for invalid JSON body', async () => {
+    const { pool, collections, globals } = setup()
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/:id')?.PATCH
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('PATCH', '/api/posts/abc-123', 'not json')
+    const res = makeMockRes()
+    await handler!(req, res, { id: 'abc-123' })
+    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object))
+  })
+})
+
+describe('DELETE /api/:collection/:id', () => {
+  it('soft-deletes and returns the document', async () => {
+    const deleted = { id: 'abc-123', title: 'Gone', slug: 'gone', deleted_at: '2026-03-19' }
+    const { pool, collections, globals } = setup([deleted])
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/:id')?.DELETE
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('DELETE', '/api/posts/abc-123')
+    const res = makeMockRes()
+    await handler!(req, res, { id: 'abc-123' })
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
+    const body = JSON.parse(res.body)
+    expect(body.id).toBe('abc-123')
+  })
+})
+
+describe('POST /api/:collection validation', () => {
+  it('returns 400 for missing required fields', async () => {
+    const { pool, collections, globals } = setup()
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts')?.POST
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('POST', '/api/posts', JSON.stringify({ slug: 'missing-title' }))
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object))
+    const body = JSON.parse(res.body)
+    expect(body.error).toContain('Validation failed')
+  })
+})
