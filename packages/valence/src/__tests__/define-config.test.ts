@@ -103,3 +103,68 @@ describe('defineConfig', () => {
     expect(result._unsafeUnwrap().telemetry).toBeUndefined()
   })
 })
+
+describe('defineConfig collection validation', () => {
+  it('rejects invalid collection slug', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      collections: [
+        { slug: 'Bad Slug', fields: [], timestamps: true }
+      ]
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('INVALID_COLLECTION_SLUG')
+    }
+  })
+
+  it('rejects duplicate collection slugs', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      collections: [
+        { slug: 'posts', fields: [], timestamps: true },
+        { slug: 'posts', fields: [], timestamps: true }
+      ]
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('DUPLICATE_COLLECTION_SLUG')
+    }
+  })
+
+  it('rejects slugFrom referencing non-existent field', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      collections: [
+        {
+          slug: 'posts',
+          fields: [
+            { type: 'slug' as const, name: 'slug', slugFrom: 'missing-field' }
+          ],
+          timestamps: true
+        }
+      ]
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('INVALID_SLUG_FROM')
+    }
+  })
+
+  it('accepts valid collection with proper slug and slugFrom', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      collections: [
+        {
+          slug: 'blog-posts',
+          fields: [
+            { type: 'text' as const, name: 'title' },
+            { type: 'slug' as const, name: 'slug', slugFrom: 'title' }
+          ],
+          timestamps: true
+        }
+      ]
+    })
+    expect(result.isOk()).toBe(true)
+  })
+})

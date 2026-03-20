@@ -3,7 +3,8 @@ import type { Result } from 'neverthrow'
 import { z } from 'zod'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { DbPool } from '@valencets/db'
-import type { CmsInstance } from '@valencets/cms'
+import type { CmsInstance, CollectionConfig } from '@valencets/cms'
+import { validateCollections } from './validate-collections.js'
 
 export type RouteHandler = (req: IncomingMessage, res: ServerResponse, params: Record<string, string>) => void | Promise<void>
 
@@ -32,7 +33,7 @@ export interface ValenceConfig {
     readonly port: number
     readonly host?: string | undefined
   }
-  readonly collections: ReadonlyArray<unknown>
+  readonly collections: ReadonlyArray<CollectionConfig>
   readonly telemetry?: {
     readonly enabled: boolean
     readonly endpoint: string
@@ -69,7 +70,7 @@ export interface ResolvedValenceConfig {
     readonly port: number
     readonly host: string
   }
-  readonly collections: ReadonlyArray<unknown>
+  readonly collections: ReadonlyArray<CollectionConfig>
   readonly telemetry?: {
     readonly enabled: boolean
     readonly endpoint: string
@@ -90,9 +91,15 @@ export interface ResolvedValenceConfig {
 }
 
 export interface ConfigError {
-  readonly code: 'INVALID_CONFIG'
+  readonly code: 'INVALID_CONFIG' | 'INVALID_COLLECTION_SLUG' | 'DUPLICATE_COLLECTION_SLUG' | 'INVALID_SLUG_FROM'
   readonly message: string
 }
+
+const collectionSchema = z.object({
+  slug: z.string(),
+  fields: z.array(z.object({}).passthrough()),
+  timestamps: z.boolean()
+}).passthrough()
 
 const configSchema = z.object({
   db: z.object({
@@ -110,7 +117,7 @@ const configSchema = z.object({
     port: z.number().int().min(1).max(65535),
     host: z.string().min(1).optional()
   }),
-  collections: z.array(z.unknown()),
+  collections: z.array(collectionSchema),
   telemetry: z.object({
     enabled: z.boolean(),
     endpoint: z.string().min(1),
@@ -144,6 +151,11 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
     })
   }
 
+  const collectionValidation = validateCollections(config.collections)
+  if (collectionValidation.isErr()) {
+    return err(collectionValidation.error)
+  }
+
   const data = parsed.data
 
   const resolved: ResolvedValenceConfig = {
@@ -162,7 +174,7 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
       port: data.server.port,
       host: data.server.host ?? '0.0.0.0'
     },
-    collections: data.collections,
+    collections: config.collections,
     telemetry: data.telemetry
       ? {
           enabled: data.telemetry.enabled,
