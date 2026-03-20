@@ -1,3 +1,4 @@
+import type { IncomingMessage } from 'node:http'
 import type { Middleware } from './middleware-types.js'
 import { generateCsrfToken, validateCsrfToken } from './csrf.js'
 import { sendJson } from './http-helpers.js'
@@ -25,7 +26,7 @@ function parseCookieValue (cookieHeader: string | undefined, name: string): stri
   return undefined
 }
 
-function readFormBody (req: { on: (event: string, cb: (...args: readonly unknown[]) => void) => void }): Promise<string> {
+function readFormBody (req: IncomingMessage): Promise<string> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = []
     req.on('data', (chunk: Buffer) => {
