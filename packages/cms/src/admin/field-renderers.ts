@@ -28,7 +28,8 @@ const RENDERER_MAP: Record<string, (f: FieldConfig, value: string) => string> = 
   json: renderJsonTextarea,
   color: renderColorInput,
   multiselect: renderMultiselect,
-  array: renderArrayField
+  array: renderArrayField,
+  blocks: renderBlocksField
 }
 
 function renderTextInput (f: FieldConfig, value: string): string {
@@ -141,6 +142,30 @@ function renderMultiselect (f: FieldConfig, value: string): string {
 
 function renderArrayField (f: FieldConfig, value: string): string {
   return `<div class="array-field"><label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span></label><input type="hidden" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"><div class="array-rows" data-field="${escapeHtml(f.name)}"></div><button type="button" class="array-add" data-field="${escapeHtml(f.name)}">+ Add row</button></div>`
+}
+
+function renderBlocksField (f: FieldConfig, value: string): string {
+  let blocks: Array<{ blockType?: string; [key: string]: string | undefined }> = []
+  if (value) {
+    try { blocks = JSON.parse(value) } catch { blocks = [] }
+  }
+  const blockDefs = 'blocks' in f ? f.blocks : []
+  const blockOptions = blockDefs.map(b => {
+    const label = b.labels?.singular ?? b.slug
+    return '<option value="' + escapeHtml(b.slug) + '">' + escapeHtml(label) + '</option>'
+  }).join('')
+  const blockFieldsets = blocks.map((block, i) => {
+    const def = blockDefs.find(b => b.slug === block.blockType)
+    if (!def) return ''
+    const legend = def.labels?.singular ?? def.slug
+    const fieldInputs = def.fields.map(child => {
+      const childVal = block[child.name] ?? ''
+      return renderFieldInput(child, childVal)
+    }).join('\n')
+    return '<fieldset class="blocks-item" data-block-index="' + i + '" data-block-type="' + escapeHtml(block.blockType ?? '') + '"><legend>' + escapeHtml(legend) + '</legend>' + fieldInputs + '<button type="button" class="blocks-remove">Remove</button></fieldset>'
+  }).join('\n')
+  const configJson = escapeHtml(JSON.stringify(blockDefs.map(b => ({ slug: b.slug, fields: b.fields.map(bf => ({ type: bf.type, name: bf.name })), labels: b.labels }))))
+  return '<div class="blocks-field" data-blocks-config="' + configJson + '"><label class="form-field"><span>' + escapeHtml(f.label ?? f.name) + '</span></label><input type="hidden" name="' + escapeHtml(f.name) + '" value="' + escapeHtml(value) + '">' + blockFieldsets + '<div class="blocks-add"><select class="blocks-type-select">' + blockOptions + '</select><button type="button" class="blocks-add-btn">+ Add block</button></div></div>'
 }
 
 export function renderFieldInput (f: FieldConfig, value: string, context?: RelationContext): string {
