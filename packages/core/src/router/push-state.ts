@@ -4,7 +4,7 @@ import { ok, err, ResultAsync } from 'neverthrow'
 import type { Result } from 'neverthrow'
 import { RouterErrorCode, resolveConfig } from './router-types.js'
 import type { RouterConfig, RouterError, NavigationDetail, ResolvedRouterConfig, NavigationPerformance } from './router-types.js'
-import { parseHtml, extractFragment, extractTitle, swapContent } from './fragment-swap.js'
+import { parseHtml, extractFragment, extractTitle, swapContent, getCsrfToken } from './fragment-swap.js'
 import { initPrefetch } from './prefetch.js'
 import type { PrefetchHandle } from './prefetch.js'
 import { initPageCache } from './page-cache.js'
@@ -49,6 +49,12 @@ interface NavigationResult {
   readonly title: string | null
 }
 
+function csrfHeaders (): Record<string, string> {
+  const token = getCsrfToken()
+  if (token === undefined) return {}
+  return { 'X-CSRF-Token': token }
+}
+
 function revalidateInBackground (
   url: string,
   config: ResolvedRouterConfig,
@@ -57,7 +63,7 @@ function revalidateInBackground (
   cachedHtml: string
 ): void {
   const fetchPromise = config.enableFragmentProtocol
-    ? fetchFn(url, { headers: { 'X-Valence-Fragment': '1' } })
+    ? fetchFn(url, { headers: { 'X-Valence-Fragment': '1', ...csrfHeaders() } })
     : fetchFn(url)
 
   fetchPromise
@@ -153,7 +159,7 @@ function performNavigation (
 
   // 3. Network fetch
   const fetchPromise = config.enableFragmentProtocol
-    ? fetchFn(url, { headers: { 'X-Valence-Fragment': '1' } })
+    ? fetchFn(url, { headers: { 'X-Valence-Fragment': '1', ...csrfHeaders() } })
     : fetchFn(url)
 
   return ResultAsync.fromPromise(
