@@ -118,7 +118,15 @@ export function renderEditView (col: CollectionConfig, doc: DocRow | null, csrfT
       }).join('')}</nav>`
     : ''
 
-  const fieldInputs = col.fields.map(f => {
+  const formData: Record<string, string> | null = doc
+    ? Object.fromEntries(
+      col.fields.map(f => [f.name, String(doc[f.name] ?? '')])
+    )
+    : null
+
+  const fieldInputs = col.fields.filter(f =>
+    formData === null || f.condition === undefined || f.condition(formData)
+  ).map(f => {
     const raw = doc ? doc[f.name] : null
     const value = resolveFieldValue(raw, f.localized, localeConfig)
     return renderFieldInput(f, value, relationContext)
