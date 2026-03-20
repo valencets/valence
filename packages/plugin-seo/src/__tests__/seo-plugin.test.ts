@@ -110,15 +110,24 @@ describe('seoPlugin', () => {
     })
   })
 
-  describe('auto-title hook', () => {
-    it('adds afterRead hook to targeted collections', () => {
+  describe('auto-title hook (beforeChange)', () => {
+    it('adds beforeChange hook to targeted collections', () => {
       const config = makeConfig([
         { slug: 'posts', timestamps: true, fields: [{ type: 'text', name: 'title' }] }
       ])
       const result = seoPlugin({ collections: 'all', titleField: 'title' })(config)
       const posts = result.collections.find(c => c.slug === 'posts')
-      expect(posts?.hooks?.afterRead).toBeDefined()
-      expect(posts?.hooks?.afterRead?.length).toBeGreaterThan(0)
+      expect(posts?.hooks?.beforeChange).toBeDefined()
+      expect(posts?.hooks?.beforeChange?.length).toBeGreaterThan(0)
+    })
+
+    it('does NOT add afterRead hook (wrong lifecycle)', () => {
+      const config = makeConfig([
+        { slug: 'posts', timestamps: true, fields: [{ type: 'text', name: 'title' }] }
+      ])
+      const result = seoPlugin({ collections: 'all', titleField: 'title' })(config)
+      const posts = result.collections.find(c => c.slug === 'posts')
+      expect(posts?.hooks?.afterRead).toBeUndefined()
     })
 
     it('auto-generates metaTitle from titleField when metaTitle is absent', async () => {
@@ -127,7 +136,7 @@ describe('seoPlugin', () => {
       ])
       const result = seoPlugin({ collections: 'all', titleField: 'title' })(config)
       const posts = result.collections.find(c => c.slug === 'posts')
-      const hook = posts?.hooks?.afterRead?.[0]
+      const hook = posts?.hooks?.beforeChange?.[0]
       const hookResult = await hook?.({ data: { title: 'My Post', 'seo.metaTitle': undefined } })
       expect(hookResult?.['seo.metaTitle']).toBe('My Post')
     })
@@ -142,7 +151,7 @@ describe('seoPlugin', () => {
         defaults: { metaTitleSuffix: ' | My Site' }
       })(config)
       const posts = result.collections.find(c => c.slug === 'posts')
-      const hook = posts?.hooks?.afterRead?.[0]
+      const hook = posts?.hooks?.beforeChange?.[0]
       const hookResult = await hook?.({ data: { title: 'My Post', 'seo.metaTitle': undefined } })
       expect(hookResult?.['seo.metaTitle']).toBe('My Post | My Site')
     })
@@ -153,9 +162,34 @@ describe('seoPlugin', () => {
       ])
       const result = seoPlugin({ collections: 'all', titleField: 'title' })(config)
       const posts = result.collections.find(c => c.slug === 'posts')
-      const hook = posts?.hooks?.afterRead?.[0]
+      const hook = posts?.hooks?.beforeChange?.[0]
       const hookResult = await hook?.({ data: { title: 'My Post', 'seo.metaTitle': 'Custom Title' } })
       expect(hookResult?.['seo.metaTitle']).toBe('Custom Title')
+    })
+  })
+
+  describe('idempotency', () => {
+    it('does not inject seo group twice when plugin is applied twice', () => {
+      const config = makeConfig([
+        { slug: 'posts', timestamps: true, fields: [{ type: 'text', name: 'title' }] }
+      ])
+      const plugin = seoPlugin({ collections: 'all' })
+      const once = plugin(config)
+      const twice = plugin(once)
+      const posts = twice.collections.find(c => c.slug === 'posts')
+      const seoFields = posts?.fields.filter(f => f.name === 'seo')
+      expect(seoFields?.length).toBe(1)
+    })
+
+    it('does not add duplicate beforeChange hooks when plugin is applied twice', () => {
+      const config = makeConfig([
+        { slug: 'posts', timestamps: true, fields: [{ type: 'text', name: 'title' }] }
+      ])
+      const plugin = seoPlugin({ collections: 'all', titleField: 'title' })
+      const once = plugin(config)
+      const twice = plugin(once)
+      const posts = twice.collections.find(c => c.slug === 'posts')
+      expect(posts?.hooks?.beforeChange?.length).toBe(1)
     })
   })
 
@@ -177,12 +211,12 @@ describe('seoPlugin', () => {
           slug: 'posts',
           timestamps: true,
           fields: [{ type: 'text', name: 'title' }],
-          hooks: { afterRead: [existingHook] }
+          hooks: { beforeChange: [existingHook] }
         }
       ])
       const result = seoPlugin({ collections: 'all', titleField: 'title' })(config)
       const posts = result.collections.find(c => c.slug === 'posts')
-      expect(posts?.hooks?.afterRead?.length).toBeGreaterThanOrEqual(2)
+      expect(posts?.hooks?.beforeChange?.length).toBeGreaterThanOrEqual(2)
     })
 
     it('does not modify non-targeted collections', () => {

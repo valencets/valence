@@ -16,7 +16,8 @@ export interface S3AdapterOptions {
 }
 
 function buildKey (key: string, prefix: string | undefined): string {
-  return prefix !== undefined && prefix !== '' ? `${prefix}/${key}` : key
+  const sanitized = key.replace(/\.\.\//g, '').replace(/\.\./g, '')
+  return prefix !== undefined && prefix !== '' ? `${prefix}/${sanitized}` : sanitized
 }
 
 function buildDefaultUrl (key: string, bucket: string, region: string): string {

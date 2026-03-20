@@ -43,23 +43,25 @@ function makeAutoTitleHook (titleField: string, suffix: string) {
 
 function injectSeoIntoCollection (col: CollectionConfig, opts: SeoPluginOptions): CollectionConfig {
   if (!shouldTarget(col.slug, opts.collections)) return col
+  // Idempotency guard: skip if seo group already injected
+  if (col.fields.some(f => f.name === 'seo')) return col
 
   const titleField = opts.titleField
   const suffix = opts.defaults?.metaTitleSuffix ?? ''
 
-  const existingAfterRead = col.hooks?.afterRead ?? []
+  const existingBeforeChange = col.hooks?.beforeChange ?? []
   const autoTitleHooks = titleField !== undefined
     ? [makeAutoTitleHook(titleField, suffix)]
     : []
 
-  const afterRead = [...existingAfterRead, ...autoTitleHooks]
+  const beforeChange = [...existingBeforeChange, ...autoTitleHooks]
 
   return {
     ...col,
     fields: [...col.fields, SEO_GROUP],
     hooks: {
       ...col.hooks,
-      afterRead: afterRead.length > 0 ? afterRead : undefined
+      beforeChange: beforeChange.length > 0 ? beforeChange : undefined
     }
   }
 }

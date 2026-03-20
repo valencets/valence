@@ -4,6 +4,7 @@ export interface NestedDocsPluginOptions {
   readonly collections: readonly string[]
   readonly parentField?: string | undefined
   readonly breadcrumbField?: string | undefined
+  readonly labelField?: string | undefined
 }
 
 interface BreadcrumbEntry {
@@ -33,6 +34,13 @@ function injectNestedDocFields (col: CollectionConfig, opts: NestedDocsPluginOpt
   const parentFieldName = opts.parentField ?? 'parent'
   const breadcrumbFieldName = opts.breadcrumbField ?? 'breadcrumbs'
 
+  // Idempotency guard: skip if parent/breadcrumbs fields already injected
+  if (col.fields.some(f => f.name === parentFieldName) || col.fields.some(f => f.name === breadcrumbFieldName)) {
+    return col
+  }
+
+  const labelFieldName = opts.labelField ?? 'title'
+
   const parentRelationField = {
     type: 'relation' as const,
     name: parentFieldName,
@@ -47,7 +55,7 @@ function injectNestedDocFields (col: CollectionConfig, opts: NestedDocsPluginOpt
   }
 
   const existingAfterChange = col.hooks?.afterChange ?? []
-  const breadcrumbHook = makeBreadcrumbHook(breadcrumbFieldName, 'title')
+  const breadcrumbHook = makeBreadcrumbHook(breadcrumbFieldName, labelFieldName)
   const afterChange = [...existingAfterChange, breadcrumbHook]
 
   return {

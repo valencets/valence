@@ -3,6 +3,7 @@ import { okAsync } from 'neverthrow'
 import { createS3Adapter } from '../s3-adapter.js'
 import { cloudStoragePlugin } from '../cloud-storage-plugin.js'
 import type { StorageAdapter } from '../storage-adapter.js'
+import type { CmsConfigWithStorage } from '../cloud-storage-plugin.js'
 import type { CmsConfig } from '@valencets/cms'
 
 // Mock @aws-sdk/client-s3
@@ -124,6 +125,83 @@ describe('StorageAdapter interface', () => {
       expect(result.isErr()).toBe(true)
     })
   })
+
+  describe('path traversal sanitization', () => {
+    it('strips ../ from key in getUrl', () => {
+      const adapter = createS3Adapter({
+        bucket: 'my-bucket',
+        region: 'us-east-1',
+        credentials: { accessKeyId: 'key', secretAccessKey: 'secret' },
+        publicUrl: 'https://cdn.example.com'
+      })
+      const url = adapter.getUrl('../../../etc/passwd')
+      expect(url).not.toContain('../')
+      expect(url).toContain('etc/passwd')
+    })
+
+    it('strips .. (without slash) from key in getUrl', () => {
+      const adapter = createS3Adapter({
+        bucket: 'my-bucket',
+        region: 'us-east-1',
+        credentials: { accessKeyId: 'key', secretAccessKey: 'secret' },
+        publicUrl: 'https://cdn.example.com'
+      })
+      const url = adapter.getUrl('uploads/..secret')
+      expect(url).not.toContain('..')
+    })
+
+    it('strips ../ from key when uploading', async () => {
+      mockSend.mockResolvedValueOnce({})
+
+      const adapter = createS3Adapter({
+        bucket: 'my-bucket',
+        region: 'us-east-1',
+        credentials: { accessKeyId: 'key', secretAccessKey: 'secret' }
+      })
+      const buffer = Buffer.from('file content')
+      const result = await adapter.upload('../../../etc/passwd', buffer, 'text/plain')
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value).not.toContain('../')
+        expect(result.value).toContain('etc/passwd')
+      }
+    })
+
+    it('strips ../ from key when deleting', async () => {
+      mockSend.mockResolvedValueOnce({})
+
+      const adapter = createS3Adapter({
+        bucket: 'my-bucket',
+        region: 'us-east-1',
+        credentials: { accessKeyId: 'key', secretAccessKey: 'secret' }
+      })
+      const result = await adapter.delete('../sensitive/file.txt')
+      expect(result.isOk()).toBe(true)
+    })
+
+    it('normal keys without traversal are unchanged', () => {
+      const adapter = createS3Adapter({
+        bucket: 'my-bucket',
+        region: 'us-east-1',
+        credentials: { accessKeyId: 'key', secretAccessKey: 'secret' },
+        publicUrl: 'https://cdn.example.com'
+      })
+      const url = adapter.getUrl('uploads/2024/image.jpg')
+      expect(url).toBe('https://cdn.example.com/uploads/2024/image.jpg')
+    })
+
+    it('prefix is not affected by key sanitization', () => {
+      const adapter = createS3Adapter({
+        bucket: 'my-bucket',
+        region: 'us-east-1',
+        credentials: { accessKeyId: 'key', secretAccessKey: 'secret' },
+        publicUrl: 'https://cdn.example.com',
+        prefix: 'media'
+      })
+      const url = adapter.getUrl('../etc/passwd')
+      expect(url).toBe('https://cdn.example.com/media/etc/passwd')
+    })
+  })
 })
 
 describe('cloudStoragePlugin', () => {
@@ -152,11 +230,11 @@ describe('cloudStoragePlugin', () => {
     expect(result.collections).toBeDefined()
   })
 
-  it('attaches the adapter to the config extension', () => {
+  it('attaches the adapter to the config as CmsConfigWithStorage', () => {
     const config = makeConfig([])
     const plugin = cloudStoragePlugin({ adapter: mockAdapter })
-    const result = plugin(config)
-    expect((result as CmsConfig & { storageAdapter?: StorageAdapter }).storageAdapter).toBe(mockAdapter)
+    const result: CmsConfigWithStorage = plugin(config)
+    expect(result.storageAdapter).toBe(mockAdapter)
   })
 
   it('preserves existing collections', () => {

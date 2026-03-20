@@ -155,6 +155,83 @@ describe('nestedDocsPlugin', () => {
     })
   })
 
+  describe('labelField option', () => {
+    it('uses "title" as default label field', async () => {
+      const config = makeConfig([
+        { slug: 'pages', timestamps: true, fields: [{ type: 'text', name: 'title' }] }
+      ])
+      const result = nestedDocsPlugin({ collections: ['pages'] })(config)
+      const pages = result.collections.find(c => c.slug === 'pages')
+      const hook = pages?.hooks?.afterChange?.[0]
+      const hookResult = await hook?.({
+        data: { title: 'My Page', name: 'other-field' },
+        id: 'doc-3',
+        collection: 'pages'
+      })
+      const parsed = JSON.parse(String(hookResult?.['breadcrumbs']))
+      expect(parsed[0]).toMatchObject({ label: 'My Page' })
+    })
+
+    it('uses custom labelField when provided', async () => {
+      const config = makeConfig([
+        { slug: 'pages', timestamps: true, fields: [{ type: 'text', name: 'name' }] }
+      ])
+      const result = nestedDocsPlugin({ collections: ['pages'], labelField: 'name' })(config)
+      const pages = result.collections.find(c => c.slug === 'pages')
+      const hook = pages?.hooks?.afterChange?.[0]
+      const hookResult = await hook?.({
+        data: { name: 'Custom Label', title: 'ignored' },
+        id: 'doc-4',
+        collection: 'pages'
+      })
+      const parsed = JSON.parse(String(hookResult?.['breadcrumbs']))
+      expect(parsed[0]).toMatchObject({ label: 'Custom Label' })
+    })
+
+    it('falls back to empty string when labelField value is null', async () => {
+      const config = makeConfig([
+        { slug: 'pages', timestamps: true, fields: [{ type: 'text', name: 'title' }] }
+      ])
+      const result = nestedDocsPlugin({ collections: ['pages'] })(config)
+      const pages = result.collections.find(c => c.slug === 'pages')
+      const hook = pages?.hooks?.afterChange?.[0]
+      const hookResult = await hook?.({
+        data: { title: null },
+        id: 'doc-5',
+        collection: 'pages'
+      })
+      const parsed = JSON.parse(String(hookResult?.['breadcrumbs']))
+      expect(parsed[0]).toMatchObject({ label: '' })
+    })
+  })
+
+  describe('idempotency', () => {
+    it('does not inject parent/breadcrumbs fields twice when plugin is applied twice', () => {
+      const config = makeConfig([
+        { slug: 'pages', timestamps: true, fields: [{ type: 'text', name: 'title' }] }
+      ])
+      const plugin = nestedDocsPlugin({ collections: ['pages'] })
+      const once = plugin(config)
+      const twice = plugin(once)
+      const pages = twice.collections.find(c => c.slug === 'pages')
+      const parentFields = pages?.fields.filter(f => f.name === 'parent')
+      const breadcrumbFields = pages?.fields.filter(f => f.name === 'breadcrumbs')
+      expect(parentFields?.length).toBe(1)
+      expect(breadcrumbFields?.length).toBe(1)
+    })
+
+    it('does not add duplicate afterChange hooks when plugin is applied twice', () => {
+      const config = makeConfig([
+        { slug: 'pages', timestamps: true, fields: [{ type: 'text', name: 'title' }] }
+      ])
+      const plugin = nestedDocsPlugin({ collections: ['pages'] })
+      const once = plugin(config)
+      const twice = plugin(once)
+      const pages = twice.collections.find(c => c.slug === 'pages')
+      expect(pages?.hooks?.afterChange?.length).toBe(1)
+    })
+  })
+
   describe('backward compatibility', () => {
     it('preserves existing fields', () => {
       const config = makeConfig([
