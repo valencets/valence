@@ -3,6 +3,8 @@ import { collection } from '../schema/collection.js'
 import type { AdminConfig } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 import { renderLayout } from '../admin/layout.js'
+import { renderDashboard } from '../admin/dashboard.js'
+import type { DashboardData } from '../admin/dashboard.js'
 
 describe('AdminConfig on collection()', () => {
   it('accepts admin config with group, hidden, and position', () => {
@@ -164,5 +166,33 @@ describe('sidebar rendering', () => {
     const firstIdx = html.indexOf('/admin/first')
     const unpositionedIdx = html.indexOf('/admin/unpositioned')
     expect(firstIdx).toBeLessThan(unpositionedIdx)
+  })
+})
+
+describe('dashboard stats', () => {
+  it('excludes hidden collections from dashboard', () => {
+    const data: DashboardData = {
+      stats: [
+        { slug: 'posts', label: 'Posts', count: 10, recent: [] },
+        { slug: 'internal', label: 'Internal', count: 5, recent: [], hidden: true }
+      ]
+    }
+    const html = renderDashboard(data)
+    expect(html).toContain('Posts')
+    expect(html).not.toContain('Internal')
+  })
+
+  it('still shows all non-hidden collections', () => {
+    const data: DashboardData = {
+      stats: [
+        { slug: 'posts', label: 'Posts', count: 10, recent: [] },
+        { slug: 'pages', label: 'Pages', count: 3, recent: [] },
+        { slug: 'hidden-stuff', label: 'Hidden', count: 1, recent: [], hidden: true }
+      ]
+    }
+    const html = renderDashboard(data)
+    expect(html).toContain('Posts')
+    expect(html).toContain('Pages')
+    expect(html).not.toContain('Hidden')
   })
 })
