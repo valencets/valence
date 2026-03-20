@@ -14,7 +14,9 @@ import type {
   GraphQLOutputType,
   GraphQLInputType,
   GraphQLFieldConfigMap,
-  GraphQLInputFieldConfigMap
+  GraphQLInputFieldConfigMap,
+  GraphQLFieldConfig,
+  GraphQLFieldResolver
 } from 'graphql'
 import type {
   CollectionConfig,
@@ -25,10 +27,10 @@ import type {
   NumberFieldConfig,
   GroupFieldConfig,
   ArrayFieldConfig,
-  BlocksFieldConfig
+  BlocksFieldConfig,
+  LocalApi
 } from '@valencets/cms'
-
-// --- Helpers ---
+import { buildCollectionResolvers } from './resolver-builder.js'
 
 export function singularize (slug: string): string {
   if (slug.endsWith('ies')) return slug.slice(0, -3) + 'y'
@@ -253,72 +255,105 @@ function buildCollectionTypes (
   return typeMap
 }
 
+// --- Helpers to attach resolvers conditionally ---
+
+type Resolver = GraphQLFieldResolver<unknown, unknown>
+type ResolverRecord = Record<string, Resolver>
+
+function withResolver (
+  base: GraphQLFieldConfig<unknown, unknown>,
+  resolver: Resolver | undefined
+): GraphQLFieldConfig<unknown, unknown> {
+  if (resolver === undefined) return base
+  return { ...base, resolve: resolver }
+}
+
 // --- Query and mutation builders ---
 
 function buildQueryFields (
-  typeMap: Map<string, CollectionTypes>
+  typeMap: Map<string, CollectionTypes>,
+  resolverMap: Record<string, ResolverRecord> | undefined
 ): GraphQLFieldConfigMap<unknown, unknown> {
   const fields: GraphQLFieldConfigMap<unknown, unknown> = {}
 
   for (const [slug, { objectType }] of typeMap) {
     const singular = singularize(slug)
+    const collectionResolvers = resolverMap?.[slug]
 
-    fields[slug] = {
-      type: new GraphQLList(objectType),
-      args: {
-        page: { type: GraphQLInt },
-        limit: { type: GraphQLInt },
-        sort: { type: GraphQLString },
-        search: { type: GraphQLString },
-        locale: { type: GraphQLString }
-      }
-    }
+    fields[slug] = withResolver(
+      {
+        type: new GraphQLList(objectType),
+        args: {
+          page: { type: GraphQLInt },
+          limit: { type: GraphQLInt },
+          sort: { type: GraphQLString },
+          search: { type: GraphQLString },
+          locale: { type: GraphQLString }
+        }
+      },
+      collectionResolvers?.[slug]
+    )
 
-    fields[singular] = {
-      type: objectType,
-      args: {
-        id: { type: new GraphQLNonNull(GraphQLString) }
-      }
-    }
+    fields[singular] = withResolver(
+      {
+        type: objectType,
+        args: {
+          id: { type: new GraphQLNonNull(GraphQLString) }
+        }
+      },
+      collectionResolvers?.[singular]
+    )
 
-    fields[`${slug}Count`] = {
-      type: GraphQLInt
-    }
+    fields[`${slug}Count`] = withResolver(
+      { type: GraphQLInt },
+      collectionResolvers?.[`${slug}Count`]
+    )
   }
 
   return fields
 }
 
 function buildMutationFields (
-  typeMap: Map<string, CollectionTypes>
+  typeMap: Map<string, CollectionTypes>,
+  resolverMap: Record<string, ResolverRecord> | undefined
 ): GraphQLFieldConfigMap<unknown, unknown> {
   const fields: GraphQLFieldConfigMap<unknown, unknown> = {}
 
   for (const [slug, { objectType, inputType }] of typeMap) {
     const singular = singularize(slug)
     const typeName = capitalize(singular)
+    const collectionMutations = resolverMap?.[slug]
 
-    fields[`create${typeName}`] = {
-      type: objectType,
-      args: {
-        data: { type: new GraphQLNonNull(inputType) }
-      }
-    }
+    fields[`create${typeName}`] = withResolver(
+      {
+        type: objectType,
+        args: {
+          data: { type: new GraphQLNonNull(inputType) }
+        }
+      },
+      collectionMutations?.[`create${typeName}`]
+    )
 
-    fields[`update${typeName}`] = {
-      type: objectType,
-      args: {
-        id: { type: new GraphQLNonNull(GraphQLString) },
-        data: { type: new GraphQLNonNull(inputType) }
-      }
-    }
+    fields[`update${typeName}`] = withResolver(
+      {
+        type: objectType,
+        args: {
+          id: { type: new GraphQLNonNull(GraphQLString) },
+          data: { type: new GraphQLNonNull(inputType) }
+        }
+      },
+      collectionMutations?.[`update${typeName}`]
+    )
 
-    fields[`delete${typeName}`] = {
-      type: objectType,
-      args: {
-        id: { type: new GraphQLNonNull(GraphQLString) }
-      }
-    }
+    fields[`delete${typeName}`] = withResolver(
+      {
+        type: objectType,
+        args: {
+          id: { type: new GraphQLNonNull(GraphQLString) }
+        }
+      },
+      collectionMutations?.[`delete${typeName}`]
+    )
   }
 
   return fields
@@ -327,18 +362,32 @@ function buildMutationFields (
 // --- Main export ---
 
 export function generateGraphQLSchema (
-  collections: readonly CollectionConfig[]
+  collections: readonly CollectionConfig[],
+  api?: LocalApi
 ): GraphQLSchema {
   const typeMap = buildCollectionTypes(collections)
 
+  let queryResolverMap: Record<string, ResolverRecord> | undefined
+  let mutationResolverMap: Record<string, ResolverRecord> | undefined
+
+  if (api !== undefined) {
+    const collectionResolvers = buildCollectionResolvers(api, collections)
+    queryResolverMap = {}
+    mutationResolverMap = {}
+    for (const [slug, resolvers] of Object.entries(collectionResolvers)) {
+      queryResolverMap[slug] = resolvers.queries
+      mutationResolverMap[slug] = resolvers.mutations
+    }
+  }
+
   const QueryType = new GraphQLObjectType({
     name: 'Query',
-    fields: () => buildQueryFields(typeMap)
+    fields: () => buildQueryFields(typeMap, queryResolverMap)
   })
 
   const MutationType = new GraphQLObjectType({
     name: 'Mutation',
-    fields: () => buildMutationFields(typeMap)
+    fields: () => buildMutationFields(typeMap, mutationResolverMap)
   })
 
   return new GraphQLSchema({
