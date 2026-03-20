@@ -1,4 +1,4 @@
-export { CmsErrorCode } from './types.js'
+export { CmsErrorCode, StatusCode } from './types.js'
 export type { CmsError } from './types.js'
 
 export { FieldType } from './field-types.js'
@@ -31,7 +31,7 @@ export type {
 export { field } from './fields.js'
 
 export { collection } from './collection.js'
-export type { CollectionConfig, CollectionLabels } from './collection.js'
+export type { CollectionConfig, CollectionLabels, VersionsConfig } from './collection.js'
 
 export { global } from './global.js'
 export type { GlobalConfig } from './global.js'

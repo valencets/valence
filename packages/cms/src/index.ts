@@ -2,6 +2,7 @@
 
 export {
   CmsErrorCode,
+  StatusCode,
   FieldType,
   field,
   collection,
@@ -37,6 +38,7 @@ export type {
   BlocksFieldConfig,
   CollectionConfig,
   CollectionLabels,
+  VersionsConfig,
   GlobalConfig,
   CollectionRegistry,
   GlobalRegistry,

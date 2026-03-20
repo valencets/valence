@@ -14,3 +14,10 @@ export interface CmsError {
   readonly code: CmsErrorCode
   readonly message: string
 }
+
+export const StatusCode = Object.freeze({
+  DRAFT: 'draft',
+  PUBLISHED: 'published'
+} as const)
+
+export type StatusCode = typeof StatusCode[keyof typeof StatusCode]
