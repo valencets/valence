@@ -138,6 +138,62 @@ describe('generateCreateTableSql()', () => {
   })
 })
 
+describe('generateCreateTableSql() with versions', () => {
+  it('injects _status column with CHECK constraint when versions.drafts is true', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title', required: true })],
+      versions: { drafts: true }
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).toContain('"_status" TEXT NOT NULL DEFAULT \'draft\'')
+    expect(sql).toContain('CHECK ("_status" IN (\'draft\', \'published\'))')
+  })
+
+  it('injects publish_at column when versions.drafts is true', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })],
+      versions: { drafts: true }
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).toContain('"publish_at" TIMESTAMPTZ')
+  })
+
+  it('does NOT inject status columns when versions is undefined', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })]
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).not.toContain('_status')
+    expect(sql).not.toContain('publish_at')
+  })
+
+  it('does NOT inject status columns when versions.drafts is false', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })],
+      versions: { drafts: false }
+    })
+    const sql = generateCreateTableSql(posts)
+    expect(sql).not.toContain('_status')
+    expect(sql).not.toContain('publish_at')
+  })
+
+  it('places _status and publish_at before timestamps', () => {
+    const posts = collection({
+      slug: 'posts',
+      fields: [field.text({ name: 'title' })],
+      versions: { drafts: true }
+    })
+    const sql = generateCreateTableSql(posts)
+    const statusIdx = sql.indexOf('_status')
+    const createdIdx = sql.indexOf('created_at')
+    expect(statusIdx).toBeLessThan(createdIdx)
+  })
+})
+
 describe('generateCreateTable()', () => {
   it('returns up and down SQL strings', () => {
     const posts = collection({
