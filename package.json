@@ -16,18 +16,16 @@
     "test:mutate": "stryker run",
     "test:smoke": "pnpm test",
     "test:regression": "pnpm test",
-    "test:quarantine": "echo \"No quarantine tests configured\"",
-    "test:watch": "vitest --watch",
-    "check:patterns": "bash scripts/check-banned-patterns.sh",
-    "check:size": "bash scripts/check-bundle-size.sh"
-    "test:visual": "playwright test tests/e2e/visual/"
-    "test:perf:smoke": "k6 run tests/perf/smoke.js",
-    "test:perf": "k6 run tests/perf/load.js"
-    "test:lighthouse": "lhci autorun --config=lighthouserc.js"
     "test:quarantine": "vitest run --reporter=verbose --tags-filter=flaky",
     "test:watch": "vitest --watch",
+    "check:patterns": "bash scripts/check-banned-patterns.sh",
+    "check:size": "bash scripts/check-bundle-size.sh",
+    "test:visual": "playwright test tests/e2e/visual/",
+    "test:perf:smoke": "k6 run tests/perf/smoke.js",
+    "test:perf": "k6 run tests/perf/load.js",
+    "test:lighthouse": "lhci autorun --config=lighthouserc.js",
     "test:flaky:detect": "bash scripts/detect-flaky-vitest.sh && playwright test --config=tests/e2e/flaky-detection.config.ts",
-    "test:flaky:deadlines": "bash scripts/check-flaky-deadlines.sh"
+    "test:flaky:deadlines": "bash scripts/check-flaky-deadlines.sh",
     "api:check": "bash scripts/api-check.sh",
     "api:update": "bash scripts/api-update.sh"
   },
