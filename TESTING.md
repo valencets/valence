@@ -157,3 +157,45 @@ pnpm test:quarantine        # Run only quarantined flaky tests
 pnpm test:flaky:deadlines   # Check for expired quarantine SLAs
 pnpm test:flaky:detect      # Detect new flaky tests (2x Vitest + 5x Playwright)
 ```
+## API Surface Tracking
+
+API surface changes are tracked via [Microsoft API Extractor](https://api-extractor.com/). Every public package has a committed `*.api.md` report that documents its exported types. Changes to the API surface are caught in CI before they ship.
+
+### How it works
+
+- Each package (`core`, `db`, `cms`, `telemetry`, `ui`, `valence`, `graphql`) has an `api-extractor.json` config.
+- The generated `*.api.md` files are committed to Git and serve as the reference baseline.
+- The `api-review` CI job runs `pnpm api:check` after every build. If the generated report differs from the committed baseline, the job fails.
+
+### Workflow for API changes
+
+1. Make your change (add, remove, or rename an export).
+2. Run `pnpm build` to recompile TypeScript.
+3. Run `pnpm api:update` to regenerate all `*.api.md` files.
+4. Review the diffs — removals and signature changes are breaking changes.
+5. Commit the updated `*.api.md` files alongside your code change.
+
+```bash
+# After changing a public export
+pnpm build
+pnpm api:update
+git add packages/*/\*.api.md
+git commit -m "feat: update API surface for <change>"
+```
+
+### Scripts
+
+| Script | Description |
+|---|---|
+| `pnpm api:check` | Runs API Extractor in strict mode — fails if any `.api.md` differs |
+| `pnpm api:update` | Regenerates all `.api.md` baselines (use `--local` mode) |
+
+### CI job: `api-review`
+
+Runs after `typecheck` on every push and PR. Executes `pnpm api:check`. Fails with:
+
+```
+API surface changed — review the diff and run `pnpm api:update` to accept
+```
+
+if any package's API surface has changed without an updated baseline.

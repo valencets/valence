@@ -273,6 +273,25 @@ jobs:
           retention-days: 7
 
   lighthouse:
+  api-review:
+    needs: [typecheck]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Check API surface
+        run: pnpm api:check
+      - name: Fail with guidance on API surface change
+        if: failure()
+        run: |
+          echo "API surface changed -- review the diff and run \`pnpm api:update\` to accept"
+          exit 1
+
+  coverage:
     needs: [unit]
     runs-on: ubuntu-24.04
     continue-on-error: true
