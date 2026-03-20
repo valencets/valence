@@ -37,7 +37,11 @@ export function loadEnvConfig (): DbConfig | null {
   }
 
   const host = process.env.DB_HOST
-  const database = process.env.DB_NAME
+  const isDev = process.env.NODE_ENV !== 'production'
+  // In dev mode, prefer DB_NAME_DEV if set, otherwise append '_dev' suffix
+  const database = isDev
+    ? (process.env.DB_NAME_DEV ?? (process.env.DB_NAME ? process.env.DB_NAME + '_dev' : undefined))
+    : process.env.DB_NAME
   const username = process.env.DB_USER
 
   if (!host || !database || !username) return null
