@@ -614,6 +614,12 @@ async function runDev (): Promise<void> {
 
   const learnLine = learnActive ? `\n  Tutorial: http://localhost:${port}/_learn` : ''
 
+  // Allow the consuming app to attach WebSocket upgrade handlers or custom routes
+  // before the server begins accepting connections.
+  if (loadedConfig.onServer) {
+    await loadedConfig.onServer({ server, pool, cms })
+  }
+
   server.listen(port, () => {
     console.log(`
   Valence dev server running.
