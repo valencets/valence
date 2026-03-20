@@ -362,3 +362,45 @@ describe('renderListView() — displayField + listFields combined', () => {
     expect(html).not.toContain('A widget')
   })
 })
+
+describe('renderListView() — bulk operation checkboxes', () => {
+  it('renders a select-all checkbox in the table header', () => {
+    const html = renderListView({ col: makeCol(), docs: baseDocs })
+    expect(html).toContain('class="bulk-select-all"')
+  })
+
+  it('renders a row checkbox for each document', () => {
+    const html = renderListView({ col: makeCol(), docs: baseDocs })
+    expect(html).toContain('name="ids"')
+    expect(html).toContain('value="1"')
+    expect(html).toContain('value="2"')
+  })
+
+  it('row checkboxes have class bulk-row-check', () => {
+    const html = renderListView({ col: makeCol(), docs: baseDocs })
+    expect(html).toContain('class="bulk-row-check"')
+  })
+
+  it('wraps the table in a form with correct action URL', () => {
+    const html = renderListView({ col: makeCol(), docs: baseDocs })
+    expect(html).toContain('action="/admin/posts/bulk"')
+    expect(html).toContain('method="POST"')
+  })
+
+  it('includes a CSRF hidden input when csrfToken is provided', () => {
+    const html = renderListView({ col: makeCol(), docs: baseDocs, csrfToken: 'tok-abc' })
+    expect(html).toContain('name="_csrf"')
+    expect(html).toContain('value="tok-abc"')
+  })
+
+  it('does not include CSRF hidden input when csrfToken is not provided', () => {
+    const html = renderListView({ col: makeCol(), docs: baseDocs })
+    expect(html).not.toContain('name="_csrf"')
+  })
+
+  it('row checkbox uses the document id as value', () => {
+    const docs = [{ id: 'abc-123', title: 'Test', slug: 'test', published: 'true', status: 'draft' }]
+    const html = renderListView({ col: makeCol(), docs })
+    expect(html).toContain('value="abc-123"')
+  })
+})

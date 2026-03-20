@@ -30,6 +30,7 @@ export interface ListViewArgs {
   readonly filters?: Record<string, string> | undefined
   readonly viewMode?: 'table' | 'grid' | undefined
   readonly localeConfig?: ListViewLocaleConfig | undefined
+  readonly csrfToken?: string | undefined
 }
 
 function baseParams (args: ListViewArgs): Record<string, string> {
@@ -217,6 +218,35 @@ function resolveDisplayFields (args: ListViewArgs): readonly FieldConfig[] {
   return col.fields.slice(0, 3)
 }
 
+const BulkActionOptions: Record<string, string> = {
+  publish: 'Publish',
+  unpublish: 'Unpublish',
+  delete: 'Delete'
+}
+
+function renderBulkActionBar (): string {
+  const options = Object.entries(BulkActionOptions).map(([value, label]) =>
+    `<option value="${value}">${label}</option>`
+  ).join('')
+  return `<div class="bulk-action-bar" style="display:none">
+  <span class="bulk-count">0 selected</span>
+  <select name="action" class="form-select">${options}</select>
+  <button type="submit" class="btn btn-primary">Apply</button>
+</div>`
+}
+
+function renderBulkForm (args: ListViewArgs, tableHtml: string): string {
+  const safeSlug = escapeHtml(args.col.slug)
+  const csrfInput = args.csrfToken !== undefined
+    ? `<input type="hidden" name="_csrf" value="${escapeHtml(args.csrfToken)}">`
+    : ''
+  return `<form method="POST" action="/admin/${safeSlug}/bulk">
+${csrfInput}
+${renderBulkActionBar()}
+${tableHtml}
+</form>`
+}
+
 function renderTable (args: ListViewArgs): string {
   const { col, docs } = args
   const isVersioned = col.versions?.drafts === true
@@ -236,12 +266,14 @@ function renderTable (args: ListViewArgs): string {
     const statusCell = isVersioned
       ? `<td><span class="status-badge status-${escapeHtml(String(doc._status ?? 'draft'))}">${doc._status === 'published' ? 'Published' : 'Draft'}</span></td>`
       : ''
-    return `<tr><td><a href="/admin/${safeSlug}/${safeId}/edit">${safeId.slice(0, 8)}\u2026</a></td>${cells}${statusCell}<td class="actions-cell"><a href="/admin/${safeSlug}/${safeId}/edit" class="action-link">Edit</a></td></tr>`
+    const rowCheck = `<td><input type="checkbox" name="ids" value="${safeId}" class="bulk-row-check"></td>`
+    return `<tr>${rowCheck}<td><a href="/admin/${safeSlug}/${safeId}/edit">${safeId.slice(0, 8)}\u2026</a></td>${cells}${statusCell}<td class="actions-cell"><a href="/admin/${safeSlug}/${safeId}/edit" class="action-link">Edit</a></td></tr>`
   }).join('\n')
-  return `<table>
-  <thead><tr><th>ID</th>${headerCells}${statusHeader}<th>Actions</th></tr></thead>
+  const tableHtml = `<table>
+  <thead><tr><th><input type="checkbox" class="bulk-select-all"></th><th>ID</th>${headerCells}${statusHeader}<th>Actions</th></tr></thead>
   <tbody>${rows}</tbody>
 </table>`
+  return renderBulkForm(args, tableHtml)
 }
 
 function renderGrid (args: ListViewArgs): string {

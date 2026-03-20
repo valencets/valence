@@ -5,7 +5,7 @@ import type { CmsError } from '../schema/types.js'
 import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry } from '../schema/registry.js'
 import type { RestRouteEntry } from '../api/rest-api.js'
-import type { DocumentData } from '../db/query-builder.js'
+import type { DocumentData, DocumentRow } from '../db/query-builder.js'
 import type { FlashMessage } from './flash.js'
 import type { CollectionConfig } from '../schema/collection.js'
 import { renderLayout } from './layout.js'
@@ -417,6 +417,7 @@ export function createAdminRoutes (
           () => { docs = [] }
         )
 
+        const listCsrfToken = freshCsrfToken()
         const content = renderListView({
           col,
           docs,
@@ -424,7 +425,8 @@ export function createAdminRoutes (
           query,
           sort,
           dir,
-          filters: Object.keys(filters).length > 0 ? filters : undefined
+          filters: Object.keys(filters).length > 0 ? filters : undefined,
+          csrfToken: listCsrfToken
         })
         const html = renderLayout({
           title: col.labels?.plural ?? col.slug,
@@ -552,6 +554,48 @@ export function createAdminRoutes (
             res.end()
           }
         )
+      })
+    })
+
+    routes.set(`/admin/${col.slug}/bulk`, {
+      POST: wrap(async (req, res) => {
+        const bodyResult = await safeReadFormBody(req)
+        if (bodyResult.isErr()) {
+          res.writeHead(400, { Location: `/admin/${col.slug}` })
+          res.end()
+          return
+        }
+        const formData = bodyResult.value
+        const submittedToken = String(formData._csrf ?? '')
+        if (!submittedToken || !validateCsrf(submittedToken)) {
+          res.writeHead(403, { Location: `/admin/${col.slug}` })
+          res.end()
+          return
+        }
+        const rawAction = String(formData.action ?? '')
+        const rawIds = formData.ids
+        const ids: readonly string[] = Array.isArray(rawIds)
+          ? (rawIds as string[])
+          : rawIds !== undefined && rawIds !== ''
+            ? [String(rawIds)]
+            : []
+
+        const BULK_HANDLERS: Record<string, (id: string) => ResultAsync<DocumentRow, CmsError>> = {
+          delete: (id) => api.delete({ collection: col.slug, id }),
+          publish: (id) => api.update({ collection: col.slug, id, data: {}, publish: true }),
+          unpublish: (id) => api.unpublish({ collection: col.slug, id })
+        }
+        const handler = BULK_HANDLERS[rawAction]
+        if (!handler) {
+          res.writeHead(400, { Location: `/admin/${col.slug}` })
+          res.end()
+          return
+        }
+        const results = await Promise.all(ids.map(handler))
+        const successCount = results.filter(r => r.isOk()).length
+        setFlashCookie(res, { type: 'success', text: `${successCount} item${successCount === 1 ? '' : 's'} updated` })
+        res.writeHead(302, { Location: `/admin/${col.slug}` })
+        res.end()
       })
     })
 
