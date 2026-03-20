@@ -26,22 +26,6 @@ function toSharpError (e: unknown): CmsError {
   }
 }
 
-function buildResizeOptions (size: ImageSize, focalPoint: FocalPoint | undefined): sharp.ResizeOptions {
-  const fit = size.fit ?? 'cover'
-
-  const options: sharp.ResizeOptions = {
-    width: size.width,
-    height: size.height,
-    fit
-  }
-
-  if (focalPoint && fit === 'cover') {
-    options.position = sharp.strategy.attention
-  }
-
-  return options
-}
-
 async function applyFocalPointCrop (
   pipeline: sharp.Sharp,
   size: ImageSize,
@@ -63,9 +47,7 @@ async function applyFocalPointCrop (
 
   const targetW = size.width
   const targetH = size.height
-  const scaleX = targetW / srcW
-  const scaleY = targetH / srcH
-  const scale = Math.max(scaleX, scaleY)
+  const scale = Math.max(targetW / srcW, targetH / srcH)
 
   const scaledW = Math.round(srcW * scale)
   const scaledH = Math.round(srcH * scale)
@@ -83,39 +65,57 @@ async function applyFocalPointCrop (
   )
 }
 
-async function processSize (
+async function buildPipeline (
   inputBuffer: Buffer,
   size: ImageSize,
   focalPoint: FocalPoint | undefined
-): Promise<Result<ProcessedImage, CmsError>> {
+): Promise<Result<sharp.Sharp, CmsError>> {
   const fit = size.fit ?? 'cover'
-  let pipeline: sharp.Sharp
 
   if (focalPoint && fit === 'cover') {
-    const cropResult = await applyFocalPointCrop(sharp(inputBuffer), size, focalPoint)
-    if (cropResult.isErr()) return err(cropResult.error)
-    pipeline = cropResult.value
-  } else {
-    pipeline = sharp(inputBuffer).resize(buildResizeOptions(size, undefined))
+    return applyFocalPointCrop(sharp(inputBuffer), size, focalPoint)
   }
 
-  const bufferResult = await ResultAsync.fromPromise(
-    pipeline.toBuffer({ resolveWithObject: true }),
-    toSharpError
+  return ok(
+    sharp(inputBuffer).resize({
+      width: size.width,
+      height: size.height,
+      fit
+    })
   )
+}
 
-  if (bufferResult.isErr()) return err(bufferResult.error)
-
-  const { data: outputBuffer, info } = bufferResult.value
-
-  return ok({
-    name: size.name,
+function toProcessedImage (
+  name: string,
+  outputBuffer: Buffer,
+  info: sharp.OutputInfo
+): ProcessedImage {
+  return {
+    name,
     buffer: outputBuffer,
     width: info.width,
     height: info.height,
     filesize: outputBuffer.length,
     mimeType: `image/${info.format}`
-  })
+  }
+}
+
+async function processSize (
+  inputBuffer: Buffer,
+  size: ImageSize,
+  focalPoint: FocalPoint | undefined
+): Promise<Result<ProcessedImage, CmsError>> {
+  const pipelineResult = await buildPipeline(inputBuffer, size, focalPoint)
+  if (pipelineResult.isErr()) return err(pipelineResult.error)
+
+  const bufferResult = await ResultAsync.fromPromise(
+    pipelineResult.value.toBuffer({ resolveWithObject: true }),
+    toSharpError
+  )
+  if (bufferResult.isErr()) return err(bufferResult.error)
+
+  const { data, info } = bufferResult.value
+  return ok(toProcessedImage(size.name, data, info))
 }
 
 async function processWebpVariant (
@@ -123,36 +123,17 @@ async function processWebpVariant (
   size: ImageSize,
   focalPoint: FocalPoint | undefined
 ): Promise<Result<ProcessedImage, CmsError>> {
-  const fit = size.fit ?? 'cover'
-  let pipeline: sharp.Sharp
-
-  if (focalPoint && fit === 'cover') {
-    const cropResult = await applyFocalPointCrop(sharp(inputBuffer), size, focalPoint)
-    if (cropResult.isErr()) return err(cropResult.error)
-    pipeline = cropResult.value.webp({ quality: 80 })
-  } else {
-    pipeline = sharp(inputBuffer)
-      .resize(buildResizeOptions(size, undefined))
-      .webp({ quality: 80 })
-  }
+  const pipelineResult = await buildPipeline(inputBuffer, size, focalPoint)
+  if (pipelineResult.isErr()) return err(pipelineResult.error)
 
   const webpResult = await ResultAsync.fromPromise(
-    pipeline.toBuffer({ resolveWithObject: true }),
+    pipelineResult.value.webp({ quality: 80 }).toBuffer({ resolveWithObject: true }),
     toSharpError
   )
-
   if (webpResult.isErr()) return err(webpResult.error)
 
-  const { data: webpBuffer, info: webpInfo } = webpResult.value
-
-  return ok({
-    name: `${size.name}-webp`,
-    buffer: webpBuffer,
-    width: webpInfo.width,
-    height: webpInfo.height,
-    filesize: webpBuffer.length,
-    mimeType: 'image/webp'
-  })
+  const { data, info } = webpResult.value
+  return ok(toProcessedImage(`${size.name}-webp`, data, info))
 }
 
 export async function processImageSizes (
