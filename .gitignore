@@ -17,3 +17,6 @@ tests/e2e/.auth/
 coverage/
 .stryker-tmp/
 reports/
+
+# API Extractor temp files
+packages/*/temp/
