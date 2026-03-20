@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { buildCms } from '../config/cms-config.js'
 import type { CmsConfig } from '../config/cms-config.js'
 import type { Plugin } from '../config/plugin.js'
@@ -161,5 +161,53 @@ describe('CmsInstance', () => {
     const cms = buildCms(config)._unsafeUnwrap()
     expect(cms.restRoutes.has('/media/upload')).toBe(true)
     expect(cms.restRoutes.has('/media/:filename')).toBe(true)
+  })
+})
+
+describe('buildCms() requireAuth forwarding', () => {
+  it('forwards requireAuth to admin routes so handlers check session', async () => {
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      requireAuth: true,
+      collections: [
+        collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
+      ]
+    }
+    const cms = buildCms(config)._unsafeUnwrap()
+    const handler = cms.adminRoutes.get('/admin')?.GET
+    expect(handler).toBeDefined()
+
+    const req = { headers: {}, url: '/admin', method: 'GET' }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(302, { Location: '/admin/login' })
+  })
+
+  it('admin routes work without auth when requireAuth is not set', async () => {
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      collections: [
+        collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
+      ]
+    }
+    const cms = buildCms(config)._unsafeUnwrap()
+    const handler = cms.adminRoutes.get('/admin')?.GET
+    expect(handler).toBeDefined()
+
+    const req = { headers: {}, url: '/admin', method: 'GET' }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn((data: string) => {}),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    // Should return 200 (renders dashboard), not redirect
+    expect(res.writeHead).toHaveBeenCalledWith(200)
   })
 })

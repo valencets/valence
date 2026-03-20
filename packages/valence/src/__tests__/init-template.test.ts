@@ -124,3 +124,27 @@ describe('init migration SQL', () => {
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS "document_revisions"')
   })
 })
+
+describe('init migration cms_sessions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('migration includes cms_sessions table for admin auth', async () => {
+    await run(['init', 'test-app', '-y'])
+    const sql = getWrittenFile('001-init.sql')
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS "cms_sessions"')
+  })
+
+  it('cms_sessions table has user_id FK, expires_at, and deleted_at columns', async () => {
+    await run(['init', 'test-app', '-y'])
+    const sql = getWrittenFile('001-init.sql')
+    expect(sql).toContain('"user_id" UUID NOT NULL REFERENCES "users"("id")')
+    expect(sql).toContain('"expires_at" TIMESTAMPTZ NOT NULL')
+    expect(sql).toContain('"deleted_at" TIMESTAMPTZ')
+  })
+})
