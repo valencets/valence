@@ -8,7 +8,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI
-    ? [['html', { open: 'never' }], ['github']]
+    ? [['blob'], ['github']]
     : [['html', { open: 'on-failure' }]],
 
   globalSetup: './tests/e2e/global-setup.ts',
