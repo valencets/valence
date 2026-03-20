@@ -43,7 +43,10 @@ const RENDERER_MAP: Record<string, (f: FieldConfig, value: string) => string> = 
   color: renderColorInput,
   multiselect: renderMultiselect,
   array: renderArrayField,
-  blocks: renderBlocksField
+  blocks: renderBlocksField,
+  tabs: renderTabs,
+  row: renderRow,
+  collapsible: renderCollapsible
 }
 
 function renderTextInput (f: FieldConfig, value: string): string {
@@ -207,7 +210,7 @@ interface BlockValue {
   [key: string]: string | undefined
 }
 
-/** JSON.parse boundary for blocks field value \u2014 sync equivalent of safeJsonParse. */
+/** JSON.parse boundary for blocks field value — sync equivalent of safeJsonParse. */
 function parseBlocksJson (value: string): Array<BlockValue> {
   if (!value) return []
   try { return JSON.parse(value) } catch { return [] }
@@ -232,6 +235,36 @@ function renderBlocksField (f: FieldConfig, value: string): string {
   }).join('\n')
   const configJson = escapeHtml(JSON.stringify(blockDefs.map(b => ({ slug: b.slug, fields: b.fields.map(bf => ({ type: bf.type, name: bf.name })), labels: b.labels }))))
   return '<div class="blocks-field" data-blocks-config="' + configJson + '"><label class="form-field"><span>' + escapeHtml(f.label ?? f.name) + '</span></label><input type="hidden" name="' + escapeHtml(f.name) + '" value="' + escapeHtml(value) + '">' + blockFieldsets + '<div class="blocks-add"><select class="blocks-type-select">' + blockOptions + '</select><button type="button" class="blocks-add-btn">+ Add block</button></div></div>'
+}
+
+function renderTabs (f: FieldConfig, _value: string): string {
+  const tabs = 'tabs' in f ? f.tabs : []
+  const navButtons = tabs.map((tab, i) => {
+    const activeClass = i === 0 ? ' tab-active' : ''
+    return `<button type="button" class="tab-btn${activeClass}" data-tab="${i}">${escapeHtml(tab.label)}</button>`
+  }).join('')
+  const panels = tabs.map((tab, i) => {
+    const activeClass = i === 0 ? ' tab-active' : ''
+    const hiddenStyle = i === 0 ? '' : ' style="display:none"'
+    const children = tab.fields.map(child => renderFieldInput(child, '')).join('\n')
+    return `<div class="tab-panel${activeClass}" data-tab-panel="${i}"${hiddenStyle}>${children}</div>`
+  }).join('\n')
+  return `<div class="tabs-field" data-field="${escapeHtml(f.name)}"><nav class="tabs-nav">${navButtons}</nav>${panels}</div>`
+}
+
+function renderRow (f: FieldConfig, _value: string): string {
+  const fields = 'fields' in f ? f.fields : []
+  const cols = fields.length
+  const children = fields.map(child => renderFieldInput(child, '')).join('\n')
+  return `<div class="row-field" style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:1rem">${children}</div>`
+}
+
+function renderCollapsible (f: FieldConfig, _value: string): string {
+  const fields = 'fields' in f ? f.fields : []
+  const collapsed = 'collapsed' in f ? f.collapsed : undefined
+  const openAttr = collapsed === true ? '' : ' open'
+  const children = fields.map(child => renderFieldInput(child, '')).join('\n')
+  return `<details class="collapsible-field"${openAttr}><summary>${escapeHtml(f.label ?? f.name)}</summary>${children}</details>`
 }
 
 export function renderFieldInput (f: FieldConfig, value: string, context?: RelationContext, uploadContext?: UploadContext): string {
