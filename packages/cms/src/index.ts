@@ -105,11 +105,13 @@ export {
   buildSessionCookie,
   buildExpiredSessionCookie,
   createAuthMiddleware,
+  createCmsAuthValidator,
+  createCmsAuthGuard,
   generateCsrfToken,
   validateCsrfToken,
   createAuthRoutes
 } from './auth/index.js'
-export type { AuthConfig, AuthContext, AuthMiddleware } from './auth/index.js'
+export type { AuthConfig, AuthContext, AuthMiddleware, CmsAuthGuardOptions } from './auth/index.js'
 export { createRateLimiter, parseCookie } from './auth/index.js'
 export type { RateLimiter } from './auth/index.js'
 

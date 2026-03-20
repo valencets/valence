@@ -164,6 +164,15 @@ function performNavigation (
 
   return ResultAsync.fromPromise(
     fetchPromise.then((response) => {
+      if (response.status === 401) {
+        const redirectUrl = response.headers.get('X-Valence-Redirect')
+        if (redirectUrl !== null) {
+          window.location.href = redirectUrl
+          const authError = new Error(`Auth redirect to ${redirectUrl}`)
+          Object.assign(authError, { code: RouterErrorCode.AUTH_REDIRECT })
+          return Promise.reject(authError)
+        }
+      }
       if (!response.ok) {
         return Promise.reject(new Error(`Fetch returned status ${String(response.status)}`))
       }
@@ -171,10 +180,18 @@ function performNavigation (
       const titleHeader = response.headers.get('X-Valence-Title')
       return response.text().then((html) => ({ html, version, titleHeader }))
     }),
-    (): RouterError => ({
-      code: RouterErrorCode.FETCH_FAILED,
-      message: `Navigation fetch failed for ${url}`
-    })
+    (reason): RouterError => {
+      if (reason instanceof Error) {
+        const coded = reason as Error & { code?: string }
+        if (coded.code !== undefined) {
+          return { code: coded.code as RouterErrorCode, message: reason.message }
+        }
+      }
+      return {
+        code: RouterErrorCode.FETCH_FAILED,
+        message: `Navigation fetch failed for ${url}`
+      }
+    }
   ).andThen(({ html, version, titleHeader }) => {
     const result = processHtml(html, config.contentSelector, config.enableViewTransitions)
     if (result.isErr()) return err(result.error)

@@ -1,10 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { AuthUser } from './auth-guard.js'
 
 export interface RequestContext {
   readonly requestId: string
   readonly startTime: readonly [number, number]
   readonly url: URL
   readonly params: Readonly<Record<string, string>>
+  user?: AuthUser
 }
 
 export type Middleware = (

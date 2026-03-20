@@ -1061,3 +1061,91 @@ describe('initRouter', () => {
     expect(link.hasAttribute('data-val-loading')).toBe(false)
   })
 })
+
+describe('auth redirect handling', () => {
+  let handle: RouterHandle | null = null
+
+  beforeEach(() => {
+    handle = null
+    window.history.replaceState({ url: '/' }, '', '/')
+    document.title = 'Initial'
+  })
+
+  afterEach(() => {
+    if (handle !== null) {
+      handle.destroy()
+    }
+    document.body.innerHTML = ''
+  })
+
+  it('401 with X-Valence-Redirect triggers full page navigation', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() =>
+      Promise.resolve(new Response('{"error":"Unauthorized"}', {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Valence-Redirect': '/login?returnTo=/admin'
+        }
+      }))
+    )
+
+    const result = initRouter({ enableFragmentProtocol: true }, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const navResult = await handle!.navigate('/admin')
+
+    expect(navResult.isErr()).toBe(true)
+    if (navResult.isErr()) {
+      expect(navResult.error.code).toBe('AUTH_REDIRECT')
+      expect(navResult.error.message).toContain('/login?returnTo=/admin')
+    }
+  })
+
+  it('401 without X-Valence-Redirect follows normal error path', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() =>
+      Promise.resolve(new Response('{"error":"Unauthorized"}', {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      }))
+    )
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const navResult = await handle!.navigate('/admin')
+    expect(navResult.isErr()).toBe(true)
+    if (navResult.isErr()) {
+      expect(navResult.error.code).toBe('FETCH_FAILED')
+    }
+  })
+
+  it('403 follows normal error path', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() =>
+      Promise.resolve(new Response('{"error":"Forbidden"}', {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      }))
+    )
+
+    const result = initRouter({}, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const main = document.createElement('main')
+    main.innerHTML = '<p>Home</p>'
+    document.body.appendChild(main)
+
+    const navResult = await handle!.navigate('/admin')
+    expect(navResult.isErr()).toBe(true)
+    if (navResult.isErr()) {
+      expect(navResult.error.code).toBe('FETCH_FAILED')
+    }
+  })
+})
