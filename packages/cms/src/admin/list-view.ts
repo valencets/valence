@@ -218,6 +218,23 @@ function resolveDisplayFields (args: ListViewArgs): readonly FieldConfig[] {
   return col.fields.slice(0, 3)
 }
 
+const BulkActionOptions: Record<string, string> = {
+  publish: 'Publish',
+  unpublish: 'Unpublish',
+  delete: 'Delete'
+}
+
+function renderBulkActionBar (): string {
+  const options = Object.entries(BulkActionOptions).map(([value, label]) =>
+    `<option value="${value}">${label}</option>`
+  ).join('')
+  return `<div class="bulk-action-bar" style="display:none">
+  <span class="bulk-count">0 selected</span>
+  <select name="action" class="form-select">${options}</select>
+  <button type="submit" class="btn btn-primary">Apply</button>
+</div>`
+}
+
 function renderBulkForm (args: ListViewArgs, tableHtml: string): string {
   const safeSlug = escapeHtml(args.col.slug)
   const csrfInput = args.csrfToken !== undefined
@@ -225,6 +242,7 @@ function renderBulkForm (args: ListViewArgs, tableHtml: string): string {
     : ''
   return `<form method="POST" action="/admin/${safeSlug}/bulk">
 ${csrfInput}
+${renderBulkActionBar()}
 ${tableHtml}
 </form>`
 }
