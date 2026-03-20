@@ -243,7 +243,7 @@ function buildEditViewParts (col: CollectionConfig, doc: DocRow | null, csrfToke
   const htmxAttrs = buildHtmxFormAttrs(hasConditionalFields, slug, id, isNew)
   const statusBadge = renderStatusBadge(status)
   const actionButtons = renderActionButtons(isVersioned, isNew)
-  const autosaveIndicator = isVersioned && !isNew
+  const autosaveIndicator = isVersioned
     ? `<span class="autosave-indicator" data-autosave-endpoint="/admin/${slug}/${id}/autosave">Saved</span>`
     : ''
   const historySection = historyLink ? `<div class="edit-meta">${historyLink}</div>` : ''
