@@ -97,10 +97,13 @@ export function createAuthRoutes (
       if (sessionResult.isErr()) { sendErrorJson(res, 'Login failed', 500); return }
 
       const secure = isEncrypted(req)
-      const cookie = buildSessionCookie(sessionResult.value, 7200, secure)
+      const sessionCookie = buildSessionCookie(sessionResult.value, 7200, secure)
+      // Set both the HttpOnly session cookie and a JS-readable indicator cookie
+      const secureFlag = secure ? '; Secure' : ''
+      const indicatorCookie = `cms_authed=1; Path=/; SameSite=Strict${secureFlag}; Max-Age=7200`
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
-        'Set-Cookie': cookie
+        'Set-Cookie': [sessionCookie, indicatorCookie]
       })
       res.end(JSON.stringify({ user: { id: user.id, email: user.email, [displayField]: Reflect.get(user, displayField) as string | undefined ?? user.email } }))
     }
@@ -116,7 +119,7 @@ export function createAuthRoutes (
       const secure = isEncrypted(req)
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
-        'Set-Cookie': buildExpiredSessionCookie(secure)
+        'Set-Cookie': [buildExpiredSessionCookie(secure), `cms_authed=; Path=/; SameSite=Strict${secure ? '; Secure' : ''}; Max-Age=0`]
       })
       res.end(JSON.stringify({ message: 'Logged out' }))
     }

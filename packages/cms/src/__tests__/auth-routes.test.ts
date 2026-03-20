@@ -22,16 +22,16 @@ function makeMockReq (method: string, cookie: string | undefined, body: string =
   return req as unknown as IncomingMessage
 }
 
-function makeMockRes (): ServerResponse & { body: string, setCookie: string } {
+function makeMockRes (): ServerResponse & { body: string, setCookie: string | string[] } {
   const res = {
-    writeHead: vi.fn((_code: number, headers: Record<string, string>) => {
+    writeHead: vi.fn((_code: number, headers: Record<string, string | string[]>) => {
       if (headers['Set-Cookie']) res.setCookie = headers['Set-Cookie']
     }),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     body: '',
-    setCookie: ''
+    setCookie: '' as string | string[]
   }
-  return res as unknown as ServerResponse & { body: string, setCookie: string }
+  return res as unknown as ServerResponse & { body: string, setCookie: string | string[] }
 }
 
 describe('createAuthRoutes()', () => {
@@ -66,7 +66,7 @@ describe('POST /api/users/logout', () => {
     const res = makeMockRes()
     await handler!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
-      'Set-Cookie': expect.stringContaining('Max-Age=0')
+      'Set-Cookie': expect.arrayContaining([expect.stringContaining('Max-Age=0')])
     }))
   })
 
@@ -77,7 +77,8 @@ describe('POST /api/users/logout', () => {
     const req = makeMockReq('POST', 'cms_session=sess-1', '', false)
     const res = makeMockRes()
     await handler!(req, res, {})
-    expect(res.setCookie).not.toContain('Secure')
+    const cookieStr = Array.isArray(res.setCookie) ? res.setCookie.join('; ') : res.setCookie
+    expect(cookieStr).not.toContain('Secure')
   })
 
   it('includes Secure flag in logout cookie on encrypted connection', async () => {
@@ -87,7 +88,8 @@ describe('POST /api/users/logout', () => {
     const req = makeMockReq('POST', 'cms_session=sess-1', '', true)
     const res = makeMockRes()
     await handler!(req, res, {})
-    expect(res.setCookie).toContain('Secure')
+    const cookieStr = Array.isArray(res.setCookie) ? res.setCookie.join('; ') : res.setCookie
+    expect(cookieStr).toContain('Secure')
   })
 })
 
