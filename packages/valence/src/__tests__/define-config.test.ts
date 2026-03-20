@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { defineConfig } from '../define-config.js'
-import type { ValenceConfig } from '../define-config.js'
+import type { ValenceConfig, RouteConfig } from '../define-config.js'
 
 const minimalConfig: ValenceConfig = {
   db: {
@@ -164,6 +164,58 @@ describe('defineConfig collection validation', () => {
           timestamps: true
         }
       ]
+    })
+    expect(result.isOk()).toBe(true)
+  })
+})
+
+describe('defineConfig routes', () => {
+  it('accepts routes with collection and type', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      routes: [{ path: '/blog', collection: 'posts', type: 'list' }]
+    })
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('passes routes through to resolved config', () => {
+    const routes: readonly RouteConfig[] = [
+      { path: '/blog', collection: 'posts', type: 'list' },
+      { path: '/blog/:slug', collection: 'posts', type: 'detail' }
+    ]
+    const result = defineConfig({ ...minimalConfig, routes })
+    const resolved = result._unsafeUnwrap()
+    expect(resolved.routes).toEqual(routes)
+  })
+
+  it('routes defaults to undefined when not provided', () => {
+    const result = defineConfig(minimalConfig)
+    expect(result._unsafeUnwrap().routes).toBeUndefined()
+  })
+
+  it('preserves handler function through defineConfig', () => {
+    const handler = (): void => { /* noop */ }
+    const routes: readonly RouteConfig[] = [
+      { path: '/custom', method: 'GET', handler }
+    ]
+    const result = defineConfig({ ...minimalConfig, routes })
+    expect(result.isOk()).toBe(true)
+    const resolved = result._unsafeUnwrap()
+    expect(resolved.routes?.[0]?.handler).toBe(handler)
+  })
+
+  it('accepts route with method, path, and collection', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      routes: [{ path: '/api/posts', method: 'GET', collection: 'posts', type: 'list' }]
+    })
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('accepts route with only path (minimal route)', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      routes: [{ path: '/about' }]
     })
     expect(result.isOk()).toBe(true)
   })
