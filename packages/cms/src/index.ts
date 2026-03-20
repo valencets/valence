@@ -63,7 +63,8 @@ export {
   getColumnConstraints,
   generateCreateTable,
   generateCreateTableSql,
-  generateAlterTableSql
+  generateAlterTableSql,
+  safeQuery
 } from './db/index.js'
 
 export type {
@@ -88,7 +89,7 @@ export type {
   FieldAccess
 } from './access/index.js'
 
-export { runHooks } from './hooks/index.js'
+export { runHooks, runFieldHooks } from './hooks/index.js'
 export type {
   HookFunction,
   HookArgs,

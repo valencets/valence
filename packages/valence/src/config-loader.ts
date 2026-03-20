@@ -6,6 +6,21 @@ import type { CollectionConfig } from '@valencets/cms'
 import type { OnServerContext } from './define-config.js'
 import { log } from './cli-utils.js'
 
+let tsxRegistered = false
+
+/**
+ * Register tsx as the ESM loader for the current process.
+ * This enables .ts imports with .js extensions at runtime,
+ * which is required for onServer callbacks that import cross-file .ts modules.
+ * Idempotent — safe to call multiple times.
+ */
+export async function registerTsxLoader (): Promise<void> {
+  if (tsxRegistered) return
+  const { register } = await import('tsx/esm/api')
+  register()
+  tsxRegistered = true
+}
+
 export interface UserConfig {
   readonly collections: ReadonlyArray<CollectionConfig>
   readonly telemetry?: {

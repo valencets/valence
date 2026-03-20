@@ -13,15 +13,16 @@ import { readLearnProgress, writeLearnProgress, createInitialProgress } from './
 import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
 import { landingPage } from './landing-page.js'
-import { loadEnvConfig, loadUserConfig } from './config-loader.js'
+import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
 import type { RouteHandler } from './define-config.js'
 import { resolveCustomRoute } from './route-matcher.js'
-import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile } from '@valencets/core/server'
+import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { scaffoldFsd } from './scaffold/fsd-scaffold.js'
+import { toDevDbConfig, ensureDevDatabase } from './dev-database.js'
 
 const COMMANDS = {
   init: 'Create a new Valence project',
@@ -466,17 +467,22 @@ CREATE TABLE IF NOT EXISTS "daily_summaries" (
 // -- dev --
 
 async function runDev (): Promise<void> {
+  await registerTsxLoader()
   const config = loadEnvConfig()
   if (!config) {
     console.error('  Error: missing .env or database configuration. Run from your project root.')
     process.exit(1)
   }
 
+  const devConfig = toDevDbConfig(config)
+
   const port = Number(process.env.PORT ?? 3000)
   const projectDir = process.cwd()
 
+  await ensureDevDatabase(devConfig, { createPool, closePool })
+
   log('Running migrations...')
-  await runMigrationsForProject(projectDir, config)
+  await runMigrationsForProject(projectDir, devConfig)
 
   log('Loading config...')
   const loadedConfig = await loadUserConfig()
@@ -489,7 +495,7 @@ async function runDev (): Promise<void> {
   const telemetryEnabled = loadedConfig.telemetry?.enabled ?? false
 
   log('Building CMS...')
-  const pool = createPool(config)
+  const pool = createPool(devConfig)
 
   const cmsResult = buildCms({
     db: pool,
@@ -571,6 +577,14 @@ async function runDev (): Promise<void> {
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
     const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
+
+    // Trailing-slash redirect (301) — before any route matching
+    const redirectTarget = stripTrailingSlash(req.url ?? '/')
+    if (redirectTarget !== null) {
+      res.writeHead(301, { Location: redirectTarget })
+      res.end()
+      return
+    }
 
     // Learn mode routes (before everything else)
     if (learnActive && learnSignals && currentLearnProgress) {

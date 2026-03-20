@@ -6,11 +6,13 @@ import type { DocumentRow, DocumentData } from '../db/query-builder.js'
 import type { PaginatedResult, SqlValue } from '../db/query-types.js'
 import type { HookFunction } from '../hooks/hook-types.js'
 import type { FieldConfig } from '../schema/field-types.js'
+import type { AccessArgs } from '../access/access-types.js'
 import { createQueryBuilder } from '../db/query-builder.js'
 import { CmsErrorCode, StatusCode } from '../schema/types.js'
 import { isValidIdentifier } from '../db/sql-sanitize.js'
 import { safeQuery } from '../db/safe-query.js'
 import { runHooks } from '../hooks/hook-runner.js'
+import { runFieldHooks } from '../hooks/field-hook-runner.js'
 
 export interface FindArgs {
   readonly collection: string
@@ -111,6 +113,24 @@ function executeWithHooks (
   return beforeResult.andThen((result) => runAfterHooks(afterHooks, result, id, collectionSlug))
 }
 
+function applyFieldAfterRead (
+  fields: readonly FieldConfig[],
+  rows: readonly DocumentRow[],
+  collection: string
+): ResultAsync<DocumentRow[], CmsError> {
+  const hasAfterRead = fields.some(f => f.hooks?.afterRead && f.hooks.afterRead.length > 0)
+  if (!hasAfterRead) return okAsync([...rows])
+
+  let result = okAsync<DocumentRow[], CmsError>([])
+  for (const row of rows) {
+    result = result.andThen((acc) =>
+      runFieldHooks('afterRead', fields, row, row.id as string | undefined, collection)
+        .map((transformed) => [...acc, transformed as DocumentRow])
+    )
+  }
+  return result
+}
+
 function wrapLocalizedFields (
   data: DocumentData,
   fields: readonly FieldConfig[],
@@ -126,6 +146,39 @@ function wrapLocalizedFields (
     }
   }
   return wrapped
+}
+
+function filterReadAccess (
+  doc: DocumentRow,
+  fields: readonly FieldConfig[],
+  context: AccessArgs
+): DocumentRow {
+  const filtered: Record<string, SqlValue | undefined> = { ...doc }
+  for (const f of fields) {
+    if (f.access?.read) {
+      const allowed = f.access.read(context)
+      if (allowed === false) {
+        delete filtered[f.name]
+      }
+    }
+  }
+  return filtered as DocumentRow
+}
+
+function filterWriteAccess (
+  data: DocumentData,
+  fields: readonly FieldConfig[],
+  context: AccessArgs,
+  operation: 'create' | 'update'
+): DocumentData {
+  const filtered: Record<string, SqlValue> = {}
+  for (const [key, value] of Object.entries(data)) {
+    const fieldConfig = fields.find(f => f.name === key)
+    const accessFn = operation === 'create' ? fieldConfig?.access?.create : fieldConfig?.access?.update
+    if (accessFn && !accessFn(context)) continue
+    filtered[key] = value
+  }
+  return filtered
 }
 
 function mergeLocalizedUpdate (
@@ -175,8 +228,29 @@ export function createLocalApi (
 ): LocalApi {
   const qb = createQueryBuilder(pool, collections, defaultLocale)
 
+  function applyReadFilter (doc: DocumentRow, collectionSlug: string): DocumentRow {
+    const col = collections.get(collectionSlug)
+    if (col.isErr()) return doc
+    const context: AccessArgs = { id: doc.id }
+    return filterReadAccess(doc, col.value.fields, context)
+  }
+
+  function applyWriteFilter (
+    data: DocumentData,
+    collectionSlug: string,
+    operation: 'create' | 'update'
+  ): DocumentData {
+    const col = collections.get(collectionSlug)
+    if (col.isErr()) return data
+    const context: AccessArgs = {}
+    return filterWriteAccess(data, col.value.fields, context, operation)
+  }
+
   return {
     find (args) {
+      const col = collections.get(args.collection)
+      if (col.isErr()) return errAsync(col.error)
+
       let builder = qb.query(args.collection)
       if (args.includeDrafts) builder = builder.includeDrafts()
       if (args.locale) builder = builder.locale(args.locale)
@@ -195,17 +269,37 @@ export function createLocalApi (
       if (args.search) builder = builder.search(args.search)
       if (args.orderBy) builder = builder.orderBy(args.orderBy.field, args.orderBy.direction)
       if (args.page !== undefined && args.perPage !== undefined) {
-        return builder.page(args.page, args.perPage)
+        return builder.page(args.page, args.perPage).andThen((paginated) =>
+          applyFieldAfterRead(col.value.fields, paginated.docs, args.collection)
+            .map((docs) => ({
+              ...paginated,
+              docs: docs.map((d) => applyReadFilter(d, args.collection))
+            }))
+        )
       }
       if (args.limit) builder = builder.limit(args.limit)
-      return builder.all()
+      return builder.all().andThen((rows) =>
+        applyFieldAfterRead(col.value.fields, rows, args.collection)
+          .map((docs) => docs.map((r) => applyReadFilter(r, args.collection)))
+      )
     },
 
     // findByID intentionally bypasses status filter — admin lookups need access to drafts
     findByID (args) {
+      const col = collections.get(args.collection)
+      if (col.isErr()) return errAsync(col.error)
+
       return qb.query(args.collection)
         .where('id', args.id)
         .first()
+        .andThen((row) => {
+          if (row === null) return okAsync(null)
+          return applyFieldAfterRead(col.value.fields, [row], args.collection)
+            .map((rows) => {
+              const doc = rows[0] ?? null
+              return doc ? applyReadFilter(doc, args.collection) : null
+            })
+        })
     },
 
     create (args) {
@@ -223,7 +317,17 @@ export function createLocalApi (
         data = wrapLocalizedFields(data, col.value.fields, args.locale)
       }
 
-      return qb.query(args.collection).insert(data)
+      const fields = col.value.fields
+
+      return runFieldHooks('beforeChange', fields, data, undefined, args.collection)
+        .map((fieldData) => applyWriteFilter(fieldData as DocumentData, args.collection, 'create'))
+        .andThen((filteredData) =>
+          qb.query(args.collection).insert(filteredData)
+        )
+        .andThen((result) =>
+          runFieldHooks('afterChange', fields, result, result.id as string | undefined, args.collection)
+            .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
+        )
     },
 
     update (args) {
@@ -238,25 +342,41 @@ export function createLocalApi (
         data = { ...data, _status: StatusCode.DRAFT }
       }
 
+      data = applyWriteFilter(data, args.collection, 'update')
+
       const localizedNames = new Set(col.value.fields.filter(f => f.localized).map(f => f.name))
       if (args.locale && localizedNames.size > 0) {
         return mergeLocalizedUpdate(pool, col.value.slug, args.id, data, localizedNames, args.locale)
+          .map((doc) => applyReadFilter(doc, args.collection))
       }
+
+      const fields = col.value.fields
 
       if (isVersioned && args.publish && col.value.hooks) {
-        return executeWithHooks(
-          col.value.hooks.beforePublish,
-          col.value.hooks.afterPublish,
-          data,
-          args.id,
-          args.collection,
-          (finalData) => qb.query(args.collection).where('id', args.id).update(finalData)
-        )
+        return runFieldHooks('beforeChange', fields, data, args.id, args.collection)
+          .andThen((fieldData) =>
+            executeWithHooks(
+              col.value.hooks?.beforePublish,
+              col.value.hooks?.afterPublish,
+              fieldData as DocumentData,
+              args.id,
+              args.collection,
+              (finalData) => qb.query(args.collection).where('id', args.id).update(finalData)
+            )
+          )
+          .map((doc) => applyReadFilter(doc, args.collection))
       }
 
-      return qb.query(args.collection)
-        .where('id', args.id)
-        .update(data)
+      return runFieldHooks('beforeChange', fields, data, args.id, args.collection)
+        .andThen((fieldData) =>
+          qb.query(args.collection)
+            .where('id', args.id)
+            .update(fieldData as DocumentData)
+        )
+        .andThen((result) =>
+          runFieldHooks('afterChange', fields, result, args.id, args.collection)
+            .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
+        )
     },
 
     delete (args) {

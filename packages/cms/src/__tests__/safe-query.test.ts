@@ -1,9 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { safeQuery } from '../db/safe-query.js'
+import { safeQuery as publicSafeQuery } from '../index.js'
 import { CmsErrorCode } from '../schema/types.js'
 import { makeMockPool, makeErrorPool } from './test-helpers.js'
 
 describe('safeQuery()', () => {
+  it('is exported from the public API', () => {
+    expect(publicSafeQuery).toBeDefined()
+    expect(typeof publicSafeQuery).toBe('function')
+    expect(publicSafeQuery).toBe(safeQuery)
+  })
+
   it('calls sql.unsafe with query string and params array', async () => {
     const rows = [{ id: '1', title: 'Hello' }]
     const pool = makeMockPool(rows)
