@@ -56,19 +56,19 @@ export function createCustomSession (
     pool,
     `INSERT INTO ${tableName} (id, user_id, expires_at) VALUES ($1, $2, NOW() + make_interval(secs => $3)) RETURNING id, user_id, expires_at`,
     [sessionId, userId, intervalSec]
-  ).andThen((rows) => {
+  ).mapErr((e): SessionError => ({
+    code: SessionErrorCode.INTERNAL,
+    message: e.message
+  })).andThen((rows) => {
     const row = rows[0]
     if (!row) {
-      return errAsync({
+      return errAsync<{ sessionId: string, expiresAt: Date }, SessionError>({
         code: SessionErrorCode.INTERNAL,
         message: 'No session row returned after insert'
       })
     }
     return okAsync({ sessionId: row.id, expiresAt: new Date(row.expires_at) })
-  }).mapErr((e) => ({
-    code: SessionErrorCode.INTERNAL as SessionErrorCode,
-    message: e.message
-  }))
+  })
 }
 
 /**
@@ -88,21 +88,18 @@ export function validateCustomSession (
     pool,
     `SELECT id, user_id, expires_at FROM ${tableName} WHERE id = $1 AND expires_at > NOW()`,
     [sessionId]
-  ).andThen((rows) => {
+  ).mapErr((e): SessionError => ({
+    code: SessionErrorCode.INTERNAL,
+    message: e.message
+  })).andThen((rows) => {
     const row = rows[0]
     if (!row) {
-      return errAsync({
+      return errAsync<{ userId: string }, SessionError>({
         code: SessionErrorCode.SESSION_NOT_FOUND,
         message: 'Session not found or expired'
       })
     }
     return okAsync({ userId: row.user_id })
-  }).mapErr((e): SessionError => {
-    const isInternal = e.code === 'INTERNAL'
-    return {
-      code: isInternal ? SessionErrorCode.INTERNAL : SessionErrorCode.SESSION_NOT_FOUND,
-      message: e.message
-    }
   })
 }
 
@@ -122,8 +119,8 @@ export function destroyCustomSession (
     pool,
     `DELETE FROM ${tableName} WHERE id = $1`,
     [sessionId]
-  ).map(() => undefined).mapErr((e) => ({
-    code: SessionErrorCode.INTERNAL as SessionErrorCode,
+  ).map(() => undefined).mapErr((e): SessionError => ({
+    code: SessionErrorCode.INTERNAL,
     message: e.message
   }))
 }
