@@ -1,3 +1,6 @@
+/* eslint-disable no-restricted-syntax -- GraphQL resolvers must throw GraphQLError per the graphql-js
+   API contract. The graphql-js library catches thrown errors and converts them to GraphQL error
+   responses. This is the one legitimate project-wide exception to the no-throw rule. */
 import { GraphQLError } from 'graphql'
 import type { GraphQLFieldResolver } from 'graphql'
 import type { IncomingMessage } from 'node:http'

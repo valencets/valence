@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
-import { ok, err } from 'neverthrow'
+import { ok, err, fromThrowable } from 'neverthrow'
 import type { Result } from 'neverthrow'
 
 export const TokenErrorCode = Object.freeze({
@@ -17,19 +17,28 @@ export interface TokenError {
 /** Default token byte length (32 bytes → 64-char hex string). */
 const DEFAULT_BYTE_LENGTH = 32
 
+const safeRandomBytes = fromThrowable(
+  (length: number) => randomBytes(length).toString('hex'),
+  (e): TokenError => ({
+    code: TokenErrorCode.GENERATION_FAILED,
+    message: e instanceof Error ? e.message : 'Token generation failed'
+  })
+)
+
+const safeCreateHash = fromThrowable(
+  (token: string) => createHash('sha256').update(token).digest('hex'),
+  (e): TokenError => ({
+    code: TokenErrorCode.HASH_FAILED,
+    message: e instanceof Error ? e.message : 'Token hashing failed'
+  })
+)
+
 /**
  * Generate a cryptographically secure random token as a hex string.
  * @param length — number of random bytes (default 32, producing a 64-char hex string)
  */
 export function generateToken (length = DEFAULT_BYTE_LENGTH): Result<string, TokenError> {
-  try {
-    return ok(randomBytes(length).toString('hex'))
-  } catch (e) {
-    return err({
-      code: TokenErrorCode.GENERATION_FAILED,
-      message: e instanceof Error ? e.message : 'Token generation failed'
-    })
-  }
+  return safeRandomBytes(length)
 }
 
 /**
@@ -37,14 +46,7 @@ export function generateToken (length = DEFAULT_BYTE_LENGTH): Result<string, Tok
  * Never store raw tokens — always hash before persisting.
  */
 export function hashToken (token: string): Result<string, TokenError> {
-  try {
-    return ok(createHash('sha256').update(token).digest('hex'))
-  } catch (e) {
-    return err({
-      code: TokenErrorCode.HASH_FAILED,
-      message: e instanceof Error ? e.message : 'Token hashing failed'
-    })
-  }
+  return safeCreateHash(token)
 }
 
 /**

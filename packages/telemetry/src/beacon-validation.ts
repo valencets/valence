@@ -1,4 +1,4 @@
-import { ok, err } from 'neverthrow'
+import { ok, err, fromThrowable } from 'neverthrow'
 import type { Result } from 'neverthrow'
 import {
   BeaconValidationErrorCode,
@@ -105,16 +105,19 @@ function validateEvent (raw: RawBeaconInput, index: number): Result<BeaconEvent,
   })
 }
 
+/** JSON parse boundary — single safeJsonParse equivalent using fromThrowable. */
+const safeJsonParse = fromThrowable(
+  JSON.parse,
+  (): BeaconValidationError => ({
+    code: BeaconValidationErrorCode.INVALID_JSON,
+    message: 'Failed to parse JSON payload'
+  })
+)
+
 export function validateBeaconPayload (raw: string): Result<ReadonlyArray<BeaconEvent>, BeaconValidationError> {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return err({
-      code: BeaconValidationErrorCode.INVALID_JSON,
-      message: 'Failed to parse JSON payload'
-    })
-  }
+  const parseResult = safeJsonParse(raw)
+  if (parseResult.isErr()) return err(parseResult.error)
+  const parsed = parseResult.value
 
   if (!Array.isArray(parsed)) {
     return err({

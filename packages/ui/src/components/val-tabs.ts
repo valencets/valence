@@ -44,6 +44,15 @@ template.innerHTML = `
 </div>
 `
 
+type TabKeyHandler = (current: number, total: number) => number
+
+const TAB_KEY_HANDLERS: Record<string, TabKeyHandler | undefined> = {
+  ArrowRight: (current, total) => (current + 1) % total,
+  ArrowLeft: (current, total) => (current - 1 + total) % total,
+  Home: () => 0,
+  End: (_current, total) => total - 1
+}
+
 export class ValTabs extends ValElement {
   private activeIndex = 0
 
@@ -143,29 +152,11 @@ export class ValTabs extends ValElement {
     const current = tabs.indexOf(target)
     if (current < 0) return
 
-    let next = current
-    switch (e.key) {
-      case 'ArrowRight':
-        e.preventDefault()
-        next = (current + 1) % tabs.length
-        break
-      case 'ArrowLeft':
-        e.preventDefault()
-        next = (current - 1 + tabs.length) % tabs.length
-        break
-      case 'Home':
-        e.preventDefault()
-        next = 0
-        break
-      case 'End':
-        e.preventDefault()
-        next = tabs.length - 1
-        break
-      default:
-        return
-    }
+    const handler = TAB_KEY_HANDLERS[e.key]
+    if (!handler) return
 
-    this.selectTab(next)
+    e.preventDefault()
+    this.selectTab(handler(current, tabs.length))
   }
 }
 

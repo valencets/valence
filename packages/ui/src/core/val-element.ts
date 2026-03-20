@@ -67,51 +67,52 @@ export abstract class ValElement extends HTMLElement implements LocaleSubscriber
     return null
   }
 
-  private _scheduleHydration (directive: HydrationDirective): void {
-    switch (directive.type) {
-      case 'idle': {
-        const id = requestIdleCallback(() => {
+  private _scheduleHydrationIdle (): void {
+    const id = requestIdleCallback(() => {
+      this._hydrationCleanup = null
+      this.connectedCallback()
+    })
+    this._hydrationCleanup = () => cancelIdleCallback(id)
+  }
+
+  private _scheduleHydrationVisible (): void {
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          observer.disconnect()
           this._hydrationCleanup = null
           this.connectedCallback()
-        })
-        this._hydrationCleanup = () => cancelIdleCallback(id)
-        break
-      }
-      case 'visible': {
-        const observer = new IntersectionObserver((entries) => {
-          for (const entry of entries) {
-            if (entry.isIntersecting) {
-              observer.disconnect()
-              this._hydrationCleanup = null
-              this.connectedCallback()
-              break
-            }
-          }
-        })
-        observer.observe(this)
-        this._hydrationCleanup = () => observer.disconnect()
-        break
-      }
-      case 'media': {
-        const mql = matchMedia(directive.value)
-        if (mql.matches) {
-          this._hydrationCleanup = null
-          this.connectedCallback()
-          return
+          break
         }
-        const handler = (e: MediaQueryListEvent): void => {
-          if (e.matches) {
-            mql.removeEventListener('change', handler)
-            this._hydrationCleanup = null
-            this.connectedCallback()
-          }
-        }
-        mql.addEventListener('change', handler)
-        this._hydrationCleanup = () => mql.removeEventListener('change', handler)
-        break
       }
-      // 'load' is handled in connectedCallback gate (falls through)
+    })
+    observer.observe(this)
+    this._hydrationCleanup = () => observer.disconnect()
+  }
+
+  private _scheduleHydrationMedia (value: string): void {
+    const mql = matchMedia(value)
+    if (mql.matches) {
+      this._hydrationCleanup = null
+      this.connectedCallback()
+      return
     }
+    const handler = (e: MediaQueryListEvent): void => {
+      if (e.matches) {
+        mql.removeEventListener('change', handler)
+        this._hydrationCleanup = null
+        this.connectedCallback()
+      }
+    }
+    mql.addEventListener('change', handler)
+    this._hydrationCleanup = () => mql.removeEventListener('change', handler)
+  }
+
+  private _scheduleHydration (directive: HydrationDirective): void {
+    if (directive.type === 'idle') { this._scheduleHydrationIdle(); return }
+    if (directive.type === 'visible') { this._scheduleHydrationVisible(); return }
+    if (directive.type === 'media') { this._scheduleHydrationMedia(directive.value) }
+    // 'load' is handled in connectedCallback gate (no scheduling needed)
   }
 
   // --- Entity Store ---

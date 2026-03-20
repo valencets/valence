@@ -1,3 +1,4 @@
+import { fromThrowable } from 'neverthrow'
 import { z } from 'zod'
 import type { ZodObject, ZodTypeAny } from 'zod'
 import type { FieldConfig } from '../schema/field-types.js'
@@ -110,15 +111,13 @@ function buildPasswordSchema (field: FieldConfig): ZodTypeAny {
   return schema
 }
 
+const safeJsonParseForZod = fromThrowable(JSON.parse, () => null)
+
 function buildJsonSchema (_field: FieldConfig): ZodTypeAny {
-  return z.string().refine((val) => {
-    try {
-      JSON.parse(val)
-      return true
-    } catch {
-      return false
-    }
-  }, { message: 'Invalid JSON' })
+  return z.string().refine(
+    (val) => safeJsonParseForZod(val).isOk(),
+    { message: 'Invalid JSON' }
+  )
 }
 
 function buildColorSchema (_field: FieldConfig): ZodTypeAny {

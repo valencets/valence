@@ -1,7 +1,10 @@
 import { join, normalize, resolve } from 'node:path'
 import { fromThrowable } from 'neverthrow'
 
-const safeDecodeURIComponent = fromThrowable(decodeURIComponent, () => null)
+const safeDecodeURIComponent = fromThrowable(
+  decodeURIComponent,
+  () => null
+)
 
 interface PageRouteResult {
   readonly path: string
@@ -24,8 +27,8 @@ export function resolvePageRouteWithParam (pathname: string, srcDir: string): Pa
 
   // Decode URI — reject malformed percent-encoding
   const decodeResult = safeDecodeURIComponent(pathname)
-  if (decodeResult.isErr()) return null
-  const decoded = decodeResult.value
+  const decoded = decodeResult.isOk() ? decodeResult.value : null
+  if (decoded === null) return null
 
   // Check for traversal
   if (decoded.includes('..')) return null

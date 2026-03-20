@@ -1,3 +1,4 @@
+import { fromThrowable } from 'neverthrow'
 interface BlockFieldDef {
   readonly type: string
   readonly name: string
@@ -73,13 +74,18 @@ function createBlockFieldset (blockDef: BlockDef, index: number, container: HTML
   return fieldset
 }
 
+/** JSON parse boundary using fromThrowable — single safeJsonParse equivalent. */
+const safeBlocksJsonParse = fromThrowable(JSON.parse, () => null)
+
 export function initBlocksFields (): void {
   const containers = document.querySelectorAll<HTMLElement>('.blocks-field')
   for (const container of containers) {
     const configAttr = container.getAttribute('data-blocks-config')
     if (!configAttr) continue
     let blockDefs: BlockDef[] = []
-    try { blockDefs = JSON.parse(configAttr) } catch { continue }
+    const parseResult = safeBlocksJsonParse(configAttr)
+    if (parseResult.isErr() || parseResult.value === null) continue
+    blockDefs = parseResult.value as BlockDef[]
 
     const addSection = container.querySelector('.blocks-add')
     const select = container.querySelector<HTMLSelectElement>('.blocks-type-select')

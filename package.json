@@ -17,7 +17,9 @@
     "test:smoke": "pnpm test",
     "test:regression": "pnpm test",
     "test:quarantine": "echo \"No quarantine tests configured\"",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "check:patterns": "bash scripts/check-banned-patterns.sh",
+    "check:size": "bash scripts/check-bundle-size.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

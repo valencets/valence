@@ -9,7 +9,7 @@ export function composeMiddleware (
 
     async function dispatch (i: number): Promise<void> {
       if (i <= index) {
-        throw new Error('next() called multiple times')
+        return Promise.reject(new Error('next() called multiple times'))
       }
       index = i
       if (i >= middlewares.length) {

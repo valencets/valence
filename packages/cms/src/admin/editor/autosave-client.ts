@@ -27,16 +27,18 @@ function buildFormBody (form: HTMLFormElement): string {
   return params.toString()
 }
 
-async function sendAutosave (endpoint: string, body: string): Promise<string> {
-  const res = await fetch(endpoint, {
+function sendAutosave (endpoint: string, body: string): Promise<string> {
+  return fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
+  }).then((res) => {
+    if (!res.ok) return Promise.reject(new Error(`HTTP ${res.status}`))
+    return res.json() as Promise<{ success: boolean; savedAt?: string }>
+  }).then((json) => {
+    if (!json.success) return Promise.reject(new Error('Autosave failed'))
+    return json.savedAt ?? new Date().toISOString()
   })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const json = await res.json() as { success: boolean; savedAt?: string }
-  if (!json.success) throw new Error('Autosave failed')
-  return json.savedAt ?? new Date().toISOString()
 }
 
 function formatTime (isoString: string): string {

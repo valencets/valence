@@ -32,7 +32,7 @@ describe('getEventCategorySummaries', () => {
   })
 
   it('returns error on db failure', async () => {
-    const pool = makeErrorPool({ code: 'CONNECTION_ERROR' as any, message: 'db down' })
+    const pool = makeErrorPool({ code: 'CONNECTION_FAILED', message: 'db down' })
     const result = await getEventCategorySummaries(pool, start, end)
     expect(result.isErr()).toBe(true)
   })

@@ -21,6 +21,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm check:patterns
 
   typecheck:
     runs-on: ubuntu-24.04
@@ -31,6 +32,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - run: pnpm check:size
 
   unit:
     needs: [lint, typecheck]

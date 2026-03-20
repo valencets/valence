@@ -85,12 +85,13 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
   }
 
   // If running under tsx (TS imports work), load directly
-  const directResult = await ResultAsync.fromPromise(
-    import(configPath) as Promise<{ default?: { isOk?: () => boolean; value?: { collections?: CollectionConfig[]; telemetry?: UserConfig['telemetry']; onServer?: UserConfig['onServer']; routes?: UserConfig['routes'] } } }>,
-    () => 'import-failed' as const
+  const directImportResult = await ResultAsync.fromPromise(
+    import(configPath),
+    () => null
   )
-  if (directResult.isOk()) {
-    const mod = directResult.value
+
+  if (directImportResult.isOk()) {
+    const mod = directImportResult.value
     const result = mod.default
     if (result && typeof result.isOk === 'function' && result.isOk()) {
       return {
@@ -109,8 +110,7 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
   return loadViaSubprocess(configPath)
 }
 
-const safeExecFileSync = fromThrowable(execFileSync, (e) => e instanceof Error ? e.message : 'unknown')
-const safeJsonParse = fromThrowable(JSON.parse, (e) => e instanceof Error ? e.message : 'unknown')
+const safeJsonParseConfig = fromThrowable(JSON.parse, () => null)
 
 async function loadViaSubprocess (configPath: string): Promise<UserConfig | null> {
   const script = [
@@ -131,25 +131,28 @@ async function loadViaSubprocess (configPath: string): Promise<UserConfig | null
   ].join('')
   const tsxBin = join(process.cwd(), 'node_modules', '.bin', 'tsx')
   const tsxArgs = ['-e', script]
-  const execResult = existsSync(tsxBin)
-    ? safeExecFileSync(tsxBin, tsxArgs, { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'], timeout: 15000 })
-    : safeExecFileSync('npx', ['tsx', ...tsxArgs], { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'], timeout: 15000 })
 
+  const safeExecFileSync = fromThrowable(
+    () => existsSync(tsxBin)
+      ? execFileSync(tsxBin, tsxArgs, { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'], timeout: 15000 }).toString().trim()
+      : execFileSync('npx', ['tsx', ...tsxArgs], { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'pipe'], timeout: 15000 }).toString().trim(),
+    (e) => e
+  )
+
+  const execResult = safeExecFileSync()
   if (execResult.isErr()) {
-    log(`Config load via tsx failed: ${execResult.error}`)
+    const e = execResult.error
+    log(`Config load via tsx failed: ${e instanceof Error ? e.message : 'unknown'}`)
     return null
   }
 
-  const output = execResult.value?.toString().trim() ?? ''
+  const output = execResult.value
   if (!output) return null
 
-  const parseResult = safeJsonParse(output)
-  if (parseResult.isErr()) {
-    log(`Config parse via tsx failed: ${parseResult.error}`)
-    return null
-  }
+  const parseResult = safeJsonParseConfig(output)
+  if (parseResult.isErr() || parseResult.value === null) return null
+  const parsed = parseResult.value as { collections: import('@valencets/cms').CollectionConfig[]; telemetry?: UserConfig['telemetry'] }
 
-  const parsed = parseResult.value as { collections: CollectionConfig[]; telemetry?: UserConfig['telemetry'] }
   // Re-hydrate through collection() to get proper CollectionConfig objects.
   // onServer and routes cannot be recovered from the subprocess — functions are not serialisable.
   const { collection: col } = await import('@valencets/cms')

@@ -83,6 +83,18 @@ interface OptionEntry {
   label: string
 }
 
+const OPEN_KEYS: ReadonlySet<string> = new Set(['ArrowDown', 'ArrowUp', 'Enter', ' '])
+
+type SelectKeyAction = (self: ValSelect) => void
+
+const SELECT_KEY_HANDLERS: Record<string, SelectKeyAction | undefined> = {
+  ArrowDown: (self) => { self._moveFocus(1) },
+  ArrowUp: (self) => { self._moveFocus(-1) },
+  Enter: (self) => { self._confirmFocused() },
+  ' ': (self) => { self._confirmFocused() },
+  Escape: (self) => { self.close() }
+}
+
 export class ValSelect extends ValFormElement {
   static observedAttributes = ['disabled', 'required', 'placeholder']
 
@@ -194,7 +206,7 @@ export class ValSelect extends ValFormElement {
     document.addEventListener('click', this.handleOutsideClick)
   }
 
-  private close (): void {
+  close (): void {
     this.removeAttribute('open')
     if (this.triggerEl !== null) this.triggerEl.setAttribute('aria-expanded', 'false')
     this.focusedIndex = -1
@@ -229,6 +241,17 @@ export class ValSelect extends ValFormElement {
     }
   }
 
+  /** Move focus by delta (used by key handlers). */
+  _moveFocus (delta: number): void {
+    this.focusedIndex = Math.min(Math.max(this.focusedIndex + delta, 0), this.options.length - 1)
+    this.updateFocusedOption()
+  }
+
+  /** Confirm currently focused option (used by key handlers). */
+  _confirmFocused (): void {
+    if (this.focusedIndex >= 0) this.selectOption(this.focusedIndex)
+  }
+
   private handleTriggerClick = (): void => {
     if (this.hasAttribute('open')) {
       this.close()
@@ -239,34 +262,17 @@ export class ValSelect extends ValFormElement {
 
   private handleKeydown = (e: KeyboardEvent): void => {
     if (!this.hasAttribute('open')) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+      if (OPEN_KEYS.has(e.key)) {
         e.preventDefault()
         this.open()
       }
       return
     }
 
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault()
-        this.focusedIndex = Math.min(this.focusedIndex + 1, this.options.length - 1)
-        this.updateFocusedOption()
-        break
-      case 'ArrowUp':
-        e.preventDefault()
-        this.focusedIndex = Math.max(this.focusedIndex - 1, 0)
-        this.updateFocusedOption()
-        break
-      case 'Enter':
-      case ' ':
-        e.preventDefault()
-        if (this.focusedIndex >= 0) this.selectOption(this.focusedIndex)
-        break
-      case 'Escape':
-        e.preventDefault()
-        this.close()
-        break
-    }
+    const handler = SELECT_KEY_HANDLERS[e.key]
+    if (!handler) return
+    e.preventDefault()
+    handler(this)
   }
 
   private handleOutsideClick = (e: Event): void => {

@@ -33,16 +33,19 @@ export function createInitialProgress (initialCounts: { readonly posts: number; 
   }
 }
 
-const safeJsonParse = fromThrowable(JSON.parse, () => null)
+const safeJsonParseProgress = fromThrowable(
+  (raw: string) => JSON.parse(raw) as LearnProgress,
+  () => null
+)
 
 export async function readLearnProgress (projectDir: string): Promise<LearnProgress | null> {
-  const readResult = await ResultAsync.fromPromise(
+  const result = await ResultAsync.fromPromise(
     readFile(join(projectDir, LEARN_DIR, LEARN_FILE), 'utf-8'),
     () => null
   )
-  if (readResult.isErr()) return null
-  const parseResult = safeJsonParse(readResult.value)
-  return parseResult.isOk() && parseResult.value !== null ? parseResult.value as LearnProgress : null
+  if (result.isErr()) return null
+  const parseResult = safeJsonParseProgress(result.value)
+  return parseResult.isOk() ? parseResult.value : null
 }
 
 export async function writeLearnProgress (projectDir: string, progress: LearnProgress): Promise<void> {

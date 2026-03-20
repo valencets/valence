@@ -4,6 +4,11 @@ import { DbErrorCode, mapPostgresError } from '@valencets/db'
 import type { DbError, DbPool } from '@valencets/db'
 import type { DailySummaryRow } from './daily-summary-types.js'
 
+/** Converts a structured value to a postgres-compatible JSONValue via round-trip serialization. */
+function toJson (val: object): JSONValue {
+  return JSON.parse(JSON.stringify(val)) as JSONValue
+}
+
 function dayBounds (date: Date): { start: Date; end: Date } {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate())
   const end = new Date(start.getTime() + 86_400_000)
@@ -152,7 +157,7 @@ export function generateDailySummary (
         VALUES (
           ${siteId}, ${dateOnly}, ${businessType}, ${1},
           ${sessionCount}, ${pageviewCount}, ${conversionCount},
-          ${pool.sql.json(topReferrers as unknown as JSONValue)}, ${pool.sql.json(topPages as unknown as JSONValue)}, ${pool.sql.json(intentCounts as unknown as JSONValue)},
+          ${pool.sql.json(toJson(topReferrers))}, ${pool.sql.json(toJson(topPages))}, ${pool.sql.json(toJson(intentCounts))},
           ${health.avg_flush_ms}, ${health.rejection_count}, NOW()
         )
         ON CONFLICT (site_id, date) DO UPDATE SET

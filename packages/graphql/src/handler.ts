@@ -1,3 +1,4 @@
+import { fromThrowable } from 'neverthrow'
 import { graphql } from 'graphql'
 import type { GraphQLSchema, ExecutionResult } from 'graphql'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -50,18 +51,17 @@ export function createGraphQLHandler (schema: GraphQLSchema): (req: IncomingMess
       return
     }
 
-    let parsed: object
-    try {
-      const value: unknown = JSON.parse(rawBody)
-      if (typeof value !== 'object' || value === null) {
-        sendJson(res, 400, { errors: [{ message: 'Request body must be a JSON object.' }] })
-        return
-      }
-      parsed = value
-    } catch {
+    const safeJsonParse = fromThrowable(JSON.parse, () => null)
+    const parseResult = safeJsonParse(rawBody)
+    if (parseResult.isErr() || parseResult.value === null) {
       sendJson(res, 400, { errors: [{ message: 'Invalid JSON body.' }] })
       return
     }
+    if (typeof parseResult.value !== 'object') {
+      sendJson(res, 400, { errors: [{ message: 'Request body must be a JSON object.' }] })
+      return
+    }
+    const parsed: object = parseResult.value as object
 
     if (!isGraphQLRequestBody(parsed)) {
       sendJson(res, 400, { errors: [{ message: 'Missing required field: query.' }] })

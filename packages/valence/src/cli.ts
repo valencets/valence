@@ -5,6 +5,7 @@ import { stdin, stdout } from 'node:process'
 import { execSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { ResultAsync, fromThrowable } from 'neverthrow'
 import { createPool, closePool, loadMigrations, runMigrations } from '@valencets/db'
 import type { DbConfig, DbPool } from '@valencets/db'
 import { buildCms } from '@valencets/cms'
@@ -84,13 +85,13 @@ async function confirm (rl: ReturnType<typeof createInterface>, question: string
   return normalized === 'y' || normalized === 'yes'
 }
 
+const safeExecSync = fromThrowable(
+  (cmd: string, cwd: string) => { execSync(cmd, { cwd, stdio: 'pipe' }) },
+  () => null
+)
+
 function exec (cmd: string, cwd: string): boolean {
-  try {
-    execSync(cmd, { cwd, stdio: 'pipe' })
-    return true
-  } catch {
-    return false
-  }
+  return safeExecSync(cmd, cwd).isOk()
 }
 
 // -- init --
@@ -426,21 +427,23 @@ CREATE TABLE IF NOT EXISTS "daily_summaries" (
       log('Migrations applied.')
       if (doSeed) {
         log('Seeding initial data...')
-        try {
-          const seedPool = createPool({
-            host: 'localhost',
-            port: 5432,
-            database: dbName,
-            username: dbUser,
-            password: dbPassword,
-            max: 5,
-            idle_timeout: 10,
-            connect_timeout: 10
-          })
-          await seedDatabase(seedPool)
-          await closePool(seedPool)
+        const seedPool = createPool({
+          host: 'localhost',
+          port: 5432,
+          database: dbName,
+          username: dbUser,
+          password: dbPassword,
+          max: 5,
+          idle_timeout: 10,
+          connect_timeout: 10
+        })
+        const seedResult = await ResultAsync.fromPromise(
+          (async () => { await seedDatabase(seedPool); await closePool(seedPool) })(),
+          () => null
+        )
+        if (seedResult.isOk()) {
           log('Seed data inserted.')
-        } catch {
+        } else {
           log('Warning: seed data insertion failed. The database may already have data.')
         }
       }
@@ -982,22 +985,23 @@ async function runUserCreate (): Promise<void> {
 
   const pool = createPool(config)
 
-  try {
-    const { hashPassword } = await import('@valencets/cms')
-    const hashResult = await hashPassword(password)
-    if (hashResult.isErr()) {
-      console.error('  Error hashing password:', hashResult.error.message)
-      process.exit(1)
-    }
+  const { hashPassword } = await import('@valencets/cms')
+  const hashResult = await hashPassword(password)
+  if (hashResult.isErr()) {
+    await closePool(pool)
+    console.error('  Error hashing password:', hashResult.error.message)
+    process.exit(1)
+  }
 
-    await pool.sql`
+  await ResultAsync.fromPromise(
+    pool.sql`
       INSERT INTO "users" ("id", "email", "password_hash", "name", "role")
       VALUES (gen_random_uuid(), ${email}, ${hashResult.value}, ${name}, 'admin')
-    `
-    log(`User "${email}" created.`)
-  } finally {
-    await closePool(pool)
-  }
+    `,
+    (e) => e
+  )
+  await closePool(pool)
+  log(`User "${email}" created.`)
 }
 
 // -- build --
@@ -1070,47 +1074,53 @@ async function runTelemetryAggregate (_args: ReadonlyArray<string>): Promise<voi
   log('Connecting to database...')
   const pool = createPool(dbConfig)
 
-  try {
-    const { aggregateSessionSummary, aggregateEventSummary, aggregateConversionSummary } = await import('@valencets/telemetry')
-    const { generateDailySummary } = await import('@valencets/telemetry')
+  const aggregateResult = await ResultAsync.fromPromise(
+    (async () => {
+      const { aggregateSessionSummary, aggregateEventSummary, aggregateConversionSummary } = await import('@valencets/telemetry')
+      const { generateDailySummary } = await import('@valencets/telemetry')
 
-    const now = new Date()
-    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const dayEnd = new Date(dayStart.getTime() + 86_400_000)
-    const period = { start: dayStart, end: dayEnd }
+      const now = new Date()
+      const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const dayEnd = new Date(dayStart.getTime() + 86_400_000)
+      const period = { start: dayStart, end: dayEnd }
 
-    log(`Aggregating telemetry for ${dayStart.toISOString().slice(0, 10)}...`)
+      log(`Aggregating telemetry for ${dayStart.toISOString().slice(0, 10)}...`)
 
-    const sessionResult = await aggregateSessionSummary(pool, period)
-    sessionResult.match(
-      (row) => { log(`  Sessions: ${row.total_sessions} total`) },
-      (err) => { log(`  Session aggregation skipped: ${err.message}`) }
-    )
+      const sessionResult = await aggregateSessionSummary(pool, period)
+      sessionResult.match(
+        (row) => { log(`  Sessions: ${row.total_sessions} total`) },
+        (err) => { log(`  Session aggregation skipped: ${err.message}`) }
+      )
 
-    const eventResult = await aggregateEventSummary(pool, period)
-    eventResult.match(
-      (rows) => { log(`  Events: ${rows.length} categories aggregated`) },
-      (err) => { log(`  Event aggregation skipped: ${err.message}`) }
-    )
+      const eventResult = await aggregateEventSummary(pool, period)
+      eventResult.match(
+        (rows) => { log(`  Events: ${rows.length} categories aggregated`) },
+        (err) => { log(`  Event aggregation skipped: ${err.message}`) }
+      )
 
-    const conversionResult = await aggregateConversionSummary(pool, period)
-    conversionResult.match(
-      (rows) => { log(`  Conversions: ${rows.length} intent types aggregated`) },
-      (err) => { log(`  Conversion aggregation skipped: ${err.message}`) }
-    )
+      const conversionResult = await aggregateConversionSummary(pool, period)
+      conversionResult.match(
+        (rows) => { log(`  Conversions: ${rows.length} intent types aggregated`) },
+        (err) => { log(`  Conversion aggregation skipped: ${err.message}`) }
+      )
 
-    const dailyResult = await generateDailySummary(pool, siteId, 'default', now)
-    dailyResult.match(
-      (row) => { log(`  Daily summary: ${row.session_count} sessions, ${row.pageview_count} pageviews, ${row.conversion_count} conversions`) },
-      (err) => { log(`  Daily summary skipped: ${err.message}`) }
-    )
+      const dailyResult = await generateDailySummary(pool, siteId, 'default', now)
+      dailyResult.match(
+        (row) => { log(`  Daily summary: ${row.session_count} sessions, ${row.pageview_count} pageviews, ${row.conversion_count} conversions`) },
+        (err) => { log(`  Daily summary skipped: ${err.message}`) }
+      )
 
-    log('Aggregation complete.')
-  } catch (err) {
-    console.error('  Aggregation failed:', err instanceof Error ? err.message : 'unknown error')
+      log('Aggregation complete.')
+    })(),
+    (err) => err
+  )
+
+  await closePool(pool)
+
+  if (aggregateResult.isErr()) {
+    const e = aggregateResult.error
+    console.error('  Aggregation failed:', e instanceof Error ? e.message : 'unknown error')
     process.exit(1)
-  } finally {
-    await closePool(pool)
   }
 }
 
@@ -1155,34 +1165,35 @@ async function runMigrationsForProject (projectDir: string, config: DbConfig): P
     return false
   }
 
-  // Validate column naming conventions on all tables
-  try {
-    const tables = await pool.sql.unsafe(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
-    )
-    for (const t of tables) {
-      const tableName = String(Reflect.get(t, 'table_name') ?? '')
-      const cols = await pool.sql.unsafe(
-        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
-        [tableName]
+  // Validate column naming conventions on all tables (best-effort, non-fatal)
+  await ResultAsync.fromPromise(
+    (async () => {
+      const tables = await pool.sql.unsafe(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
       )
-      const colNames = Array.from(cols).map(c => String(Reflect.get(c, 'column_name') ?? ''))
-      // Check for camelCase system columns (common mistake)
-      const camelCaseSystemCols = ['createdAt', 'updatedAt', 'deletedAt']
-      for (const bad of camelCaseSystemCols) {
-        if (colNames.includes(bad)) {
-          const snakeVersion = bad.replace(/([A-Z])/g, '_$1').toLowerCase()
-          log(`  ⚠ Table "${tableName}" has "${bad}" — CMS expects "${snakeVersion}". Run: ALTER TABLE "${tableName}" RENAME COLUMN "${bad}" TO ${snakeVersion};`)
+      for (const t of tables) {
+        const tableName = String(Reflect.get(t, 'table_name') ?? '')
+        const cols = await pool.sql.unsafe(
+          "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
+          [tableName]
+        )
+        const colNames = Array.from(cols).map(c => String(Reflect.get(c, 'column_name') ?? ''))
+        // Check for camelCase system columns (common mistake)
+        const camelCaseSystemCols = ['createdAt', 'updatedAt', 'deletedAt']
+        for (const bad of camelCaseSystemCols) {
+          if (colNames.includes(bad)) {
+            const snakeVersion = bad.replace(/([A-Z])/g, '_$1').toLowerCase()
+            log(`  ⚠ Table "${tableName}" has "${bad}" — CMS expects "${snakeVersion}". Run: ALTER TABLE "${tableName}" RENAME COLUMN "${bad}" TO ${snakeVersion};`)
+          }
+        }
+        // Check if CMS system columns are missing
+        if (!colNames.includes('deleted_at') && colNames.includes('created_at')) {
+          log(`  ⚠ Table "${tableName}" is missing "deleted_at" column — CMS soft-delete will not work.`)
         }
       }
-      // Check if CMS system columns are missing
-      if (!colNames.includes('deleted_at') && colNames.includes('created_at')) {
-        log(`  ⚠ Table "${tableName}" is missing "deleted_at" column — CMS soft-delete will not work.`)
-      }
-    }
-  } catch {
-    // Non-fatal — validation is best-effort
-  }
+    })(),
+    () => null
+  )
 
   log(`Applied ${result.value} migration(s).`)
   return true

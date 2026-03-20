@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync, fromThrowable } from 'neverthrow'
 
 import type { CmsError } from '../schema/types.js'
 import type { DbPool } from '@valencets/db'
@@ -179,21 +179,30 @@ export function createAdminRoutes (
     return context
   }
 
+  const safeReadAdminClient = fromThrowable(
+    () => {
+      const distDir = fileURLToPath(new URL('..', import.meta.url))
+      const jsPath = `${distDir}/admin-client.js`
+      return readFileSync(jsPath, 'utf-8')
+    },
+    () => null
+  )
+
   routes.set('/admin/_assets/admin-client.js', {
-    GET: async (_req, res) => {
-      try {
-        const distDir = fileURLToPath(new URL('..', import.meta.url))
-        const jsPath = `${distDir}/admin-client.js`
-        const js = readFileSync(jsPath, 'utf-8')
-        res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
-        res.setHeader('Cache-Control', 'public, max-age=3600')
-        res.setHeader('Content-Length', Buffer.byteLength(js))
-        res.writeHead(200)
-        res.end(js)
-      } catch {
+    GET: (_req, res) => {
+      const result = safeReadAdminClient()
+      if (result.isErr() || result.value === null) {
         res.writeHead(404)
         res.end('Not found')
+        return Promise.resolve()
       }
+      const js = result.value
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+      res.setHeader('Content-Length', Buffer.byteLength(js))
+      res.writeHead(200)
+      res.end(js)
+      return Promise.resolve()
     }
   })
   // --- Auth routes (no auth wrap) ---
@@ -289,51 +298,42 @@ export function createAdminRoutes (
         return
       }
       const telPool = options.telemetryPool
-      // TODO: refactor analytics route to eliminate try/catch (pre-existing violation)
-      try {
-        const { getDailyBreakdowns, getDailyTrend } = await import('@valencets/telemetry/daily-summary-queries')
-        const { getEventCategorySummaries, getPageviewsByPath, getDailyEventCounts } = await import('@valencets/telemetry')
-        const now = new Date()
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        const siteId = options.telemetrySiteId ?? 'default'
-        const trendResult = await getDailyTrend(telPool, siteId, thirtyDaysAgo, now)
-        const breakdownResult = await getDailyBreakdowns(telPool, siteId, thirtyDaysAgo, now)
-        const trend = trendResult.match(rows => rows, () => [])
-        const breakdowns = breakdownResult.match(b => b, () => ({ top_pages: [], top_referrers: [], intent_counts: {} }))
-        let sessionCount = 0
-        let pageviewCount = 0
-        let conversionCount = 0
-        for (const row of trend) {
-          sessionCount += row.session_count ?? 0
-          pageviewCount += row.pageview_count ?? 0
-          conversionCount += row.conversion_count ?? 0
-        }
-        const [eventCategoriesResult, pageviewsByPathResult, dailyEventsResult] = await Promise.all([
-          getEventCategorySummaries(telPool, thirtyDaysAgo, now),
-          getPageviewsByPath(telPool, sevenDaysAgo, now),
-          getDailyEventCounts(telPool, thirtyDaysAgo, now)
-        ])
-        const eventCategories = eventCategoriesResult.match(rows => rows, () => [])
-        const pageviewsByPath = pageviewsByPathResult.match(rows => rows, () => [])
-        const dailyEvents = dailyEventsResult.match(rows => rows, () => [])
-        const content = renderAnalyticsView({
-          sessionCount,
-          pageviewCount,
-          conversionCount,
-          topPages: breakdowns.top_pages,
-          topReferrers: breakdowns.top_referrers,
-          eventCategories,
-          pageviewsByPath,
-          dailyEvents
-        })
-        const html = renderLayout({ title: 'Analytics', content, collections: allCollections, headTags })
-        sendHtml(res, html)
-      } catch {
-        const content = renderAnalyticsView(null)
-        const html = renderLayout({ title: 'Analytics', content, collections: allCollections, headTags })
-        sendHtml(res, html)
-      }
+      const analyticsResult = await ResultAsync.fromPromise(
+        (async () => {
+          const { getDailyBreakdowns, getDailyTrend } = await import('@valencets/telemetry/daily-summary-queries')
+          const { getEventCategorySummaries, getPageviewsByPath, getDailyEventCounts } = await import('@valencets/telemetry')
+          const now = new Date()
+          const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          const siteId = options.telemetrySiteId ?? 'default'
+          const trendResult = await getDailyTrend(telPool, siteId, thirtyDaysAgo, now)
+          const breakdownResult = await getDailyBreakdowns(telPool, siteId, thirtyDaysAgo, now)
+          const trend = trendResult.match(rows => rows, () => [])
+          const breakdowns = breakdownResult.match(b => b, () => ({ top_pages: [], top_referrers: [], intent_counts: {} }))
+          let sessionCount = 0
+          let pageviewCount = 0
+          let conversionCount = 0
+          for (const row of trend) {
+            sessionCount += row.session_count ?? 0
+            pageviewCount += row.pageview_count ?? 0
+            conversionCount += row.conversion_count ?? 0
+          }
+          const [eventCategoriesResult, pageviewsByPathResult, dailyEventsResult] = await Promise.all([
+            getEventCategorySummaries(telPool, thirtyDaysAgo, now),
+            getPageviewsByPath(telPool, sevenDaysAgo, now),
+            getDailyEventCounts(telPool, thirtyDaysAgo, now)
+          ])
+          const eventCategories = eventCategoriesResult.match(rows => rows, () => [])
+          const pageviewsByPath = pageviewsByPathResult.match(rows => rows, () => [])
+          const dailyEvents = dailyEventsResult.match(rows => rows, () => [])
+          return { sessionCount, pageviewCount, conversionCount, topPages: breakdowns.top_pages, topReferrers: breakdowns.top_referrers, eventCategories, pageviewsByPath, dailyEvents }
+        })(),
+        () => null
+      )
+      const analyticsData = analyticsResult.isOk() ? analyticsResult.value : null
+      const analyticsContent = analyticsData === null ? renderAnalyticsView(null) : renderAnalyticsView(analyticsData)
+      const analyticsHtml = renderLayout({ title: 'Analytics', content: analyticsContent, collections: allCollections, headTags })
+      sendHtml(res, analyticsHtml)
     })
   })
 

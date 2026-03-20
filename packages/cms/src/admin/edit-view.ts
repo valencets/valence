@@ -1,3 +1,4 @@
+import { fromThrowable } from 'neverthrow'
 import type { CollectionConfig } from '../schema/collection.js'
 import type { FieldConfig } from '../schema/field-types.js'
 import { CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
@@ -85,9 +86,12 @@ export interface EditViewLocaleConfig {
   readonly locales: readonly { readonly code: string; readonly label: string }[]
 }
 
-/** JSON parse boundary — see CLAUDE.md safeJsonParse exception */
+const safeJsonParseBase = fromThrowable(JSON.parse, () => null)
+
 function safeParseJson (str: string): Record<string, string> | null {
-  try { return JSON.parse(str) } catch { return null }
+  const result = safeJsonParseBase(str)
+  if (result.isErr() || result.value === null) return null
+  return result.value as Record<string, string>
 }
 
 function resolveFieldValue (raw: string | number | boolean | Date | null | undefined, localized: boolean | undefined, localeConfig: EditViewLocaleConfig | undefined): string {

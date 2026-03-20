@@ -1,4 +1,5 @@
 import type { ServerResponse } from 'node:http'
+import { fromThrowable } from 'neverthrow'
 import { parseCookie } from '../auth/cookie.js'
 
 interface FlashMessage {
@@ -11,16 +12,19 @@ function serializeFlash (msg: FlashMessage): string {
   return Buffer.from(json, 'utf-8').toString('base64url')
 }
 
-function parseFlash (encoded: string): FlashMessage | null {
-  try {
+const safeParseFlash = fromThrowable(
+  (encoded: string): FlashMessage | null => {
     const json = Buffer.from(encoded, 'base64url').toString('utf-8')
-    const parsed = JSON.parse(json) as { type: string, text: string }
+    const parsed = JSON.parse(json) as { type: string; text: string }
     if (parsed.type !== 'success' && parsed.type !== 'error' && parsed.type !== 'info') return null
     if (typeof parsed.text !== 'string') return null
-    return { type: parsed.type, text: parsed.text }
-  } catch {
-    return null
-  }
+    return { type: parsed.type as FlashMessage['type'], text: parsed.text }
+  },
+  () => null
+)
+
+function parseFlash (encoded: string): FlashMessage | null {
+  return safeParseFlash(encoded).match(v => v, () => null)
 }
 
 function setFlashCookie (res: ServerResponse, msg: FlashMessage): void {

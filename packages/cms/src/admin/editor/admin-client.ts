@@ -47,23 +47,22 @@ if (conditionalForm) {
   const targetSelector = conditionalForm.getAttribute('hx-target')
   if (postUrl && targetSelector) {
     const target = document.querySelector(targetSelector)
-    const handleConditionalChange = async (): Promise<void> => {
+    const handleConditionalChange = (): Promise<void> => {
       const formData = new FormData(conditionalForm)
       const params = new URLSearchParams()
       for (const [key, val] of formData.entries()) {
         if (typeof val === 'string') params.append(key, val)
       }
-      try {
-        const res = await fetch(postUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: params.toString()
-        })
+      return fetch(postUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      }).then((res) => {
         if (res.ok && target) {
-          target.innerHTML = await res.text()
-          initAllEditors()
+          return res.text().then((html) => { target.innerHTML = html; initAllEditors() })
         }
-      } catch { /* ignore fetch errors */ }
+        return Promise.resolve()
+      }).catch(() => { /* ignore fetch errors */ })
     }
     conditionalForm.addEventListener('change', (e) => {
       const el = e.target as Element | null
@@ -82,25 +81,26 @@ for (const wrap of mediaUploads) {
   const hiddenInput = wrap.querySelector<HTMLInputElement>('input[type="hidden"]')
   const preview = wrap.querySelector<HTMLElement>('.media-preview')
   if (!endpoint || !fileInput || !hiddenInput) continue
-  fileInput.addEventListener('change', async () => {
+  fileInput.addEventListener('change', () => {
     const file = fileInput.files?.[0]
     if (!file) return
     const formData = new FormData()
     formData.append('file', file)
-    try {
-      const res = await fetch(endpoint, { method: 'POST', body: formData })
-      const json = await res.json() as { filename?: string; id?: string }
-      const value = json.id ?? json.filename ?? ''
-      hiddenInput.value = value
-      if (preview) {
-        if (file.type.startsWith('image/')) {
-          preview.innerHTML = `<img src="/media/${value}" alt="">`
-        } else {
-          preview.innerHTML = `<span>${file.name}</span>`
+    fetch(endpoint, { method: 'POST', body: formData })
+      .then((res) => res.json() as Promise<{ filename?: string; id?: string }>)
+      .then((json) => {
+        const value = json.id ?? json.filename ?? ''
+        hiddenInput.value = value
+        if (preview) {
+          if (file.type.startsWith('image/')) {
+            preview.innerHTML = `<img src="/media/${value}" alt="">`
+          } else {
+            preview.innerHTML = `<span>${file.name}</span>`
+          }
         }
-      }
-    } catch {
-      if (preview) preview.innerHTML = '<span style="color: var(--val-color-error);">Upload failed</span>'
-    }
+      })
+      .catch(() => {
+        if (preview) preview.innerHTML = '<span style="color: var(--val-color-error);">Upload failed</span>'
+      })
   })
 }

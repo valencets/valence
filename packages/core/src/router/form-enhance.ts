@@ -1,3 +1,4 @@
+import { fromThrowable } from 'neverthrow'
 import { getCsrfToken } from './fragment-swap.js'
 
 export interface FormEnhanceConfig {
@@ -31,15 +32,14 @@ function csrfHeaders (): Record<string, string> {
   return { 'X-CSRF-Token': token }
 }
 
+const safeNewUrl = fromThrowable((action: string) => new URL(action), () => null)
+
 function resolveFormUrl (form: HTMLFormElement): string {
   const action = form.action
   if (action === '' || action === undefined) return window.location.pathname
-  try {
-    const url = new URL(action)
-    return url.pathname + url.search
-  } catch {
-    return action
-  }
+  const result = safeNewUrl(action)
+  if (result.isErr() || result.value === null) return action
+  return result.value.pathname + result.value.search
 }
 
 function handleRedirect (response: Response, config: FormEnhanceConfig): void {

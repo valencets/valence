@@ -4,6 +4,11 @@ import { DbErrorCode, mapPostgresError } from '@valencets/db'
 import type { DbError, DbPool } from '@valencets/db'
 import type { DailySummaryRow, DailySummaryPayload, DailyBreakdowns } from './daily-summary-types.js'
 
+/** Converts a structured value to a postgres-compatible JSONValue via round-trip serialization. */
+function toJson (val: object): JSONValue {
+  return JSON.parse(JSON.stringify(val)) as JSONValue
+}
+
 export function getDailySummary (
   pool: DbPool,
   siteId: string,
@@ -72,7 +77,7 @@ export function insertDailySummaryFromRemote (
         VALUES (
           ${summary.site_id}, ${summary.date}::date, ${summary.business_type}, ${summary.schema_version},
           ${summary.session_count}, ${summary.pageview_count}, ${summary.conversion_count},
-          ${pool.sql.json(summary.top_referrers as unknown as JSONValue)}, ${pool.sql.json(summary.top_pages as unknown as JSONValue)}, ${pool.sql.json(summary.intent_counts as unknown as JSONValue)},
+          ${pool.sql.json(toJson(summary.top_referrers ?? []))}, ${pool.sql.json(toJson(summary.top_pages ?? []))}, ${pool.sql.json(toJson(summary.intent_counts ?? {}))},
           ${summary.avg_flush_ms}, ${summary.rejection_count}, NOW()
         )
         ON CONFLICT (site_id, date) DO UPDATE SET
