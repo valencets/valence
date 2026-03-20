@@ -4,7 +4,8 @@ import type { CollectionRegistry } from '../schema/registry.js'
 import type { GlobalRegistry } from '../schema/registry.js'
 import type { CmsError } from '../schema/types.js'
 import type { DocumentRow, DocumentData } from '../db/query-builder.js'
-import type { PaginatedResult } from '../db/query-types.js'
+import type { PaginatedResult, SqlValue } from '../db/query-types.js'
+import type { FieldConfig } from '../schema/field-types.js'
 import { createQueryBuilder } from '../db/query-builder.js'
 import { CmsErrorCode } from '../schema/types.js'
 import { isValidIdentifier } from '../db/sql-sanitize.js'
@@ -19,6 +20,7 @@ export interface FindArgs {
   readonly search?: string | undefined
   readonly limit?: number | undefined
   readonly filters?: Record<string, string> | undefined
+  readonly locale?: string | undefined
 }
 
 interface FindByIDArgs {
@@ -29,12 +31,14 @@ interface FindByIDArgs {
 interface CreateArgs {
   readonly collection: string
   readonly data: DocumentData
+  readonly locale?: string | undefined
 }
 
 interface UpdateArgs {
   readonly collection: string
   readonly id: string
   readonly data: DocumentData
+  readonly locale?: string | undefined
 }
 
 interface DeleteArgs {
@@ -67,16 +71,35 @@ export interface LocalApi {
   updateGlobal (args: UpdateGlobalArgs): ResultAsync<DocumentRow, CmsError>
 }
 
+function wrapLocalizedFields (
+  data: DocumentData,
+  fields: readonly FieldConfig[],
+  locale: string
+): DocumentData {
+  const localizedNames = new Set(fields.filter(f => f.localized).map(f => f.name))
+  const wrapped: Record<string, SqlValue> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (localizedNames.has(key) && value !== null && value !== undefined) {
+      wrapped[key] = JSON.stringify({ [locale]: value }) as SqlValue
+    } else {
+      wrapped[key] = value
+    }
+  }
+  return wrapped
+}
+
 export function createLocalApi (
   pool: DbPool,
   collections: CollectionRegistry,
-  globals: GlobalRegistry
+  globals: GlobalRegistry,
+  defaultLocale?: string
 ): LocalApi {
-  const qb = createQueryBuilder(pool, collections)
+  const qb = createQueryBuilder(pool, collections, defaultLocale)
 
   return {
     find (args) {
       let builder = qb.query(args.collection)
+      if (args.locale) builder = builder.locale(args.locale)
       if (args.where) {
         for (const [k, v] of Object.entries(args.where)) {
           builder = builder.where(k, v)
@@ -105,14 +128,30 @@ export function createLocalApi (
     },
 
     create (args) {
+      const col = collections.get(args.collection)
+      if (col.isErr()) return errAsync(col.error)
+
+      let data = args.data
+      if (args.locale) {
+        data = wrapLocalizedFields(args.data, col.value.fields, args.locale)
+      }
+
       return qb.query(args.collection)
-        .insert(args.data)
+        .insert(data)
     },
 
     update (args) {
+      const col = collections.get(args.collection)
+      if (col.isErr()) return errAsync(col.error)
+
+      let data = args.data
+      if (args.locale) {
+        data = wrapLocalizedFields(args.data, col.value.fields, args.locale)
+      }
+
       return qb.query(args.collection)
         .where('id', args.id)
-        .update(args.data)
+        .update(data)
     },
 
     delete (args) {

@@ -82,7 +82,7 @@ export function buildCms (inputConfig: CmsConfig): Result<CmsInstance, CmsError>
     }
   }
 
-  const api = createLocalApi(config.db, collections, globals)
+  const api = createLocalApi(config.db, collections, globals, config.localization?.defaultLocale)
   const restRoutes = createRestRoutes(config.db, collections, globals)
   const adminRoutes = createAdminRoutes(config.db, collections, { requireAuth: config.requireAuth, telemetryPool: config.telemetryPool, headTags: config.headTags })
 
