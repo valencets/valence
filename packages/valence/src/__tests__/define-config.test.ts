@@ -220,3 +220,39 @@ describe('defineConfig routes', () => {
     expect(result.isOk()).toBe(true)
   })
 })
+
+describe('defineConfig graphql option', () => {
+  it('accepts graphql: true', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      graphql: true
+    })
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('preserves graphql: true in resolved config', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      graphql: true
+    })
+    expect(result._unsafeUnwrap().graphql).toBe(true)
+  })
+
+  it('accepts graphql: false', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      graphql: false
+    })
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('graphql defaults to undefined when not provided', () => {
+    const result = defineConfig(minimalConfig)
+    expect(result._unsafeUnwrap().graphql).toBeUndefined()
+  })
+
+  it('backward compat: defineConfig without graphql still works', () => {
+    const result = defineConfig(minimalConfig)
+    expect(result.isOk()).toBe(true)
+  })
+})

@@ -1,0 +1,33 @@
+{
+  "name": "@valencets/graphql",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@valencets/cms": "workspace:*",
+    "graphql": "^16.10.0",
+    "neverthrow": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  }
+}

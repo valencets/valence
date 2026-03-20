@@ -63,6 +63,8 @@ export interface ValenceConfig {
   // Schema-driven public routes. Handlers are not Zod-serializable, so
   // routes are extracted before validation and re-attached after resolution.
   readonly routes?: readonly RouteConfig[] | undefined
+  // Enable the GraphQL endpoint at POST /graphql. Requires @valencets/graphql installed.
+  readonly graphql?: boolean | undefined
 }
 
 export interface ResolvedValenceConfig {
@@ -101,6 +103,8 @@ export interface ResolvedValenceConfig {
   readonly onServer?: ((ctx: OnServerContext) => void | Promise<void>) | undefined
   // Preserved from ValenceConfig — handlers are functions and not Zod-serializable.
   readonly routes?: readonly RouteConfig[] | undefined
+  // Whether GraphQL endpoint is enabled.
+  readonly graphql?: boolean | undefined
 }
 
 export interface ConfigError {
@@ -151,7 +155,7 @@ const configSchema = z.object({
 export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConfig, ConfigError> {
   // Strip onServer and routes before Zod validation — both may contain function
   // values that Zod cannot validate. Preserve them and re-attach after resolution.
-  const { onServer, routes, ...configWithoutCallbacks } = config
+  const { onServer, routes, graphql, ...configWithoutCallbacks } = config
   const parsed = configSchema.safeParse(configWithoutCallbacks)
 
   if (!parsed.success) {
@@ -220,7 +224,8 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
         }
       : undefined,
     onServer,
-    routes
+    routes,
+    graphql
   }
 
   return ok(resolved)
