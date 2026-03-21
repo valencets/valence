@@ -20,9 +20,11 @@
 
 ---
 
-Define collections and fields in one TypeScript config. Valence derives the database tables, admin UI, REST API, GraphQL endpoint, typed frontend scaffold, entity codegen, page routing, first-party analytics, validators, and migrations from that single schema. No plugins required. No vendor scripts. Minimal, audited dependencies.
+> **Status: Pre-1.0.** Valence is in active development. The API surface is stabilizing but breaking changes may occur. Security hardening is in progress. Not recommended for production deployments yet.
 
-```ts
+Define collections and fields in one TypeScript config. Valence derives database tables, a server-rendered admin panel, REST and GraphQL APIs, typed routes with loaders and actions, entity codegen, database migrations, and a first-party analytics pipeline from that single schema. No runtime framework on public pages. No vendor scripts. Minimal, audited dependencies.
+
+```typescript
 // valence.config.ts
 import { defineConfig, collection, field } from '@valencets/valence'
 
@@ -98,7 +100,6 @@ export default defineConfig({
       path: '/contact',
       method: 'POST',
       action: async ({ body }) => {
-        // handle form submission
         return { redirect: '/thank-you' }
       }
     }
@@ -118,7 +119,7 @@ export default defineConfig({
 })
 ```
 
-That config gives you: `posts` and `users` tables in Postgres, a server-rendered admin panel with form validation and session auth (Argon2id), a REST API at `/api/posts` and `/api/users`, a GraphQL endpoint at `/graphql`, typed routes with loaders and actions, an `onServer` hook for custom routes and WebSocket handlers, a typed `src/` scaffold with entity interfaces and API clients, Zod validators, database migrations, draft versioning with revision history, and a first-party analytics pipeline that tracks user intent without any third-party scripts on your public pages. Change the schema, everything follows.
+That config gives you: `posts` and `users` tables in Postgres, a server-rendered admin panel with form validation and session auth (Argon2id), a REST API at `/api/posts` and `/api/users`, a GraphQL endpoint at `/graphql`, typed routes with loaders and actions, an `onServer` hook for custom routes and WebSocket handlers, a typed `src/` scaffold with entity interfaces and API clients, Zod validators, database migrations, draft versioning with revision history, and a first-party analytics pipeline that tracks user intent without any third-party scripts on your public pages. One schema to rule them all.
 
 ## Quick Start
 
@@ -128,15 +129,7 @@ cd my-site
 pnpm dev
 ```
 
-The init wizard walks you through:
-
-- **Database** -- name, user, password (creates the DB and runs migrations)
-- **Admin user** -- email + password for the admin panel (role set to `admin`)
-- **Seed data** -- optional sample post to start with
-- **Framework** -- plain HTML templates, Astro, or bring your own
-- **Git** -- initializes a repo with the first commit
-
-Init also generates a `src/` directory with Feature-Sliced Design structure, typed entity interfaces, and API clients derived from your collections. Pass `--yes` to skip prompts and accept defaults (useful for CI).
+The init wizard walks you through database setup, admin user creation, optional seed data, and framework choice (plain HTML templates, Astro, or bring your own). Pass `--yes` to skip prompts and accept defaults.
 
 Open `http://localhost:3000/admin` to sign in. Open `http://localhost:3000` for the landing page.
 
@@ -145,131 +138,109 @@ Open `http://localhost:3000/admin` to sign in. Open `http://localhost:3000` for 
 ### Schema Engine
 
 - **Database tables** derived from your field definitions. UUID primary keys, timestamps, soft deletes.
-- **22 field types**. text, textarea, richtext, number, boolean, select, date, slug, media, relation, group, email, url, password, json, color, multiselect, array, blocks, tabs, row, collapsible.
-- **Layout fields**. Tabs, rows, and collapsible sections for organizing complex admin forms without affecting the database schema.
-- **Conditional fields**. Show or hide fields based on other field values using the `condition` function. Re-renders via htmx partials.
-- **Field access control**. Per-field `create`, `read`, and `update` access control functions that receive the current user context.
-- **Field hooks**. `beforeValidate`, `beforeChange`, `afterChange`, `afterRead` hooks on individual fields for data transformation and side effects.
-- **Collection hooks**. 11 lifecycle hooks: `beforeValidate`, `beforeChange`, `afterChange`, `beforeRead`, `afterRead`, `beforeDelete`, `afterDelete`, `beforePublish`, `afterPublish`, `beforeUnpublish`, `afterUnpublish`.
-- **Globals**. Single-document configs (site settings, navigation, footer) via `global()` with the same field system.
+- **22 field types.** text, textarea, richtext, number, boolean, select, date, slug, media, relation, group, email, url, password, json, color, multiselect, array, blocks, tabs, row, collapsible.
+- **Layout fields.** Tabs, rows, and collapsible sections for organizing complex admin forms without affecting the database schema.
+- **Conditional fields.** Show or hide fields based on other field values using the `condition` function.
+- **Field access control.** Per-field create, read, and update access control functions that receive the current user context.
+- **Field hooks.** `beforeValidate`, `beforeChange`, `afterChange`, `afterRead` hooks on individual fields.
+- **Globals.** Single-document configs (site settings, navigation, footer) via `global()` with the same field system.
 - **Migrations** generated from schema diffs. Deterministic SQL, idempotent, version-tracked.
 
 ### Admin Panel
 
-- **Server-rendered admin** at `/admin`. HTML forms, CSRF protection, session auth with Argon2id. Login page with proper error handling.
-- **Rich text editor**. Tiptap-powered editor (ProseMirror) with heading, list, blockquote, link, code, divider, and code block formatting. Slash command menu for block insertion.
-- **Draft versioning**. Enable `versions: { drafts: true }` on a collection for publish/unpublish workflow with revision history and diff view.
-- **Autosave**. Automatic draft saving with visual indicator via the `<val-autosave>` component.
-- **Live preview**. Split-pane editor with real-time preview iframe, communicating via postMessage protocol.
-- **Bulk operations**. Select multiple documents in list view for bulk delete, publish, or unpublish.
-- **Image processing**. Automatic image resizing and optimization via Sharp on media upload.
-- **Admin headTags**. Inject custom `<link>`, `<meta>`, `<script>` tags into the admin `<head>` via config.
+- **Server-rendered** admin at `/admin`. HTML forms, CSRF protection, session auth with Argon2id.
+- **Rich text editor.** Tiptap-powered (ProseMirror) with heading, list, blockquote, link, code, divider, and code block formatting. Slash command menu for block insertion.
+- **Draft versioning.** Enable `versions: { drafts: true }` on a collection for publish/unpublish workflow with revision history and diff view.
+- **Autosave.** Automatic draft saving with visual indicator via the `<val-autosave>` component.
+- **Live preview.** Split-pane editor with real-time preview iframe via postMessage.
+- **Bulk operations.** Select multiple documents in list view for bulk delete, publish, or unpublish.
+- **Image processing.** Automatic image resizing and optimization via Sharp on media upload.
 
 ### API Layer
 
-- **REST API** at `/api/:collection`. CRUD with Zod validation, parameterized queries, `Result<T, E>` error handling. Bulk endpoint at `/api/:slug/bulk`.
-- **GraphQL API**. Auto-generated schema from your collections with resolvers wired to the Local API. Enable with `graphql: true` in config.
-- **Local API**. Programmatic access to all CRUD operations with the same validation, hooks, and access control as the REST layer.
-- **Full-text search**. PostgreSQL `tsvector`/`tsquery` with relevance ranking, configurable per collection.
+- **REST API** at `/api/:collection`. CRUD with Zod validation, parameterized queries, `Result<T, E>` error handling.
+- **GraphQL API.** Auto-generated schema from collections with resolvers wired to the Local API. Enable with `graphql: true`.
+- **Local API.** Programmatic access to all CRUD operations with the same validation and hooks as the REST layer.
+- **Full-text search.** PostgreSQL tsvector/tsquery with relevance ranking, configurable per collection.
 
 ### Routing
 
-- **Page routing**. `src/pages/` maps to URL paths. List + detail page templates scaffold per collection.
-- **Routes with loaders**. Define typed routes in config with `loader` functions that fetch data server-side and inject it into the page.
-- **Routes with actions**. Handle form submissions with `action` functions that return redirects or field-level errors.
-- **onServer hook**. Access the raw Node.js `http.Server`, database pool, CMS instance, and `registerRoute` for custom endpoints, WebSocket upgrade handlers, or middleware.
-- **Typed route helpers**. Auto-generated route types with `extractParams` for type-safe URL building.
-- **View transitions**. Built-in view transition presets for smooth page navigation.
+- **Page routing.** `src/pages/` maps to URL paths.
+- **Routes with loaders.** Server-side data loading injected into pages.
+- **Routes with actions.** Form handling that returns redirects or field-level errors.
+- **`onServer` hook.** Access the raw `http.Server`, database pool, CMS instance, and `registerRoute` for custom endpoints or WebSocket upgrade handlers.
+- **View transitions.** Built-in presets for smooth page navigation.
 
 ### Frontend
 
-- **23 Web Components**. ARIA-compliant, i18n-ready, telemetry hooks, hydration directives. OKLCH design tokens. Zero dependencies.
-- **Component registration separation**. Component classes are defined separately from `customElements.define()` calls for tree-shaking -- import only what you use.
-- **FSD scaffold**. `valence init` generates `src/` with Feature-Sliced Design: `app/`, `pages/`, `entities/`, `features/`, `shared/`.
-- **Entity codegen**. Typed interfaces + API clients generated from your schema. `// @generated` files regenerate on config change; user-edited files are never overwritten.
-- **Static file serving**. `public/` served with MIME types and path traversal protection.
-- **Config watcher**. Edit `valence.config.ts` during dev and entity types and API clients regenerate automatically.
+- **23 Web Components.** ARIA-compliant, i18n-ready, telemetry hooks, hydration directives. OKLCH design tokens. Zero dependencies.
+- **Entity codegen.** Typed interfaces and API clients generated from your schema. `// @generated` files regenerate on config change; user-edited files are never overwritten.
+- **Static file serving.** `public/` served with MIME types and path traversal protection.
 
 ### Security
 
-- **Argon2id password hashing** for admin authentication.
-- **CSRF protection** on all admin forms.
-- **Session auth** with `httpOnly`, `secure` cookie flags and configurable session max age.
-- **Path traversal protection** on static file serving, media uploads, and cloud storage.
-- **URL redirect validation** to prevent open redirect attacks.
-- **Parameterized SQL** everywhere -- no string concatenation in queries.
-- **CodeQL and Socket auditing** in CI.
+- Argon2id password hashing for admin authentication.
+- CSRF protection on admin forms (double-submit cookie with `crypto.randomBytes`).
+- Session auth with `httpOnly`, `Secure`, `SameSite=Strict` cookie flags.
+- Path traversal protection on static file serving, media uploads, and cloud storage.
+- URL redirect validation to prevent open redirect attacks.
+- Parameterized SQL everywhere. No string concatenation in queries.
+- CodeQL and Socket auditing in CI.
 
-### Plugin System
+### Telemetry
 
-- **First-party plugins**. `@valencets/plugin-seo` (auto-title, meta field injection), `@valencets/plugin-nested-docs` (tree structures with breadcrumb computation), `@valencets/plugin-cloud-storage` (S3-compatible object storage).
-- **Plugin API**. Plugins are config transformers -- a function that receives a `CmsConfig` and returns a modified `CmsConfig`. Compose with the `plugins` array.
+First-party analytics that runs entirely in your Postgres. No Google Analytics, no Plausible, no third-party scripts on your public pages. Your data stays in your database.
 
-### Analytics
+Annotate HTML elements with `data-telemetry-*` attributes. The client library captures events in a pre-allocated ring buffer (zero allocation in the hot path) and auto-flushes via `navigator.sendBeacon()`. The server ingests payloads, stores raw events, and aggregates into daily summaries.
 
-- **First-party analytics**. Built-in telemetry that runs entirely in your Postgres -- no vendor scripts, no third-party dashboards, no data leaving your infrastructure.
-- **Learn mode**. Interactive 6-step tutorial embedded in `valence dev` that teaches core concepts through real actions. Run `valence init --learn` to try it.
+11 intent types: CLICK, SCROLL, VIEWPORT_INTERSECT, FORM_INPUT, INTENT_NAVIGATE, INTENT_CALL, INTENT_BOOK, INTENT_LEAD, LEAD_PHONE, LEAD_EMAIL, LEAD_FORM.
 
-## Telemetry
+### Plugins
 
-Valence includes a complete, privacy-respecting analytics pipeline that runs entirely on your own infrastructure. No Google Analytics, no Plausible, no third-party scripts on your public pages. Your data stays in your Postgres.
+- `@valencets/plugin-seo` — auto-title, meta field injection.
+- `@valencets/plugin-nested-docs` — tree structures with breadcrumb computation.
+- `@valencets/plugin-cloud-storage` — S3-compatible object storage adapter.
 
-**How it works:**
-
-1. Annotate HTML elements with `data-telemetry-*` attributes:
-   ```html
-   <button data-telemetry-type="CLICK" data-telemetry-target="hero.cta">
-     Get Started
-   </button>
-   ```
-
-2. The client library captures user intent events in a **pre-allocated ring buffer** (zero allocation in the hot path) and auto-flushes via `navigator.sendBeacon()` every 30 seconds.
-
-3. The server ingests beacon payloads, stores raw events, and aggregates them into **daily summaries** -- sessions, pageviews, conversions, top pages, top referrers, device breakdowns.
-
-4. View it all in the built-in **analytics dashboard** at `/admin/analytics`.
-
-**11 intent types** beyond simple pageviews: `CLICK`, `SCROLL`, `VIEWPORT_INTERSECT`, `FORM_INPUT`, `INTENT_NAVIGATE`, `INTENT_CALL`, `INTENT_BOOK`, `INTENT_LEAD`, `LEAD_PHONE`, `LEAD_EMAIL`, `LEAD_FORM`. This means you can track conversion-oriented actions (calls, bookings, form submissions) natively, not just clicks.
-
-**Architecture:** The telemetry pipeline spans two packages. `@valencets/core` handles client-side capture (ring buffer, event delegation, beacon flush). `@valencets/telemetry` handles server-side ingestion, validation, daily aggregation, and query functions (`getDailyTrend`, `getDailyBreakdowns`). The CMS admin panel consumes these queries to render the dashboard.
+Plugins are config transformers: a function that receives a `CmsConfig` and returns a modified `CmsConfig`.
 
 ## Packages
 
 | Package | What it does | External deps |
 |---------|-------------|---------------|
-| **@valencets/ui** | 23 Web Components. ARIA, i18n, telemetry hooks, hydration directives. OKLCH design tokens. | none |
-| **@valencets/core** | Router + server. `pushState` nav, fragment swaps, prefetch, view transitions, server islands. | [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | [postgres](https://github.com/porsager/postgres), [neverthrow](https://github.com/supermacro/neverthrow), [zod](https://github.com/colinhacks/zod) |
-| **@valencets/cms** | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media, image processing. Rich text via Tiptap (ProseMirror). | [tiptap](https://tiptap.dev), [argon2](https://github.com/ranisalt/node-argon2), [sharp](https://github.com/lovell/sharp), [zod](https://github.com/colinhacks/zod), [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/graphql** | Auto-generated GraphQL schema + resolvers from CMS collections. | [graphql](https://github.com/graphql/graphql-js), [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/telemetry** | Beacon ingestion, event storage, daily summaries, fleet aggregation. | [postgres](https://github.com/porsager/postgres), [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/valence** | CLI + FSD scaffold + entity codegen + route types. `valence init`, `valence dev`, `valence migrate`, `valence build`. | [tsx](https://github.com/privatenumber/tsx), [zod](https://github.com/colinhacks/zod), [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/plugin-seo** | SEO field injection and auto-title hook. | none (peer dep on cms) |
-| **@valencets/plugin-nested-docs** | Tree structures with breadcrumb computation. | none (peer dep on cms) |
-| **@valencets/plugin-cloud-storage** | S3-compatible media storage adapter. | [@aws-sdk/client-s3](https://github.com/aws/aws-sdk-js-v3), [neverthrow](https://github.com/supermacro/neverthrow) |
+| `@valencets/ui` | 23 Web Components. ARIA, i18n, telemetry hooks, hydration directives. OKLCH tokens. | none |
+| `@valencets/core` | Router + server. pushState nav, fragment swaps, prefetch, view transitions, server islands. | neverthrow |
+| `@valencets/db` | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | postgres, neverthrow, zod |
+| `@valencets/cms` | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media. Rich text via Tiptap. | tiptap, argon2, sharp, zod, neverthrow |
+| `@valencets/graphql` | Auto-generated GraphQL schema + resolvers from CMS collections. | graphql, neverthrow |
+| `@valencets/telemetry` | Beacon ingestion, event storage, daily summaries, fleet aggregation. | postgres, neverthrow |
+| `@valencets/valence` | CLI + FSD scaffold + entity codegen + route types. | tsx, zod, neverthrow |
 
-**Core external runtime deps:** 8 -- postgres, neverthrow, zod, tiptap, argon2, sharp, graphql, tsx. All MIT-licensed, all audited via [Socket](https://socket.dev/npm/package/@valencets/valence).
+Core external runtime deps: 8. All MIT-licensed, all audited via Socket. Public-facing pages ship zero third-party JavaScript.
 
-**Browser JS:** Public-facing pages ship zero third-party JavaScript. The admin panel uses [Tiptap](https://tiptap.dev/) (ProseMirror, MIT) for rich text editing only.
-
-## Non-Negotiable
+## Constraints
 
 | Rule | Why |
 |------|-----|
-| Complexity < 20 | Every function fits on one screen. No exceptions. |
-| `Result<T, E>` everywhere | If it can fail, the type signature says so. Both branches handled or it doesn't compile. |
-| 14kB critical shell | First paint in the first TCP data flight. CDN-ready with cache profiles and server islands. |
+| Complexity < 20 | Every function fits on one screen. |
+| `Result<T, E>` everywhere | If it can fail, the type says so. Both branches handled. |
+| 14kB critical shell | First paint in the first TCP round trip. |
 | Pre-allocated ring buffer | Zero allocation in the telemetry hot path. |
-| Zero third-party JS on public pages | Your site ships your code. Tiptap is admin-only. Nothing phones home. |
+| Zero third-party JS on public pages | Your site ships your code. Tiptap is admin-only. |
 | 3,022 tests | Strict TypeScript, neostandard, CI on every push. |
+
+## Current Status
+
+Valence is pre-1.0 and in active development. The schema engine, admin panel, REST API, GraphQL layer, telemetry pipeline, CLI, and Web Components are functional and tested. Security hardening and API surface cleanup are in progress.
+
+See the [Architecture](ARCHITECTURE.md) doc for a detailed overview of the framework design.
 
 ## Documentation
 
-- [Getting Started](https://github.com/valencets/valence/wiki/Getting-Started)
-- [Architecture](https://github.com/valencets/valence/wiki/Architecture)
-- [CMS Guide](https://github.com/valencets/valence/wiki/CMS-Guide)
-- [Developer Guide](https://github.com/valencets/valence/wiki/Developer-Guide)
-- [Troubleshooting](https://github.com/valencets/valence/wiki/Troubleshooting)
+- [Getting Started](GETTING-STARTED.md)
+- [Architecture](ARCHITECTURE.md)
+- [CMS Guide](CMS-GUIDE.md)
+- [Developer Guide](DEVELOPER-GUIDE.md)
+- [Troubleshooting](TROUBLESHOOTING.md)
 
 ## Contributing
 
