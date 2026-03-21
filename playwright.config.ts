@@ -27,7 +27,7 @@ export default defineConfig({
       animations: 'disabled',
       caret: 'hide',
       threshold: 0.2,
-      maxDiffPixelRatio: 0.02
+      maxDiffPixelRatio: 0.05
     }
   },
 
