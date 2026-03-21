@@ -251,37 +251,46 @@ export function createLocalApi (
       const col = collections.get(args.collection)
       if (col.isErr()) return errAsync(col.error)
 
-      let builder = qb.query(args.collection)
-      if (args.includeDrafts) builder = builder.includeDrafts()
-      if (args.locale) builder = builder.locale(args.locale)
-      if (args.where) {
-        for (const [k, v] of Object.entries(args.where)) {
-          builder = builder.where(k, v)
+      const beforeReadHooks = col.value.hooks?.beforeRead
+      const executeFind = (): ResultAsync<DocumentRow[] | PaginatedResult<DocumentRow>, CmsError> => {
+        let builder = qb.query(args.collection)
+        if (args.includeDrafts) builder = builder.includeDrafts()
+        if (args.locale) builder = builder.locale(args.locale)
+        if (args.where) {
+          for (const [k, v] of Object.entries(args.where)) {
+            builder = builder.where(k, v)
+          }
         }
-      }
-      if (args.filters) {
-        for (const [k, v] of Object.entries(args.filters)) {
-          if (v === '') continue
-          const coerced = v === 'true' ? true : v === 'false' ? false : v
-          builder = builder.where(k, coerced)
+        if (args.filters) {
+          for (const [k, v] of Object.entries(args.filters)) {
+            if (v === '') continue
+            const coerced = v === 'true' ? true : v === 'false' ? false : v
+            builder = builder.where(k, coerced)
+          }
         }
-      }
-      if (args.search) builder = builder.search(args.search)
-      if (args.orderBy) builder = builder.orderBy(args.orderBy.field, args.orderBy.direction)
-      if (args.page !== undefined && args.perPage !== undefined) {
-        return builder.page(args.page, args.perPage).andThen((paginated) =>
-          applyFieldAfterRead(col.value.fields, paginated.docs, args.collection)
-            .map((docs) => ({
-              ...paginated,
-              docs: docs.map((d) => applyReadFilter(d, args.collection))
-            }))
+        if (args.search) builder = builder.search(args.search)
+        if (args.orderBy) builder = builder.orderBy(args.orderBy.field, args.orderBy.direction)
+        if (args.page !== undefined && args.perPage !== undefined) {
+          return builder.page(args.page, args.perPage).andThen((paginated) =>
+            applyFieldAfterRead(col.value.fields, paginated.docs, args.collection)
+              .map((docs) => ({
+                ...paginated,
+                docs: docs.map((d) => applyReadFilter(d, args.collection))
+              }))
+          )
+        }
+        if (args.limit) builder = builder.limit(args.limit)
+        return builder.all().andThen((rows) =>
+          applyFieldAfterRead(col.value.fields, rows, args.collection)
+            .map((docs) => docs.map((r) => applyReadFilter(r, args.collection)))
         )
       }
-      if (args.limit) builder = builder.limit(args.limit)
-      return builder.all().andThen((rows) =>
-        applyFieldAfterRead(col.value.fields, rows, args.collection)
-          .map((docs) => docs.map((r) => applyReadFilter(r, args.collection)))
-      )
+
+      if (beforeReadHooks && beforeReadHooks.length > 0) {
+        return runHooks(beforeReadHooks, { data: {}, collection: args.collection })
+          .andThen(() => executeFind())
+      }
+      return executeFind()
     },
 
     // findByID intentionally bypasses status filter — admin lookups need access to drafts
@@ -289,17 +298,25 @@ export function createLocalApi (
       const col = collections.get(args.collection)
       if (col.isErr()) return errAsync(col.error)
 
-      return qb.query(args.collection)
-        .where('id', args.id)
-        .first()
-        .andThen((row) => {
-          if (row === null) return okAsync(null)
-          return applyFieldAfterRead(col.value.fields, [row], args.collection)
-            .map((rows) => {
-              const doc = rows[0] ?? null
-              return doc ? applyReadFilter(doc, args.collection) : null
-            })
-        })
+      const beforeReadHooks = col.value.hooks?.beforeRead
+      const executeFindByID = (): ResultAsync<DocumentRow | null, CmsError> =>
+        qb.query(args.collection)
+          .where('id', args.id)
+          .first()
+          .andThen((row) => {
+            if (row === null) return okAsync(null)
+            return applyFieldAfterRead(col.value.fields, [row], args.collection)
+              .map((rows) => {
+                const doc = rows[0] ?? null
+                return doc ? applyReadFilter(doc, args.collection) : null
+              })
+          })
+
+      if (beforeReadHooks && beforeReadHooks.length > 0) {
+        return runHooks(beforeReadHooks, { data: {}, id: args.id, collection: args.collection })
+          .andThen(() => executeFindByID())
+      }
+      return executeFindByID()
     },
 
     create (args) {
@@ -318,16 +335,24 @@ export function createLocalApi (
       }
 
       const fields = col.value.fields
+      const beforeValidateHooks = col.value.hooks?.beforeValidate
 
-      return runFieldHooks('beforeChange', fields, data, undefined, args.collection)
-        .map((fieldData) => applyWriteFilter(fieldData as DocumentData, args.collection, 'create'))
-        .andThen((filteredData) =>
-          qb.query(args.collection).insert(filteredData)
-        )
-        .andThen((result) =>
-          runFieldHooks('afterChange', fields, result, result.id as string | undefined, args.collection)
-            .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
-        )
+      const executeCreate = (createData: DocumentData): ResultAsync<DocumentRow, CmsError> =>
+        runFieldHooks('beforeChange', fields, createData, undefined, args.collection)
+          .map((fieldData) => applyWriteFilter(fieldData as DocumentData, args.collection, 'create'))
+          .andThen((filteredData) =>
+            qb.query(args.collection).insert(filteredData)
+          )
+          .andThen((result) =>
+            runFieldHooks('afterChange', fields, result, result.id as string | undefined, args.collection)
+              .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
+          )
+
+      if (beforeValidateHooks && beforeValidateHooks.length > 0) {
+        return runHooks(beforeValidateHooks, { data, collection: args.collection })
+          .andThen((hookData) => executeCreate(hookData as DocumentData))
+      }
+      return executeCreate(data)
     },
 
     update (args) {
@@ -351,38 +376,61 @@ export function createLocalApi (
       }
 
       const fields = col.value.fields
+      const beforeValidateHooks = col.value.hooks?.beforeValidate
 
-      if (isVersioned && args.publish && col.value.hooks) {
-        return runFieldHooks('beforeChange', fields, data, args.id, args.collection)
-          .andThen((fieldData) =>
-            executeWithHooks(
-              col.value.hooks?.beforePublish,
-              col.value.hooks?.afterPublish,
-              fieldData as DocumentData,
-              args.id,
-              args.collection,
-              (finalData) => qb.query(args.collection).where('id', args.id).update(finalData)
+      const executeUpdate = (updateData: DocumentData): ResultAsync<DocumentRow, CmsError> => {
+        if (isVersioned && args.publish && col.value.hooks) {
+          return runFieldHooks('beforeChange', fields, updateData, args.id, args.collection)
+            .andThen((fieldData) =>
+              executeWithHooks(
+                col.value.hooks?.beforePublish,
+                col.value.hooks?.afterPublish,
+                fieldData as DocumentData,
+                args.id,
+                args.collection,
+                (finalData) => qb.query(args.collection).where('id', args.id).update(finalData)
+              )
             )
+            .map((doc) => applyReadFilter(doc, args.collection))
+        }
+
+        return runFieldHooks('beforeChange', fields, updateData, args.id, args.collection)
+          .andThen((fieldData) =>
+            qb.query(args.collection)
+              .where('id', args.id)
+              .update(fieldData as DocumentData)
           )
-          .map((doc) => applyReadFilter(doc, args.collection))
+          .andThen((result) =>
+            runFieldHooks('afterChange', fields, result, args.id, args.collection)
+              .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
+          )
       }
 
-      return runFieldHooks('beforeChange', fields, data, args.id, args.collection)
-        .andThen((fieldData) =>
-          qb.query(args.collection)
-            .where('id', args.id)
-            .update(fieldData as DocumentData)
-        )
-        .andThen((result) =>
-          runFieldHooks('afterChange', fields, result, args.id, args.collection)
-            .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
-        )
+      if (beforeValidateHooks && beforeValidateHooks.length > 0) {
+        return runHooks(beforeValidateHooks, { data, id: args.id, collection: args.collection })
+          .andThen((hookData) => executeUpdate(hookData as DocumentData))
+      }
+      return executeUpdate(data)
     },
 
     delete (args) {
-      return qb.query(args.collection)
-        .where('id', args.id)
-        .delete()
+      const col = collections.get(args.collection)
+      if (col.isErr()) return errAsync(col.error)
+
+      const beforeDeleteHooks = col.value.hooks?.beforeDelete
+      const afterDeleteHooks = col.value.hooks?.afterDelete
+
+      const executeDelete = (): ResultAsync<DocumentRow, CmsError> =>
+        qb.query(args.collection)
+          .where('id', args.id)
+          .delete()
+          .andThen((result) => runAfterHooks(afterDeleteHooks, result, args.id, args.collection))
+
+      if (beforeDeleteHooks && beforeDeleteHooks.length > 0) {
+        return runHooks(beforeDeleteHooks, { data: {}, id: args.id, collection: args.collection })
+          .andThen(() => executeDelete())
+      }
+      return executeDelete()
     },
 
     count (args) {
