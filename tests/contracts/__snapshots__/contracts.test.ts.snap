@@ -4,8 +4,22 @@ exports[`generateCreateTableSql stability > produces deterministic SQL for times
 "CREATE TABLE IF NOT EXISTS "logs" (
   "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "message" TEXT,
-  "deleted_at" TIMESTAMPTZ
-);"
+  "deleted_at" TIMESTAMPTZ,
+  "search_vector" TSVECTOR
+);
+
+CREATE INDEX IF NOT EXISTS "logs_search_idx" ON "logs" USING GIN (search_vector);
+
+CREATE OR REPLACE FUNCTION logs_search_update() RETURNS trigger AS $$
+BEGIN
+  NEW.search_vector := to_tsvector('english', COALESCE(NEW."message", ''));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "logs_search_update"
+  BEFORE INSERT OR UPDATE ON "logs"
+  FOR EACH ROW EXECUTE FUNCTION logs_search_update();"
 `;
 
 exports[`generateCreateTableSql stability > produces deterministic SQL matching snapshot 1`] = `
@@ -15,8 +29,22 @@ exports[`generateCreateTableSql stability > produces deterministic SQL matching 
   "published" BOOLEAN,
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "deleted_at" TIMESTAMPTZ
-);"
+  "deleted_at" TIMESTAMPTZ,
+  "search_vector" TSVECTOR
+);
+
+CREATE INDEX IF NOT EXISTS "posts_search_idx" ON "posts" USING GIN (search_vector);
+
+CREATE OR REPLACE FUNCTION posts_search_update() RETURNS trigger AS $$
+BEGIN
+  NEW.search_vector := to_tsvector('english', COALESCE(NEW."title", ''));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "posts_search_update"
+  BEFORE INSERT OR UPDATE ON "posts"
+  FOR EACH ROW EXECUTE FUNCTION posts_search_update();"
 `;
 
 exports[`generateZodSchema stability > schema shape matches snapshot 1`] = `
