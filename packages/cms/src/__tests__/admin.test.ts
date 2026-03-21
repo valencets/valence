@@ -185,6 +185,13 @@ describe('renderFieldInput()', () => {
     expect(html).toContain('<fieldset')
     expect(html).toContain('seo')
   })
+
+  it('escapes richtext value in template tag to prevent XSS', () => {
+    const xssPayload = '</template><script>alert(1)</script>'
+    const html = renderFieldInput(field.richtext({ name: 'content' }), xssPayload)
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('&lt;script&gt;')
+  })
 })
 
 describe('createAdminRoutes()', () => {

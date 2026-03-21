@@ -49,10 +49,10 @@ describe('renderRichtextEditor', () => {
     expect(html).toContain('Body Content')
   })
 
-  it('puts raw HTML in template tag without double-encoding', () => {
+  it('escapes HTML in template tag to prevent XSS', () => {
     const f = field.richtext({ name: 'body' })
     const html = renderFieldInput(f, '<p>Hello <strong>world</strong></p>')
-    // The template tag must contain raw HTML, not escaped entities
-    expect(html).toContain('<template class="richtext-initial"><p>Hello <strong>world</strong></p></template>')
+    // The template tag must escape HTML to prevent stored XSS
+    expect(html).toContain('<template class="richtext-initial">&lt;p&gt;Hello &lt;strong&gt;world&lt;/strong&gt;&lt;/p&gt;</template>')
   })
 })

@@ -90,7 +90,7 @@ function renderDateInput (f: FieldConfig, value: string): string {
 
 function renderRichtextEditor (f: FieldConfig, value: string): string {
   const templateTag = value
-    ? `<template class="richtext-initial">${value}</template>`
+    ? `<template class="richtext-initial">${escapeHtml(value)}</template>`
     : ''
   return `<label class="form-field"><span>${escapeHtml(f.label ?? f.name)}</span><div class="richtext-wrap"><input type="hidden" name="${escapeHtml(f.name)}" value="${escapeHtml(value)}"><div class="richtext-editor" data-field="${escapeHtml(f.name)}"></div>${templateTag}</div></label>`
 }
