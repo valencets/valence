@@ -1,10 +1,23 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createRestRoutes } from '../api/rest-api.js'
 import { createCollectionRegistry, createGlobalRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 import { makeMockPool } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { okAsync } from 'neverthrow'
+
+vi.mock('../auth/session.js', () => ({
+  validateSession: vi.fn()
+}))
+
+import { validateSession } from '../auth/session.js'
+
+const AUTH_COOKIE = 'cms_session=valid-session-id'
+
+beforeEach(() => {
+  vi.mocked(validateSession).mockReturnValue(okAsync('user-1'))
+})
 
 interface MockReq {
   method: string
@@ -26,7 +39,7 @@ function makeMockReq (method: string, url: string, body: string = ''): IncomingM
   const req: MockReq = {
     method,
     url,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', cookie: AUTH_COOKIE },
     on: vi.fn((event: string, cb: (data?: Buffer) => void) => {
       if (event === 'data' && body) cb(Buffer.from(body))
       if (event === 'end') cb()

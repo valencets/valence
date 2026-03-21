@@ -222,6 +222,8 @@ export interface CollectionAccess {
 // @public (undocumented)
 export interface CollectionConfig {
     // (undocumented)
+    readonly access?: CollectionAccess | undefined;
+    // (undocumented)
     readonly admin?: AdminConfig | undefined;
     // (undocumented)
     readonly auth?: boolean | undefined;

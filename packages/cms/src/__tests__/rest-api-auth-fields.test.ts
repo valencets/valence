@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { okAsync } from 'neverthrow'
 import { createRestRoutes } from '../api/rest-api.js'
 import { createCollectionRegistry, createGlobalRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
@@ -7,11 +8,18 @@ import { injectAuthFields } from '../auth/auth-config.js'
 import { makeMockPool } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
+vi.mock('../auth/session.js', () => ({
+  validateSession: vi.fn()
+}))
+
+import { validateSession } from '../auth/session.js'
+const mockedValidateSession = vi.mocked(validateSession)
+
 function makeMockReq (method: string, url: string, body: string = ''): IncomingMessage {
   const req = {
     method,
     url,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', cookie: 'cms_session=test-session' },
     on: vi.fn((event: string, cb: (data?: Buffer) => void) => {
       if (event === 'data' && body) cb(Buffer.from(body))
       if (event === 'end') cb()
@@ -62,6 +70,10 @@ function setupWithAuth (poolReturn: readonly Record<string, string | number | nu
   }))
   return { pool, collections, globals }
 }
+
+beforeEach(() => {
+  mockedValidateSession.mockReturnValue(okAsync('user-1'))
+})
 
 describe('PATCH /api/:collection/:id auth field protection', () => {
   it('rejects role field from PATCH on auth-enabled collections', async () => {
