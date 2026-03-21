@@ -30,4 +30,9 @@ describe('validateCsrfToken()', () => {
   it('returns false for different lengths', () => {
     expect(validateCsrfToken('short', 'longer-token')).toBe(false)
   })
+
+  it('returns false when token is empty string', () => {
+    const token = generateCsrfToken()
+    expect(validateCsrfToken('', token)).toBe(false)
+  })
 })
