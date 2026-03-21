@@ -36,5 +36,3 @@ export class ValGrid extends ValElement {
     this.style.justifyItems = this.getAttribute('justify') ?? ''
   }
 }
-
-customElements.define('val-grid', ValGrid)

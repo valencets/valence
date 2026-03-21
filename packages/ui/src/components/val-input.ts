@@ -148,5 +148,3 @@ export class ValInput extends ValFormElement {
     this.emitInteraction('focus')
   }
 }
-
-customElements.define('val-input', ValInput)

@@ -92,5 +92,3 @@ export class ValBulkBar extends ValElement {
     }
   }
 }
-
-customElements.define('val-bulk-bar', ValBulkBar)

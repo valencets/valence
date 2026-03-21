@@ -172,5 +172,3 @@ export class ValPreviewPane extends ValElement {
     }, DEBOUNCE_MS)
   }
 }
-
-customElements.define('val-preview-pane', ValPreviewPane)

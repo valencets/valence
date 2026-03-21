@@ -122,5 +122,3 @@ export class ValToggle extends ValFormElement {
     }
   }
 }
-
-customElements.define('val-toggle', ValToggle)

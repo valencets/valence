@@ -36,5 +36,3 @@ export class ValSection extends ValElement {
     this.style.marginRight = center ? 'auto' : ''
   }
 }
-
-customElements.define('val-section', ValSection)

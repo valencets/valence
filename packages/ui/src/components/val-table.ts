@@ -137,5 +137,3 @@ export class ValTable extends ValElement {
     this.emitInteraction('sort', { column: key, direction: this.sortDirection })
   }
 }
-
-customElements.define('val-table', ValTable)

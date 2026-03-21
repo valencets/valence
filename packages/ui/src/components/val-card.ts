@@ -51,5 +51,3 @@ export class ValCard extends ValElement {
     }
   }
 }
-
-customElements.define('val-card', ValCard)

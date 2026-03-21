@@ -141,5 +141,3 @@ export class ValCheckbox extends ValFormElement {
     }
   }
 }
-
-customElements.define('val-checkbox', ValCheckbox)

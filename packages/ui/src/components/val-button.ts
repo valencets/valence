@@ -118,5 +118,3 @@ export class ValButton extends ValElement {
     this.emitInteraction('click')
   }
 }
-
-customElements.define('val-button', ValButton)

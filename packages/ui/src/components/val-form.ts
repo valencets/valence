@@ -115,5 +115,3 @@ export class ValForm extends ValElement {
     }
   }
 }
-
-customElements.define('val-form', ValForm)

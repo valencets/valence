@@ -103,5 +103,3 @@ export class ValSidebar extends ValElement {
     this.emitInteraction('toggle', { collapsed: willCollapse })
   }
 }
-
-customElements.define('val-sidebar', ValSidebar)

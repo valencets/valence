@@ -159,5 +159,3 @@ export class ValTabs extends ValElement {
     this.selectTab(handler(current, tabs.length))
   }
 }
-
-customElements.define('val-tabs', ValTabs)

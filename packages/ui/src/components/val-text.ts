@@ -77,5 +77,3 @@ export class ValText extends ValElement {
     }
   }
 }
-
-customElements.define('val-text', ValText)

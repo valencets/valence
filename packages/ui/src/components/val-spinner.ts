@@ -63,5 +63,3 @@ export class ValSpinner extends ValElement {
     this.statusEl!.setAttribute('aria-label', label)
   }
 }
-
-customElements.define('val-spinner', ValSpinner)

@@ -48,5 +48,3 @@ export class ValHeading extends ValElement {
     this.style.fontSize = LEVEL_FONT_SIZE[level] ?? LEVEL_FONT_SIZE['2']!
   }
 }
-
-customElements.define('val-heading', ValHeading)

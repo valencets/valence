@@ -282,5 +282,3 @@ export class ValSelect extends ValFormElement {
     }
   }
 }
-
-customElements.define('val-select', ValSelect)

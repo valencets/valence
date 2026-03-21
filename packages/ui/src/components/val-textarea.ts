@@ -146,5 +146,3 @@ export class ValTextarea extends ValFormElement {
     this.emitInteraction('focus')
   }
 }
-
-customElements.define('val-textarea', ValTextarea)

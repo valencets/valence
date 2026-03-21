@@ -178,5 +178,3 @@ export class ValDialog extends ValElement {
     this.close()
   }
 }
-
-customElements.define('val-dialog', ValDialog)

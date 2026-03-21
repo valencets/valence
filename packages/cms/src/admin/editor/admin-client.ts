@@ -1,4 +1,11 @@
+import { ValAutosave, ValBulkBar, ValPreviewPane, ValDialog } from '@valencets/ui'
 import { initBlocksFields } from './blocks-client.js'
+
+// Register only the Web Components used in admin HTML
+customElements.define('val-autosave', ValAutosave)
+customElements.define('val-bulk-bar', ValBulkBar)
+customElements.define('val-preview-pane', ValPreviewPane)
+customElements.define('val-dialog', ValDialog)
 
 // Lazy-load Lexical only when richtext editors exist on the page
 async function loadAndInitEditors (): Promise<void> {

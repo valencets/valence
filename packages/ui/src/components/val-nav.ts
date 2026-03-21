@@ -49,5 +49,3 @@ export class ValNav extends ValElement {
     this.emitInteraction('navigate', { href })
   }
 }
-
-customElements.define('val-nav', ValNav)

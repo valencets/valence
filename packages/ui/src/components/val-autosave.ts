@@ -126,5 +126,3 @@ export class ValAutosave extends ValElement {
     })
   }
 }
-
-customElements.define('val-autosave', ValAutosave)

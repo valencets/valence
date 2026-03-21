@@ -57,5 +57,3 @@ export class ValBadge extends ValElement {
     this.style.color = styles.color
   }
 }
-
-customElements.define('val-badge', ValBadge)

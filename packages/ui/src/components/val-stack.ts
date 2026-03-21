@@ -38,5 +38,3 @@ export class ValStack extends ValElement {
     this.style.flexWrap = this.hasAttribute('wrap') ? 'wrap' : ''
   }
 }
-
-customElements.define('val-stack', ValStack)
