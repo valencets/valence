@@ -49,12 +49,12 @@ export function validateSession (sessionId: string, pool: DbPool): ResultAsync<s
 
 export function buildSessionCookie (sessionId: string, maxAgeSeconds = DEFAULT_SESSION_MAX_AGE, secure = true): string {
   const secureFlag = secure ? '; Secure' : ''
-  return `cms_session=${sessionId}; Path=/; HttpOnly; SameSite=Strict${secureFlag}; Max-Age=${maxAgeSeconds}`
+  return `cms_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax${secureFlag}; Max-Age=${maxAgeSeconds}`
 }
 
 export function buildExpiredSessionCookie (secure = true): string {
   const secureFlag = secure ? '; Secure' : ''
-  return `cms_session=; Path=/; HttpOnly; SameSite=Strict${secureFlag}; Max-Age=0`
+  return `cms_session=; Path=/; HttpOnly; SameSite=Lax${secureFlag}; Max-Age=0`
 }
 
 export function destroyUserSessions (userId: string, pool: DbPool): ResultAsync<void, CmsError> {
