@@ -317,7 +317,7 @@ jobs:
           exit 1
       - uses: treosh/lighthouse-ci-action@v12
         with:
-          configPath: './lighthouserc.js'
+          configPath: './lighthouserc.cjs'
           budgetPath: './budget.json'
           uploadArtifacts: true
           temporaryPublicStorage: true
