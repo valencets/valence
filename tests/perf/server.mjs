@@ -59,8 +59,11 @@ CREATE TABLE IF NOT EXISTS "cms_sessions" (
 );
 `
 
+const publicAccess = { read: () => true, create: () => true, update: () => true, delete: () => true }
+
 const postsCollection = collection({
   slug: 'posts',
+  access: publicAccess,
   timestamps: true,
   fields: [
     field.text({ name: 'title', required: true }),
