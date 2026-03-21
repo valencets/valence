@@ -9,12 +9,26 @@ import type { StorageAdapter } from './storage-adapter.js'
 
 const SAFE_FILENAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/
 
+const INLINE_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/gif',
+  'image/svg+xml'
+])
+
 function sendFile (res: ServerResponse, filename: string, data: Buffer): void {
-  res.writeHead(200, {
-    'Content-Type': getMimeType(filename),
+  const mimeType = getMimeType(filename)
+  const headers: Record<string, string | number> = {
+    'Content-Type': mimeType,
     'Content-Length': data.length,
     'Cache-Control': 'public, max-age=31536000, immutable'
-  })
+  }
+  if (!INLINE_MIMES.has(mimeType)) {
+    headers['Content-Disposition'] = 'attachment'
+  }
+  res.writeHead(200, headers)
   res.end(data)
 }
 

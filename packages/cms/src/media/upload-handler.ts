@@ -23,8 +23,69 @@ const IMAGE_MIMES = new Set([
   'image/gif'
 ])
 
+const DANGEROUS_MIMES = new Set([
+  'text/html',
+  'application/javascript',
+  'text/javascript',
+  'text/css',
+  'application/x-httpd-php',
+  'application/xhtml+xml'
+])
+
+const DEFAULT_ALLOWED_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+  'image/svg+xml',
+  'application/pdf',
+  'video/mp4',
+  'video/webm',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/ogg',
+  'text/plain',
+  'text/csv',
+  'application/json',
+  'application/zip',
+  'application/octet-stream'
+])
+
+const MAGIC_BYTES: Record<string, readonly number[]> = {
+  'image/jpeg': [0xFF, 0xD8, 0xFF],
+  'image/png': [0x89, 0x50, 0x4E, 0x47],
+  'image/gif': [0x47, 0x49, 0x46, 0x38]
+}
+
 function isImageFile (mimeType: string): boolean {
   return IMAGE_MIMES.has(mimeType)
+}
+
+function isMimeAllowed (mimeType: string, uploadConfig: UploadConfig | undefined): boolean {
+  if (DANGEROUS_MIMES.has(mimeType)) return false
+  const allowlist = uploadConfig?.mimeTypes
+    ? new Set(uploadConfig.mimeTypes)
+    : DEFAULT_ALLOWED_MIMES
+  return allowlist.has(mimeType)
+}
+
+function validateMagicBytes (data: Buffer, mimeType: string): boolean {
+  if (!IMAGE_MIMES.has(mimeType)) return true
+
+  if (mimeType === 'image/avif') return true
+
+  if (mimeType === 'image/webp') {
+    if (data.length < 12) return false
+    const riff = data.slice(0, 4).toString('ascii')
+    const webp = data.slice(8, 12).toString('ascii')
+    return riff === 'RIFF' && webp === 'WEBP'
+  }
+
+  const expected = MAGIC_BYTES[mimeType]
+  if (!expected) return true
+  if (data.length < expected.length) return false
+  return expected.every((byte, i) => data[i] === byte)
 }
 
 function generateStoredName (originalName: string): string {
@@ -206,6 +267,16 @@ export function createUploadHandler (
     const data = bodyResult.value
     const storedName = generateStoredName(originalName)
     const mimeType = getMimeType(originalName)
+
+    if (!isMimeAllowed(mimeType, uploadConfig)) {
+      sendError(res, 400, `Rejected mime type: ${mimeType}`)
+      return
+    }
+
+    if (!validateMagicBytes(data, mimeType)) {
+      sendError(res, 400, `File content does not match magic bytes for ${mimeType}`)
+      return
+    }
 
     const writeError = await writeMainFile(storage, resolvedDir, storedName, data)
     if (writeError) {
