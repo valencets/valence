@@ -238,3 +238,121 @@ describe('renderFieldInput — collapsible', () => {
     expect(html).toContain('&lt;script&gt;')
   })
 })
+
+// --- Container fields pass formData to children ---
+
+describe('renderFieldInput — group with formData', () => {
+  const groupField = field.group({
+    name: 'meta',
+    label: 'Meta',
+    fields: [
+      field.text({ name: 'metaTitle' }),
+      field.textarea({ name: 'metaDescription' })
+    ]
+  })
+
+  it('renders child inputs with values from formData', () => {
+    const formData = { metaTitle: 'My Title', metaDescription: 'My description' }
+    const html = renderFieldInput(groupField, '', undefined, undefined, formData)
+    expect(html).toContain('value="My Title"')
+    expect(html).toContain('My description</textarea>')
+  })
+
+  it('renders empty child inputs when formData is not provided', () => {
+    const html = renderFieldInput(groupField, '')
+    expect(html).toContain('value=""')
+    expect(html).toContain('name="metaTitle"')
+    expect(html).toContain('name="metaDescription"')
+  })
+
+  it('renders empty string for children missing from formData', () => {
+    const formData = { metaTitle: 'Only Title' }
+    const html = renderFieldInput(groupField, '', undefined, undefined, formData)
+    expect(html).toContain('value="Only Title"')
+    // metaDescription is missing from formData, should get empty string
+    expect(html).toContain('name="metaDescription"')
+    expect(html).toContain('></textarea>')
+  })
+})
+
+describe('renderFieldInput — tabs with formData', () => {
+  const tabsField = field.tabs({
+    name: 'content_tabs',
+    tabs: [
+      {
+        label: 'Content',
+        fields: [
+          field.text({ name: 'title' }),
+          field.textarea({ name: 'body' })
+        ]
+      },
+      {
+        label: 'SEO',
+        fields: [
+          field.text({ name: 'seoTitle' })
+        ]
+      }
+    ]
+  })
+
+  it('renders child inputs with values from formData across tabs', () => {
+    const formData = { title: 'Hello', body: 'World', seoTitle: 'SEO Hello' }
+    const html = renderFieldInput(tabsField, '', undefined, undefined, formData)
+    expect(html).toContain('value="Hello"')
+    expect(html).toContain('World</textarea>')
+    expect(html).toContain('value="SEO Hello"')
+  })
+
+  it('renders empty child inputs when formData is not provided', () => {
+    const html = renderFieldInput(tabsField, '')
+    expect(html).toContain('name="title"')
+    expect(html).toContain('name="seoTitle"')
+  })
+})
+
+describe('renderFieldInput — row with formData', () => {
+  const rowField = field.row({
+    name: 'name_row',
+    fields: [
+      field.text({ name: 'firstName' }),
+      field.text({ name: 'lastName' })
+    ]
+  })
+
+  it('renders child inputs with values from formData', () => {
+    const formData = { firstName: 'Jane', lastName: 'Doe' }
+    const html = renderFieldInput(rowField, '', undefined, undefined, formData)
+    expect(html).toContain('value="Jane"')
+    expect(html).toContain('value="Doe"')
+  })
+
+  it('renders empty child inputs when formData is not provided', () => {
+    const html = renderFieldInput(rowField, '')
+    expect(html).toContain('name="firstName"')
+    expect(html).toContain('name="lastName"')
+  })
+})
+
+describe('renderFieldInput — collapsible with formData', () => {
+  const collapsibleField = field.collapsible({
+    name: 'advanced',
+    label: 'Advanced',
+    fields: [
+      field.text({ name: 'cssClass' }),
+      field.text({ name: 'htmlId' })
+    ]
+  })
+
+  it('renders child inputs with values from formData', () => {
+    const formData = { cssClass: 'hero-section', htmlId: 'main-hero' }
+    const html = renderFieldInput(collapsibleField, '', undefined, undefined, formData)
+    expect(html).toContain('value="hero-section"')
+    expect(html).toContain('value="main-hero"')
+  })
+
+  it('renders empty child inputs when formData is not provided', () => {
+    const html = renderFieldInput(collapsibleField, '')
+    expect(html).toContain('name="cssClass"')
+    expect(html).toContain('name="htmlId"')
+  })
+})
