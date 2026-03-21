@@ -199,7 +199,7 @@ describe('createAdminRoutes()', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     expect(routes.has('/admin')).toBe(true)
     expect(routes.has('/admin/posts')).toBe(true)
     expect(routes.has('/admin/posts/new')).toBe(true)
@@ -209,7 +209,7 @@ describe('createAdminRoutes()', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/:id/edit')
     expect(entry).toBeDefined()
     expect(entry?.GET).toBeDefined()
@@ -222,7 +222,7 @@ describe('admin POST handlers', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/new')
     expect(entry?.POST).toBeDefined()
   })
@@ -402,7 +402,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '0' }], []])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -423,7 +423,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '0' }], []])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -443,7 +443,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '0' }], []])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -463,7 +463,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '5' }], [{ id: '1', title: 'Hello', slug: 'hello', published: 'true' }]])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -483,7 +483,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '0' }], []])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -503,7 +503,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },

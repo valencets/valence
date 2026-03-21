@@ -56,7 +56,7 @@ describe('admin bulk handler — route registration', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/bulk')
     expect(entry).toBeDefined()
     expect(entry?.POST).toBeDefined()
@@ -68,7 +68,7 @@ describe('admin bulk handler — CSRF validation', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('action=delete&ids=abc')
     const res = makeMockRes()
     await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
@@ -79,7 +79,7 @@ describe('admin bulk handler — CSRF validation', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('_csrf=invalid-token&action=delete&ids=abc')
     const res = makeMockRes()
     await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
@@ -92,7 +92,7 @@ describe('admin bulk handler — unknown action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', deleted_at: null }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=unknown&ids=abc`
     const req = makeMockReq(body)
@@ -107,7 +107,7 @@ describe('admin bulk handler — empty IDs', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=delete`
     const req = makeMockReq(body)
@@ -122,7 +122,7 @@ describe('admin bulk handler — delete action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', deleted_at: '2026-01-01' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=delete&ids=abc&ids=def`
     const req = makeMockReq(body)
@@ -135,7 +135,7 @@ describe('admin bulk handler — delete action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', deleted_at: '2026-01-01' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=delete&ids=abc`
     const req = makeMockReq(body)
@@ -151,7 +151,7 @@ describe('admin bulk handler — publish action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', _status: 'published' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=publish&ids=abc`
     const req = makeMockReq(body)
@@ -166,7 +166,7 @@ describe('admin bulk handler — unpublish action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', _status: 'draft' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=unpublish&ids=abc`
     const req = makeMockReq(body)
@@ -182,7 +182,7 @@ describe('admin bulk handler — list GET includes CSRF token', () => {
     registry.register(makePostsCollection())
     // Pool must return at least one doc to trigger renderTable (which contains the bulk form with CSRF)
     const pool = makeMockPool([{ id: '1', title: 'Test', slug: 'test' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const getReq = { headers: {}, url: '/admin/posts', method: 'GET' }
     let htmlBody = ''
     const getRes = {

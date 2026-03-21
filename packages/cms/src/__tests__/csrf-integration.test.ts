@@ -39,7 +39,7 @@ describe('admin CSRF protection', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts/new')?.POST
     const req = makeMockReq('title=Hello&slug=hello')
     const res = makeMockRes()
@@ -51,7 +51,7 @@ describe('admin CSRF protection', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts/new')?.GET
     const req = { headers: {}, url: '/admin/posts/new', method: 'GET' }
     let body = ''
