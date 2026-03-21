@@ -146,7 +146,7 @@ describe('StorageAdapter interface', () => {
         credentials: { accessKeyId: 'key', secretAccessKey: 'secret' },
         publicUrl: 'https://cdn.example.com'
       })
-      const url = adapter.getUrl('uploads/..secret')
+      const url = adapter.getUrl('uploads/../secret')
       expect(url).not.toContain('..')
     })
 

@@ -16,7 +16,8 @@ export interface S3AdapterOptions {
 }
 
 function buildKey (key: string, prefix: string | undefined): string {
-  const sanitized = key.replace(/\.\.\//g, '').replace(/\.\./g, '')
+  const segments = key.split('/').filter(s => s !== '..' && s !== '.')
+  const sanitized = segments.join('/')
   return prefix !== undefined && prefix !== '' ? `${prefix}/${sanitized}` : sanitized
 }
 
