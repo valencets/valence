@@ -240,7 +240,7 @@ describe('CMS CRUD integration tests', () => {
       await request.delete(`/api/posts/${id}`).expect(200)
 
       const listRes = await request.get('/api/posts').expect(200)
-      const found = (listRes.body as Array<{ id: string }>).find(p => p.id === id)
+      const found = (listRes.body.docs as Array<{ id: string }>).find(p => p.id === id)
       expect(found).toBeUndefined()
     })
 
