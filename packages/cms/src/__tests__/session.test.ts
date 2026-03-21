@@ -107,9 +107,9 @@ describe('buildSessionCookie()', () => {
     expect(cookie).not.toContain('Secure')
   })
 
-  it('includes SameSite=Strict', () => {
+  it('includes SameSite=Lax', () => {
     const cookie = buildSessionCookie('sess-123')
-    expect(cookie).toContain('SameSite=Strict')
+    expect(cookie).toContain('SameSite=Lax')
   })
 
   it('uses custom max age when provided', () => {

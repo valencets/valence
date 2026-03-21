@@ -55,7 +55,7 @@ describe('setFlashCookie', () => {
     const cookie = (res.setHeader as ReturnType<typeof vi.fn>).mock.calls[0][1] as string
     expect(cookie).toContain('Path=/admin')
     expect(cookie).toContain('HttpOnly')
-    expect(cookie).toContain('SameSite=Strict')
+    expect(cookie).toContain('SameSite=Lax')
     expect(cookie).toContain('Secure')
     expect(cookie).toContain('Max-Age=30')
   })

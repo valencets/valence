@@ -98,7 +98,7 @@ export const handlers = [
       { user: mockUser },
       {
         headers: {
-          'Set-Cookie': 'cms_session=mock-session-id; Path=/; HttpOnly; SameSite=Strict'
+          'Set-Cookie': 'cms_session=mock-session-id; Path=/; HttpOnly; SameSite=Lax'
         }
       }
     )
@@ -110,7 +110,7 @@ export const handlers = [
       { message: 'Logged out' },
       {
         headers: {
-          'Set-Cookie': 'cms_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+          'Set-Cookie': 'cms_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
         }
       }
     )
