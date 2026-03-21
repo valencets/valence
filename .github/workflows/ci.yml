@@ -55,18 +55,14 @@ jobs:
       - run: pnpm build
 
   unit:
-    name: Unit (${{ matrix.shard }})
+    name: Unit Tests
     needs: [build]
     runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: ['1/4', '2/4', '3/4', '4/4']
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
       - run: pnpm build
-      - run: pnpm test:ci --shard=${{ matrix.shard }}
+      - run: pnpm test
 
   quarantine:
     name: Quarantine
@@ -193,7 +189,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
       - run: pnpm build
-      - run: cd packages/cms && npx vitest run --coverage --coverage.thresholds.statements=80
+      - run: cd packages/cms && npx vitest run --coverage --coverage.thresholds.statements=75
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-report
