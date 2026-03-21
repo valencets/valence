@@ -123,7 +123,7 @@ export function createAdminRoutes (
   collections: CollectionRegistry,
   options: AdminOptions = {}
 ): Map<string, RestRouteEntry> {
-  const wrap = options.requireAuth
+  const wrap = options.requireAuth !== false
     ? (handler: AdminRouteHandler): AdminRouteHandler => wrapWithAuth(pool, handler)
     : (handler: AdminRouteHandler): AdminRouteHandler => handler
   const routes = new Map<string, RestRouteEntry>()

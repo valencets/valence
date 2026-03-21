@@ -116,7 +116,7 @@ describe('POST /admin/:slug/new/form-fields route', () => {
     const registry = createCollectionRegistry()
     registry.register(makeConditionalCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/articles/new/form-fields')
     expect(entry?.POST).toBeDefined()
   })
@@ -125,7 +125,7 @@ describe('POST /admin/:slug/new/form-fields route', () => {
     const registry = createCollectionRegistry()
     registry.register(makeSimpleCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/new/form-fields')
     expect(entry).toBeUndefined()
   })
@@ -134,7 +134,7 @@ describe('POST /admin/:slug/new/form-fields route', () => {
     const registry = createCollectionRegistry()
     registry.register(makeConditionalCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/articles/new/form-fields')?.POST
     const body = 'type=free'
     const req = {
@@ -162,7 +162,7 @@ describe('POST /admin/:slug/new/form-fields route', () => {
     const registry = createCollectionRegistry()
     registry.register(makeConditionalCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/articles/new/form-fields')?.POST
     const body = 'type=free'
     const req = {
@@ -189,7 +189,7 @@ describe('POST /admin/:slug/new/form-fields route', () => {
     const registry = createCollectionRegistry()
     registry.register(makeConditionalCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/articles/new/form-fields')?.POST
     const body = 'type=premium'
     const req = {
@@ -216,7 +216,7 @@ describe('POST /admin/:slug/new/form-fields route', () => {
     const registry = createCollectionRegistry()
     registry.register(makeConditionalCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/articles/new/form-fields')?.POST
     const body = 'type=premium'
     const req = {
@@ -246,7 +246,7 @@ describe('POST /admin/:slug/:id/form-fields route', () => {
     const registry = createCollectionRegistry()
     registry.register(makeConditionalCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/articles/:id/form-fields')
     expect(entry?.POST).toBeDefined()
   })
@@ -255,7 +255,7 @@ describe('POST /admin/:slug/:id/form-fields route', () => {
     const registry = createCollectionRegistry()
     registry.register(makeConditionalCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/articles/:id/form-fields')?.POST
     const body = 'type=free&premiumContent=hidden'
     const req = {
@@ -282,7 +282,7 @@ describe('POST /admin/:slug/:id/form-fields route', () => {
     const registry = createCollectionRegistry()
     registry.register(makeConditionalCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/articles/:id/form-fields')?.POST
     const body = 'type=premium'
     const req = {
