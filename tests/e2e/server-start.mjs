@@ -12,7 +12,7 @@ async function main () {
   // Lazy imports — compiled output must exist (pnpm build must run first)
   const { createPool, closePool } = await import('@valencets/db')
   const { collection, field, hashPassword } = await import('@valencets/cms')
-  const { createTestApp } = await import('./test-app.js')
+  const { createTestApp } = await import('../integration/test-app.js')
 
   const INIT_SQL = `
     CREATE EXTENSION IF NOT EXISTS "pgcrypto";
