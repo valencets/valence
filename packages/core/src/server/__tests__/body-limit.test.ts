@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createBodyLimitMiddleware } from '../body-limit.js'
 import type { RequestContext } from '../middleware-types.js'
+import { EventEmitter } from 'node:events'
 
 function stubReq (options?: { method?: string, contentType?: string, contentLength?: number }): IncomingMessage {
   const headers: Record<string, string> = {}
@@ -15,6 +16,32 @@ function stubReq (options?: { method?: string, contentType?: string, contentLeng
     method: options?.method ?? 'GET',
     headers
   } as unknown as IncomingMessage
+}
+
+function stubReqWithStream (options: { method?: string, contentType?: string, chunks: Buffer[] }): IncomingMessage {
+  const headers: Record<string, string> = {}
+  if (options.contentType !== undefined) {
+    headers['content-type'] = options.contentType
+  }
+  // No content-length header — simulates chunked transfer
+  const emitter = new EventEmitter()
+  const req = Object.assign(emitter, {
+    method: options.method ?? 'GET',
+    headers,
+    destroy: vi.fn(() => {
+      emitter.emit('close')
+    })
+  })
+
+  // Schedule chunks to be emitted after listeners are attached
+  queueMicrotask(() => {
+    for (const chunk of options.chunks) {
+      req.emit('data', chunk)
+    }
+    req.emit('end')
+  })
+
+  return req as unknown as IncomingMessage
 }
 
 function stubRes (): ServerResponse & { written: string, statusCode: number, headers: Record<string, string> } {
@@ -189,5 +216,70 @@ describe('createBodyLimitMiddleware', () => {
     )
 
     expect(res.statusCode).toBe(413)
+  })
+
+  it('rejects chunked POST without Content-Length when body exceeds limit', async () => {
+    const middleware = createBodyLimitMiddleware({ json: 100 })
+    const next = vi.fn(async () => {})
+    const res = stubRes()
+
+    // Simulate a chunked request with no Content-Length header
+    const req = stubReqWithStream({
+      method: 'POST',
+      contentType: 'application/json',
+      chunks: [Buffer.alloc(60, 'a'), Buffer.alloc(60, 'b')] // 120 bytes > 100 limit
+    })
+
+    await middleware(req, res, stubCtx(), next)
+
+    expect(res.statusCode).toBe(413)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('allows chunked POST without Content-Length when body is under limit', async () => {
+    const middleware = createBodyLimitMiddleware({ json: 200 })
+    const next = vi.fn(async () => {})
+    const res = stubRes()
+
+    const req = stubReqWithStream({
+      method: 'POST',
+      contentType: 'application/json',
+      chunks: [Buffer.alloc(50, 'a'), Buffer.alloc(50, 'b')] // 100 bytes < 200 limit
+    })
+
+    await middleware(req, res, stubCtx(), next)
+
+    expect(next).toHaveBeenCalledOnce()
+  })
+
+  it('rejects chunked PUT without Content-Length when body exceeds raw limit', async () => {
+    const middleware = createBodyLimitMiddleware({ raw: 50 })
+    const next = vi.fn(async () => {})
+    const res = stubRes()
+
+    const req = stubReqWithStream({
+      method: 'PUT',
+      contentType: 'application/octet-stream',
+      chunks: [Buffer.alloc(60, 'x')] // 60 bytes > 50 limit
+    })
+
+    await middleware(req, res, stubCtx(), next)
+
+    expect(res.statusCode).toBe(413)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('passes through chunked GET without Content-Length (not a body method)', async () => {
+    const middleware = createBodyLimitMiddleware({ json: 10 })
+    const next = vi.fn(async () => {})
+
+    const req = stubReqWithStream({
+      method: 'GET',
+      chunks: []
+    })
+
+    await middleware(req, stubRes(), stubCtx(), next)
+
+    expect(next).toHaveBeenCalledOnce()
   })
 })
