@@ -140,8 +140,8 @@ describe('CMS CRUD integration tests', () => {
 
       const res = await request.get('/api/posts').expect(200)
 
-      expect(res.body).toHaveLength(2)
-      expect(res.body[0].title).toBeDefined()
+      expect(res.body.docs).toHaveLength(2)
+      expect(res.body.docs[0].title).toBeDefined()
     })
 
     it('returns paginated results with page param', async () => {
@@ -160,16 +160,16 @@ describe('CMS CRUD integration tests', () => {
       await createPost({ title: 'Zebra', slug: 'zebra' })
       await createPost({ title: 'Apple', slug: 'apple' })
       const res = await request.get('/api/posts?sort=title&dir=asc').expect(200)
-      expect(res.body[0].title).toBe('Apple')
-      expect(res.body[1].title).toBe('Zebra')
+      expect(res.body.docs[0].title).toBe('Apple')
+      expect(res.body.docs[1].title).toBe('Zebra')
     })
 
     it('filters by field value', async () => {
       await createPost({ title: 'Draft', slug: 'draft', published: false })
       await createPost({ title: 'Published', slug: 'published', published: true })
       const res = await request.get('/api/posts?published=true').expect(200)
-      expect(res.body).toHaveLength(1)
-      expect(res.body[0].title).toBe('Published')
+      expect(res.body.docs).toHaveLength(1)
+      expect(res.body.docs[0].title).toBe('Published')
     })
 
     it('returns 400 for invalid sort field', async () => {
