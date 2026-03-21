@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createRestRoutes } from '../api/rest-api.js'
 import { createCollectionRegistry, createGlobalRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
@@ -7,12 +7,25 @@ import { makeMockPool, makeSequentialPool } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { PaginatedResult } from '../db/query-types.js'
 import type { DocumentRow } from '../db/query-builder.js'
+import { okAsync } from 'neverthrow'
+
+vi.mock('../auth/session.js', () => ({
+  validateSession: vi.fn()
+}))
+
+import { validateSession } from '../auth/session.js'
+
+const AUTH_COOKIE = 'cms_session=valid-session-id'
+
+beforeEach(() => {
+  vi.mocked(validateSession).mockReturnValue(okAsync('user-1'))
+})
 
 function makeMockReq (method: string, url: string, body: string = ''): IncomingMessage {
   const req = {
     method,
     url,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', cookie: AUTH_COOKIE },
     on: vi.fn((event: string, cb: (data?: Buffer) => void) => {
       if (event === 'data' && body) cb(Buffer.from(body))
       if (event === 'end') cb()
@@ -266,7 +279,7 @@ describe('PATCH /api/:collection/:id', () => {
     expect(handler).toBeDefined()
 
     const req = makeMockReq('PATCH', '/api/posts/abc-123', '{"title":"x"}')
-    req.headers = {}
+    req.headers = { cookie: AUTH_COOKIE }
     const res = makeMockRes()
     await handler!(req, res, { id: 'abc-123' })
     expect(res.writeHead).toHaveBeenCalledWith(415, expect.any(Object))

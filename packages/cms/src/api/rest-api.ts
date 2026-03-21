@@ -12,6 +12,9 @@ import type { DocumentRow } from '../db/query-builder.js'
 import type { CmsError } from '../schema/types.js'
 import { flattenFields } from '../schema/field-utils.js'
 import { isAuthEnabled, getAuthFields } from '../auth/auth-config.js'
+import { parseCookie } from '../auth/cookie.js'
+import { validateSession } from '../auth/session.js'
+import { resolveAccess } from '../access/access-resolver.js'
 
 export type RestRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
@@ -27,8 +30,20 @@ interface LocalizationParam {
   readonly locales: readonly { readonly code: string }[]
 }
 
+interface AuthenticatedUser {
+  readonly id: string
+}
+
+type Operation = 'read' | 'create' | 'update' | 'delete'
+
 const SYSTEM_COLUMNS = new Set(['id', 'created_at', 'updated_at', 'deleted_at'])
 const RESERVED_PARAMS = new Set(['search', 'sort', 'dir', 'page', 'limit', 'draft', 'publish', 'locale'])
+
+const BULK_ACTION_OPERATIONS: Readonly<Record<string, Operation>> = {
+  delete: 'delete',
+  publish: 'update',
+  unpublish: 'update'
+}
 
 function requireJsonContentType (req: IncomingMessage, res: ServerResponse): boolean {
   const ct = req.headers['content-type'] ?? ''
@@ -138,6 +153,51 @@ function validateLocale (
   return true
 }
 
+async function authenticateRequest (req: IncomingMessage, pool: DbPool): Promise<AuthenticatedUser | null> {
+  const cookieHeader = req.headers.cookie ?? ''
+  const sessionId = parseCookie(cookieHeader, 'cms_session')
+  if (!sessionId) return null
+  const result = await validateSession(sessionId, pool)
+  if (result.isErr()) return null
+  return { id: result.value }
+}
+
+async function checkAccess (
+  col: CollectionConfig,
+  operation: Operation,
+  user: AuthenticatedUser | null,
+  res: ServerResponse
+): Promise<boolean> {
+  const accessConfig = col.access
+  const accessFn = accessConfig?.[operation]
+
+  if (!accessFn) {
+    if (!user) {
+      sendErrorJson(res, 'Unauthorized', 401)
+      return false
+    }
+    return true
+  }
+
+  const result = await resolveAccess(accessFn, { req: undefined })
+  if (result.isErr()) {
+    sendErrorJson(res, 'Access check failed', 500)
+    return false
+  }
+
+  const access = result.value
+  if (access === false) {
+    if (!user) {
+      sendErrorJson(res, 'Unauthorized', 401)
+    } else {
+      sendErrorJson(res, 'Forbidden', 403)
+    }
+    return false
+  }
+
+  return true
+}
+
 export function createRestRoutes (
   pool: DbPool,
   collections: CollectionRegistry,
@@ -172,6 +232,8 @@ export function createRestRoutes (
 
     routes.set(`/api/${slug}`, {
       GET: async (req, res) => {
+        const user = await authenticateRequest(req, pool)
+        if (!await checkAccess(col, 'read', user, res)) return
         const url = req.url ?? `/${slug}`
         const parsed = parseQueryParams(url, col)
         if (!parsed.ok) {
@@ -202,6 +264,8 @@ export function createRestRoutes (
         )
       },
       POST: async (req, res) => {
+        const user = await authenticateRequest(req, pool)
+        if (!await checkAccess(col, 'create', user, res)) return
         if (!requireJsonContentType(req, res)) return
         const url = req.url ?? `/${slug}`
         const locale = parseLocaleFromUrl(url)
@@ -229,6 +293,8 @@ export function createRestRoutes (
 
     routes.set(`/api/${slug}/:id`, {
       GET: async (req, res) => {
+        const user = await authenticateRequest(req, pool)
+        if (!await checkAccess(col, 'read', user, res)) return
         const rawId = req.url?.split('/').pop() ?? ''
         const id = rawId.split('?')[0] ?? ''
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
@@ -239,6 +305,8 @@ export function createRestRoutes (
         )
       },
       PATCH: async (req, res) => {
+        const user = await authenticateRequest(req, pool)
+        if (!await checkAccess(col, 'update', user, res)) return
         if (!requireJsonContentType(req, res)) return
         const rawId = req.url?.split('/').pop() ?? ''
         const id = rawId.split('?')[0] ?? ''
@@ -273,6 +341,8 @@ export function createRestRoutes (
         )
       },
       DELETE: async (req, res) => {
+        const user = await authenticateRequest(req, pool)
+        if (!await checkAccess(col, 'delete', user, res)) return
         const rawId = req.url?.split('/').pop() ?? ''
         const id = rawId.split('?')[0] ?? ''
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
@@ -286,6 +356,8 @@ export function createRestRoutes (
 
     routes.set(`/api/${slug}/:id/unpublish`, {
       POST: async (req, res, ctx) => {
+        const user = await authenticateRequest(req, pool)
+        if (!await checkAccess(col, 'update', user, res)) return
         const id = ctx.id ?? ''
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
         const result = await api.unpublish({ collection: slug, id })
@@ -298,6 +370,7 @@ export function createRestRoutes (
 
     routes.set(`/api/${slug}/bulk`, {
       POST: async (req, res) => {
+        const user = await authenticateRequest(req, pool)
         if (!requireJsonContentType(req, res)) return
         const bodyResult = await safeReadBody(req)
         if (bodyResult.isErr()) { sendErrorJson(res, bodyResult.error.message, 400); return }
@@ -310,6 +383,11 @@ export function createRestRoutes (
 
         if (!action) { sendErrorJson(res, 'Missing action', 400); return }
         if (!ids || ids.length === 0) { sendErrorJson(res, 'ids must be a non-empty array', 400); return }
+
+        const operation = BULK_ACTION_OPERATIONS[action]
+        if (!operation) { sendErrorJson(res, `Unknown action: ${action}`, 400); return }
+
+        if (!await checkAccess(col, operation, user, res)) return
 
         const ACTIONS: Record<string, (id: string) => ResultAsync<DocumentRow, CmsError>> = {
           delete: (id) => api.delete({ collection: slug, id }),
