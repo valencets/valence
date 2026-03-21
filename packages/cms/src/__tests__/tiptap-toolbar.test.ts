@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { TOOLBAR_ACTIONS } from '../admin/editor/lexical-entry.js'
+import { TOOLBAR_ACTIONS } from '../admin/editor/tiptap-entry.js'
 
-describe('Lexical toolbar actions', () => {
+describe('Tiptap toolbar actions', () => {
   it('exports TOOLBAR_ACTIONS array', () => {
     expect(Array.isArray(TOOLBAR_ACTIONS)).toBe(true)
   })
