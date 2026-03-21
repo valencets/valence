@@ -19,5 +19,6 @@ export default {
   concurrency: 4,
   timeoutMS: 60_000,
   incremental: true,
+  ignoreStatic: true,
   incrementalFile: '.stryker-tmp/incremental.json'
 }
