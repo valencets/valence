@@ -293,7 +293,7 @@ jobs:
       - uses: ./.github/actions/setup-project
       - run: pnpm build
       - name: Start test server
-        run: nohup npx tsx tests/e2e/server-start.mjs > /tmp/lhci-server.log 2>&1 &
+        run: nohup node_modules/.bin/tsx tests/e2e/server-start.mjs > /tmp/lhci-server.log 2>&1 &
         env:
           PGHOST: localhost
           PGPORT: 5432
