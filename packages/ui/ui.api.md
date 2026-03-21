@@ -5,6 +5,9 @@
 ```ts
 
 // @public (undocumented)
+export const COMPONENT_REGISTRY: Readonly<Record<string, CustomElementConstructor>>;
+
+// @public (undocumented)
 export function createEntityStore(name: string): EntityStore;
 
 // @public
@@ -64,6 +67,9 @@ export interface LocaleSubscriber {
 
 // @public
 export function mergeTokenSheets(...sheets: ReadonlyArray<CSSStyleSheet>): CSSStyleSheet;
+
+// @public (undocumented)
+export function registerAll(): void;
 
 // @public (undocumented)
 export function resolveSpace(value: string | null): string;
