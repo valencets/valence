@@ -397,10 +397,15 @@ export function renderLayout (args: LayoutArgs): string {
       background: var(--val-color-bg-elevated);
       color: var(--val-color-text);
     }
+    .richtext-toolbar-btn--active {
+      background: var(--val-color-bg-elevated);
+      color: var(--val-color-text);
+      border-color: var(--val-color-border);
+    }
     .richtext-editor {
       min-height: 200px;
     }
-    .richtext-content {
+    .ProseMirror {
       min-height: 200px;
       padding: 0.75rem;
       background: var(--val-color-bg-muted);
@@ -410,26 +415,45 @@ export function renderLayout (args: LayoutArgs): string {
       line-height: var(--val-leading-normal);
       outline: none;
     }
-    .richtext-content:focus {
+    .ProseMirror:focus {
       box-shadow: inset 0 0 0 2px var(--val-color-border-focus);
     }
-    .richtext-content p { margin-bottom: 0.5rem; }
-    .richtext-content h2 { font-size: var(--val-text-xl); font-weight: var(--val-weight-bold); margin: 1rem 0 0.5rem; }
-    .richtext-content h3 { font-size: var(--val-text-lg); font-weight: var(--val-weight-semibold); margin: 0.75rem 0 0.5rem; }
-    .richtext-content ul, .richtext-content ol { padding-left: 1.5rem; margin-bottom: 0.5rem; }
-    .richtext-content blockquote {
+    .ProseMirror p { margin-bottom: 0.5rem; }
+    .ProseMirror h2 { font-size: var(--val-text-xl); font-weight: var(--val-weight-bold); margin: 1rem 0 0.5rem; }
+    .ProseMirror h3 { font-size: var(--val-text-lg); font-weight: var(--val-weight-semibold); margin: 0.75rem 0 0.5rem; }
+    .ProseMirror ul, .ProseMirror ol { padding-left: 1.5rem; margin-bottom: 0.5rem; }
+    .ProseMirror blockquote {
       border-left: 3px solid var(--val-color-border);
       padding-left: 0.75rem;
       color: var(--val-color-text-muted);
       margin: 0.5rem 0;
     }
-    .richtext-content a { color: var(--val-blue-400); text-decoration: underline; }
-    .richtext-content code {
+    .ProseMirror a { color: var(--val-blue-400); text-decoration: underline; }
+    .ProseMirror code {
       background: var(--val-color-bg-elevated);
       padding: 0.125rem 0.375rem;
       border-radius: var(--val-radius-sm);
       font-family: var(--val-font-mono);
       font-size: 0.85em;
+    }
+    .ProseMirror hr {
+      border: none;
+      border-top: 2px solid var(--val-color-border);
+      margin: 1rem 0;
+    }
+    .ProseMirror pre {
+      background: var(--val-color-bg-elevated);
+      padding: 0.75rem;
+      border-radius: var(--val-radius-md);
+      font-family: var(--val-font-mono);
+      font-size: 0.85em;
+      overflow-x: auto;
+      margin: 0.5rem 0;
+    }
+    .ProseMirror pre code {
+      background: none;
+      padding: 0;
+      border-radius: 0;
     }
     .form-json {
       min-height: 120px;
