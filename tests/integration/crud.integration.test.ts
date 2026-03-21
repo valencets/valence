@@ -11,6 +11,7 @@ const TEST_DB = 'valence_crud_integration_test'
 
 const postsCollection = collection({
   slug: 'posts',
+  access: { read: () => true, create: () => true, update: () => true, delete: () => true },
   timestamps: true,
   fields: [
     field.text({ name: 'title', required: true }),
