@@ -86,7 +86,8 @@ beforeAll(async () => {
   appWithoutAuth = await startTestApp({
     pool,
     collections: [usersCollection],
-    secret: 'test-secret'
+    secret: 'test-secret',
+    requireAuth: false
   })
   requestWithoutAuth = supertest.agent(appWithoutAuth.server)
 }, 30_000)
@@ -149,7 +150,7 @@ describe('requireAuth integration tests', () => {
     })
   })
 
-  describe('when requireAuth is not set', () => {
+  describe('when requireAuth is false', () => {
     it('GET /admin serves dashboard without session', async () => {
       const res = await requestWithoutAuth
         .get('/admin')

@@ -42,7 +42,7 @@ describe('admin delete route', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/:id/delete')
     expect(entry).toBeDefined()
     expect(entry?.POST).toBeDefined()
@@ -52,7 +52,7 @@ describe('admin delete route', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', deleted_at: '2026-01-01' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     // First get a valid CSRF token by hitting the new form
     const getReq = { headers: {}, url: '/admin/posts/new', method: 'GET' }
@@ -77,7 +77,7 @@ describe('admin delete route', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('_csrf=invalid-token')
     const res = makeMockRes()
     await routes.get('/admin/posts/:id/delete')!.POST!(req as never, res as never, { id: 'abc' })
@@ -88,7 +88,7 @@ describe('admin delete route', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     // Create a request that will fail body parsing - use a broken stream
     const req = {

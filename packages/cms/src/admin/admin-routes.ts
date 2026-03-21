@@ -124,7 +124,7 @@ export function createAdminRoutes (
   collections: CollectionRegistry,
   options: AdminOptions = {}
 ): Map<string, RestRouteEntry> {
-  const wrap = options.requireAuth
+  const wrap = options.requireAuth !== false
     ? (handler: AdminRouteHandler): AdminRouteHandler => wrapWithAuth(pool, handler)
     : (handler: AdminRouteHandler): AdminRouteHandler => handler
   const routes = new Map<string, RestRouteEntry>()
@@ -287,7 +287,8 @@ export function createAdminRoutes (
         return
       }
       loginLimiter.reset(ip)
-      res.setHeader('Set-Cookie', buildSessionCookie(sessionResult.value, sessionMaxAge))
+      const secure = !!(req.socket as { encrypted?: boolean }).encrypted
+      res.setHeader('Set-Cookie', buildSessionCookie(sessionResult.value, sessionMaxAge, secure))
       res.writeHead(302, { Location: '/admin' })
       res.end()
     }

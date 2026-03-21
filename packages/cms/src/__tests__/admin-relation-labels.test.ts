@@ -50,7 +50,7 @@ describe('relation dropdown — uses displayField from target collection', () =>
       ]
     ])
 
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts/:id/edit')?.GET
 
     const req = {
@@ -106,7 +106,7 @@ describe('relation dropdown — uses displayField from target collection', () =>
       ]
     ])
 
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts/:id/edit')?.GET
 
     const req = {
@@ -165,7 +165,7 @@ describe('relation dropdown — uses displayField from target collection', () =>
       ]
     ])
 
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/orders/:id/edit')?.GET
 
     const req = {
@@ -226,7 +226,7 @@ describe('relation dropdown — uses displayField from target collection', () =>
       ]
     ])
 
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/articles/new')?.GET
 
     const req = {

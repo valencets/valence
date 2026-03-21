@@ -55,7 +55,7 @@ describe('autosave endpoint route registration', () => {
     const registry = createCollectionRegistry()
     registry.register(makeVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/:id/autosave')
     expect(entry).toBeDefined()
     expect(entry?.POST).toBeDefined()
@@ -65,7 +65,7 @@ describe('autosave endpoint route registration', () => {
     const registry = createCollectionRegistry()
     registry.register(makeNonVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/pages/:id/autosave')
     expect(entry).toBeUndefined()
   })
@@ -76,7 +76,7 @@ describe('autosave endpoint POST handler', () => {
     const registry = createCollectionRegistry()
     registry.register(makeVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('_csrf=invalid&title=Hello')
     const res = makeMockRes()
     await routes.get('/admin/posts/:id/autosave')!.POST!(req as never, res as never, { id: 'abc' })
@@ -93,7 +93,7 @@ describe('autosave endpoint POST handler', () => {
       // For update query
       [{ id: 'abc', title: 'Updated Title', slug: 'updated', _status: 'draft' }]
     ])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     // Get a valid CSRF token
     const getReq = { headers: {}, url: '/admin/posts/abc/edit', method: 'GET' }
@@ -125,7 +125,7 @@ describe('autosave endpoint POST handler', () => {
     const registry = createCollectionRegistry()
     registry.register(makeVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('_csrf=invalid&title=Hello')
     const res = makeMockRes()
     await routes.get('/admin/posts/:id/autosave')!.POST!(req as never, res as never, { id: 'abc' })
@@ -140,7 +140,7 @@ describe('autosave endpoint POST handler', () => {
     const registry = createCollectionRegistry()
     registry.register(makeVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     const brokenReq = {
       headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: '' },
