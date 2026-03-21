@@ -12,7 +12,7 @@ async function main () {
   // Lazy imports — compiled output must exist (pnpm build must run first)
   const { createPool, closePool } = await import('@valencets/db')
   const { collection, field, hashPassword } = await import('@valencets/cms')
-  const { createTestApp } = await import('./test-app.js')
+  const { createTestApp } = await import('../integration/test-app.js')
 
   const INIT_SQL = `
     CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -60,7 +60,14 @@ async function main () {
   `
 
   // Provision fresh database
-  const adminSql = postgres({ database: 'postgres', max: 2 })
+  const adminSql = postgres({
+    host: process.env.PGHOST ?? 'localhost',
+    port: Number(process.env.PGPORT ?? 5432),
+    username: process.env.PGUSER ?? 'postgres',
+    password: process.env.PGPASSWORD ?? '',
+    database: 'postgres',
+    max: 2
+  })
   const existing = await adminSql`SELECT 1 FROM pg_database WHERE datname = ${TEST_DB}`
   if (existing.length > 0) {
     await adminSql`
@@ -76,7 +83,7 @@ async function main () {
     host: process.env.PGHOST ?? 'localhost',
     port: Number(process.env.PGPORT ?? 5432),
     database: TEST_DB,
-    username: process.env.PGUSER ?? '',
+    username: process.env.PGUSER ?? 'postgres',
     password: process.env.PGPASSWORD ?? '',
     max: 10,
     idle_timeout: 30,

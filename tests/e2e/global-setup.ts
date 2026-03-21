@@ -78,7 +78,7 @@ let app: TestApp | undefined
 
 async function globalSetup (): Promise<() => Promise<void>> {
   // Create test database
-  const adminSql = postgres({ database: 'postgres', max: 2 })
+  const adminSql = postgres({ host: process.env.PGHOST ?? 'localhost', port: Number(process.env.PGPORT ?? 5432), username: process.env.PGUSER ?? 'postgres', password: process.env.PGPASSWORD ?? '', database: 'postgres', max: 2 })
   const existing = await adminSql`SELECT 1 FROM pg_database WHERE datname = ${TEST_DB}`
   if (existing.length > 0) {
     await adminSql`
@@ -92,11 +92,11 @@ async function globalSetup (): Promise<() => Promise<void>> {
 
   // Create pool and initialize schema
   const pool = createPool({
-    host: 'localhost',
-    port: 5432,
+    host: process.env.PGHOST ?? 'localhost',
+    port: Number(process.env.PGPORT ?? 5432),
     database: TEST_DB,
-    username: '',
-    password: '',
+    username: process.env.PGUSER ?? 'postgres',
+    password: process.env.PGPASSWORD ?? '',
     max: 10,
     idle_timeout: 30,
     connect_timeout: 5
@@ -138,7 +138,7 @@ async function globalSetup (): Promise<() => Promise<void>> {
     if (app) await app.close()
     await closePool(pool)
 
-    const teardownSql = postgres({ database: 'postgres', max: 2 })
+    const teardownSql = postgres({ host: process.env.PGHOST ?? 'localhost', port: Number(process.env.PGPORT ?? 5432), username: process.env.PGUSER ?? 'postgres', password: process.env.PGPASSWORD ?? '', database: 'postgres', max: 2 })
     await teardownSql`
       SELECT pg_terminate_backend(pid) FROM pg_stat_activity
       WHERE datname = ${TEST_DB} AND pid <> pg_backend_pid()

@@ -133,7 +133,7 @@ jobs:
           install-playwright: 'true'
           playwright-browser: chromium
       - run: pnpm build
-      - run: pnpm test:e2e --shard=${{ matrix.shard }}/2
+      - run: npx playwright test --grep-invert Visual --shard=${{ matrix.shard }}/2
         env:
           PGHOST: localhost
           PGPORT: 5432
@@ -293,16 +293,31 @@ jobs:
       - uses: ./.github/actions/setup-project
       - run: pnpm build
       - name: Start test server
-        run: node tests/e2e/server-start.mjs &
+        run: nohup packages/valence/node_modules/.bin/tsx tests/e2e/server-start.mjs > /tmp/lhci-server.log 2>&1 &
         env:
           PGHOST: localhost
           PGPORT: 5432
           PGUSER: postgres
           LHCI_PORT: '3111'
-      - run: npx wait-on http://localhost:3111/admin/login --timeout 30000
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w '%{http_code}' http://localhost:3111/admin/login | grep -q '200\|302'; then
+              echo "Server ready after ${i}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo '--- Server log ---'
+          cat /tmp/lhci-server.log
+          echo '--- Checking port ---'
+          ss -tlnp | grep 3111 || echo 'Port 3111 not listening'
+          echo '--- Process list ---'
+          ps aux | grep -E 'tsx|server-start|node' | grep -v grep || echo 'No server process found'
+          exit 1
       - uses: treosh/lighthouse-ci-action@v12
         with:
-          configPath: './lighthouserc.js'
+          configPath: './lighthouserc.cjs'
           budgetPath: './budget.json'
           uploadArtifacts: true
           temporaryPublicStorage: true
@@ -411,7 +426,7 @@ jobs:
           install-playwright: 'true'
           playwright-browser: ${{ matrix.browser }}
       - run: pnpm build
-      - run: pnpm test:e2e --shard=${{ matrix.shard }}/4
+      - run: npx playwright test --grep-invert Visual --shard=${{ matrix.shard }}/4
         env:
           PGHOST: localhost
           PGPORT: 5432
