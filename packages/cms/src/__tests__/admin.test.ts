@@ -255,6 +255,38 @@ describe('admin auth protection', () => {
     await handler!(req as never, res as never, {})
     expect(res.writeHead).toHaveBeenCalledWith(302, { Location: '/admin/login' })
   })
+
+  it('default config (no requireAuth option) redirects unauthenticated requests to /admin/login', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry)
+    const handler = routes.get('/admin')?.GET
+    const req = { headers: {}, url: '/admin', method: 'GET' }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(302, { Location: '/admin/login' })
+  })
+
+  it('requireAuth: false allows unauthenticated access to admin routes', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
+    const handler = routes.get('/admin')?.GET
+    const req = { headers: {}, url: '/admin', method: 'GET' }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200)
+  })
 })
 
 describe('renderFieldInput() relation dropdown', () => {
