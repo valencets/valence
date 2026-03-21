@@ -294,7 +294,7 @@ jobs:
       - run: pnpm build
       - name: Start test server
         run: |
-          nohup npx tsx tests/e2e/server-start.mjs > /tmp/lhci-server.log 2>&1 &
+          nohup node --import tsx tests/e2e/server-start.mjs > /tmp/lhci-server.log 2>&1 &
           SERVER_PID=$!
           sleep 5
           if ! kill -0 $SERVER_PID 2>/dev/null; then
