@@ -29,6 +29,7 @@ import { getValidFieldNames, isAllowedField } from '../db/sql-sanitize.js'
 import type { PaginatedResult } from '../db/query-types.js'
 import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { readStringBody } from '../api/read-body.js'
+import { createRateLimiter } from '../auth/rate-limit.js'
 import { generateConditionalSchema, generateConditionalPartialSchema } from '../validation/zod-generator.js'
 import { setFlashCookie, readFlash, clearFlashCookie } from './flash.js'
 import { readFileSync } from 'node:fs'
@@ -133,6 +134,7 @@ export function createAdminRoutes (
   const api = createLocalApi(pool, collections, globals)
   const CSRF_TTL_MS = 3_600_000
   const csrfTokens = new Map<string, number>()
+  const loginLimiter = createRateLimiter({ maxAttempts: 5, windowMs: 900_000 })
 
   function evictExpiredTokens (): void {
     const now = Date.now()
@@ -235,6 +237,13 @@ export function createAdminRoutes (
         sendHtml(res, html, 403)
         return
       }
+      const ip = req.socket.remoteAddress ?? 'unknown'
+      if (!loginLimiter.check(ip)) {
+        const token = freshCsrfToken()
+        const html = renderLoginPage({ error: 'Too many login attempts. Please try again later.', csrfToken: token })
+        sendHtml(res, html, 429)
+        return
+      }
       const email = String(formData.email ?? '').trim()
       const password = String(formData.password ?? '')
       if (!email || !password) {
@@ -277,6 +286,7 @@ export function createAdminRoutes (
         sendHtml(res, html, 500)
         return
       }
+      loginLimiter.reset(ip)
       res.setHeader('Set-Cookie', buildSessionCookie(sessionResult.value, sessionMaxAge))
       res.writeHead(302, { Location: '/admin' })
       res.end()
