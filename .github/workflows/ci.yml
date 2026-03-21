@@ -239,9 +239,6 @@ jobs:
     name: Visual Regression
     needs: [unit]
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-
     services:
       postgres:
         image: postgres:16
@@ -260,34 +257,11 @@ jobs:
           install-playwright: 'true'
           playwright-browser: chromium
       - run: pnpm build
-      - name: Run visual tests
-        id: visual
-        run: pnpm test:visual
-        continue-on-error: true
+      - run: pnpm test:visual
         env:
           PGHOST: localhost
           PGPORT: 5432
           PGUSER: postgres
-
-      - name: Update snapshots if stale
-        if: steps.visual.outcome == 'failure'
-        run: npx playwright test tests/e2e/visual/ --update-snapshots=changed
-        env:
-          PGHOST: localhost
-          PGPORT: 5432
-          PGUSER: postgres
-
-      - name: Commit updated snapshots
-        if: steps.visual.outcome == 'failure'
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: 'chore: update visual regression baselines from CI [skip ci]'
-          file_pattern: 'tests/e2e/__snapshots__/**/*.png'
-          commit_options: '--no-verify'
-
-      - name: Fail if snapshots were stale
-        if: steps.visual.outcome == 'failure'
-        run: echo 'Visual snapshots were stale — updated and committed. Re-run CI.' && exit 1
 
       - uses: actions/upload-artifact@v4
         if: failure()
