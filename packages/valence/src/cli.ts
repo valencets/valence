@@ -587,7 +587,7 @@ async function runDev (): Promise<void> {
 
     // Trailing-slash redirect (301) — before any route matching
     const redirectTarget = stripTrailingSlash(req.url ?? '/')
-    if (redirectTarget !== null) {
+    if (redirectTarget !== null && redirectTarget.startsWith('/') && !redirectTarget.startsWith('//')) {
       res.writeHead(301, { Location: redirectTarget })
       res.end()
       return
@@ -823,7 +823,7 @@ export async function runStart (): Promise<void> {
 
     // Trailing-slash redirect (301) — before any route matching
     const redirectTarget = stripTrailingSlash(req.url ?? '/')
-    if (redirectTarget !== null) {
+    if (redirectTarget !== null && redirectTarget.startsWith('/') && !redirectTarget.startsWith('//')) {
       res.writeHead(301, { Location: redirectTarget })
       res.end()
       return

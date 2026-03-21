@@ -44,7 +44,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.pr.outputs.head_ref }}
+          ref: ${{ steps.pr.outputs.head_sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
@@ -74,3 +74,4 @@ jobs:
           commit_message: 'chore: update visual snapshots [skip ci]'
           file_pattern: 'tests/e2e/__snapshots__/**/*.png'
           branch: ${{ steps.pr.outputs.head_ref }}
+          push_options: ''
