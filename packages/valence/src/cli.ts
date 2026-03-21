@@ -18,7 +18,7 @@ import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loade
 import type { RouteHandler } from './define-config.js'
 import { resolveCustomRoute } from './route-matcher.js'
 import { generateCollectionRoutes, buildGeneratedRouteMap, buildUserRouteMap } from './route-generator.js'
-import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash } from '@valencets/core/server'
+import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash, setSecurityHeaders } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
@@ -585,6 +585,23 @@ async function runDev (): Promise<void> {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
     const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
+    // Global security headers — baseline for all responses
+    // Admin routes will override CSP with nonce-based policy via sendHtml()
+    setSecurityHeaders(res)
+
+    // Body-limit check for requests with Content-Length header
+    if (method === 'POST' || method === 'PATCH') {
+      const contentLength = req.headers['content-length']
+      if (contentLength !== undefined) {
+        const length = parseInt(contentLength, 10)
+        if (!Number.isNaN(length) && length > 10_485_760) {
+          res.writeHead(413, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Request entity too large' }))
+          return
+        }
+      }
+    }
+
     // Trailing-slash redirect (301) — before any route matching
     const redirectTarget = stripTrailingSlash(req.url ?? '/')
     if (redirectTarget !== null) {
@@ -817,9 +834,27 @@ export async function runStart (): Promise<void> {
 
   const cms = cmsResult.value
 
+  // eslint-disable-next-line complexity
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
     const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
+
+    // Global security headers — baseline for all responses
+    // Admin routes will override CSP with nonce-based policy via sendHtml()
+    setSecurityHeaders(res)
+
+    // Body-limit check for requests with Content-Length header
+    if (method === 'POST' || method === 'PATCH') {
+      const contentLength = req.headers['content-length']
+      if (contentLength !== undefined) {
+        const length = parseInt(contentLength, 10)
+        if (!Number.isNaN(length) && length > 10_485_760) {
+          res.writeHead(413, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Request entity too large' }))
+          return
+        }
+      }
+    }
 
     // Trailing-slash redirect (301) — before any route matching
     const redirectTarget = stripTrailingSlash(req.url ?? '/')

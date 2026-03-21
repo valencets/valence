@@ -120,6 +120,20 @@ export const ContentCategory: {
 export type ContentCategory = typeof ContentCategory[keyof typeof ContentCategory];
 
 // @public (undocumented)
+export interface CorsConfig {
+    // (undocumented)
+    readonly credentials?: boolean;
+    // (undocumented)
+    readonly headers?: readonly string[];
+    // (undocumented)
+    readonly maxAge?: number;
+    // (undocumented)
+    readonly methods?: readonly string[];
+    // (undocumented)
+    readonly origins: readonly string[];
+}
+
+// @public (undocumented)
 export function createAbortableFetch(fetchFn: typeof fetch): AbortableFetchHandle;
 
 // @public (undocumented)
@@ -127,6 +141,9 @@ export function createAuthGuard(options: AuthGuardOptions): Middleware;
 
 // @public (undocumented)
 export function createBodyLimitMiddleware(config?: BodyLimitConfig): Middleware;
+
+// @public (undocumented)
+export function createCorsMiddleware(config: CorsConfig): Middleware;
 
 // @public (undocumented)
 export function createCsrfMiddleware(): Middleware;
