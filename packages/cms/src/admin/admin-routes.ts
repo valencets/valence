@@ -287,7 +287,8 @@ export function createAdminRoutes (
         return
       }
       loginLimiter.reset(ip)
-      res.setHeader('Set-Cookie', buildSessionCookie(sessionResult.value, sessionMaxAge))
+      const secure = !!(req.socket as { encrypted?: boolean }).encrypted
+      res.setHeader('Set-Cookie', buildSessionCookie(sessionResult.value, sessionMaxAge, secure))
       res.writeHead(302, { Location: '/admin' })
       res.end()
     }
