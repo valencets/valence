@@ -108,6 +108,9 @@ importers:
       '@valencets/db':
         specifier: workspace:*
         version: link:../db
+      '@valencets/reactive':
+        specifier: workspace:*
+        version: link:../reactive
       '@valencets/telemetry':
         specifier: workspace:*
         version: link:../telemetry

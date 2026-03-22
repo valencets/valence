@@ -1,6 +1,41 @@
 // ThemeManager — singleton for programmatic theme switching via Constructable Stylesheets.
 // Follows the localeObserver pattern: components subscribe their shadow roots,
 // ThemeManager adopts the active token sheet into each.
+//
+// ## Token Override Cascade Rule
+//
+// ValElement tokens (--val-*) MUST be overridden via applyOverrides(), never via
+// document-level CSS selectors (e.g., `val-input { --val-color-border: transparent }`).
+//
+// Adopted stylesheets set :host {} rules inside shadow roots. These beat document-level
+// element selectors for CSS custom properties because :host is resolved within the
+// shadow tree's cascade context. Document-level overrides appear to work in dev tools
+// but are silently overridden by the adopted sheet on next theme update.
+//
+// Correct:
+//   themeManager.applyOverrides(createTokenSheet(`:host, :root {
+//     --val-color-border: transparent;
+//   }`))
+//
+// Wrong (will be overridden by adopted sheet):
+//   val-input { --val-color-border: transparent; }
+//
+// ## Token Contract
+//
+// Components consume these tokens (set via token sheets, not component source):
+//   Colors:    --val-color-primary, --val-color-primary-hover, --val-color-primary-text,
+//              --val-color-bg, --val-color-bg-elevated, --val-color-bg-muted,
+//              --val-color-text, --val-color-text-muted, --val-color-text-inverted,
+//              --val-color-border, --val-color-border-focus,
+//              --val-color-error, --val-color-success, --val-color-warning
+//   Layout:    --val-focus-ring, --val-radius-sm, --val-radius-md, --val-radius-lg,
+//              --val-shadow-sm, --val-shadow-md, --val-shadow-lg
+//   Spacing:   --val-space-0 through --val-space-24
+//   Typography: --val-font-sans, --val-font-mono, --val-text-xs through --val-text-5xl,
+//              --val-weight-normal, --val-weight-medium, --val-weight-semibold, --val-weight-bold,
+//              --val-leading-tight, --val-leading-normal, --val-leading-relaxed
+//   Animation: --val-duration-fast, --val-duration-normal, --val-duration-slow,
+//              --val-ease-in, --val-ease-out, --val-ease-in-out
 
 import { lightTokenSheet, darkTokenSheet, mergeTokenSheets } from './token-sheets.js'
 

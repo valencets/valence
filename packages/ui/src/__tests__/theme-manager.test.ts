@@ -129,6 +129,52 @@ describe('theme-manager', () => {
     })
   })
 
+  describe('dark theme adoption ordering', () => {
+    function createShadowRoot (): ShadowRoot {
+      const el = document.createElement('div')
+      document.body.appendChild(el)
+      return el.attachShadow({ mode: 'open' })
+    }
+
+    it('setTheme(Dark) BEFORE subscribe adopts dark sheet', () => {
+      themeManager.setTheme(ThemeMode.Dark)
+      const root = createShadowRoot()
+      themeManager.subscribe(root)
+      expect(root.adoptedStyleSheets).toContain(darkTokenSheet)
+      expect(root.adoptedStyleSheets).not.toContain(lightTokenSheet)
+    })
+
+    it('setTheme(Dark) AFTER subscribe updates existing shadow roots', () => {
+      const root = createShadowRoot()
+      themeManager.subscribe(root)
+      expect(root.adoptedStyleSheets).toContain(lightTokenSheet)
+      themeManager.setTheme(ThemeMode.Dark)
+      expect(root.adoptedStyleSheets).toContain(darkTokenSheet)
+      expect(root.adoptedStyleSheets).not.toContain(lightTokenSheet)
+    })
+
+    it('applyOverrides merges correctly with dark base sheet', () => {
+      themeManager.setTheme(ThemeMode.Dark)
+      const override = new CSSStyleSheet()
+      override.replaceSync(':host, :root { --val-color-primary: green; }')
+      themeManager.applyOverrides(override)
+      const active = themeManager.getActiveSheet()
+      expect(active).not.toBe(darkTokenSheet)
+      expect(active).not.toBe(lightTokenSheet)
+    })
+
+    it('multiple shadow roots all receive dark sheet on theme change', () => {
+      const roots = [createShadowRoot(), createShadowRoot(), createShadowRoot()]
+      for (const root of roots) {
+        themeManager.subscribe(root)
+      }
+      themeManager.setTheme(ThemeMode.Dark)
+      for (const root of roots) {
+        expect(root.adoptedStyleSheets).toContain(darkTokenSheet)
+      }
+    })
+  })
+
   describe('applyOverrides / clearOverrides', () => {
     it('applyOverrides merges override into active sheet', () => {
       const override = new CSSStyleSheet()

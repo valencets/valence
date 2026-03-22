@@ -37,6 +37,14 @@ template.innerHTML = `
   textarea::placeholder { color: var(--val-color-text-muted); }
   :host([aria-invalid="true"]) textarea { border-color: var(--val-color-error); }
   textarea:disabled { cursor: not-allowed; }
+  textarea:autofill,
+  textarea:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px var(--val-color-bg-elevated) inset;
+    box-shadow: 0 0 0 1000px var(--val-color-bg-elevated) inset;
+    -webkit-text-fill-color: var(--val-color-text);
+    caret-color: var(--val-color-text);
+    border-color: var(--val-color-border);
+  }
   :host([autoresize]) textarea { resize: none; overflow: hidden; }
 </style>
 <div class="wrapper">

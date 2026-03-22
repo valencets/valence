@@ -184,34 +184,54 @@ export function createAdminRoutes (
 
   const clientDistDir = resolve(fileURLToPath(new URL('..', import.meta.url)), 'client')
 
-  const safeReadAdminAsset = (filename: string): Result<string | null, null> => {
+  const ASSET_MIME: Readonly<Record<string, string>> = {
+    '.js': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.woff2': 'font/woff2'
+  }
+
+  const BINARY_EXTS = new Set(['.woff2'])
+
+  const safeReadAdminAsset = (filename: string, dir: string = clientDistDir): Result<string | Buffer | null, null> => {
     const safe = basename(filename)
-    if (!safe.endsWith('.js')) return ok(null)
+    const ext = safe.slice(safe.lastIndexOf('.'))
+    if (ASSET_MIME[ext] === undefined) return ok(null)
+    const encoding = BINARY_EXTS.has(ext) ? undefined : 'utf-8'
     return fromThrowable(
-      () => readFileSync(resolve(clientDistDir, safe), 'utf-8'),
+      () => readFileSync(resolve(dir, safe), encoding as BufferEncoding),
       () => null
     )()
   }
 
-  // Assets are served publicly — the admin JS must load before auth is checked
-  routes.set('/admin/_assets/:file', {
-    GET: (_req, res, ctx) => {
-      const file = ctx.file ?? ''
-      const result = safeReadAdminAsset(file)
-      if (result.isErr() || result.value === null) {
-        res.writeHead(404)
-        res.end('Not found')
-        return Promise.resolve()
-      }
-      const js = result.value
-      const isHashed = /-.{8}\.js$/.test(file)
-      res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
-      res.setHeader('Cache-Control', isHashed ? 'public, max-age=31536000, immutable' : 'public, no-cache')
-      res.setHeader('Content-Length', Buffer.byteLength(js))
-      res.writeHead(200)
-      res.end(js)
+  function serveAsset (res: ServerResponse, file: string, dir?: string): Promise<void> {
+    const result = safeReadAdminAsset(file, dir)
+    if (result.isErr() || result.value === null) {
+      res.writeHead(404)
+      res.end('Not found')
       return Promise.resolve()
     }
+    const content = result.value
+    const ext = file.slice(file.lastIndexOf('.'))
+    const mime = ASSET_MIME[ext] ?? 'application/octet-stream'
+    const isHashed = /-.{8}\.(js|css)$/.test(file)
+    res.setHeader('Content-Type', mime)
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Cache-Control', isHashed || BINARY_EXTS.has(ext) ? 'public, max-age=31536000, immutable' : 'public, no-cache')
+    res.setHeader('Content-Length', Buffer.byteLength(content))
+    res.writeHead(200)
+    res.end(content)
+    return Promise.resolve()
+  }
+
+  const fontsDir = resolve(fileURLToPath(new URL('.', import.meta.url)), 'fonts')
+
+  // Assets are served publicly — the admin JS/CSS must load before auth is checked
+  routes.set('/admin/_assets/:file', {
+    GET: (_req, res, ctx) => serveAsset(res, ctx.file ?? '')
+  })
+
+  routes.set('/admin/_assets/fonts/:file', {
+    GET: (_req, res, ctx) => serveAsset(res, ctx.file ?? '', fontsDir)
   })
   // --- Auth routes (no auth wrap) ---
   routes.set('/admin/login', {

@@ -9,3 +9,4 @@ export { renderLoginPage } from './login-view.js'
 export { renderAnalyticsView } from './analytics-view.js'
 
 export { renderRevisionList, renderRevisionDiff } from './revision-view.js'
+export { getAdminStyles, ADMIN_THEME_CSS } from './admin-styles.js'

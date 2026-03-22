@@ -1,9 +1,10 @@
 // @valencets/reactive — Core signal primitives.
 // TC39-aligned pull/push algorithm with Preact-style .value accessor.
 //
-// Convention: callbacks passed to effect(), computed(), batch(), untracked()
-// MUST NOT throw. Valence uses Result monads for error handling — thrown
-// exceptions in callbacks are caller bugs and result in undefined behavior.
+// INVARIANT: Callbacks passed to effect(), computed(), batch(), untracked()
+// MUST NOT throw. Valence uses Result monads for error handling — wrap
+// fallible operations in fromThrowable() or ResultAsync. A thrown exception
+// corrupts internal state (notify depth, pending sets) and is a caller bug.
 
 export interface SignalOptions<T> {
   readonly equals?: (prev: T, next: T) => boolean
@@ -31,7 +32,11 @@ export function batch<T> (fn: () => T): T {
   const result = fn()
   batchDepth--
   if (batchDepth === 0) {
-    flushQueue()
+    const queued = [...batchQueue]
+    batchQueue.clear()
+    for (const sub of queued) {
+      sub()
+    }
   }
   return result
 }
@@ -40,37 +45,47 @@ export function batch<T> (fn: () => T): T {
 // All notifications go through a single queue to avoid recursive snapshot allocations.
 // Subscribers are collected into the queue and flushed once per microtask or batch.
 
-let flushing = false
-let flushGuard = 0
-const MAX_FLUSH_CYCLES = 100
+let notifyDepth = 0
+const MAX_NOTIFY_DEPTH = 100
+let pendingNotify: Set<() => void> | null = null
 
 function enqueue (subscribers: Set<() => void>): void {
-  for (const fn of subscribers) {
-    batchQueue.add(fn)
-  }
-  if (batchDepth > 0 || flushing) return
-  flushQueue()
-}
-
-function flushQueue (): void {
-  flushing = true
-  while (batchQueue.size > 0) {
-    if (++flushGuard > MAX_FLUSH_CYCLES) {
-      flushGuard = 0
-      batchQueue.clear()
-      if (typeof console !== 'undefined') {
-        console.warn('@valencets/reactive: maximum flush cycles exceeded (possible infinite signal loop)')
-      }
-      break
+  if (batchDepth > 0) {
+    for (const fn of subscribers) {
+      batchQueue.add(fn)
     }
-    const queued = [...batchQueue]
-    batchQueue.clear()
-    for (const fn of queued) {
+    return
+  }
+  // If we're already inside a notify, collect into pending set (avoids snapshot allocation)
+  if (pendingNotify !== null) {
+    for (const fn of subscribers) {
+      pendingNotify.add(fn)
+    }
+    return
+  }
+  if (++notifyDepth > MAX_NOTIFY_DEPTH) {
+    notifyDepth = 0
+    if (typeof console !== 'undefined') {
+      console.warn('@valencets/reactive: maximum notify depth exceeded (possible infinite signal loop)')
+    }
+    return
+  }
+  // Process subscribers — new notifications during processing go to pendingNotify
+  pendingNotify = new Set()
+  const snapshot = [...subscribers]
+  for (const fn of snapshot) {
+    fn()
+  }
+  // Drain pending until empty
+  while (pendingNotify.size > 0) {
+    const next = [...pendingNotify]
+    pendingNotify.clear()
+    for (const fn of next) {
       fn()
     }
   }
-  flushGuard = 0
-  flushing = false
+  pendingNotify = null
+  notifyDepth--
 }
 
 // --- untracked() ---
@@ -176,10 +191,10 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
     const next = fn()
     currentScope = prevScope
     currentCleanups = prevCleanups
+    state = ComputedState.CLEAN
     if (hasValue && equals(value as T, next)) return
     value = next
     hasValue = true
-    state = ComputedState.CLEAN
   }
 
   function markDirty (): void {

@@ -1,0 +1,140 @@
+/* Kinetic Monolith — page-level CSS.
+ * Injected into <style> on admin pages for KM components outside shadow DOM.
+ * NO ValElement token overrides — those go in km-overrides.css.
+ */
+/* Self-hosted fonts — no external CDN dependency */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('/admin/_assets/fonts/inter-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 700 800;
+  font-display: swap;
+  src: url('/admin/_assets/fonts/manrope-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* :root tokens defined once in km-critical.css (inlined for first paint) */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+body {
+  background: var(--km-surface);
+  color: var(--km-on-surface);
+  font-family: var(--km-font-body);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: oklch(0.90 0.19 159.5);
+  color: #00391d;
+}
+
+/* FOUC prevention: hide unregistered custom elements until JS upgrades them */
+val-input:not(:defined),
+val-button:not(:defined),
+val-select:not(:defined),
+val-textarea:not(:defined) {
+  visibility: hidden;
+}
+
+/* --- Kinetic Background --- */
+.km-kinetic-bg {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 0% 0%, var(--km-surface-low) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, var(--km-surface) 0%, transparent 50%);
+  z-index: -2;
+}
+
+.km-glow {
+  position: fixed;
+  border-radius: 9999px;
+  filter: blur(120px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.km-glow-primary {
+  top: 5rem; right: 15%;
+  width: 400px; height: 400px;
+  background: oklch(0.90 0.19 159.5 / 0.05);
+}
+
+.km-glow-tertiary {
+  bottom: 5rem; left: 10%;
+  width: 300px; height: 300px;
+  background: oklch(0.89 0.06 264.05 / 0.05);
+}
+
+/* --- Accent Line --- */
+.km-accent-line {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 2px;
+  background: linear-gradient(to right, transparent, #1ce388, transparent);
+  opacity: 0.5;
+}
+
+/* --- Card (Level 2 surface) --- */
+.km-card {
+  position: relative;
+  background: var(--km-surface-container);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 25px 60px -10px oklch(0 0 0 / 0.6), 0 10px 20px -5px oklch(0 0 0 / 0.3);
+  overflow: hidden;
+}
+
+/* --- Labels (uppercase tracked) --- */
+.km-label {
+  font-family: var(--km-font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--km-on-surface-variant);
+}
+
+/* --- Error --- */
+.km-error {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: oklch(0.40 0.13 25.72 / 0.15);
+  border-left: 2px solid oklch(0.64 0.21 25.33);
+  color: oklch(0.81 0.10 19.57);
+  font-size: 0.875rem;
+}
+
+/* --- Button typography overrides (layout handled by block attribute) --- */
+val-button.km-gradient-btn {
+  --val-font-sans: var(--km-font-headline);
+  --val-weight-medium: 800;
+  --val-text-sm: 0.875rem;
+  --val-radius-md: 0.125rem;
+  --val-space-2: 1rem;
+  --val-space-4: 1rem;
+}
+
+/* --- Status Dot --- */
+.km-status-dot {
+  width: 6px; height: 6px;
+  border-radius: 9999px;
+  background: oklch(0.90 0.19 159.5);
+  animation: km-pulse 2s ease-in-out infinite;
+}
+
+@keyframes km-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

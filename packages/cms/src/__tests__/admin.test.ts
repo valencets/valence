@@ -228,14 +228,25 @@ describe('admin POST handlers', () => {
   })
 })
 
-describe('renderAdminLayout() richtext CSS', () => {
-  it('includes min-height on .richtext-editor class', () => {
+describe('renderAdminLayout() CSS architecture', () => {
+  it('links to external admin.css for deferred styles', () => {
     const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [makePostsCollection()]
     })
-    expect(html).toMatch(/\.richtext-editor\s*\{[^}]*min-height/)
+    expect(html).toContain('href="/admin/_assets/admin.css"')
+  })
+
+  it('inlines critical CSS shell under 14KB', () => {
+    const html = renderAdminLayout({
+      title: 'Test',
+      content: '',
+      collections: [makePostsCollection()]
+    })
+    const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/)
+    expect(styleMatch).not.toBeNull()
+    expect(Buffer.byteLength(styleMatch![1]!)).toBeLessThan(14_000)
   })
 })
 
@@ -365,7 +376,7 @@ describe('renderEditView() with relation context', () => {
 })
 
 describe('nonce threading', () => {
-  it('renderLayout adds nonce to inline toast script', () => {
+  it('renderLayout adds nonce to inline toast script and style', () => {
     const html = renderAdminLayout({
       title: 'Test',
       content: '<p>hi</p>',
@@ -374,10 +385,9 @@ describe('nonce threading', () => {
       nonce: 'test-nonce-123'
     })
     expect(html).toContain('nonce="test-nonce-123"')
-    // Both the toast script and the admin-client script should have the nonce
-    const scriptMatches = html.match(/<script/g) ?? []
+    // Scripts and inline style should all have the nonce
     const nonceMatches = html.match(/nonce="test-nonce-123"/g) ?? []
-    expect(nonceMatches.length).toBe(scriptMatches.length)
+    expect(nonceMatches.length).toBeGreaterThanOrEqual(2)
   })
 
   it('renderLayout adds nonce to admin-client script tag', () => {

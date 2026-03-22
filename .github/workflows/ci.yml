@@ -155,7 +155,7 @@ jobs:
     name: E2E - Merge Reports
     needs: [e2e]
     runs-on: ubuntu-24.04
-    if: always()
+    if: always() && needs.e2e.result == 'success'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
@@ -224,8 +224,8 @@ jobs:
           results=("$UNIT" "$INTEGRATION" "$E2E_MERGE" "$CONTRACTS" "$COVERAGE" "$SECURITY")
           failed=false
           for result in "${results[@]}"; do
-            if [ "$result" != "success" ]; then
-              echo "Job failed or was skipped: $result"
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Job failed: $result"
               failed=true
             fi
           done

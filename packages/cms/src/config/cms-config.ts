@@ -44,6 +44,7 @@ export interface CmsConfig {
   readonly telemetryPool?: DbPool | undefined
   readonly telemetrySiteId?: string | undefined
   readonly sessionMaxAge?: number | undefined
+  /** Raw HTML strings injected into admin &lt;head&gt;. Trusted developer config — MUST NOT contain user input. */
   readonly headTags?: readonly string[] | undefined
   readonly localization?: LocalizationConfig | undefined
 }

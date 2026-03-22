@@ -188,11 +188,11 @@ const DARK_SEMANTIC_CSS =
   --val-focus-ring: 0 0 0 2px var(--val-color-bg), 0 0 0 4px var(--val-color-border-focus);
 }`
 
-/** Light theme tokens — primitives + light semantic overrides as :root {} CSS. */
-export const LIGHT_TOKENS_CSS = ':root {\n' + PRIMITIVES_CSS + LIGHT_SEMANTIC_CSS + '\n}\n'
+/** Light theme tokens — :host scopes to shadow roots, :root to document level. */
+export const LIGHT_TOKENS_CSS = ':host, :root {\n' + PRIMITIVES_CSS + LIGHT_SEMANTIC_CSS + '\n}\n'
 
-/** Dark theme tokens — primitives + dark semantic overrides as :root {} CSS. */
-export const DARK_TOKENS_CSS = ':root {\n' + PRIMITIVES_CSS + DARK_SEMANTIC_CSS + '\n}\n'
+/** Dark theme tokens — :host scopes to shadow roots, :root to document level. */
+export const DARK_TOKENS_CSS = ':host, :root {\n' + PRIMITIVES_CSS + DARK_SEMANTIC_CSS + '\n}\n'
 
 /** Pre-built light token sheet singleton. */
 export const lightTokenSheet: CSSStyleSheet = createTokenSheet(LIGHT_TOKENS_CSS)

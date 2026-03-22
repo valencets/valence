@@ -14,7 +14,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc && rm -f dist/admin-client.js && esbuild src/admin/editor/admin-client.ts --bundle --format=esm --splitting --outdir=dist/client --minify --conditions=production",
+    "build": "tsc && cp -r src/admin/styles dist/admin/styles && cp -r src/admin/fonts dist/admin/fonts && node dist/admin/build-css.js && rm -f dist/admin-client.js && esbuild src/admin/editor/admin-client.ts --bundle --format=esm --splitting --outdir=dist/client --minify --loader:.css=text",
     "test": "vitest run",
     "build:dev": "tsc && esbuild src/admin/editor/admin-client.ts --bundle --format=esm --splitting --outdir=dist/client"
   },
@@ -32,6 +32,7 @@
     "@valencets/core": "workspace:*",
     "@valencets/db": "workspace:*",
     "@valencets/telemetry": "workspace:*",
+    "@valencets/reactive": "workspace:*",
     "@valencets/ui": "workspace:*",
     "argon2": "^0.44.0",
     "neverthrow": "^8.2.0",

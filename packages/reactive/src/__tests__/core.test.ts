@@ -362,6 +362,38 @@ describe('computed conditional deps (C2 fix)', () => {
   })
 })
 
+describe('multi-signal computed propagation', () => {
+  it('propagates to effect when second signal changes after first', () => {
+    const a = signal('')
+    const b = signal('')
+    const both = computed(() => a.value.length > 0 && b.value.length > 0)
+    let result = false
+    effect(() => { result = both.value })
+    expect(result).toBe(false)
+
+    a.value = 'x'
+    expect(result).toBe(false) // correct — b is still empty
+
+    b.value = 'y'
+    expect(result).toBe(true) // BUG: effect must re-run
+  })
+
+  it('propagates when short-circuit condition changes', () => {
+    const a = signal(0)
+    const b = signal(0)
+    const sum = computed(() => a.value > 0 ? a.value + b.value : 0)
+    let observed = -1
+    effect(() => { observed = sum.value })
+    expect(observed).toBe(0)
+
+    a.value = 10
+    expect(observed).toBe(10) // b is 0, so 10 + 0
+
+    b.value = 5
+    expect(observed).toBe(15) // 10 + 5
+  })
+})
+
 describe('disposal edge cases', () => {
   it('double dispose is safe', () => {
     const s = signal(0)

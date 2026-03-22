@@ -134,7 +134,6 @@ export interface CmsConfig {
     readonly db: DbPool;
     // (undocumented)
     readonly globals?: readonly GlobalConfig[] | undefined;
-    // (undocumented)
     readonly headTags?: readonly string[] | undefined;
     // (undocumented)
     readonly localization?: LocalizationConfig | undefined;

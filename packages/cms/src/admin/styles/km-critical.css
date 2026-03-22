@@ -1,0 +1,119 @@
+/* Kinetic Monolith — critical CSS shell.
+ * Inlined in <style> for first paint. Must stay under 14KB total delivery.
+ * Contains: KM tokens, reset, body, sidebar/main layout, FOUC prevention.
+ */
+:root {
+  --km-surface: #131313;
+  --km-surface-dim: #0e0e0e;
+  --km-surface-low: #1c1b1b;
+  --km-surface-container: #201f1f;
+  --km-surface-high: #2a2a2a;
+  --km-surface-highest: #353534;
+  --km-surface-bright: #3a3939;
+  --km-surface-tint: #1ce388;
+  --km-on-surface: #e5e2e1;
+  --km-on-surface-variant: #bacbbc;
+  --km-outline-variant: #3c4a3f;
+  --km-font-headline: 'Manrope', system-ui, sans-serif;
+  --km-font-body: 'Inter', system-ui, sans-serif;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Base */
+body {
+  font-family: var(--km-font-body);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--km-on-surface);
+  background: var(--km-surface);
+  display: flex;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: oklch(0.90 0.19 159.5); text-decoration: none; }
+a:hover { color: var(--km-on-surface); }
+
+/* FOUC prevention */
+val-input:not(:defined),
+val-button:not(:defined),
+val-select:not(:defined),
+val-textarea:not(:defined) {
+  visibility: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--km-surface-low);
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sidebar-brand {
+  font-family: var(--km-font-headline);
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--km-on-surface);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+.sidebar-brand:hover { color: oklch(0.90 0.19 159.5); }
+
+.sidebar ul { list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
+
+.nav-group-heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--km-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 0.75rem 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.sidebar a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  color: var(--km-on-surface-variant);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 100ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar a:hover {
+  background: var(--km-surface-container);
+  color: var(--km-on-surface);
+}
+
+/* Main */
+.main {
+  flex: 1;
+  padding: 2rem 2.5rem;
+  min-width: 0;
+}
+
+.main > h1 {
+  font-family: var(--km-font-headline);
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  body { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    padding: 1rem;
+  }
+  .sidebar ul { flex-direction: row; flex-wrap: wrap; gap: 0.5rem; }
+  .main { padding: 1.5rem 1rem; }
+}

@@ -27,6 +27,14 @@ describe('token-sheets', () => {
       expect(LIGHT_TOKENS_CSS.length).toBeGreaterThan(0)
       expect(LIGHT_TOKENS_CSS).toContain('--val-color-bg')
     })
+
+    it('uses :host selector for shadow DOM scoping', () => {
+      expect(LIGHT_TOKENS_CSS).toMatch(/^:host/)
+    })
+
+    it('uses both :host and :root selectors', () => {
+      expect(LIGHT_TOKENS_CSS).toMatch(/^:host,\s*:root\s*\{/)
+    })
   })
 
   describe('DARK_TOKENS_CSS', () => {
@@ -34,6 +42,14 @@ describe('token-sheets', () => {
       expect(typeof DARK_TOKENS_CSS).toBe('string')
       expect(DARK_TOKENS_CSS.length).toBeGreaterThan(0)
       expect(DARK_TOKENS_CSS).toContain('--val-color-bg')
+    })
+
+    it('uses :host selector for shadow DOM scoping', () => {
+      expect(DARK_TOKENS_CSS).toMatch(/^:host/)
+    })
+
+    it('uses both :host and :root selectors', () => {
+      expect(DARK_TOKENS_CSS).toMatch(/^:host,\s*:root\s*\{/)
     })
   })
 
