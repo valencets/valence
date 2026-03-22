@@ -17,6 +17,38 @@ export interface ReadonlySignal<T> {
   peek (): T
 }
 
+// --- Batching ---
+
+let batchDepth = 0
+const batchQueue = new Set<() => void>()
+
+export function batch<T> (fn: () => T): T {
+  batchDepth++
+  const result = fn()
+  batchDepth--
+  if (batchDepth === 0) {
+    const snapshot = [...batchQueue]
+    batchQueue.clear()
+    for (const sub of snapshot) {
+      sub()
+    }
+  }
+  return result
+}
+
+function notify (subscribers: Set<() => void>): void {
+  const snapshot = [...subscribers]
+  if (batchDepth > 0) {
+    for (const fn of snapshot) {
+      batchQueue.add(fn)
+    }
+  } else {
+    for (const fn of snapshot) {
+      fn()
+    }
+  }
+}
+
 // --- Tracking scope ---
 
 let currentScope: (() => void) | null = null
@@ -109,10 +141,7 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
   function markDirty (): void {
     if (state === DIRTY) return
     state = DIRTY
-    const snapshot = [...subscribers]
-    for (const sub of snapshot) {
-      sub()
-    }
+    notify(subscribers)
   }
 
   const obj: ReadonlySignal<T> = {
@@ -161,11 +190,7 @@ export function signal<T> (initialValue: T, options?: SignalOptions<T>): Signal<
     set value (next: T) {
       if (equals(value, next)) return
       value = next
-      // Snapshot to avoid infinite loop from concurrent add/delete during iteration
-      const snapshot = [...subscribers]
-      for (const fn of snapshot) {
-        fn()
-      }
+      notify(subscribers)
     },
 
     peek (): T {
