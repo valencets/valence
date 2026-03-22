@@ -228,18 +228,27 @@ function txAsPool (tx: { unsafe: DbPool['sql']['unsafe'] }): DbPool {
   return { sql: tx as DbPool['sql'] }
 }
 
+/** Typed error wrapper for CmsError — avoids banned `as CmsError` cast in mapTxError. */
+class CmsTxError extends Error {
+  readonly cmsError: CmsError
+  constructor (cmsError: CmsError) {
+    super(cmsError.message)
+    this.cmsError = cmsError
+  }
+}
+
 /** Unwrap a ResultAsync inside a transaction — throws on Err to trigger rollback. */
 async function unwrapTx<T> (result: ResultAsync<T, CmsError>): Promise<T> {
   return result.match(
     (d) => d,
     // eslint-disable-next-line no-restricted-syntax -- intentional throw to trigger transaction rollback
-    (e) => { throw Object.assign(new Error(e.message), { cmsError: e }) }
+    (e) => { throw new CmsTxError(e) }
   )
 }
 
 /** Map a thrown error back to CmsError, preserving cmsError if set by unwrapTx. */
 function mapTxError (e: unknown): CmsError {
-  if (e instanceof Error && 'cmsError' in e) return e.cmsError as CmsError
+  if (e instanceof CmsTxError) return e.cmsError
   return { code: CmsErrorCode.INTERNAL, message: e instanceof Error ? e.message : 'Transaction failed' }
 }
 
@@ -525,8 +534,16 @@ export function createLocalApi (
       const setClauses = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ')
       const params = Object.values(args.data)
       const table = `"global_${args.slug}"`
-      return safeQuery<DocumentRow[]>(pool, `UPDATE ${table} SET ${setClauses} WHERE "deleted_at" IS NULL RETURNING *`, params)
-        .map(rows => rows[0] as DocumentRow)
+      return ResultAsync.fromPromise(
+        pool.sql.begin(async (tx) => {
+          const txPool = txAsPool(tx)
+          const rows = await unwrapTx(
+            safeQuery<DocumentRow[]>(txPool, `UPDATE ${table} SET ${setClauses} WHERE "deleted_at" IS NULL RETURNING *`, params)
+          )
+          return rows[0] as DocumentRow
+        }),
+        mapTxError
+      )
     },
 
     unpublish (args) {
@@ -535,21 +552,31 @@ export function createLocalApi (
 
       const unpublishData: DocumentData = { _status: StatusCode.DRAFT }
 
-      if (col.value.hooks) {
-        return executeWithHooks(
-          col.value.hooks.beforeUnpublish,
-          col.value.hooks.afterUnpublish,
-          unpublishData,
-          args.id,
-          args.collection,
-          (finalData) => qb.query(args.collection).where('id', args.id).includeDrafts().update(finalData)
-        )
-      }
+      return ResultAsync.fromPromise(
+        pool.sql.begin(async (tx) => {
+          const txPool = txAsPool(tx)
+          const txQb = createQueryBuilder(txPool, collections, defaultLocale)
 
-      return qb.query(args.collection)
-        .where('id', args.id)
-        .includeDrafts()
-        .update(unpublishData)
+          if (col.value.hooks) {
+            return unwrapTx(executeWithHooks(
+              col.value.hooks.beforeUnpublish,
+              col.value.hooks.afterUnpublish,
+              unpublishData,
+              args.id,
+              args.collection,
+              (finalData) => txQb.query(args.collection).where('id', args.id).includeDrafts().update(finalData)
+            ))
+          }
+
+          return unwrapTx(
+            txQb.query(args.collection)
+              .where('id', args.id)
+              .includeDrafts()
+              .update(unpublishData)
+          )
+        }),
+        mapTxError
+      )
     }
   }
 }

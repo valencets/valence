@@ -1,5 +1,5 @@
 import postgres from 'postgres'
-import type { Sql, TransactionSql } from 'postgres'
+import type { Sql } from 'postgres'
 import { ok, err, ResultAsync } from 'neverthrow'
 import type { Result } from 'neverthrow'
 import { z } from 'zod'
@@ -57,16 +57,6 @@ export function createPool (config: DbConfig): DbPool {
     : postgres(base)
 
   return { sql }
-}
-
-export function withTransaction<T> (pool: DbPool, fn: (tx: TransactionSql) => Promise<T>): ResultAsync<T, DbError> {
-  return ResultAsync.fromPromise(
-    pool.sql.begin(async (tx) => fn(tx)) as Promise<T>,
-    (e): DbError => ({
-      code: DbErrorCode.QUERY_FAILED,
-      message: e instanceof Error ? e.message : 'Transaction failed'
-    })
-  )
 }
 
 export function closePool (pool: DbPool): ResultAsync<void, DbError> {

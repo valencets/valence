@@ -1,6 +1,6 @@
 export { DbErrorCode } from './types.js'
 export type { DbError, DbConfig } from './types.js'
-export { validateDbConfig, createPool, closePool, mapPostgresError, withTransaction } from './connection.js'
+export { validateDbConfig, createPool, closePool, mapPostgresError } from './connection.js'
 export type { DbPool } from './connection.js'
 export { loadMigrations, runMigrations, getMigrationStatus, parseMigrationFilename, sortMigrations, validateMigrations } from './migration-runner.js'
 export type { MigrationFile } from './migration-runner.js'
