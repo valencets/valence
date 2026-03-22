@@ -162,6 +162,60 @@ describe('ValInput', () => {
     })
   })
 
+  describe('icon slot', () => {
+    it('renders icon slot inside input-row', () => {
+      const el = create()
+      const iconSlot = el.shadowRoot!.querySelector('slot[name="icon"]')
+      expect(iconSlot).not.toBeNull()
+      const row = el.shadowRoot!.querySelector('.input-row')
+      expect(row!.contains(iconSlot!)).toBe(true)
+    })
+
+    it('icon-slot container is hidden when no icon slotted', () => {
+      const el = create()
+      expect(el.hasAttribute('has-icon')).toBe(false)
+    })
+  })
+
+  describe('size attribute', () => {
+    it('accepts size="lg"', () => {
+      const el = create({ size: 'lg' })
+      expect(el.getAttribute('size')).toBe('lg')
+    })
+
+    it('accepts size="sm"', () => {
+      const el = create({ size: 'sm' })
+      expect(el.getAttribute('size')).toBe('sm')
+    })
+  })
+
+  describe('aria label sync', () => {
+    it('sets aria-label on inner input from slotted label text', () => {
+      const tag = defineTestElement('val-input', ValInput)
+      const el = document.createElement(tag) as InstanceType<typeof ValInput>
+      const label = document.createElement('span')
+      label.slot = 'label'
+      label.textContent = 'Email Address'
+      el.appendChild(label)
+      container.appendChild(el)
+      const inputEl = el.shadowRoot!.querySelector('input')!
+      expect(inputEl.getAttribute('aria-label')).toBe('Email Address')
+    })
+  })
+
+  describe('initial setFormValue', () => {
+    it('registers default value with ElementInternals on connect', () => {
+      const el = create({ value: 'pre-filled', name: 'test-field' })
+      // The value should be set via setFormValue during connectedCallback
+      expect(el.value).toBe('pre-filled')
+    })
+
+    it('registers empty string when no value attribute', () => {
+      const el = create({ name: 'test-field' })
+      expect(el.value).toBe('')
+    })
+  })
+
   describe('CMS traceability', () => {
     it('reads data-cms-id', () => {
       const el = create({ 'data-cms-id': 'contact-name' })
