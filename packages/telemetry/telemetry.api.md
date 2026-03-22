@@ -98,14 +98,14 @@ export interface CategoryCount {
     readonly dom_target: string;
 }
 
-// @public
-export const CONVERSION_CATEGORIES: readonly ["INTENT_LEAD", "INTENT_CALL", "INTENT_BOOK", "LEAD_PHONE", "LEAD_EMAIL", "LEAD_FORM"];
-
 // @public (undocumented)
 export function cleanupOldEvents(pool: DbPool, retentionDays?: number): ResultAsync<number, DbError>;
 
 // @public (undocumented)
 export function cleanupOldSessions(pool: DbPool, retentionDays?: number): ResultAsync<number, DbError>;
+
+// @public
+export const CONVERSION_CATEGORIES: readonly ["INTENT_LEAD", "INTENT_CALL", "INTENT_BOOK", "LEAD_PHONE", "LEAD_EMAIL", "LEAD_FORM"];
 
 // @public (undocumented)
 export interface ConversionSummaryRow {
