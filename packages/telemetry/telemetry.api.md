@@ -99,6 +99,12 @@ export interface CategoryCount {
 }
 
 // @public (undocumented)
+export function cleanupOldEvents(pool: DbPool, retentionDays?: number): ResultAsync<number, DbError>;
+
+// @public (undocumented)
+export function cleanupOldSessions(pool: DbPool, retentionDays?: number): ResultAsync<number, DbError>;
+
+// @public (undocumented)
 export interface ConversionSummaryRow {
     // (undocumented)
     readonly created_at: Date;
