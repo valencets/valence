@@ -13,10 +13,6 @@ interface NavigatorWithGPC extends Navigator {
   readonly globalPrivacyControl?: boolean
 }
 
-interface WindowWithConsent extends Window {
-  __valence_telemetry_consent?: boolean
-}
-
 export function shouldTrack (): boolean {
   // Check Do Not Track
   if (navigator.doNotTrack === '1') return false
@@ -25,7 +21,8 @@ export function shouldTrack (): boolean {
   if ((navigator as NavigatorWithGPC).globalPrivacyControl === true) return false
 
   // Check developer opt-out flag
-  if ((globalThis as unknown as WindowWithConsent).__valence_telemetry_consent === false) return false
+  if ('__valence_telemetry_consent' in globalThis &&
+      (globalThis as { __valence_telemetry_consent?: boolean }).__valence_telemetry_consent === false) return false
 
   return true
 }
