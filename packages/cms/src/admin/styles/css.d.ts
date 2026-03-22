@@ -4,5 +4,5 @@
 // rule applies to our own TypeScript modules, not build tool declarations.
 declare module '*.css' {
   const content: string
-  export default content
+  export default content // eslint-disable-line no-restricted-syntax -- esbuild text loader emits default exports
 }
