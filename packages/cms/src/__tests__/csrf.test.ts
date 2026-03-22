@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
+import { generateCsrfToken, validateCsrfToken } from '../auth/index.js'
 
 describe('generateCsrfToken()', () => {
   it('returns a 64-char hex string', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderToast } from '../admin/toast.js'
-import { renderLayout } from '../admin/layout.js'
+import { renderAdminLayout } from '../admin/layout.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 
@@ -36,7 +36,7 @@ describe('renderToast()', () => {
   })
 })
 
-describe('renderLayout() with toast', () => {
+describe('renderAdminLayout() with toast', () => {
   const col = collection({
     slug: 'posts',
     labels: { singular: 'Post', plural: 'Posts' },
@@ -44,7 +44,7 @@ describe('renderLayout() with toast', () => {
   })
 
   it('renders toast when provided', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '<p>hi</p>',
       collections: [col],
@@ -55,7 +55,7 @@ describe('renderLayout() with toast', () => {
   })
 
   it('includes auto-dismiss script when toast is present', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [col],
@@ -66,7 +66,7 @@ describe('renderLayout() with toast', () => {
   })
 
   it('does not include toast or script when no toast', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [col]
@@ -78,7 +78,7 @@ describe('renderLayout() with toast', () => {
   })
 
   it('includes toast CSS', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [col]

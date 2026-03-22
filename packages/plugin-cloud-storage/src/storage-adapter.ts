@@ -4,7 +4,7 @@ export interface StorageError {
   readonly message: string
 }
 
-export interface StorageAdapter {
+export interface CloudStorageAdapter {
   upload(key: string, buffer: Buffer, contentType?: string): ResultAsync<string, StorageError>
   delete(key: string): ResultAsync<void, StorageError>
   getUrl(key: string): string
