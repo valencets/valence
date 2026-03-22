@@ -525,6 +525,11 @@ async function runDev (): Promise<void> {
 
   const cms = cmsResult.value
 
+  // Fire plugin onInit hooks
+  for (const hooks of cms.pluginHooks) {
+    if (hooks.onInit) await hooks.onInit(cms)
+  }
+
   // Learn mode setup
   const learnProgress = await readLearnProgress(projectDir)
   const learnActive = learnProgress !== null && learnProgress.enabled
@@ -766,7 +771,12 @@ async function runDev (): Promise<void> {
   // User-defined routes with loaders/actions
   const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
 
-  server.listen(port, () => {
+  server.listen(port, async () => {
+    // Fire plugin onReady hooks
+    for (const hooks of cms.pluginHooks) {
+      if (hooks.onReady) await hooks.onReady(cms)
+    }
+
     console.log(`
   Valence dev server running.
 
@@ -847,6 +857,11 @@ export async function runStart (): Promise<void> {
   }
 
   const cms = cmsResult.value
+
+  // Fire plugin onInit hooks
+  for (const hooks of cms.pluginHooks) {
+    if (hooks.onInit) await hooks.onInit(cms)
+  }
 
   // eslint-disable-next-line complexity
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -981,7 +996,12 @@ export async function runStart (): Promise<void> {
   // User-defined routes with loaders/actions
   const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
 
-  server.listen(port, () => {
+  server.listen(port, async () => {
+    // Fire plugin onReady hooks
+    for (const hooks of cms.pluginHooks) {
+      if (hooks.onReady) await hooks.onReady(cms)
+    }
+
     console.log(`
   Valence server running.
 

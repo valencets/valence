@@ -5,7 +5,7 @@ import type { CollectionConfig } from '../schema/collection.js'
 import type { GlobalConfig } from '../schema/global.js'
 import type { CollectionRegistry, GlobalRegistry } from '../schema/registry.js'
 import type { LocalApi } from '../api/local-api.js'
-import type { Plugin } from './plugin.js'
+import type { Plugin, PluginHooks } from './plugin.js'
 import type { CmsError } from '../schema/types.js'
 import { CmsErrorCode } from '../schema/types.js'
 import type { RestRouteEntry } from '../api/rest-api.js'
@@ -51,12 +51,18 @@ export interface CmsInstance {
   readonly globals: GlobalRegistry
   readonly restRoutes: Map<string, RestRouteEntry>
   readonly adminRoutes: Map<string, RestRouteEntry>
+  readonly pluginHooks: readonly PluginHooks[]
 }
 
 export function buildCms (inputConfig: CmsConfig): Result<CmsInstance, CmsError> {
-  const config = inputConfig.plugins
-    ? inputConfig.plugins.reduce<CmsConfig>((cfg, plugin) => plugin(cfg), inputConfig)
-    : inputConfig
+  const plugins = inputConfig.plugins ?? []
+  const pluginHooks: PluginHooks[] = []
+
+  const config = plugins.reduce<CmsConfig>((cfg, plugin) => {
+    if (typeof plugin === 'function') return plugin(cfg)
+    if (plugin.hooks) pluginHooks.push(plugin.hooks)
+    return plugin.transform(cfg)
+  }, inputConfig)
 
   if (config.localization) {
     if (config.localization.locales.length === 0) {
@@ -115,6 +121,7 @@ export function buildCms (inputConfig: CmsConfig): Result<CmsInstance, CmsError>
     collections,
     globals,
     restRoutes,
-    adminRoutes
+    adminRoutes,
+    pluginHooks
   })
 }

@@ -187,6 +187,8 @@ export interface CmsInstance {
     // (undocumented)
     readonly globals: GlobalRegistry;
     // (undocumented)
+    readonly pluginHooks: readonly PluginHooks[];
+    // (undocumented)
     readonly restRoutes: Map<string, RestRouteEntry>;
 }
 
@@ -855,8 +857,26 @@ export interface PasswordFieldConfig extends FieldBaseConfig {
 }
 
 // @public (undocumented)
-type Plugin_2 = (config: CmsConfig) => CmsConfig;
+type Plugin_2 = ((config: CmsConfig) => CmsConfig) | PluginObject;
 export { Plugin_2 as Plugin }
+
+// @public (undocumented)
+export interface PluginHooks {
+    // (undocumented)
+    readonly onInit?: (cms: CmsInstance) => void | Promise<void>;
+    // (undocumented)
+    readonly onReady?: (cms: CmsInstance) => void | Promise<void>;
+}
+
+// @public (undocumented)
+export interface PluginObject {
+    // (undocumented)
+    readonly hooks?: PluginHooks | undefined;
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly transform: (config: CmsConfig) => CmsConfig;
+}
 
 // @public (undocumented)
 export const PREVIEW_MESSAGE_TYPE: "valence:preview-update";

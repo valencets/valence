@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { buildCms } from '../config/cms-config.js'
 import type { CmsConfig } from '../config/cms-config.js'
-import type { Plugin } from '../config/plugin.js'
+import type { Plugin, PluginObject } from '../config/plugin.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 import { global } from '../schema/global.js'
@@ -105,6 +105,112 @@ describe('buildCms()', () => {
     const cms = result._unsafeUnwrap()
     expect(cms.collections.has('posts')).toBe(true)
     expect(cms.collections.has('pages')).toBe(true)
+  })
+
+  it('accepts object plugins with name and transform', () => {
+    const plugin: PluginObject = {
+      name: 'add-pages',
+      transform: (cfg) => ({
+        ...cfg,
+        collections: [
+          ...cfg.collections,
+          collection({ slug: 'pages', fields: [field.text({ name: 'title' })] })
+        ]
+      })
+    }
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      collections: [
+        collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
+      ],
+      plugins: [plugin]
+    }
+    const result = buildCms(config)
+    expect(result.isOk()).toBe(true)
+    const cms = result._unsafeUnwrap()
+    expect(cms.collections.has('posts')).toBe(true)
+    expect(cms.collections.has('pages')).toBe(true)
+  })
+
+  it('mixes function and object plugins in order', () => {
+    const calls: string[] = []
+    const fnPlugin: Plugin = (cfg) => { calls.push('fn'); return cfg }
+    const objPlugin: PluginObject = {
+      name: 'obj-plugin',
+      transform: (cfg) => { calls.push('obj'); return cfg }
+    }
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      collections: [],
+      plugins: [fnPlugin, objPlugin]
+    }
+    buildCms(config)
+    expect(calls).toEqual(['fn', 'obj'])
+  })
+
+  it('collects hooks from object plugins', () => {
+    const onInit = vi.fn()
+    const onReady = vi.fn()
+    const plugin: PluginObject = {
+      name: 'lifecycle-plugin',
+      transform: (cfg) => cfg,
+      hooks: { onInit, onReady }
+    }
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      collections: [],
+      plugins: [plugin]
+    }
+    const cms = buildCms(config)._unsafeUnwrap()
+    expect(cms.pluginHooks).toHaveLength(1)
+    expect(cms.pluginHooks[0]?.onInit).toBe(onInit)
+    expect(cms.pluginHooks[0]?.onReady).toBe(onReady)
+  })
+
+  it('skips hooks for object plugins without hooks', () => {
+    const plugin: PluginObject = {
+      name: 'no-hooks',
+      transform: (cfg) => cfg
+    }
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      collections: [],
+      plugins: [plugin]
+    }
+    const cms = buildCms(config)._unsafeUnwrap()
+    expect(cms.pluginHooks).toHaveLength(0)
+  })
+
+  it('returns empty pluginHooks when no plugins configured', () => {
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      collections: []
+    }
+    const cms = buildCms(config)._unsafeUnwrap()
+    expect(cms.pluginHooks).toHaveLength(0)
+  })
+
+  it('collects hooks from multiple object plugins in order', () => {
+    const hooks1 = { onInit: vi.fn() }
+    const hooks2 = { onReady: vi.fn() }
+    const plugin1: PluginObject = { name: 'p1', transform: (cfg) => cfg, hooks: hooks1 }
+    const plugin2: PluginObject = { name: 'p2', transform: (cfg) => cfg, hooks: hooks2 }
+    const fnPlugin: Plugin = (cfg) => cfg
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      collections: [],
+      plugins: [plugin1, fnPlugin, plugin2]
+    }
+    const cms = buildCms(config)._unsafeUnwrap()
+    expect(cms.pluginHooks).toHaveLength(2)
+    expect(cms.pluginHooks[0]?.onInit).toBe(hooks1.onInit)
+    expect(cms.pluginHooks[1]?.onReady).toBe(hooks2.onReady)
   })
 })
 
