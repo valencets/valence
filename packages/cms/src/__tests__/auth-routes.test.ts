@@ -6,6 +6,7 @@ import { field } from '../schema/fields.js'
 import { makeMockPool, asReq, asRes } from './test-helpers.js'
 import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import * as passwordModule from '../auth/password.js'
 
 function makeMockReq (method: string, cookie: string | undefined, body: string = '', encrypted = false): IncomingMessage {
   const req: MockIncomingMessage = {
@@ -182,5 +183,22 @@ describe('resolveDisplayField()', () => {
     }))
     const result = resolveDisplayField(registry)
     expect(result).toMatch(/^[a-zA-Z][a-zA-Z0-9_-]*$/)
+  })
+})
+
+describe('POST /api/users/login timing-safe user enumeration (NEW-06)', () => {
+  it('calls verifyPassword even when user is not found', async () => {
+    const verifySpy = vi.spyOn(passwordModule, 'verifyPassword')
+    const registry = createCollectionRegistry()
+    const pool = makeMockPool([])
+    const routes = createAuthRoutes(pool, registry)
+    const handler = routes.get('/api/users/login')?.POST
+    const body = JSON.stringify({ email: 'nonexistent@test.com', password: 'password123' })
+    const req = makeMockReq('POST', undefined, body)
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(verifySpy).toHaveBeenCalledWith('password123', expect.stringContaining('$argon2id$'))
+    expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object))
+    verifySpy.mockRestore()
   })
 })

@@ -36,33 +36,55 @@ describe('createSession()', () => {
 describe('validateSession()', () => {
   it('returns Ok with user id for valid session', async () => {
     const pool = makeMockPool([{ id: 'session-abc', user_id: 'user-1', expires_at: '2099-01-01T00:00:00Z' }])
-    const result = await validateSession('session-abc', pool)
+    const result = await validateSession('a0a0a0a0-b1b1-c2c2-d3d3-e4e4e4e4e4e4', pool)
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toBe('user-1')
   })
 
   it('queries cms_sessions table with session id', async () => {
     const pool = makeMockPool([{ id: 's1', user_id: 'u1', expires_at: '2099-01-01' }])
-    await validateSession('s1', pool)
+    await validateSession('a0a0a0a0-b1b1-c2c2-d3d3-e4e4e4e4e4e4', pool)
     const call = (pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls[0]
     expect(call?.[0]).toContain('cms_sessions')
     expect(call?.[0]).toContain('expires_at > NOW()')
     expect(call?.[0]).toContain('deleted_at IS NULL')
-    expect(call?.[1]).toContain('s1')
+    expect(call?.[1]).toContain('a0a0a0a0-b1b1-c2c2-d3d3-e4e4e4e4e4e4')
   })
 
   it('returns Err NOT_FOUND for expired/missing session', async () => {
     const pool = makeMockPool([])
-    const result = await validateSession('nonexistent', pool)
+    const result = await validateSession('00000000-0000-0000-0000-000000000000', pool)
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr().code).toBe('NOT_FOUND')
   })
 
   it('returns Err NOT_FOUND message includes session context', async () => {
     const pool = makeMockPool([])
-    const result = await validateSession('bad-id', pool)
+    const result = await validateSession('00000000-0000-0000-0000-000000000001', pool)
     const err = result._unsafeUnwrapErr()
     expect(err.message).toContain('Session')
+  })
+
+  it('rejects non-UUID session IDs without querying DB (AUTH-01)', async () => {
+    const pool = makeMockPool([])
+    const result = await validateSession('not-a-uuid', pool)
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().code).toBe('NOT_FOUND')
+    expect(result._unsafeUnwrapErr().message).toContain('Invalid session ID format')
+    expect(pool.sql.unsafe).not.toHaveBeenCalled()
+  })
+
+  it('rejects SQL injection attempts in session ID (AUTH-01)', async () => {
+    const pool = makeMockPool([])
+    const result = await validateSession("'; DROP TABLE cms_sessions; --", pool)
+    expect(result.isErr()).toBe(true)
+    expect(pool.sql.unsafe).not.toHaveBeenCalled()
+  })
+
+  it('accepts uppercase UUID format (AUTH-01)', async () => {
+    const pool = makeMockPool([{ id: 's1', user_id: 'u1', expires_at: '2099-01-01' }])
+    const result = await validateSession('A0A0A0A0-B1B1-C2C2-D3D3-E4E4E4E4E4E4', pool)
+    expect(result.isOk()).toBe(true)
   })
 })
 

@@ -83,7 +83,12 @@ export function createAuthRoutes (
       const userResult = await queryUser(pool, email, safeDisplayCol)
       if (userResult.isErr()) { sendErrorJson(res, 'Login failed', 401); return }
       const user = userResult.value
-      if (!user) { sendErrorJson(res, 'Invalid credentials', 401); return }
+      if (!user) {
+        // Prevent timing-based user enumeration (NEW-06)
+        await verifyPassword(password, '$argon2id$v=19$m=65536,t=3,p=4$dummysalt$dummyhash')
+        sendErrorJson(res, 'Invalid credentials', 401)
+        return
+      }
 
       const verifyResult = await verifyPassword(password, user.password_hash)
       if (verifyResult.isErr() || !verifyResult.value) {

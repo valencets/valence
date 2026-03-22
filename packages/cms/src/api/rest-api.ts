@@ -382,6 +382,12 @@ export function createRestRoutes (
         if (!action) { sendErrorJson(res, 'Missing action', 400); return }
         if (!ids || ids.length === 0) { sendErrorJson(res, 'ids must be a non-empty array', 400); return }
 
+        // Validate bulk ID count and format (API-02)
+        const MAX_BULK_IDS = 100
+        if (ids.length > MAX_BULK_IDS) { sendErrorJson(res, `Maximum ${MAX_BULK_IDS} items per bulk operation`, 400); return }
+        const invalidIds = ids.filter(id => typeof id !== 'string' || id.length > 36)
+        if (invalidIds.length > 0) { sendErrorJson(res, 'Invalid ID format', 400); return }
+
         const operation = BULK_ACTION_OPERATIONS[action]
         if (!operation) { sendErrorJson(res, `Unknown action: ${action}`, 400); return }
 
