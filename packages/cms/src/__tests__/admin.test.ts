@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { renderLayout } from '../admin/layout.js'
+import { renderAdminLayout } from '../admin/layout.js'
 import { renderDashboard } from '../admin/dashboard.js'
 import { renderListView } from '../admin/list-view.js'
 import { renderEditView } from '../admin/edit-view.js'
@@ -40,9 +40,9 @@ function makePostsCollection (): CollectionConfig {
   })
 }
 
-describe('renderLayout()', () => {
+describe('renderAdminLayout()', () => {
   it('returns HTML string with sidebar and main content', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Dashboard',
       content: '<p>Hello</p>',
       collections: [makePostsCollection()]
@@ -54,7 +54,7 @@ describe('renderLayout()', () => {
   })
 
   it('includes navigation links for each collection', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [makePostsCollection()]
@@ -228,9 +228,9 @@ describe('admin POST handlers', () => {
   })
 })
 
-describe('renderLayout() richtext CSS', () => {
+describe('renderAdminLayout() richtext CSS', () => {
   it('includes min-height on .richtext-editor class', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [makePostsCollection()]
@@ -365,8 +365,8 @@ describe('renderEditView() with relation context', () => {
 })
 
 describe('nonce threading', () => {
-  it('renderLayout adds nonce to inline toast script', () => {
-    const html = renderLayout({
+  it('renderAdminLayout adds nonce to inline toast script', () => {
+    const html = renderAdminLayout({
       title: 'Test',
       content: '<p>hi</p>',
       collections: [makePostsCollection()],
@@ -380,8 +380,8 @@ describe('nonce threading', () => {
     expect(nonceMatches.length).toBe(scriptMatches.length)
   })
 
-  it('renderLayout adds nonce to admin-client script tag', () => {
-    const html = renderLayout({
+  it('renderAdminLayout adds nonce to admin-client script tag', () => {
+    const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [],
@@ -520,9 +520,9 @@ describe('admin GET /admin/:slug query param wiring', () => {
   })
 })
 
-describe('renderLayout() logout button', () => {
+describe('renderAdminLayout() logout button', () => {
   it('includes a logout form with POST method and /admin/logout action', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Dashboard',
       content: '',
       collections: [makePostsCollection()]
@@ -532,7 +532,7 @@ describe('renderLayout() logout button', () => {
   })
 
   it('includes logout label text', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Dashboard',
       content: '',
       collections: [makePostsCollection()]

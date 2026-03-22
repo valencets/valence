@@ -9,7 +9,7 @@ import type { RestRouteEntry } from '../api/rest-api.js'
 import type { DocumentData, DocumentRow } from '../db/query-builder.js'
 import type { FlashMessage } from './flash.js'
 import type { CollectionConfig } from '../schema/collection.js'
-import { renderLayout } from './layout.js'
+import { renderAdminLayout } from './layout.js'
 import { renderDashboard } from './dashboard.js'
 import { renderListView } from './list-view.js'
 import type { ListViewPagination } from './list-view.js'
@@ -116,7 +116,7 @@ function renderErrorPage (
     ? formData as FormSnapshot & { id?: string }
     : null
   const content = renderEditView(col, docRow, csrfToken, relationContext)
-  return renderLayout({ title, content, collections: allCollections, toast })
+  return renderAdminLayout({ title, content, collections: allCollections, toast })
 }
 
 export function createAdminRoutes (
@@ -311,7 +311,7 @@ export function createAdminRoutes (
     GET: wrap(async (_req, res) => {
       if (!options.telemetryPool) {
         const content = renderAnalyticsView(null)
-        const html = renderLayout({ title: 'Analytics', content, collections: allCollections, headTags })
+        const html = renderAdminLayout({ title: 'Analytics', content, collections: allCollections, headTags })
         sendHtml(res, html)
         return
       }
@@ -350,7 +350,7 @@ export function createAdminRoutes (
       )
       const analyticsData = analyticsResult.isOk() ? analyticsResult.value : null
       const analyticsContent = analyticsData === null ? renderAnalyticsView(null) : renderAnalyticsView(analyticsData)
-      const analyticsHtml = renderLayout({ title: 'Analytics', content: analyticsContent, collections: allCollections, headTags })
+      const analyticsHtml = renderAdminLayout({ title: 'Analytics', content: analyticsContent, collections: allCollections, headTags })
       sendHtml(res, analyticsHtml)
     })
   })
@@ -375,7 +375,7 @@ export function createAdminRoutes (
       })
       const stats = await Promise.all(statsPromises)
       const content = renderDashboard({ stats })
-      const html = renderLayout({ title: 'Dashboard', content, collections: allCollections, headTags })
+      const html = renderAdminLayout({ title: 'Dashboard', content, collections: allCollections, headTags })
       sendHtml(res, html)
     })
   })
@@ -460,7 +460,7 @@ export function createAdminRoutes (
           filters: Object.keys(filters).length > 0 ? filters : undefined,
           csrfToken: listCsrfToken
         })
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: col.labels?.plural ?? col.slug,
           content,
           collections: allCollections,
@@ -476,7 +476,7 @@ export function createAdminRoutes (
         const token = freshCsrfToken()
         const relationContext = await buildRelationContext(col)
         const content = renderEditView(col, null, token, relationContext)
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: `New ${col.labels?.singular ?? col.slug}`,
           content,
           collections: allCollections,
@@ -647,7 +647,7 @@ export function createAdminRoutes (
         const token = freshCsrfToken()
         const relationContext = await buildRelationContext(col)
         const content = renderEditView(col, doc, token, relationContext)
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: `Edit ${col.labels?.singular ?? col.slug}`,
           content,
           collections: allCollections,
@@ -707,7 +707,7 @@ export function createAdminRoutes (
         const result = await getRevisions(pool, col.slug, id)
         const revisions = result.match(rows => rows, () => [])
         const content = renderRevisionList(col.slug, id, revisions)
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: `History — ${col.labels?.singular ?? col.slug}`,
           content,
           collections: allCollections,
@@ -730,7 +730,7 @@ export function createAdminRoutes (
         const oldData = prev?.data ?? {}
         const newData = current?.data ?? {}
         const content = renderRevisionDiff(col.slug, id, rev, oldData, newData)
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: `Revision ${rev} — ${col.labels?.singular ?? col.slug}`,
           content,
           collections: allCollections,

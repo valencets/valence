@@ -905,6 +905,11 @@ export interface RelationFieldConfig extends FieldBaseConfig {
     readonly type: 'relation';
 }
 
+// Warning: (ae-forgotten-export) The symbol "LayoutArgs" needs to be exported by the entry point index.d.ts
+//
+// @public (undocumented)
+export function renderAdminLayout(args: LayoutArgs): string;
+
 // Warning: (ae-forgotten-export) The symbol "AnalyticsData" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
@@ -926,11 +931,6 @@ export function renderEditView(col: CollectionConfig, doc: DocRow | null, csrfTo
 //
 // @public (undocumented)
 export function renderFieldInput(f: FieldConfig, value: string, context?: RelationContext, uploadContext?: UploadContext, formData?: Record<string, string>): string;
-
-// Warning: (ae-forgotten-export) The symbol "LayoutArgs" needs to be exported by the entry point index.d.ts
-//
-// @public (undocumented)
-export function renderLayout(args: LayoutArgs): string;
 
 // Warning: (ae-forgotten-export) The symbol "ListViewArgs" needs to be exported by the entry point index.d.ts
 //
@@ -1028,10 +1028,10 @@ export interface SelectOption {
 }
 
 // @public (undocumented)
-export function sendErrorJson(res: ServerResponse, message: string, statusCode: number): void;
+export function sendApiJson(res: ServerResponse, data: DocumentData | readonly DocumentData[], statusCode?: number): void;
 
 // @public (undocumented)
-export function sendJson(res: ServerResponse, data: DocumentData | readonly DocumentData[], statusCode?: number): void;
+export function sendErrorJson(res: ServerResponse, message: string, statusCode: number): void;
 
 // @public (undocumented)
 export interface SessionError {

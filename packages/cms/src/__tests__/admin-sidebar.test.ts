@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { collection } from '../schema/collection.js'
 import type { AdminConfig } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { renderLayout } from '../admin/layout.js'
+import { renderAdminLayout } from '../admin/layout.js'
 import { renderDashboard } from '../admin/dashboard.js'
 import type { DashboardData } from '../admin/dashboard.js'
 
@@ -79,7 +79,7 @@ describe('sidebar rendering', () => {
         admin: { group: 'Content' }
       })
     ]
-    const html = renderLayout({ title: 'Test', content: '', collections })
+    const html = renderAdminLayout({ title: 'Test', content: '', collections })
     expect(html).toContain('nav-group-heading')
     expect(html).toContain('Content')
     const contentHeadingIdx = html.indexOf('Content</li>')
@@ -101,7 +101,7 @@ describe('sidebar rendering', () => {
         admin: { hidden: true }
       })
     ]
-    const html = renderLayout({ title: 'Test', content: '', collections })
+    const html = renderAdminLayout({ title: 'Test', content: '', collections })
     expect(html).toContain('/admin/posts')
     expect(html).not.toContain('/admin/internal')
   })
@@ -124,7 +124,7 @@ describe('sidebar rendering', () => {
         admin: { position: 2 }
       })
     ]
-    const html = renderLayout({ title: 'Test', content: '', collections })
+    const html = renderAdminLayout({ title: 'Test', content: '', collections })
     const alphaIdx = html.indexOf('/admin/alpha')
     const middleIdx = html.indexOf('/admin/middle')
     const zebraIdx = html.indexOf('/admin/zebra')
@@ -144,7 +144,7 @@ describe('sidebar rendering', () => {
         fields: [field.text({ name: 'title' })]
       })
     ]
-    const html = renderLayout({ title: 'Test', content: '', collections })
+    const html = renderAdminLayout({ title: 'Test', content: '', collections })
     expect(html).toContain('/admin/posts')
     expect(html).toContain('/admin/settings')
     expect(html).toContain('nav-group-heading')
@@ -162,7 +162,7 @@ describe('sidebar rendering', () => {
         admin: { position: 1 }
       })
     ]
-    const html = renderLayout({ title: 'Test', content: '', collections })
+    const html = renderAdminLayout({ title: 'Test', content: '', collections })
     const firstIdx = html.indexOf('/admin/first')
     const unpositionedIdx = html.indexOf('/admin/unpositioned')
     expect(firstIdx).toBeLessThan(unpositionedIdx)

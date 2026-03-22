@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { renderLayout } from '../admin/layout.js'
+import { renderAdminLayout } from '../admin/layout.js'
 
 describe('headTags injection in admin layout', () => {
   const baseArgs = {
@@ -9,13 +9,13 @@ describe('headTags injection in admin layout', () => {
   } as const
 
   it('renders without headTags when none provided', () => {
-    const html = renderLayout(baseArgs)
+    const html = renderAdminLayout(baseArgs)
     expect(html).toContain('<title>Test')
     expect(html).not.toContain('data-test-headtag')
   })
 
   it('injects headTags after title tag', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       ...baseArgs,
       headTags: ['<link rel="stylesheet" href="/custom.css">']
     })
@@ -27,7 +27,7 @@ describe('headTags injection in admin layout', () => {
   })
 
   it('injects multiple headTags', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       ...baseArgs,
       headTags: [
         '<meta name="custom" content="value">',
@@ -39,7 +39,7 @@ describe('headTags injection in admin layout', () => {
   })
 
   it('headTags appear after title and before style', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       ...baseArgs,
       headTags: ['<link rel="icon" href="/favicon.ico">']
     })
