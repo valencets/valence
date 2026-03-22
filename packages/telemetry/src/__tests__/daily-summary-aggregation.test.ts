@@ -111,6 +111,7 @@ describe('generateDailySummary', () => {
       return Promise.resolve(result)
     }) as unknown as DbPool['sql']
     Object.defineProperty(sql, 'json', { value: jsonFn })
+    Object.defineProperty(sql, 'array', { value: (v: unknown) => v })
     const pool: DbPool = { sql }
 
     await generateDailySummary(pool, 'studio', 'studio', new Date('2026-03-10'))
@@ -156,6 +157,7 @@ describe('generateDailySummary', () => {
       return Promise.resolve(result)
     }) as unknown as DbPool['sql']
     Object.defineProperty(sql, 'json', { value: (v: unknown) => v })
+    Object.defineProperty(sql, 'array', { value: (v: unknown) => v })
     const pool: DbPool = { sql }
 
     const result = await generateDailySummary(pool, 'studio', 'studio', new Date('2026-03-10'))

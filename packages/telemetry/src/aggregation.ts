@@ -2,6 +2,7 @@ import { okAsync, errAsync, ResultAsync } from 'neverthrow'
 import { DbErrorCode, mapPostgresError } from '@valencets/db'
 import type { DbError, DbPool } from '@valencets/db'
 import type { SessionSummaryRow, EventSummaryRow, ConversionSummaryRow, SummaryPeriod } from './summary-types.js'
+import { CONVERSION_CATEGORIES } from './beacon-types.js'
 
 export function aggregateSessionSummary (
   pool: DbPool,
@@ -91,7 +92,7 @@ export function aggregateConversionSummary (
           AND e2.created_at < ${period.end}
       ) sub ON true
       WHERE e.created_at >= ${period.start} AND e.created_at < ${period.end}
-        AND e.event_category IN ('INTENT_CALL', 'INTENT_BOOK', 'LEAD_PHONE', 'LEAD_EMAIL', 'LEAD_FORM')
+        AND e.event_category = ANY(${pool.sql.array([...CONVERSION_CATEGORIES])})
       GROUP BY e.event_category
       ON CONFLICT (period_start, period_end, intent_type) DO UPDATE SET
         total_count = EXCLUDED.total_count,

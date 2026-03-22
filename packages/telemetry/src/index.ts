@@ -51,6 +51,8 @@ export {
   BeaconIntentType,
   BeaconValidationErrorCode,
   MAX_BEACON_EVENTS,
+  PAGEVIEW_CATEGORIES,
+  CONVERSION_CATEGORIES,
   isValidIntentType
 } from './beacon-types.js'
 export type { BeaconEvent, BeaconValidationError } from './beacon-types.js'

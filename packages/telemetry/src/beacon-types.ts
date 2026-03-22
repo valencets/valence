@@ -57,3 +57,15 @@ export interface BeaconValidationError {
 }
 
 export const MAX_BEACON_EVENTS = 256
+
+/**
+ * Event categories that constitute a "pageview" for aggregation purposes.
+ * Used by both period-based summaries (Pipeline A) and daily summaries (Pipeline B).
+ */
+export const PAGEVIEW_CATEGORIES = ['CLICK', 'VIEWPORT_INTERSECT'] as const
+
+/**
+ * Event categories that constitute a "conversion" for aggregation purposes.
+ * Used by both period-based summaries (Pipeline A) and daily summaries (Pipeline B).
+ */
+export const CONVERSION_CATEGORIES = ['INTENT_LEAD', 'INTENT_CALL', 'INTENT_BOOK', 'LEAD_PHONE', 'LEAD_EMAIL', 'LEAD_FORM'] as const

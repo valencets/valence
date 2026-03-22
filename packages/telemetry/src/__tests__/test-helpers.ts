@@ -4,6 +4,7 @@ import type { DbPool } from '@valencets/db'
 export function makeMockPool (returnValue: unknown = []): DbPool {
   const sql = vi.fn(() => Promise.resolve(returnValue)) as unknown as DbPool['sql']
   Object.defineProperty(sql, 'json', { value: (v: unknown) => v })
+  Object.defineProperty(sql, 'array', { value: (v: unknown) => v })
   return { sql }
 }
 
@@ -17,12 +18,14 @@ export function makeSequentialMockPool (returnValues: Record<string, unknown[]>)
     return Promise.resolve(result)
   }) as unknown as DbPool['sql']
   Object.defineProperty(sql, 'json', { value: (v: unknown) => v })
+  Object.defineProperty(sql, 'array', { value: (v: unknown) => v })
   return { sql }
 }
 
 export function makeErrorPool (error: Error): DbPool {
   const sql = vi.fn(() => Promise.reject(error)) as unknown as DbPool['sql']
   Object.defineProperty(sql, 'json', { value: (v: unknown) => v })
+  Object.defineProperty(sql, 'array', { value: (v: unknown) => v })
   return { sql }
 }
 
@@ -41,5 +44,6 @@ export function makeErrorAfterPool (successRows: ReadonlyArray<ReadonlyArray<obj
     return Promise.reject(error)
   }) as unknown as DbPool['sql']
   Object.defineProperty(sql, 'json', { value: (v: object) => v })
+  Object.defineProperty(sql, 'array', { value: (v: unknown) => v })
   return { sql }
 }
