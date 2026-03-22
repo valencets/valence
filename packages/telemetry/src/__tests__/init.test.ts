@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { initTelemetry } from '../init.js'
 import type { TelemetryConfig } from '../init.js'
 
 describe('initTelemetry', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete (globalThis as Record<string, unknown>).__valence_telemetry_consent
+  })
+
   it('returns Ok with a TelemetryHandle', () => {
     const config: TelemetryConfig = {
       endpoint: '/api/telemetry',
@@ -58,6 +63,41 @@ describe('initTelemetry', () => {
 
   it('defaults flushIntervalMs to 10000', () => {
     const result = initTelemetry({ endpoint: '/api/telemetry', siteId: 'test-site' })
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('still returns Ok when DNT is set (init succeeds, flush is blocked)', () => {
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      doNotTrack: '1',
+      sendBeacon: vi.fn().mockReturnValue(true)
+    })
+    const result = initTelemetry({ endpoint: '/api/telemetry', siteId: 'test-site' })
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('skips auto-pageview when consent flag is false', () => {
+    (globalThis as Record<string, unknown>).__valence_telemetry_consent = false
+    const result = initTelemetry({
+      endpoint: '/api/telemetry',
+      siteId: 'test-site',
+      autoPageview: true
+    })
+    // Init still succeeds — only the pageview write is skipped
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('skips auto-pageview when GPC is set', () => {
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      globalPrivacyControl: true,
+      sendBeacon: vi.fn().mockReturnValue(true)
+    })
+    const result = initTelemetry({
+      endpoint: '/api/telemetry',
+      siteId: 'test-site',
+      autoPageview: true
+    })
     expect(result.isOk()).toBe(true)
   })
 })

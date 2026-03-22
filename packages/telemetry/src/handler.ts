@@ -13,6 +13,13 @@ export function createIngestionHandler (
   const { pool } = config
 
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    // Respect Do Not Track header — silently accept but skip storage
+    if (req.headers['dnt'] === '1') {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ ok: true, ingested: 0 }))
+      return
+    }
+
     const body = await readRequestBody(req)
 
     const validated = validateBeaconPayload(body)

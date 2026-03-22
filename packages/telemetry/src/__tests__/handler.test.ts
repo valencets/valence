@@ -3,10 +3,10 @@ import { createIngestionHandler } from '../handler.js'
 
 import { makeMockPool } from '@valencets/db/test'
 
-function mockReq (body: string, method = 'POST'): import('node:http').IncomingMessage {
+function mockReq (body: string, method = 'POST', headers?: Record<string, string>): import('node:http').IncomingMessage {
   const req = {
     method,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...headers },
     url: '/api/telemetry'
   } as import('node:http').IncomingMessage
 
@@ -81,6 +81,71 @@ describe('createIngestionHandler', () => {
     const handler = createIngestionHandler({ pool })
     const res = mockRes()
     await handler(mockReq('[]'), res as never)
+    expect(res._status).toBe(200)
+  })
+
+  it('returns 200 with ingested 0 when DNT header is "1"', async () => {
+    const pool = makeMockPool([])
+    const handler = createIngestionHandler({ pool })
+    const payload = JSON.stringify([{
+      id: 'evt-1',
+      timestamp: Date.now(),
+      type: 'CLICK',
+      targetDOMNode: 'button.cta',
+      x_coord: 100,
+      y_coord: 200,
+      isDirty: false,
+      schema_version: 1,
+      site_id: 'test-site',
+      path: '/',
+      referrer: ''
+    }])
+    const res = mockRes()
+    await handler(mockReq(payload, 'POST', { dnt: '1' }), res as never)
+    expect(res._status).toBe(200)
+    const body = JSON.parse(res._body) as { ok: boolean; ingested: number }
+    expect(body.ingested).toBe(0)
+  })
+
+  it('processes normally when DNT header is "0"', async () => {
+    const pool = makeMockPool([{ id: 'session-1' }])
+    const handler = createIngestionHandler({ pool })
+    const payload = JSON.stringify([{
+      id: 'evt-1',
+      timestamp: Date.now(),
+      type: 'CLICK',
+      targetDOMNode: 'button.cta',
+      x_coord: 100,
+      y_coord: 200,
+      isDirty: false,
+      schema_version: 1,
+      site_id: 'test-site',
+      path: '/',
+      referrer: ''
+    }])
+    const res = mockRes()
+    await handler(mockReq(payload, 'POST', { dnt: '0' }), res as never)
+    expect(res._status).toBe(200)
+  })
+
+  it('processes normally when DNT header is absent', async () => {
+    const pool = makeMockPool([{ id: 'session-1' }])
+    const handler = createIngestionHandler({ pool })
+    const payload = JSON.stringify([{
+      id: 'evt-1',
+      timestamp: Date.now(),
+      type: 'CLICK',
+      targetDOMNode: 'button.cta',
+      x_coord: 100,
+      y_coord: 200,
+      isDirty: false,
+      schema_version: 1,
+      site_id: 'test-site',
+      path: '/',
+      referrer: ''
+    }])
+    const res = mockRes()
+    await handler(mockReq(payload, 'POST'), res as never)
     expect(res._status).toBe(200)
   })
 })

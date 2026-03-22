@@ -761,6 +761,9 @@ export function shouldEnhanceForm(form: HTMLFormElement): boolean;
 // @public (undocumented)
 export function shouldIntercept(event: MouseEvent, anchor: HTMLAnchorElement): boolean;
 
+// @public
+export function shouldTrack(): boolean;
+
 // @public (undocumented)
 export function stripScripts(doc: Document, nonce?: string): void;
 
@@ -793,6 +796,7 @@ export const TelemetryErrorCode: {
     readonly POOL_EXHAUSTED: "POOL_EXHAUSTED";
     readonly FLUSH_EMPTY: "FLUSH_EMPTY";
     readonly FLUSH_DISPATCH_FAILED: "FLUSH_DISPATCH_FAILED";
+    readonly FLUSH_CONSENT_DENIED: "FLUSH_CONSENT_DENIED";
     readonly INVALID_CAPACITY: "INVALID_CAPACITY";
     readonly INVALID_INTENT_TYPE: "INVALID_INTENT_TYPE";
     readonly NO_TELEMETRY_ATTRIBUTE: "NO_TELEMETRY_ATTRIBUTE";
