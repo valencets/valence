@@ -184,16 +184,22 @@ export function createAdminRoutes (
 
   const clientDistDir = resolve(fileURLToPath(new URL('..', import.meta.url)), 'client')
 
+  const ASSET_MIME: Readonly<Record<string, string>> = {
+    '.js': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8'
+  }
+
   const safeReadAdminAsset = (filename: string): Result<string | null, null> => {
     const safe = basename(filename)
-    if (!safe.endsWith('.js')) return ok(null)
+    const ext = safe.slice(safe.lastIndexOf('.'))
+    if (ASSET_MIME[ext] === undefined) return ok(null)
     return fromThrowable(
       () => readFileSync(resolve(clientDistDir, safe), 'utf-8'),
       () => null
     )()
   }
 
-  // Assets are served publicly — the admin JS must load before auth is checked
+  // Assets are served publicly — the admin JS/CSS must load before auth is checked
   routes.set('/admin/_assets/:file', {
     GET: (_req, res, ctx) => {
       const file = ctx.file ?? ''
@@ -203,13 +209,15 @@ export function createAdminRoutes (
         res.end('Not found')
         return Promise.resolve()
       }
-      const js = result.value
-      const isHashed = /-.{8}\.js$/.test(file)
-      res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+      const content = result.value
+      const ext = file.slice(file.lastIndexOf('.'))
+      const mime = ASSET_MIME[ext] ?? 'application/octet-stream'
+      const isHashed = /-.{8}\.(js|css)$/.test(file)
+      res.setHeader('Content-Type', mime)
       res.setHeader('Cache-Control', isHashed ? 'public, max-age=31536000, immutable' : 'public, no-cache')
-      res.setHeader('Content-Length', Buffer.byteLength(js))
+      res.setHeader('Content-Length', Buffer.byteLength(content))
       res.writeHead(200)
-      res.end(js)
+      res.end(content)
       return Promise.resolve()
     }
   })
