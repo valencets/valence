@@ -147,7 +147,7 @@ export function renderLoginPage (args: LoginPageArgs): string {
             </val-input>
           </div>
           <div class="login-submit">
-            <val-button type="submit" class="km-gradient-btn">Sign In \u2192</val-button>
+            <val-button block type="submit" class="km-gradient-btn">Sign In \u2192</val-button>
           </div>
         </form>
         <div class="login-footer">

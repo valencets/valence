@@ -91,7 +91,7 @@ body {
   background: var(--km-surface-container);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 20px 40px -5px oklch(0.93 0.01 74 / 0.04);
+  box-shadow: 0 25px 60px -10px oklch(0 0 0 / 0.6), 0 10px 20px -5px oklch(0 0 0 / 0.3);
   overflow: hidden;
 }
 
@@ -147,23 +147,12 @@ val-input {
 }
 
 val-button.km-gradient-btn {
-  display: block;
-  width: 100%;
-  --val-color-primary: linear-gradient(135deg, oklch(0.90 0.19 159.5), oklch(0.80 0.19 159.5));
-  --val-color-primary-hover: linear-gradient(135deg, oklch(0.92 0.17 159.5), oklch(0.83 0.19 159.5));
-  --val-color-primary-text: #00391d;
   --val-font-sans: var(--km-font-headline);
   --val-weight-medium: 800;
   --val-text-sm: 0.875rem;
   --val-radius-md: 0.125rem;
   --val-space-2: 1rem;
   --val-space-4: 1rem;
-}
-
-/* Layout-only: make inner button fill the host width */
-val-button.km-gradient-btn::part(button) {
-  width: 100%;
-  display: flex;
 }
 
 /* --- Status Dot --- */
