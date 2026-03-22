@@ -6,7 +6,7 @@ import type { RestRouteEntry } from '../api/rest-api.js'
 import type { IncomingMessage } from 'node:http'
 import type { DocumentData } from '../db/query-builder.js'
 import { z } from 'zod'
-import { sendJson, sendErrorJson, safeReadBody, safeJsonParse } from '../api/http-utils.js'
+import { sendApiJson, sendErrorJson, safeReadBody, safeJsonParse } from '../api/http-utils.js'
 import { verifyPassword } from './password.js'
 import { createRateLimiter } from './rate-limit.js'
 import { parseCookie } from './cookie.js'
@@ -147,7 +147,7 @@ export function createAuthRoutes (
       }
 
       const user = userResult.value
-      sendJson(res, { id: user.id, email: user.email, [displayField]: Reflect.get(user, displayField) as string | undefined ?? user.email } as DocumentData)
+      sendApiJson(res, { id: user.id, email: user.email, [displayField]: Reflect.get(user, displayField) as string | undefined ?? user.email } as DocumentData)
     }
   })
 

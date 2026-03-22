@@ -1,12 +1,12 @@
 import type { CmsConfig } from '@valencets/cms'
-import type { StorageAdapter } from './storage-adapter.js'
+import type { CloudStorageAdapter } from './storage-adapter.js'
 
 export interface CloudStoragePluginOptions {
-  readonly adapter: StorageAdapter
+  readonly adapter: CloudStorageAdapter
 }
 
 export interface CmsConfigWithStorage extends CmsConfig {
-  readonly storageAdapter: StorageAdapter
+  readonly storageAdapter: CloudStorageAdapter
 }
 
 export function cloudStoragePlugin (opts: CloudStoragePluginOptions): (config: CmsConfig) => CmsConfigWithStorage {

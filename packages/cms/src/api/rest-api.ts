@@ -3,7 +3,7 @@ import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry, GlobalRegistry } from '../schema/registry.js'
 import type { ResultAsync } from 'neverthrow'
 import { createLocalApi } from './local-api.js'
-import { sendJson, sendErrorJson, safeReadBody, safeJsonParse } from './http-utils.js'
+import { sendApiJson, sendErrorJson, safeReadBody, safeJsonParse } from './http-utils.js'
 import type { DocumentData } from '../db/query-builder.js'
 import { generateZodSchema, generatePartialSchema, generateDraftSchema } from '../validation/zod-generator.js'
 import type { CollectionConfig } from '../schema/collection.js'
@@ -283,7 +283,7 @@ export function createRestRoutes (
         }
         const result = await api.create({ collection: slug, data: validation.data as DocumentData, draft: isDraft, locale })
         result.match(
-          (doc) => sendJson(res, doc as DocumentData, 201),
+          (doc) => sendApiJson(res, doc as DocumentData, 201),
           (err) => sendErrorJson(res, err.message, 400)
         )
       }
@@ -298,7 +298,7 @@ export function createRestRoutes (
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
         const result = await api.findByID({ collection: slug, id })
         result.match(
-          (doc) => doc ? sendJson(res, doc as DocumentData) : sendErrorJson(res, 'Not found', 404),
+          (doc) => doc ? sendApiJson(res, doc as DocumentData) : sendErrorJson(res, 'Not found', 404),
           (err) => sendErrorJson(res, err.message, 500)
         )
       },
@@ -334,7 +334,7 @@ export function createRestRoutes (
           locale
         })
         result.match(
-          (doc) => sendJson(res, doc as DocumentData),
+          (doc) => sendApiJson(res, doc as DocumentData),
           (err) => sendErrorJson(res, err.message, 400)
         )
       },
@@ -346,7 +346,7 @@ export function createRestRoutes (
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
         const result = await api.delete({ collection: slug, id })
         result.match(
-          (doc) => sendJson(res, doc as DocumentData),
+          (doc) => sendApiJson(res, doc as DocumentData),
           (err) => sendErrorJson(res, err.message, 500)
         )
       }
@@ -360,7 +360,7 @@ export function createRestRoutes (
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
         const result = await api.unpublish({ collection: slug, id })
         result.match(
-          (doc) => sendJson(res, doc as DocumentData),
+          (doc) => sendApiJson(res, doc as DocumentData),
           (err) => sendErrorJson(res, err.message, 400)
         )
       }

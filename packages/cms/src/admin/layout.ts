@@ -13,7 +13,7 @@ interface LayoutArgs {
   readonly headTags?: readonly string[] | undefined
 }
 
-export function renderLayout (args: LayoutArgs): string {
+export function renderAdminLayout (args: LayoutArgs): string {
   const visible = args.collections.filter(c => c.admin?.hidden !== true)
   const sorted = [...visible].sort((a, b) => {
     const posA = a.admin?.position ?? Infinity

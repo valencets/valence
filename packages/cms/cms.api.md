@@ -6,11 +6,13 @@
 
 import type { AuthResult } from '@valencets/core/server';
 import type { DbPool } from '@valencets/db';
+import { generateCsrfToken } from '@valencets/core/server';
 import type { IncomingMessage } from 'node:http';
 import type { Middleware } from '@valencets/core/server';
 import type { Result } from 'neverthrow';
 import { ResultAsync } from 'neverthrow';
 import type { ServerResponse } from 'node:http';
+import { validateCsrfToken } from '@valencets/core/server';
 import type { ZodObject } from 'zod';
 
 // @public (undocumented)
@@ -565,8 +567,7 @@ export function generateCreateTable(collection: CollectionConfig, hasLocalizatio
 // @public (undocumented)
 export function generateCreateTableSql(collection: CollectionConfig, hasLocalization?: boolean): string;
 
-// @public (undocumented)
-export function generateCsrfToken(): string;
+export { generateCsrfToken }
 
 // @public
 export function generateDraftSchema(fields: readonly FieldConfig[]): ZodObject;
@@ -905,6 +906,11 @@ export interface RelationFieldConfig extends FieldBaseConfig {
     readonly type: 'relation';
 }
 
+// Warning: (ae-forgotten-export) The symbol "LayoutArgs" needs to be exported by the entry point index.d.ts
+//
+// @public (undocumented)
+export function renderAdminLayout(args: LayoutArgs): string;
+
 // Warning: (ae-forgotten-export) The symbol "AnalyticsData" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
@@ -926,11 +932,6 @@ export function renderEditView(col: CollectionConfig, doc: DocRow | null, csrfTo
 //
 // @public (undocumented)
 export function renderFieldInput(f: FieldConfig, value: string, context?: RelationContext, uploadContext?: UploadContext, formData?: Record<string, string>): string;
-
-// Warning: (ae-forgotten-export) The symbol "LayoutArgs" needs to be exported by the entry point index.d.ts
-//
-// @public (undocumented)
-export function renderLayout(args: LayoutArgs): string;
 
 // Warning: (ae-forgotten-export) The symbol "ListViewArgs" needs to be exported by the entry point index.d.ts
 //
@@ -1028,10 +1029,10 @@ export interface SelectOption {
 }
 
 // @public (undocumented)
-export function sendErrorJson(res: ServerResponse, message: string, statusCode: number): void;
+export function sendApiJson(res: ServerResponse, data: DocumentData | readonly DocumentData[], statusCode?: number): void;
 
 // @public (undocumented)
-export function sendJson(res: ServerResponse, data: DocumentData | readonly DocumentData[], statusCode?: number): void;
+export function sendErrorJson(res: ServerResponse, message: string, statusCode: number): void;
 
 // @public (undocumented)
 export interface SessionError {
@@ -1191,8 +1192,7 @@ export interface UrlFieldConfig extends FieldBaseConfig {
     readonly type: 'url';
 }
 
-// @public (undocumented)
-export function validateCsrfToken(token: string, expected: string): boolean;
+export { validateCsrfToken }
 
 // @public
 export function validateCustomSession(pool: DbPool, tableName: string, sessionId: string): ResultAsync<{

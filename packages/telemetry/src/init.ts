@@ -5,8 +5,8 @@ import {
   initEventDelegation,
   scheduleAutoFlush,
   IntentType
-} from '@valencets/core'
-import type { TelemetryError } from '@valencets/core'
+} from '@valencets/core/client'
+import type { TelemetryError } from '@valencets/core/client'
 
 export interface TelemetryConfig {
   readonly endpoint: string
