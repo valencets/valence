@@ -9,6 +9,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 export interface MockSql {
   (strings: TemplateStringsArray, ...values: readonly (string | number | boolean | null)[]): ReturnType<typeof vi.fn>
   readonly unsafe: ReturnType<typeof vi.fn>
+  readonly begin: ReturnType<typeof vi.fn>
 }
 
 /** Cast a MockSql to DbPool['sql']. Single-direction cast is acceptable for test mocks. */
@@ -18,36 +19,54 @@ export function asSql (mock: MockSql): DbPool['sql'] {
 
 export function makeMockPool (returnValue: readonly Record<string, string | number | null>[] = []): DbPool {
   const unsafe = vi.fn(() => Promise.resolve(returnValue))
+  const begin = vi.fn((fn: (tx: MockSql) => Promise<unknown>) => {
+    const txSql = Object.assign(
+      vi.fn(() => Promise.resolve(returnValue)),
+      { unsafe, begin: vi.fn() }
+    ) as MockSql
+    return fn(txSql)
+  })
   const sql = Object.assign(
     vi.fn(() => Promise.resolve(returnValue)),
-    { unsafe }
+    { unsafe, begin }
   ) as MockSql
   return { sql: asSql(sql) }
 }
 
 export function makeErrorPool (error: Error): DbPool {
   const unsafe = vi.fn(() => Promise.reject(error))
+  const begin = vi.fn((fn: (tx: MockSql) => Promise<unknown>) => {
+    const txSql = Object.assign(
+      vi.fn(() => Promise.reject(error)),
+      { unsafe, begin: vi.fn() }
+    ) as MockSql
+    return fn(txSql)
+  })
   const sql = Object.assign(
     vi.fn(() => Promise.reject(error)),
-    { unsafe }
+    { unsafe, begin }
   ) as MockSql
   return { sql: asSql(sql) }
 }
 
 export function makeSequentialPool (returns: readonly (readonly Record<string, string | number | null>[])[]): DbPool {
   let callIdx = 0
-  const unsafe = vi.fn(() => {
+  const next = (): Promise<readonly Record<string, string | number | null>[]> => {
     const result = returns[callIdx] ?? returns[returns.length - 1] ?? []
     callIdx++
     return Promise.resolve(result)
+  }
+  const unsafe = vi.fn(() => next())
+  const begin = vi.fn((fn: (tx: MockSql) => Promise<unknown>) => {
+    const txSql = Object.assign(
+      vi.fn(() => next()),
+      { unsafe, begin: vi.fn() }
+    ) as MockSql
+    return fn(txSql)
   })
   const sql = Object.assign(
-    vi.fn(() => {
-      const result = returns[callIdx] ?? returns[returns.length - 1] ?? []
-      callIdx++
-      return Promise.resolve(result)
-    }),
-    { unsafe }
+    vi.fn(() => next()),
+    { unsafe, begin }
   ) as MockSql
   return { sql: asSql(sql) }
 }

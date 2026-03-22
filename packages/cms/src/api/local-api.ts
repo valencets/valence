@@ -220,6 +220,38 @@ function mergeLocalizedUpdate (
     .map(rows => rows[0] as DocumentRow)
 }
 
+/**
+ * Wrap a transaction sql handle as a DbPool for use with query builder and safeQuery.
+ * TransactionSql has the same query interface (unsafe, tagged template) as Sql.
+ */
+function txAsPool (tx: { unsafe: DbPool['sql']['unsafe'] }): DbPool {
+  return { sql: tx as DbPool['sql'] }
+}
+
+/** Typed error wrapper for CmsError — avoids banned `as CmsError` cast in mapTxError. */
+class CmsTxError extends Error {
+  readonly cmsError: CmsError
+  constructor (cmsError: CmsError) {
+    super(cmsError.message)
+    this.cmsError = cmsError
+  }
+}
+
+/** Unwrap a ResultAsync inside a transaction — throws on Err to trigger rollback. */
+async function unwrapTx<T> (result: ResultAsync<T, CmsError>): Promise<T> {
+  return result.match(
+    (d) => d,
+    // eslint-disable-next-line no-restricted-syntax -- intentional throw to trigger transaction rollback
+    (e) => { throw new CmsTxError(e) }
+  )
+}
+
+/** Map a thrown error back to CmsError, preserving cmsError if set by unwrapTx. */
+function mapTxError (e: unknown): CmsError {
+  if (e instanceof CmsTxError) return e.cmsError
+  return { code: CmsErrorCode.INTERNAL, message: e instanceof Error ? e.message : 'Transaction failed' }
+}
+
 export function createLocalApi (
   pool: DbPool,
   collections: CollectionRegistry,
@@ -338,15 +370,23 @@ export function createLocalApi (
       const beforeValidateHooks = col.value.hooks?.beforeValidate
 
       const executeCreate = (createData: DocumentData): ResultAsync<DocumentRow, CmsError> =>
-        runFieldHooks('beforeChange', fields, createData, undefined, args.collection)
-          .map((fieldData) => applyWriteFilter(fieldData as DocumentData, args.collection, 'create'))
-          .andThen((filteredData) =>
-            qb.query(args.collection).insert(filteredData)
-          )
-          .andThen((result) =>
-            runFieldHooks('afterChange', fields, result, result.id as string | undefined, args.collection)
-              .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
-          )
+        ResultAsync.fromPromise(
+          pool.sql.begin(async (tx) => {
+            const txPool = txAsPool(tx)
+            const txQb = createQueryBuilder(txPool, collections, defaultLocale)
+
+            const fieldData = await unwrapTx(
+              runFieldHooks('beforeChange', fields, createData, undefined, args.collection)
+            )
+            const filteredData = applyWriteFilter(fieldData as DocumentData, args.collection, 'create')
+            const result = await unwrapTx(txQb.query(args.collection).insert(filteredData))
+            const afterResult = await unwrapTx(
+              runFieldHooks('afterChange', fields, result, result.id as string | undefined, args.collection)
+            )
+            return applyReadFilter(afterResult as DocumentRow, args.collection)
+          }),
+          mapTxError
+        )
 
       if (beforeValidateHooks && beforeValidateHooks.length > 0) {
         return runHooks(beforeValidateHooks, { data, collection: args.collection })
@@ -371,40 +411,55 @@ export function createLocalApi (
 
       const localizedNames = new Set(col.value.fields.filter(f => f.localized).map(f => f.name))
       if (args.locale && localizedNames.size > 0) {
-        return mergeLocalizedUpdate(pool, col.value.slug, args.id, data, localizedNames, args.locale)
-          .map((doc) => applyReadFilter(doc, args.collection))
+        return ResultAsync.fromPromise(
+          pool.sql.begin(async (tx) => {
+            const txPool = txAsPool(tx)
+            const result = await unwrapTx(
+              mergeLocalizedUpdate(txPool, col.value.slug, args.id, data, localizedNames, args.locale as string)
+            )
+            return applyReadFilter(result, args.collection)
+          }),
+          mapTxError
+        )
       }
 
       const fields = col.value.fields
       const beforeValidateHooks = col.value.hooks?.beforeValidate
 
-      const executeUpdate = (updateData: DocumentData): ResultAsync<DocumentRow, CmsError> => {
-        if (isVersioned && args.publish && col.value.hooks) {
-          return runFieldHooks('beforeChange', fields, updateData, args.id, args.collection)
-            .andThen((fieldData) =>
-              executeWithHooks(
-                col.value.hooks?.beforePublish,
-                col.value.hooks?.afterPublish,
-                fieldData as DocumentData,
-                args.id,
-                args.collection,
-                (finalData) => qb.query(args.collection).where('id', args.id).update(finalData)
-              )
-            )
-            .map((doc) => applyReadFilter(doc, args.collection))
-        }
+      const executeUpdate = (updateData: DocumentData): ResultAsync<DocumentRow, CmsError> =>
+        ResultAsync.fromPromise(
+          pool.sql.begin(async (tx) => {
+            const txPool = txAsPool(tx)
+            const txQb = createQueryBuilder(txPool, collections, defaultLocale)
 
-        return runFieldHooks('beforeChange', fields, updateData, args.id, args.collection)
-          .andThen((fieldData) =>
-            qb.query(args.collection)
-              .where('id', args.id)
-              .update(fieldData as DocumentData)
-          )
-          .andThen((result) =>
-            runFieldHooks('afterChange', fields, result, args.id, args.collection)
-              .map((transformed) => applyReadFilter(transformed as DocumentRow, args.collection))
-          )
-      }
+            const fieldData = await unwrapTx(
+              runFieldHooks('beforeChange', fields, updateData, args.id, args.collection)
+            )
+
+            if (isVersioned && args.publish && col.value.hooks) {
+              const result = await unwrapTx(
+                executeWithHooks(
+                  col.value.hooks.beforePublish,
+                  col.value.hooks.afterPublish,
+                  fieldData as DocumentData,
+                  args.id,
+                  args.collection,
+                  (finalData) => txQb.query(args.collection).where('id', args.id).update(finalData)
+                )
+              )
+              return applyReadFilter(result, args.collection)
+            }
+
+            const result = await unwrapTx(
+              txQb.query(args.collection).where('id', args.id).update(fieldData as DocumentData)
+            )
+            const afterResult = await unwrapTx(
+              runFieldHooks('afterChange', fields, result, args.id, args.collection)
+            )
+            return applyReadFilter(afterResult as DocumentRow, args.collection)
+          }),
+          mapTxError
+        )
 
       if (beforeValidateHooks && beforeValidateHooks.length > 0) {
         return runHooks(beforeValidateHooks, { data, id: args.id, collection: args.collection })
@@ -421,10 +476,18 @@ export function createLocalApi (
       const afterDeleteHooks = col.value.hooks?.afterDelete
 
       const executeDelete = (): ResultAsync<DocumentRow, CmsError> =>
-        qb.query(args.collection)
-          .where('id', args.id)
-          .delete()
-          .andThen((result) => runAfterHooks(afterDeleteHooks, result, args.id, args.collection))
+        ResultAsync.fromPromise(
+          pool.sql.begin(async (tx) => {
+            const txPool = txAsPool(tx)
+            const txQb = createQueryBuilder(txPool, collections, defaultLocale)
+
+            const result = await unwrapTx(
+              txQb.query(args.collection).where('id', args.id).delete()
+            )
+            return unwrapTx(runAfterHooks(afterDeleteHooks, result, args.id, args.collection))
+          }),
+          mapTxError
+        )
 
       if (beforeDeleteHooks && beforeDeleteHooks.length > 0) {
         return runHooks(beforeDeleteHooks, { data: {}, id: args.id, collection: args.collection })
@@ -471,8 +534,16 @@ export function createLocalApi (
       const setClauses = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ')
       const params = Object.values(args.data)
       const table = `"global_${args.slug}"`
-      return safeQuery<DocumentRow[]>(pool, `UPDATE ${table} SET ${setClauses} WHERE "deleted_at" IS NULL RETURNING *`, params)
-        .map(rows => rows[0] as DocumentRow)
+      return ResultAsync.fromPromise(
+        pool.sql.begin(async (tx) => {
+          const txPool = txAsPool(tx)
+          const rows = await unwrapTx(
+            safeQuery<DocumentRow[]>(txPool, `UPDATE ${table} SET ${setClauses} WHERE "deleted_at" IS NULL RETURNING *`, params)
+          )
+          return rows[0] as DocumentRow
+        }),
+        mapTxError
+      )
     },
 
     unpublish (args) {
@@ -481,21 +552,31 @@ export function createLocalApi (
 
       const unpublishData: DocumentData = { _status: StatusCode.DRAFT }
 
-      if (col.value.hooks) {
-        return executeWithHooks(
-          col.value.hooks.beforeUnpublish,
-          col.value.hooks.afterUnpublish,
-          unpublishData,
-          args.id,
-          args.collection,
-          (finalData) => qb.query(args.collection).where('id', args.id).includeDrafts().update(finalData)
-        )
-      }
+      return ResultAsync.fromPromise(
+        pool.sql.begin(async (tx) => {
+          const txPool = txAsPool(tx)
+          const txQb = createQueryBuilder(txPool, collections, defaultLocale)
 
-      return qb.query(args.collection)
-        .where('id', args.id)
-        .includeDrafts()
-        .update(unpublishData)
+          if (col.value.hooks) {
+            return unwrapTx(executeWithHooks(
+              col.value.hooks.beforeUnpublish,
+              col.value.hooks.afterUnpublish,
+              unpublishData,
+              args.id,
+              args.collection,
+              (finalData) => txQb.query(args.collection).where('id', args.id).includeDrafts().update(finalData)
+            ))
+          }
+
+          return unwrapTx(
+            txQb.query(args.collection)
+              .where('id', args.id)
+              .includeDrafts()
+              .update(unpublishData)
+          )
+        }),
+        mapTxError
+      )
     }
   }
 }
