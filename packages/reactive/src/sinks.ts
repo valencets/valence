@@ -25,14 +25,5 @@ export function condition (
   deps: readonly Signal<string | number | boolean>[],
   fn: (...vals: ReadonlyArray<string | number | boolean>) => boolean
 ): ReadonlySignal<boolean> {
-  return computed(() => {
-    const vals: Array<string | number | boolean> = []
-    for (let i = 0; i < deps.length; i++) {
-      const dep = deps[i]
-      if (dep !== undefined) {
-        vals.push(dep.value)
-      }
-    }
-    return fn(...vals)
-  })
+  return computed(() => fn(...deps.map(d => d.value)))
 }

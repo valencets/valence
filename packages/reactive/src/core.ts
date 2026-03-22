@@ -156,7 +156,8 @@ const ComputedState = { DIRTY: 1, CLEAN: 0 } as const
 type ComputedState = typeof ComputedState[keyof typeof ComputedState]
 
 export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlySignal<T> {
-  let value: T
+  let value: T | undefined
+  let hasValue = false
   let state: ComputedState = ComputedState.DIRTY
   const equals = options?.equals ?? Object.is
   const subscribers = new Set<() => void>()
@@ -175,8 +176,9 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
     const next = fn()
     currentScope = prevScope
     currentCleanups = prevCleanups
-    if (state === ComputedState.CLEAN && equals(value, next)) return
+    if (hasValue && equals(value as T, next)) return
     value = next
+    hasValue = true
     state = ComputedState.CLEAN
   }
 
@@ -197,14 +199,14 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
           currentCleanups.push(subscribers)
         }
       }
-      return value
+      return value as T
     },
 
     peek (): T {
       if (state === ComputedState.DIRTY) {
         recompute()
       }
-      return value
+      return value as T
     }
   }
 
