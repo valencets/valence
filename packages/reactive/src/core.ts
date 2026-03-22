@@ -49,6 +49,19 @@ function notify (subscribers: Set<() => void>): void {
   }
 }
 
+// --- untracked() ---
+
+export function untracked<T> (fn: () => T): T {
+  const prevScope = currentScope
+  const prevCleanups = currentCleanups
+  currentScope = null
+  currentCleanups = null
+  const result = fn()
+  currentScope = prevScope
+  currentCleanups = prevCleanups
+  return result
+}
+
 // --- Tracking scope ---
 
 let currentScope: (() => void) | null = null
