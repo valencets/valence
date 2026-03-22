@@ -4,7 +4,9 @@ import { renderEditView } from '../admin/edit-view.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool } from './test-helpers.js'
+import { makeMockPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { CollectionConfig } from '../schema/collection.js'
 
 function makePostsCollection (): CollectionConfig {
@@ -18,8 +20,8 @@ function makePostsCollection (): CollectionConfig {
   })
 }
 
-function makeMockReq (body: string, cookie: string = ''): Record<string, unknown> {
-  const req = {
+function makeMockReq (body: string, cookie: string = ''): IncomingMessage {
+  const req: MockIncomingMessage = {
     headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
     url: '/admin/posts/abc/delete',
     method: 'POST',
@@ -30,11 +32,18 @@ function makeMockReq (body: string, cookie: string = ''): Record<string, unknown
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req
+  return asReq(req)
 }
 
-function makeMockRes (): Record<string, ReturnType<typeof vi.fn>> {
-  return { writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn() }
+function makeMockRes (): ServerResponse & { writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn> } {
+  const res: MockServerResponse = {
+    writeHead: vi.fn(),
+    end: vi.fn(),
+    setHeader: vi.fn(),
+    body: '',
+    statusCode: 200
+  }
+  return asRes<{ writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn> }>(res)
 }
 
 describe('admin delete route', () => {
@@ -55,21 +64,23 @@ describe('admin delete route', () => {
     const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     // First get a valid CSRF token by hitting the new form
-    const getReq = { headers: {}, url: '/admin/posts/new', method: 'GET' }
+    const getReq: MockIncomingMessage = { headers: {}, url: '/admin/posts/new', method: 'GET', on: vi.fn(), removeAllListeners: vi.fn() }
     let htmlBody = ''
-    const getRes = {
+    const getRes: MockServerResponse = {
       writeHead: vi.fn(),
       end: vi.fn((data: string) => { htmlBody = data }),
-      setHeader: vi.fn()
+      setHeader: vi.fn(),
+      body: '',
+      statusCode: 200
     }
-    await routes.get('/admin/posts/new')!.GET!(getReq as never, getRes as never, {})
+    await routes.get('/admin/posts/new')!.GET!(asReq(getReq), asRes(getRes), {})
     const csrfMatch = htmlBody.match(/name="_csrf" value="([^"]+)"/)
     const csrfToken = csrfMatch![1]!
 
     // Now POST delete with the valid token
     const req = makeMockReq(`_csrf=${encodeURIComponent(csrfToken)}`)
     const res = makeMockRes()
-    await routes.get('/admin/posts/:id/delete')!.POST!(req as never, res as never, { id: 'abc' })
+    await routes.get('/admin/posts/:id/delete')!.POST!(req, res, { id: 'abc' })
     expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: '/admin/posts' }))
   })
 
@@ -80,7 +91,7 @@ describe('admin delete route', () => {
     const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('_csrf=invalid-token')
     const res = makeMockRes()
-    await routes.get('/admin/posts/:id/delete')!.POST!(req as never, res as never, { id: 'abc' })
+    await routes.get('/admin/posts/:id/delete')!.POST!(req, res, { id: 'abc' })
     expect(res.writeHead).toHaveBeenCalledWith(403, expect.objectContaining({ Location: '/admin/posts/abc/edit' }))
   })
 
@@ -91,19 +102,19 @@ describe('admin delete route', () => {
     const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     // Create a request that will fail body parsing - use a broken stream
-    const req = {
+    const brokenReq: MockIncomingMessage = {
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       url: '/admin/posts/abc/delete',
       method: 'POST',
       on: vi.fn((event: string, cb: (data?: Buffer | Error) => void) => {
         if (event === 'error') cb(new Error('stream error'))
         if (event === 'end') cb()
-        return req
+        return brokenReq
       }),
-      removeAllListeners: vi.fn(() => req)
+      removeAllListeners: vi.fn(() => brokenReq)
     }
     const res = makeMockRes()
-    await routes.get('/admin/posts/:id/delete')!.POST!(req as never, res as never, { id: 'abc' })
+    await routes.get('/admin/posts/:id/delete')!.POST!(asReq(brokenReq), asRes(res), { id: 'abc' })
     // Should get either 400 or 403 depending on body parse result
     const statusCall = res.writeHead.mock.calls[0]?.[0]
     expect([400, 403]).toContain(statusCall)

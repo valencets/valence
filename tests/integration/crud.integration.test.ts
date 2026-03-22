@@ -88,7 +88,15 @@ beforeEach(async () => {
   await pool.sql.unsafe('DELETE FROM "posts"')
 })
 
-async function createPost (data: Record<string, unknown>): Promise<supertest.Response> {
+interface PostData {
+  readonly title: string
+  readonly slug: string
+  readonly body?: string
+  readonly published?: boolean
+  readonly publishedAt?: string
+}
+
+async function createPost (data: PostData): Promise<supertest.Response> {
   return request
     .post('/api/posts')
     .set('Content-Type', 'application/json')

@@ -1,9 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createAdminRoutes } from '../admin/admin-routes.js'
+import type { AdminRouteHandler } from '../admin/admin-routes.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool } from './test-helpers.js'
+import { makeMockPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 
 function makeUsersCollection () {
   return collection({
@@ -13,8 +16,13 @@ function makeUsersCollection () {
   })
 }
 
-function makeMockLoginReq (body: string, remoteAddress: string = '127.0.0.1'): Record<string, unknown> {
-  const req = {
+interface AdminRouteEntry {
+  GET?: AdminRouteHandler
+  POST?: AdminRouteHandler
+}
+
+function makeMockLoginReq (body: string, remoteAddress: string = '127.0.0.1'): IncomingMessage {
+  const req: MockIncomingMessage = {
     headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: '' },
     url: '/admin/login',
     method: 'POST',
@@ -26,33 +34,37 @@ function makeMockLoginReq (body: string, remoteAddress: string = '127.0.0.1'): R
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req
+  return asReq(req)
 }
 
-function makeMockRes (): { writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn>; body: string } {
-  const res = {
+function makeMockRes (): ServerResponse & { body: string } {
+  const res: MockServerResponse = {
     writeHead: vi.fn(),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     setHeader: vi.fn(),
-    body: ''
+    body: '',
+    statusCode: 200
   }
-  return res
+  return asRes<{ body: string }>(res)
 }
 
-function makeMockGetReq (): Record<string, unknown> {
-  return {
+function makeMockGetReq (): IncomingMessage {
+  const req: MockIncomingMessage = {
     headers: { cookie: '' },
     url: '/admin/login',
-    method: 'GET'
+    method: 'GET',
+    on: vi.fn(() => req),
+    removeAllListeners: vi.fn(() => req)
   }
+  return asReq(req)
 }
 
 /** Calls GET /admin/login to obtain a fresh CSRF token from the rendered form. */
-async function getCsrfToken (routes: Map<string, { GET?: Function; POST?: Function }>): Promise<string> {
+async function getCsrfToken (routes: Map<string, AdminRouteEntry>): Promise<string> {
   const handler = routes.get('/admin/login')?.GET
   const req = makeMockGetReq()
   const res = makeMockRes()
-  await handler!(req as never, res as never, {})
+  await handler!(req, res, {})
   const match = res.body.match(/name="_csrf"\s+value="([^"]+)"/)
   if (!match) throw new Error('Could not extract CSRF token from login page')
   return match[1]
@@ -72,7 +84,7 @@ describe('admin login rate limiting', () => {
       const body = `email=attacker%40test.com&password=wrong&_csrf=${token}`
       const req = makeMockLoginReq(body)
       const res = makeMockRes()
-      await routes.get('/admin/login')!.POST!(req as never, res as never, {})
+      await routes.get('/admin/login')!.POST!(req, res, {})
       // First 5 should NOT be 429
       expect(res.writeHead).not.toHaveBeenCalledWith(429)
     }
@@ -82,7 +94,7 @@ describe('admin login rate limiting', () => {
     const body = `email=attacker%40test.com&password=wrong&_csrf=${token}`
     const req = makeMockLoginReq(body)
     const res = makeMockRes()
-    await routes.get('/admin/login')!.POST!(req as never, res as never, {})
+    await routes.get('/admin/login')!.POST!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(429)
     expect(res.body).toContain('Too many login attempts')
   })
@@ -99,7 +111,7 @@ describe('admin login rate limiting', () => {
       const body = `email=test%40test.com&password=wrong&_csrf=${token}`
       const req = makeMockLoginReq(body)
       const res = makeMockRes()
-      await routes.get('/admin/login')!.POST!(req as never, res as never, {})
+      await routes.get('/admin/login')!.POST!(req, res, {})
       expect(res.writeHead).not.toHaveBeenCalledWith(429)
     }
 
@@ -108,7 +120,7 @@ describe('admin login rate limiting', () => {
     const body5 = `email=test%40test.com&password=wrong&_csrf=${token5}`
     const req5 = makeMockLoginReq(body5)
     const res5 = makeMockRes()
-    await routes.get('/admin/login')!.POST!(req5 as never, res5 as never, {})
+    await routes.get('/admin/login')!.POST!(req5, res5, {})
     expect(res5.writeHead).not.toHaveBeenCalledWith(429)
 
     // 6th attempt crosses the threshold
@@ -116,7 +128,7 @@ describe('admin login rate limiting', () => {
     const body6 = `email=test%40test.com&password=wrong&_csrf=${token6}`
     const req6 = makeMockLoginReq(body6)
     const res6 = makeMockRes()
-    await routes.get('/admin/login')!.POST!(req6 as never, res6 as never, {})
+    await routes.get('/admin/login')!.POST!(req6, res6, {})
     expect(res6.writeHead).toHaveBeenCalledWith(429)
   })
 
@@ -132,7 +144,7 @@ describe('admin login rate limiting', () => {
       const body = `email=attacker%40test.com&password=wrong&_csrf=${token}`
       const req = makeMockLoginReq(body, '10.0.0.1')
       const res = makeMockRes()
-      await routes.get('/admin/login')!.POST!(req as never, res as never, {})
+      await routes.get('/admin/login')!.POST!(req, res, {})
     }
 
     // 6th from same IP should be rate limited
@@ -140,7 +152,7 @@ describe('admin login rate limiting', () => {
     const bodyBlocked = `email=attacker%40test.com&password=wrong&_csrf=${tokenBlocked}`
     const reqBlocked = makeMockLoginReq(bodyBlocked, '10.0.0.1')
     const resBlocked = makeMockRes()
-    await routes.get('/admin/login')!.POST!(reqBlocked as never, resBlocked as never, {})
+    await routes.get('/admin/login')!.POST!(reqBlocked, resBlocked, {})
     expect(resBlocked.writeHead).toHaveBeenCalledWith(429)
 
     // Different IP should NOT be rate limited
@@ -148,7 +160,7 @@ describe('admin login rate limiting', () => {
     const bodyOk = `email=attacker%40test.com&password=wrong&_csrf=${tokenOk}`
     const reqOk = makeMockLoginReq(bodyOk, '10.0.0.2')
     const resOk = makeMockRes()
-    await routes.get('/admin/login')!.POST!(reqOk as never, resOk as never, {})
+    await routes.get('/admin/login')!.POST!(reqOk, resOk, {})
     expect(resOk.writeHead).not.toHaveBeenCalledWith(429)
   })
 })

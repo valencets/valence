@@ -3,29 +3,13 @@ import { createAdminRoutes } from '../admin/admin-routes.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool } from './test-helpers.js'
+import { makeMockPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse, MockSql } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { CollectionConfig } from '../schema/collection.js'
 
-interface MockReq {
-  method: string
-  url: string
-  headers: Record<string, string>
-  on: ReturnType<typeof vi.fn>
-  removeAllListeners: ReturnType<typeof vi.fn>
-}
-
-interface MockRes {
-  writeHead: ReturnType<typeof vi.fn>
-  end: ReturnType<typeof vi.fn>
-  setHeader: ReturnType<typeof vi.fn>
-  getHeader: ReturnType<typeof vi.fn>
-  body: string
-  statusCode: number
-}
-
 function makeMockReq (method: string, url: string, body: string = ''): IncomingMessage {
-  const req: MockReq = {
+  const req: MockIncomingMessage = {
     method,
     url,
     headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: '' },
@@ -36,12 +20,12 @@ function makeMockReq (method: string, url: string, body: string = ''): IncomingM
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req as unknown as IncomingMessage
+  return asReq(req)
 }
 
 function makeMockRes (): ServerResponse & { body: string } {
   const headers: Record<string, string> = {}
-  const res: MockRes = {
+  const res: MockServerResponse = {
     writeHead: vi.fn(),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     setHeader: vi.fn((name: string, value: string) => { headers[name] = value }),
@@ -49,7 +33,7 @@ function makeMockRes (): ServerResponse & { body: string } {
     body: '',
     statusCode: 200
   }
-  return res as unknown as ServerResponse & { body: string }
+  return asRes<{ body: string }>(res)
 }
 
 function makeVersionedCollection (): CollectionConfig {
@@ -119,9 +103,8 @@ describe('POST /admin/:slug/new — draft vs publish action', () => {
     expect(writeHeadCall?.[0]).toBe(302)
 
     // The SQL should contain 'draft' as the _status value
-    interface MockSql { unsafe: { mock: { calls: readonly (readonly [string, readonly unknown[]])[] } } }
-    const sqlCalls = (pool.sql as unknown as MockSql).unsafe.mock.calls
-    const allParams = sqlCalls.flatMap(c => c[1] as unknown[])
+    const sqlCalls = (pool.sql as MockSql).unsafe.mock.calls
+    const allParams = sqlCalls.flatMap(c => c[1] as (string | number | boolean | null)[])
     expect(allParams).toContain('draft')
   })
 
@@ -142,9 +125,8 @@ describe('POST /admin/:slug/new — draft vs publish action', () => {
     expect(writeHeadCall?.[0]).toBe(302)
 
     // The SQL should contain 'published' as the _status value (not 'draft')
-    interface MockSql { unsafe: { mock: { calls: readonly (readonly [string, readonly unknown[]])[] } } }
-    const sqlCalls = (pool.sql as unknown as MockSql).unsafe.mock.calls
-    const allParams = sqlCalls.flatMap(c => c[1] as unknown[])
+    const sqlCalls = (pool.sql as MockSql).unsafe.mock.calls
+    const allParams = sqlCalls.flatMap(c => c[1] as (string | number | boolean | null)[])
     expect(allParams).toContain('published')
     expect(allParams).not.toContain('draft')
   })
@@ -165,9 +147,8 @@ describe('POST /admin/:slug/new — draft vs publish action', () => {
     const writeHeadCall = (res.writeHead as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(writeHeadCall?.[0]).toBe(302)
 
-    interface MockSql { unsafe: { mock: { calls: readonly (readonly [string, readonly unknown[]])[] } } }
-    const sqlCalls = (pool.sql as unknown as MockSql).unsafe.mock.calls
-    const allParams = sqlCalls.flatMap(c => c[1] as unknown[])
+    const sqlCalls = (pool.sql as MockSql).unsafe.mock.calls
+    const allParams = sqlCalls.flatMap(c => c[1] as (string | number | boolean | null)[])
     expect(allParams).toContain('published')
     expect(allParams).not.toContain('draft')
   })
@@ -191,8 +172,7 @@ describe('POST /admin/:slug/:id/edit — publish action', () => {
     expect(writeHeadCall?.[0]).toBe(302)
 
     // The SQL should have published status in params
-    interface MockSql { unsafe: { mock: { calls: readonly (readonly [string, readonly unknown[]])[] } } }
-    const sqlCalls = (pool.sql as unknown as MockSql).unsafe.mock.calls
+    const sqlCalls = (pool.sql as MockSql).unsafe.mock.calls
     const allSql = sqlCalls.map(c => c[0] as string).join(' ')
     // publish: true triggers a _status update to 'published'
     expect(allSql.toLowerCase()).toContain('update')
@@ -214,9 +194,8 @@ describe('POST /admin/:slug/:id/edit — publish action', () => {
     expect(writeHeadCall?.[0]).toBe(302)
 
     // When _action=draft, _status should remain draft (not 'published')
-    interface MockSql { unsafe: { mock: { calls: readonly (readonly [string, readonly unknown[]])[] } } }
-    const sqlCalls = (pool.sql as unknown as MockSql).unsafe.mock.calls
-    const allParams = sqlCalls.flatMap(c => c[1] as unknown[])
+    const sqlCalls = (pool.sql as MockSql).unsafe.mock.calls
+    const allParams = sqlCalls.flatMap(c => c[1] as (string | number | boolean | null)[])
     // Should not set published status
     expect(allParams).not.toContain('published')
   })

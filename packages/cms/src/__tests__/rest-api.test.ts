@@ -3,7 +3,8 @@ import { createRestRoutes } from '../api/rest-api.js'
 import { createCollectionRegistry, createGlobalRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool, makeSequentialPool } from './test-helpers.js'
+import { makeMockPool, makeSequentialPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { PaginatedResult } from '../db/query-types.js'
 import type { DocumentRow } from '../db/query-builder.js'
@@ -22,7 +23,7 @@ beforeEach(() => {
 })
 
 function makeMockReq (method: string, url: string, body: string = ''): IncomingMessage {
-  const req = {
+  const req: MockIncomingMessage = {
     method,
     url,
     headers: { 'content-type': 'application/json', cookie: AUTH_COOKIE },
@@ -33,17 +34,17 @@ function makeMockReq (method: string, url: string, body: string = ''): IncomingM
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req as unknown as IncomingMessage
+  return asReq(req)
 }
 
 function makeMockRes (): ServerResponse & { body: string } {
-  const res = {
+  const res: MockServerResponse = {
     writeHead: vi.fn(),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     body: '',
     statusCode: 200
   }
-  return res as unknown as ServerResponse & { body: string }
+  return asRes<{ body: string }>(res)
 }
 
 function setup (poolReturn: readonly Record<string, string | number | null>[] = []) {

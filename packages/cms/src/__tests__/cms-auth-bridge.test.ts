@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createCmsAuthValidator, createCmsAuthGuard } from '../auth/middleware.js'
-import { makeMockPool, makeSequentialPool } from './test-helpers.js'
+import { makeMockPool, makeSequentialPool, asRes } from './test-helpers.js'
+import type { MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { RequestContext } from '@valencets/core/server'
 
@@ -9,12 +10,13 @@ function makeMockReq (cookie?: string): IncomingMessage {
 }
 
 function makeMockRes (): ServerResponse {
-  const res = {
+  const res: MockServerResponse = {
     writeHead: vi.fn(),
     end: vi.fn(),
+    body: '',
     statusCode: 200
   }
-  return res as unknown as ServerResponse
+  return asRes(res)
 }
 
 function makeMockCtx (path: string = '/admin'): RequestContext {

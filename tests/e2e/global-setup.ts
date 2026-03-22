@@ -105,6 +105,7 @@ async function globalSetup (): Promise<() => Promise<void>> {
 
   // Seed admin user
   const hashResult = await hashPassword('admin123')
+  // throw is acceptable here — this is test bootstrap, not production code
   if (hashResult.isErr()) throw new Error('Failed to hash password')
   await pool.sql.unsafe(
     'INSERT INTO "users" ("email", "password_hash", "name", "role") VALUES ($1, $2, $3, $4)',
@@ -149,4 +150,5 @@ async function globalSetup (): Promise<() => Promise<void>> {
   }
 }
 
+// Playwright requires default export for globalSetup
 export default globalSetup

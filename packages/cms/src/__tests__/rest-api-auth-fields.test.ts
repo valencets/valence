@@ -5,7 +5,8 @@ import { createCollectionRegistry, createGlobalRegistry } from '../schema/regist
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 import { injectAuthFields } from '../auth/auth-config.js'
-import { makeMockPool } from './test-helpers.js'
+import { makeMockPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 vi.mock('../auth/session.js', () => ({
@@ -16,7 +17,7 @@ import { validateSession } from '../auth/session.js'
 const mockedValidateSession = vi.mocked(validateSession)
 
 function makeMockReq (method: string, url: string, body: string = ''): IncomingMessage {
-  const req = {
+  const req: MockIncomingMessage = {
     method,
     url,
     headers: { 'content-type': 'application/json', cookie: 'cms_session=test-session' },
@@ -27,17 +28,17 @@ function makeMockReq (method: string, url: string, body: string = ''): IncomingM
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req as unknown as IncomingMessage
+  return asReq(req)
 }
 
 function makeMockRes (): ServerResponse & { body: string } {
-  const res = {
+  const res: MockServerResponse = {
     writeHead: vi.fn(),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     body: '',
     statusCode: 200
   }
-  return res as unknown as ServerResponse & { body: string }
+  return asRes<{ body: string }>(res)
 }
 
 function setupWithAuth (poolReturn: readonly Record<string, string | number | null>[] = []) {

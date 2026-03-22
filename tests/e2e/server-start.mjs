@@ -93,6 +93,7 @@ async function main () {
   await pool.sql.unsafe(INIT_SQL)
 
   const hashResult = await hashPassword('admin123')
+  // throw is acceptable here — this is test bootstrap, not production code
   if (hashResult.isErr()) throw new Error('Failed to hash password for LHCI seed')
   await pool.sql.unsafe(
     'INSERT INTO "users" ("email", "password_hash", "name", "role") VALUES ($1, $2, $3, $4)',

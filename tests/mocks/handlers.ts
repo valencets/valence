@@ -33,10 +33,27 @@ const mockUpload = {
 } as const
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface MockDocument {
+  readonly id: string
+  readonly title?: string
+  readonly status?: string
+  readonly created_at?: string
+  readonly updated_at?: string
+  readonly deleted_at?: string | null
+}
+
+interface RequestBody {
+  readonly [key: string]: string | number | boolean | null
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function paginatedResponse (docs: ReadonlyArray<Record<string, unknown>>) {
+function paginatedResponse (docs: ReadonlyArray<MockDocument>) {
   return {
     docs,
     totalDocs: docs.length,
@@ -57,7 +74,7 @@ export const handlers = [
 
   /** POST /api/:collection — create entry (201) */
   http.post(`${BASE}/api/:collection`, async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>
+    const body = await request.json() as RequestBody
     return HttpResponse.json(
       { id: 'doc-new', ...body, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), deleted_at: null },
       { status: 201 }
@@ -81,7 +98,7 @@ export const handlers = [
 
   /** PATCH /api/:collection/:id — update entry */
   http.patch(`${BASE}/api/:collection/:id`, async ({ request }) => {
-    const body = await request.json() as Record<string, unknown>
+    const body = await request.json() as RequestBody
     return HttpResponse.json({ ...mockDoc, ...body, updated_at: new Date().toISOString() })
   }),
 

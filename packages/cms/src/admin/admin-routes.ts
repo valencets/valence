@@ -37,7 +37,7 @@ import { basename, resolve } from 'node:path'
 import { generateNonce, setSecurityHeaders, CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
 import { fileURLToPath } from 'node:url'
 
-type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
+export type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
 interface AdminOptions {
   readonly requireAuth?: boolean | undefined
