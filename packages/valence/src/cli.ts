@@ -1,5 +1,6 @@
 import { writeFile, mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
 import { execSync } from 'node:child_process'
@@ -146,6 +147,10 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
     extraDeps.astro = '^5.0.0'
   }
 
+  const cliDir = dirname(fileURLToPath(import.meta.url))
+  const cliPkg = JSON.parse(readFileSync(join(cliDir, '..', 'package.json'), 'utf-8')) as { version: string }
+  const cliVersion = `^${cliPkg.version}`
+
   await writeFile(join(dir, 'package.json'), JSON.stringify({
     name: projectName,
     version: '0.1.0',
@@ -158,9 +163,9 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
       start: 'node dist/server.js'
     },
     dependencies: {
-      '@valencets/valence': '^0.7.1',
-      '@valencets/cms': '^0.2.1',
-      '@valencets/db': '^0.1.2',
+      '@valencets/valence': cliVersion,
+      '@valencets/cms': 'latest',
+      '@valencets/db': 'latest',
       tsx: '^4.21.0',
       ...extraDeps
     },
@@ -1046,7 +1051,11 @@ async function runUserCreate (): Promise<void> {
 async function runBuild (): Promise<void> {
   log('Building for production...')
   const pm = detectPackageManager()
-  exec(`${pm} exec tsc`, process.cwd())
+  const ok = exec(`${pm} exec tsc`, process.cwd())
+  if (!ok) {
+    console.error('Build failed — TypeScript compilation errors above.')
+    process.exit(1)
+  }
   log('Build complete.')
 }
 
