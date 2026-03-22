@@ -14,7 +14,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc && rm -f dist/admin-client.js && esbuild src/admin/editor/admin-client.ts --bundle --format=esm --splitting --outdir=dist/client --minify",
+    "build": "tsc && node dist/admin/build-css.js && rm -f dist/admin-client.js && esbuild src/admin/editor/admin-client.ts --bundle --format=esm --splitting --outdir=dist/client --minify",
     "test": "vitest run",
     "build:dev": "tsc && esbuild src/admin/editor/admin-client.ts --bundle --format=esm --splitting --outdir=dist/client"
   },
