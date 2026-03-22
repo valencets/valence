@@ -54,7 +54,9 @@ function notify (subscribers: Set<() => void>): void {
   }
   if (++notifyDepth > MAX_NOTIFY_DEPTH) {
     notifyDepth = 0
-    process.stderr.write('@valencets/reactive: maximum notify depth exceeded (possible infinite signal loop)\n')
+    if (typeof console !== 'undefined') {
+      console.warn('@valencets/reactive: maximum notify depth exceeded (possible infinite signal loop)')
+    }
     return
   }
   const snapshot = [...subscribers]
