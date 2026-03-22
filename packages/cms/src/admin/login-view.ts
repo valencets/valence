@@ -17,66 +17,71 @@ export function renderLoginPage (args: LoginPageArgs): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sign In -- Valence CMS</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     :root {
-      --val-gray-50: oklch(0.9846 0.0017 247.84);
-      --val-gray-200: oklch(0.9276 0.0058 264.53);
-      --val-gray-400: oklch(0.7137 0.0192 261.32);
-      --val-gray-700: oklch(0.3729 0.0306 259.73);
-      --val-gray-800: oklch(0.2781 0.0296 256.85);
-      --val-gray-900: oklch(0.2101 0.0318 264.66);
-      --val-gray-950: oklch(0.1296 0.0274 261.69);
-      --val-blue-400: oklch(0.7137 0.1434 254.62);
-      --val-blue-500: oklch(0.6231 0.1880 259.81);
-      --val-blue-600: oklch(0.5461 0.2152 262.88);
-      --val-blue-700: oklch(0.4882 0.2172 264.38);
-      --val-red-500: oklch(0.6368 0.2078 25.33);
-      --val-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --val-font-sans: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       --val-text-sm: 0.875rem;
       --val-text-base: 1rem;
+      --val-text-lg: 1.125rem;
       --val-text-xl: 1.25rem;
       --val-leading-normal: 1.5;
       --val-weight-medium: 500;
       --val-weight-semibold: 600;
       --val-weight-bold: 700;
-      --val-radius-md: 0.375rem;
-      --val-radius-lg: 0.5rem;
+      --val-radius-md: 8px;
+      --val-radius-lg: 12px;
       --val-shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -2px oklch(0 0 0 / 0.1);
       --val-duration-fast: 100ms;
       --val-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+      --val-red-500: oklch(0.6368 0.2078 25.33);
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: var(--val-font-sans);
       font-size: var(--val-text-base);
       line-height: var(--val-leading-normal);
-      color: var(--val-gray-50);
-      background: var(--val-gray-950);
+      color: #e5e2e1;
+      background: #131313;
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
     .login-card {
       width: 100%;
       max-width: 400px;
-      background: var(--val-gray-900);
-      border: 1px solid var(--val-gray-700);
+      background: #1c1b1b;
+      border: none;
       border-radius: var(--val-radius-lg);
-      padding: 2rem;
-      box-shadow: var(--val-shadow-md);
+      padding: 2.5rem 2rem;
+      box-shadow: 0 8px 32px oklch(0 0 0 / 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #45f99c, #00dc82);
     }
     .login-brand {
       font-size: var(--val-text-xl);
       font-weight: var(--val-weight-bold);
       text-align: center;
-      margin-bottom: 1.5rem;
-      letter-spacing: -0.02em;
+      margin-bottom: 2rem;
+      letter-spacing: -0.03em;
+      color: #e5e2e1;
     }
-    .login-brand span { color: var(--val-blue-400); }
+    .login-brand span { color: #45f99c; }
     .login-error {
-      background: oklch(0.6368 0.2078 25.33 / 0.15);
-      border: 1px solid var(--val-red-500);
-      color: var(--val-red-500);
+      background: rgba(147, 0, 10, 0.3);
+      border-left: 3px solid #ffb4ab;
+      color: #ffb4ab;
       padding: 0.625rem 0.75rem;
       border-radius: var(--val-radius-md);
       font-size: var(--val-text-sm);
@@ -92,14 +97,14 @@ export function renderLoginPage (args: LoginPageArgs): string {
     .form-field label {
       font-size: var(--val-text-sm);
       font-weight: var(--val-weight-medium);
-      color: var(--val-gray-400);
+      color: #9a9a9a;
     }
     .form-field input {
-      background: var(--val-gray-800);
-      border: 1px solid var(--val-gray-700);
+      background: #353534;
+      border: 1px solid rgba(60, 74, 63, 0.25);
       border-radius: var(--val-radius-md);
-      padding: 0.5rem 0.75rem;
-      color: var(--val-gray-50);
+      padding: 0.625rem 0.875rem;
+      color: #e5e2e1;
       font-family: var(--val-font-sans);
       font-size: var(--val-text-sm);
       transition: border-color var(--val-duration-fast) var(--val-ease-in-out),
@@ -107,8 +112,8 @@ export function renderLoginPage (args: LoginPageArgs): string {
     }
     .form-field input:focus {
       outline: none;
-      border-color: var(--val-blue-500);
-      box-shadow: 0 0 0 2px var(--val-gray-950), 0 0 0 4px var(--val-blue-500);
+      border-color: #45f99c;
+      box-shadow: 0 0 0 3px rgba(69, 249, 156, 0.15);
     }
     .btn-login {
       width: 100%;
@@ -119,11 +124,16 @@ export function renderLoginPage (args: LoginPageArgs): string {
       border-radius: var(--val-radius-md);
       border: none;
       cursor: pointer;
-      background: var(--val-blue-600);
-      color: oklch(1 0 0);
-      transition: background var(--val-duration-fast) var(--val-ease-in-out);
+      background: linear-gradient(135deg, #45f99c, #00dc82);
+      color: #003920;
+      transition: background var(--val-duration-fast) var(--val-ease-in-out),
+                  box-shadow var(--val-duration-fast) var(--val-ease-in-out);
+      margin-top: 0.5rem;
     }
-    .btn-login:hover { background: var(--val-blue-700); }
+    .btn-login:hover {
+      background: linear-gradient(135deg, #00dc82, #00c476);
+      box-shadow: 0 0 20px rgba(69, 249, 156, 0.25);
+    }
   </style>
 </head>
 <body>

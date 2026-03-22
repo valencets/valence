@@ -36,7 +36,7 @@ export function renderDashboard (data: DashboardData): string {
   }
 
   const recentSection = allRecent.length > 0
-    ? `<h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: var(--val-text-xl); font-weight: var(--val-weight-semibold);">Recent Activity</h2>
+    ? `<h2 style="margin-top: 2rem; margin-bottom: 0.75rem; font-size: var(--val-text-xl); font-weight: var(--val-weight-semibold); color: var(--val-color-text);">Recent Activity</h2>
 <table>
   <thead><tr><th>Collection</th><th>Item</th><th>Created</th></tr></thead>
   <tbody>
