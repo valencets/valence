@@ -577,6 +577,11 @@ export function generateDraftSchema(fields: readonly FieldConfig[]): ZodObject;
 // @public (undocumented)
 export function generateLocalizedSchema(fields: readonly FieldConfig[]): ZodObject;
 
+// Warning: (ae-forgotten-export) The symbol "OpenApiSpec" needs to be exported by the entry point index.d.ts
+//
+// @public (undocumented)
+export function generateOpenApiSpec(collections: CollectionRegistry): OpenApiSpec;
+
 // @public (undocumented)
 export function generatePartialSchema(fields: readonly FieldConfig[]): ZodObject;
 
