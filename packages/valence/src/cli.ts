@@ -588,19 +588,20 @@ async function runDev (): Promise<void> {
   // eslint-disable-next-line complexity
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
-    const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
-
-    // Health check — before all other processing
-    if (url.pathname === '/health' && method === 'GET') {
-      const body = JSON.stringify({ status: 'ok', uptime: process.uptime() })
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
-      res.end(body)
-      return
-    }
+    const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
 
     // Global security headers — baseline for all responses
     // Admin routes will override CSP with nonce-based policy via sendHtml()
     setSecurityHeaders(res)
+
+    // Health check — before all other processing
+    if (url.pathname === '/health' && (method === 'GET' || method === 'HEAD')) {
+      res.setHeader('Cache-Control', 'no-store')
+      const body = JSON.stringify({ status: 'ok', uptime: process.uptime() })
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
+      res.end(method === 'HEAD' ? undefined : body)
+      return
+    }
 
     // Body-limit check for requests with Content-Length header
     if (method === 'POST' || method === 'PATCH') {
@@ -850,19 +851,20 @@ export async function runStart (): Promise<void> {
   // eslint-disable-next-line complexity
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
-    const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
-
-    // Health check — before all other processing
-    if (url.pathname === '/health' && method === 'GET') {
-      const body = JSON.stringify({ status: 'ok', uptime: process.uptime() })
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
-      res.end(body)
-      return
-    }
+    const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
 
     // Global security headers — baseline for all responses
     // Admin routes will override CSP with nonce-based policy via sendHtml()
     setSecurityHeaders(res)
+
+    // Health check — before all other processing
+    if (url.pathname === '/health' && (method === 'GET' || method === 'HEAD')) {
+      res.setHeader('Cache-Control', 'no-store')
+      const body = JSON.stringify({ status: 'ok', uptime: process.uptime() })
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
+      res.end(method === 'HEAD' ? undefined : body)
+      return
+    }
 
     // Body-limit check for requests with Content-Length header
     if (method === 'POST' || method === 'PATCH') {

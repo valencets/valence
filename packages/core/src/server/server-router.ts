@@ -60,7 +60,8 @@ export function createServerRouter (): ServerRouter {
     const stored = routes.get(match.pattern)!
     let handler: RouteHandler | undefined = stored.entry[method as keyof RouteEntry]
 
-    // OPTIONS auto-response: list methods available on this route
+    // OPTIONS auto-response runs before middleware intentionally —
+    // CORS preflight requests are sent without credentials per spec
     if (method === 'OPTIONS' && !handler) {
       const methodKeys: ReadonlyArray<keyof RouteEntry> = ['GET', 'POST', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
       const defined = methodKeys.filter(m => stored.entry[m] !== undefined)
