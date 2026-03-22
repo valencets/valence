@@ -59,12 +59,13 @@ template.innerHTML = `
   input::placeholder { color: var(--val-color-text-muted); }
   :host([aria-invalid="true"]) input { border-color: var(--val-color-error); }
   input:disabled { cursor: not-allowed; }
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus {
+  input:autofill,
+  input:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px var(--val-color-bg-elevated) inset;
+    box-shadow: 0 0 0 1000px var(--val-color-bg-elevated) inset;
     -webkit-text-fill-color: var(--val-color-text);
     caret-color: var(--val-color-text);
+    border-color: var(--val-color-border);
   }
 </style>
 <div class="wrapper">
