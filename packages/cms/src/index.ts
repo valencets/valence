@@ -148,7 +148,7 @@ export { isUploadEnabled, getMediaFields, getMimeType, getUploadConfig, createSe
 export type { ImageSize, UploadConfig, UploadResult, SizeMetadata, StorageAdapter, ProcessedImage, FocalPoint } from './media/index.js'
 
 export { buildCms } from './config/index.js'
-export type { CmsConfig, CmsInstance, Plugin, LocaleConfig, LocalizationConfig } from './config/index.js'
+export type { CmsConfig, CmsInstance, Plugin, PluginObject, PluginHooks, LocaleConfig, LocalizationConfig } from './config/index.js'
 
 export { startPublishScheduler } from './scheduler.js'
 export type { SchedulerHandle } from './scheduler.js'
