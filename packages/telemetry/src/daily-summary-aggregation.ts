@@ -3,6 +3,7 @@ import type { JSONValue } from 'postgres'
 import { DbErrorCode, mapPostgresError } from '@valencets/db'
 import type { DbError, DbPool } from '@valencets/db'
 import type { DailySummaryRow } from './daily-summary-types.js'
+import { PAGEVIEW_CATEGORIES, CONVERSION_CATEGORIES } from './beacon-types.js'
 
 /** Converts a structured value to a postgres-compatible JSONValue via round-trip serialization. */
 function toJson (val: object): JSONValue {
@@ -60,7 +61,7 @@ function queryPageviewCount (pool: DbPool, start: Date, end: Date): Promise<numb
     SELECT COALESCE(SUM(total_count), 0)::int AS pageview_count
     FROM event_summaries
     WHERE period_start >= ${start} AND period_end <= ${end}
-      AND event_category IN ('CLICK', 'VIEWPORT_INTERSECT')
+      AND event_category = ANY(${pool.sql.array([...PAGEVIEW_CATEGORIES])})
   `.then((rows) => rows[0]?.pageview_count ?? 0)
 }
 
@@ -69,10 +70,15 @@ function queryConversionCount (pool: DbPool, start: Date, end: Date): Promise<nu
     SELECT COALESCE(SUM(total_count), 0)::int AS conversion_count
     FROM event_summaries
     WHERE period_start >= ${start} AND period_end <= ${end}
-      AND event_category IN ('INTENT_LEAD', 'INTENT_CALL', 'INTENT_BOOK', 'LEAD_PHONE', 'LEAD_EMAIL', 'LEAD_FORM')
+      AND event_category = ANY(${pool.sql.array([...CONVERSION_CATEGORIES])})
   `.then((rows) => rows[0]?.conversion_count ?? 0)
 }
 
+/**
+ * Reads from raw `sessions` table intentionally — session_summaries only store
+ * aggregate counts (total_sessions, unique_referrers), not per-referrer breakdowns
+ * needed for top referrers ranking.
+ */
 function queryTopReferrers (pool: DbPool, start: Date, end: Date): Promise<ReadonlyArray<{ referrer: string; count: number }>> {
   return pool.sql<ReferrerAgg[]>`
     SELECT COALESCE(referrer, '') AS referrer, COUNT(*)::int AS count
@@ -84,12 +90,17 @@ function queryTopReferrers (pool: DbPool, start: Date, end: Date): Promise<Reado
   `.then((rows) => rows.map((r) => ({ referrer: r.referrer, count: r.count })))
 }
 
+/**
+ * Reads from raw `events` table intentionally — event_summaries only store
+ * per-category totals, not per-path breakdowns needed for top pages ranking.
+ * Uses PAGEVIEW_CATEGORIES to stay consistent with queryPageviewCount.
+ */
 function queryTopPages (pool: DbPool, start: Date, end: Date): Promise<ReadonlyArray<{ path: string; count: number }>> {
   return pool.sql<PageAgg[]>`
     SELECT payload->>'path' AS path, COUNT(*)::int AS count
     FROM events
     WHERE created_at >= ${start} AND created_at < ${end}
-      AND event_category = 'VIEWPORT_INTERSECT'
+      AND event_category = ANY(${pool.sql.array([...PAGEVIEW_CATEGORIES])})
       AND payload->>'path' IS NOT NULL
     GROUP BY payload->>'path'
     ORDER BY count DESC

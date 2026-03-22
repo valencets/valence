@@ -98,6 +98,9 @@ export interface CategoryCount {
     readonly dom_target: string;
 }
 
+// @public
+export const CONVERSION_CATEGORIES: readonly ["INTENT_LEAD", "INTENT_CALL", "INTENT_BOOK", "LEAD_PHONE", "LEAD_EMAIL", "LEAD_FORM"];
+
 // @public (undocumented)
 export function cleanupOldEvents(pool: DbPool, retentionDays?: number): ResultAsync<number, DbError>;
 
@@ -424,6 +427,9 @@ export function markSynced(pool: DbPool, id: number): ResultAsync<void, DbError>
 
 // @public (undocumented)
 export const MAX_BEACON_EVENTS = 256;
+
+// @public
+export const PAGEVIEW_CATEGORIES: readonly ["CLICK", "VIEWPORT_INTERSECT"];
 
 // @public (undocumented)
 export interface PageviewCount {
