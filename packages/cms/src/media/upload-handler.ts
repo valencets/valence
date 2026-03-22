@@ -38,7 +38,8 @@ const DEFAULT_ALLOWED_MIMES = new Set([
   'image/gif',
   'image/webp',
   'image/avif',
-  'image/svg+xml',
+  // SVG is intentionally excluded — SVGs can contain embedded scripts and
+  // must not be uploaded by default to prevent stored XSS attacks.
   'application/pdf',
   'video/mp4',
   'video/webm',

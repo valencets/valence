@@ -293,6 +293,10 @@ export function createAdminRoutes (
     }
   })
 
+  // Logout CSRF: SameSite=Lax on the session cookie prevents cross-site POST
+  // from sending the cookie, so an attacker's form submission arrives without
+  // a session — destroySession is a no-op and the redirect is harmless.
+  // No additional CSRF token is needed for this endpoint.
   routes.set('/admin/logout', {
     POST: async (req, res) => {
       const cookieHeader = req.headers.cookie ?? ''
@@ -300,7 +304,8 @@ export function createAdminRoutes (
       if (sessionId) {
         await destroySession(sessionId, pool)
       }
-      res.setHeader('Set-Cookie', buildExpiredSessionCookie())
+      const secure = !!(req.socket as { encrypted?: boolean }).encrypted
+      res.setHeader('Set-Cookie', buildExpiredSessionCookie(secure))
       res.writeHead(302, { Location: '/admin/login' })
       res.end()
     }

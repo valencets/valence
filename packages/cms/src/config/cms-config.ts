@@ -18,6 +18,8 @@ import { createAuthRoutes } from '../auth/auth-routes.js'
 import { isUploadEnabled } from '../media/media-config.js'
 import { createServeHandler } from '../media/serve-handler.js'
 import { createUploadHandler } from '../media/upload-handler.js'
+import { parseCookie } from '../auth/cookie.js'
+import { validateSession } from '../auth/session.js'
 
 export interface LocaleConfig {
   readonly code: string
@@ -107,9 +109,29 @@ export function buildCms (inputConfig: CmsConfig): Result<CmsInstance, CmsError>
     if (hasUploadCollection) {
       const uploadHandler = createUploadHandler(config.uploadDir)
       const serveHandler = createServeHandler(config.uploadDir)
+
+      // Upload requires a valid session — only authenticated users may upload files
       restRoutes.set('/media/upload', {
-        POST: async (req, res) => { await uploadHandler(req, res) }
+        POST: async (req, res) => {
+          const cookieHeader = req.headers.cookie ?? ''
+          const sessionId = parseCookie(cookieHeader, 'cms_session')
+          if (!sessionId) {
+            res.writeHead(401, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Unauthorized' }))
+            return
+          }
+          const sessionResult = await validateSession(sessionId, config.db)
+          if (sessionResult.isErr()) {
+            res.writeHead(401, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Unauthorized' }))
+            return
+          }
+          await uploadHandler(req, res)
+        }
       })
+
+      // Serve is public — media files are embedded in public-facing pages and must be
+      // accessible without authentication (e.g. <img> tags, og:image meta, PDF downloads).
       restRoutes.set('/media/:filename', {
         GET: async (req, res) => { await serveHandler(req, res) }
       })

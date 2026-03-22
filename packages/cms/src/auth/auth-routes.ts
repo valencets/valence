@@ -109,6 +109,10 @@ export function createAuthRoutes (
     }
   })
 
+  // Logout CSRF: SameSite=Lax on the session cookie prevents cross-site POST
+  // from sending the cookie, so an attacker's form submission arrives without
+  // a session — destroySession is a no-op and the response is harmless.
+  // No additional CSRF token is needed for this endpoint.
   routes.set('/api/users/logout', {
     POST: async (req, res) => {
       const cookieHeader = req.headers.cookie ?? ''
