@@ -58,7 +58,23 @@ export function createServerRouter (): ServerRouter {
     }
 
     const stored = routes.get(match.pattern)!
-    const handler: RouteHandler | undefined = stored.entry[method as keyof RouteEntry]
+    let handler: RouteHandler | undefined = stored.entry[method as keyof RouteEntry]
+
+    // OPTIONS auto-response: list methods available on this route
+    if (method === 'OPTIONS' && !handler) {
+      const methodKeys: ReadonlyArray<keyof RouteEntry> = ['GET', 'POST', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
+      const defined = methodKeys.filter(m => stored.entry[m] !== undefined)
+      if (!defined.includes('HEAD') && stored.entry.GET) defined.push('HEAD')
+      if (!defined.includes('OPTIONS')) defined.push('OPTIONS')
+      res.writeHead(204, { Allow: defined.join(', ') })
+      res.end()
+      return
+    }
+
+    // HEAD fallback: reuse GET handler (Node.js strips the body automatically for HEAD)
+    if (method === 'HEAD' && !handler && stored.entry.GET) {
+      handler = stored.entry.GET
+    }
 
     if (!handler) {
       sendError(res, { code: ServerErrorCode.METHOD_NOT_ALLOWED, message: `Method ${method} not allowed on ${pathname}`, statusCode: 405 })

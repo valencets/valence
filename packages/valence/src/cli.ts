@@ -590,6 +590,14 @@ async function runDev (): Promise<void> {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
     const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
+    // Health check — before all other processing
+    if (url.pathname === '/health' && method === 'GET') {
+      const body = JSON.stringify({ status: 'ok', uptime: process.uptime() })
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
+      res.end(body)
+      return
+    }
+
     // Global security headers — baseline for all responses
     // Admin routes will override CSP with nonce-based policy via sendHtml()
     setSecurityHeaders(res)
@@ -843,6 +851,14 @@ export async function runStart (): Promise<void> {
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
     const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
+
+    // Health check — before all other processing
+    if (url.pathname === '/health' && method === 'GET') {
+      const body = JSON.stringify({ status: 'ok', uptime: process.uptime() })
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
+      res.end(body)
+      return
+    }
 
     // Global security headers — baseline for all responses
     // Admin routes will override CSP with nonce-based policy via sendHtml()

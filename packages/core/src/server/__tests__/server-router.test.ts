@@ -425,4 +425,105 @@ describe('createServerRouter', () => {
     expect(res._body).toBe('Unauthorized')
     expect(handler).not.toHaveBeenCalled()
   })
+
+  it('HEAD fallback uses GET handler when no explicit HEAD', async () => {
+    const router = createServerRouter()
+    const handler = vi.fn<RouteHandler>(async (_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end('hello')
+    })
+
+    router.register('/page', { GET: handler })
+    const req = mockReq('/page', 'HEAD')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(handler).toHaveBeenCalledOnce()
+    expect(res._status).toBe(200)
+    expect(res._headers['Content-Type']).toBe('text/plain')
+  })
+
+  it('HEAD uses explicit HEAD handler when registered', async () => {
+    const router = createServerRouter()
+    const getHandler = vi.fn<RouteHandler>(async (_req, res) => {
+      res.writeHead(200)
+      res.end('get body')
+    })
+    const headHandler = vi.fn<RouteHandler>(async (_req, res) => {
+      res.writeHead(200, { 'X-Custom': 'head' })
+      res.end()
+    })
+
+    router.register('/page', { GET: getHandler, HEAD: headHandler })
+    const req = mockReq('/page', 'HEAD')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(headHandler).toHaveBeenCalledOnce()
+    expect(getHandler).not.toHaveBeenCalled()
+    expect(res._headers['X-Custom']).toBe('head')
+  })
+
+  it('HEAD returns 405 when route has no GET handler', async () => {
+    const router = createServerRouter()
+    router.register('/post-only', { POST: async (_req, res) => { res.end('ok') } })
+
+    const req = mockReq('/post-only', 'HEAD')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(res._status).toBe(405)
+  })
+
+  it('OPTIONS auto-response lists available methods', async () => {
+    const router = createServerRouter()
+    router.register('/items', {
+      GET: async (_req, res) => { res.end('list') },
+      POST: async (_req, res) => { res.end('create') }
+    })
+
+    const req = mockReq('/items', 'OPTIONS')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(res._status).toBe(204)
+    const allow = res._headers.Allow
+    expect(allow).toContain('GET')
+    expect(allow).toContain('POST')
+    expect(allow).toContain('HEAD')
+    expect(allow).toContain('OPTIONS')
+  })
+
+  it('OPTIONS uses explicit OPTIONS handler when registered', async () => {
+    const router = createServerRouter()
+    const optionsHandler = vi.fn<RouteHandler>(async (_req, res) => {
+      res.writeHead(200, { 'X-Custom': 'options' })
+      res.end()
+    })
+
+    router.register('/custom', { GET: async (_req, res) => { res.end('ok') }, OPTIONS: optionsHandler })
+    const req = mockReq('/custom', 'OPTIONS')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(optionsHandler).toHaveBeenCalledOnce()
+    expect(res._headers['X-Custom']).toBe('options')
+  })
+
+  it('OPTIONS does not include HEAD when no GET handler', async () => {
+    const router = createServerRouter()
+    router.register('/post-only', {
+      POST: async (_req, res) => { res.end('ok') }
+    })
+
+    const req = mockReq('/post-only', 'OPTIONS')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(res._status).toBe(204)
+    const allow = res._headers.Allow
+    expect(allow).toContain('POST')
+    expect(allow).toContain('OPTIONS')
+    expect(allow).not.toContain('HEAD')
+  })
 })

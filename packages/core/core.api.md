@@ -571,6 +571,10 @@ export interface RouteEntry {
     // (undocumented)
     readonly GET?: RouteHandler;
     // (undocumented)
+    readonly HEAD?: RouteHandler;
+    // (undocumented)
+    readonly OPTIONS?: RouteHandler;
+    // (undocumented)
     readonly PATCH?: RouteHandler;
     // (undocumented)
     readonly POST?: RouteHandler;
