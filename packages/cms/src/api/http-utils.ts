@@ -6,7 +6,7 @@ import type { CmsError } from '../schema/types.js'
 import type { DocumentData } from '../db/query-builder.js'
 import { readStringBody } from './read-body.js'
 
-export function sendJson (res: ServerResponse, data: DocumentData | readonly DocumentData[], statusCode: number = 200): void {
+export function sendApiJson (res: ServerResponse, data: DocumentData | readonly DocumentData[], statusCode: number = 200): void {
   const body = JSON.stringify(data)
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',

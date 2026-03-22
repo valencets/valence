@@ -8,7 +8,7 @@ export { createSession, DEFAULT_SESSION_MAX_AGE, validateSession, destroySession
 export { createAuthMiddleware, createCmsAuthValidator, createCmsAuthGuard } from './middleware.js'
 export type { AuthContext, AuthMiddleware, CmsAuthGuardOptions } from './middleware.js'
 
-export { generateCsrfToken, validateCsrfToken } from './csrf.js'
+export { generateCsrfToken, validateCsrfToken } from '@valencets/core/server'
 
 export { createAuthRoutes } from './auth-routes.js'
 export { parseCookie } from './cookie.js'

@@ -1,4 +1,4 @@
-export { renderLayout } from './layout.js'
+export { renderAdminLayout } from './layout.js'
 export { renderDashboard } from './dashboard.js'
 export { renderListView } from './list-view.js'
 export { renderEditView } from './edit-view.js'

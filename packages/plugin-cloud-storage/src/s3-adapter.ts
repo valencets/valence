@@ -1,6 +1,6 @@
 import { ResultAsync } from 'neverthrow'
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
-import type { StorageAdapter, StorageError } from './storage-adapter.js'
+import type { CloudStorageAdapter, StorageError } from './storage-adapter.js'
 
 export interface S3Credentials {
   readonly accessKeyId: string
@@ -30,7 +30,7 @@ function buildPublicUrl (key: string, publicUrl: string): string {
   return `${base}/${key}`
 }
 
-export function createS3Adapter (opts: S3AdapterOptions): StorageAdapter {
+export function createS3Adapter (opts: S3AdapterOptions): CloudStorageAdapter {
   const client = new S3Client({
     region: opts.region,
     credentials: {

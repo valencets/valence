@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { okAsync } from 'neverthrow'
 import { createS3Adapter } from '../s3-adapter.js'
 import { cloudStoragePlugin } from '../cloud-storage-plugin.js'
-import type { StorageAdapter } from '../storage-adapter.js'
+import type { CloudStorageAdapter } from '../storage-adapter.js'
 import type { CmsConfigWithStorage } from '../cloud-storage-plugin.js'
 import type { CmsConfig } from '@valencets/cms'
 
@@ -24,7 +24,7 @@ const makeConfig = (collections: CmsConfig['collections']): CmsConfig => ({
   collections
 })
 
-describe('StorageAdapter interface', () => {
+describe('CloudStorageAdapter interface', () => {
   describe('createS3Adapter', () => {
     it('returns an object with upload, delete, and getUrl methods', () => {
       const adapter = createS3Adapter({
@@ -205,7 +205,7 @@ describe('StorageAdapter interface', () => {
 })
 
 describe('cloudStoragePlugin', () => {
-  const mockAdapter: StorageAdapter = {
+  const mockAdapter: CloudStorageAdapter = {
     upload: vi.fn().mockReturnValue(okAsync('uploaded')),
     delete: vi.fn().mockReturnValue(okAsync(undefined)),
     getUrl: vi.fn().mockReturnValue('https://cdn.example.com/file.jpg')
@@ -254,7 +254,7 @@ describe('cloudStoragePlugin', () => {
   })
 
   it('getUrl delegates to adapter.getUrl', () => {
-    const adapter: StorageAdapter = {
+    const adapter: CloudStorageAdapter = {
       upload: vi.fn(),
       delete: vi.fn(),
       getUrl: vi.fn().mockReturnValue('https://cdn.example.com/test.jpg')
