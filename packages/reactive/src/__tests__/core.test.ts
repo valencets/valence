@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { signal, computed, effect, batch } from '../core.js'
+import { signal, computed, effect, batch, untracked } from '../core.js'
 
 describe('signal()', () => {
   it('returns initial value via .value', () => {
@@ -287,5 +287,39 @@ describe('batch()', () => {
     count.value = 1
     count.value = 2
     expect(spy).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('untracked()', () => {
+  it('reads signal without creating dependency', () => {
+    const a = signal(1)
+    const b = signal(2)
+    const spy = vi.fn()
+    effect(() => {
+      spy(a.value + untracked(() => b.value))
+    })
+    expect(spy).toHaveBeenCalledWith(3)
+    spy.mockClear()
+    b.value = 10 // untracked — should NOT re-run effect
+    expect(spy).not.toHaveBeenCalled()
+    a.value = 5 // tracked — SHOULD re-run
+    expect(spy).toHaveBeenCalledWith(15) // 5 + 10
+  })
+
+  it('returns the callback value', () => {
+    const s = signal(42)
+    const result = untracked(() => s.value)
+    expect(result).toBe(42)
+  })
+
+  it('works inside computed without tracking transitive deps', () => {
+    const a = signal(1)
+    const b = signal(2)
+    const c = computed(() => a.value + untracked(() => b.value))
+    expect(c.value).toBe(3)
+    b.value = 100
+    expect(c.value).toBe(3) // b not tracked — still cached
+    a.value = 10
+    expect(c.value).toBe(110) // a tracked — recomputed with new b
   })
 })
