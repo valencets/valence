@@ -77,17 +77,6 @@ export function getMigrationStatus(pool: DbPool): ResultAsync<ReadonlyArray<{
 export function loadMigrations(directory: string): ResultAsync<ReadonlyArray<MigrationFile>, DbError>;
 
 // @public (undocumented)
-export function makeErrorPool(error: DbError): DbPool;
-
-// Warning: (ae-forgotten-export) The symbol "MockRow" needs to be exported by the entry point index.d.ts
-//
-// @public (undocumented)
-export function makeMockPool(rows?: ReadonlyArray<MockRow>): DbPool;
-
-// @public (undocumented)
-export function makeSequentialPool(returns: ReadonlyArray<ReadonlyArray<MockRow>>): DbPool;
-
-// @public (undocumented)
 export function mapPostgresError(e: unknown): DbError;
 
 // @public (undocumented)

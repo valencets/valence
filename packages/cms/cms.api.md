@@ -346,9 +346,6 @@ export function createAdminRoutes(pool: DbPool, collections: CollectionRegistry,
 export function createAuthMiddleware(pool: DbPool): AuthMiddleware;
 
 // @public (undocumented)
-export function createAuthRoutes(pool: DbPool, collections: CollectionRegistry): Map<string, RestRouteEntry>;
-
-// @public (undocumented)
 export function createCmsAuthGuard(pool: DbPool, options?: CmsAuthGuardOptions): Middleware;
 
 // @public (undocumented)
@@ -365,9 +362,6 @@ export function createCustomSession(pool: DbPool, tableName: string, userId: str
 
 // @public (undocumented)
 export function createGlobalRegistry(): GlobalRegistry;
-
-// @public (undocumented)
-export function createLocalApi(pool: DbPool, collections: CollectionRegistry, globals: GlobalRegistry, defaultLocale?: string): LocalApi;
 
 // @public (undocumented)
 export function createLocalStorage(uploadDir: string): StorageAdapter;
@@ -690,9 +684,6 @@ export type InferFieldType<F extends FieldConfig> = F extends BlocksFieldConfig 
 } ? FieldValueMap[T] : never;
 
 // @public (undocumented)
-export function injectAuthFields(collection: CollectionConfig): CollectionConfig;
-
-// @public (undocumented)
 export function isAuthEnabled(collection: CollectionConfig): boolean;
 
 // @public (undocumented)
@@ -987,9 +978,6 @@ export function runHooks(hooks: readonly HookFunction[], args: HookArgs): Result
 
 // @public (undocumented)
 export function safeJsonParse(body: string): ResultAsync<DocumentData, CmsError>;
-
-// @public (undocumented)
-export function safeQuery<T>(pool: DbPool, queryStr: string, params: readonly SqlValue[]): ResultAsync<T, CmsError>;
 
 // @public (undocumented)
 export function safeReadBody(req: IncomingMessage): ResultAsync<string, CmsError>;

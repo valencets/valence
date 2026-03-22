@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createIngestionHandler } from '../handler.js'
 
-import { makeMockPool } from '@valencets/db'
+import { makeMockPool } from '@valencets/db/test'
 
 function mockReq (body: string, method = 'POST'): import('node:http').IncomingMessage {
   const req = {

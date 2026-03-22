@@ -105,9 +105,6 @@ export function calculateVelocity(x1: number, y1: number, t1: number, x2: number
 export function clearTransitionNames(container: Element): void;
 
 // @public (undocumented)
-export function composeMiddleware(middlewares: readonly Middleware[]): (req: IncomingMessage, res: ServerResponse, ctx: RequestContext, final: () => Promise<void>) => Promise<void>;
-
-// @public (undocumented)
 export const ContentCategory: {
     readonly JSON: "json";
     readonly FORM: "form";
