@@ -20,6 +20,7 @@ import { createServeHandler } from '../media/serve-handler.js'
 import { createUploadHandler } from '../media/upload-handler.js'
 import { parseCookie } from '../auth/cookie.js'
 import { validateSession } from '../auth/session.js'
+import { generateOpenApiSpec } from '../api/openapi.js'
 
 export interface LocaleConfig {
   readonly code: string
@@ -137,6 +138,15 @@ export function buildCms (inputConfig: CmsConfig): Result<CmsInstance, CmsError>
       })
     }
   }
+
+  restRoutes.set('/api/docs', {
+    GET: async (_req, res) => {
+      const spec = generateOpenApiSpec(collections)
+      const body = JSON.stringify(spec, null, 2)
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) })
+      res.end(body)
+    }
+  })
 
   return ok({
     api,
