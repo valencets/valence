@@ -139,7 +139,7 @@ body {
    ValElements from the page level without touching their source. */
 val-input {
   --val-color-bg-elevated: #353534;
-  --val-color-border: oklch(0.37 0.03 151 / 0.15);
+  --val-color-border: transparent;
   --val-color-border-focus: oklch(0.90 0.19 159.5);
   --val-color-text: #e5e2e1;
   --val-color-text-muted: #bacbbc;

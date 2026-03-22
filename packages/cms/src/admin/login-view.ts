@@ -34,7 +34,7 @@ export function renderLoginPage (args: LoginPageArgs): string {
     .login-brand-icon {
       width: 2.5rem;
       height: 2.5rem;
-      background: linear-gradient(135deg, oklch(0.80 0.18 151.71), oklch(0.63 0.17 149.21));
+      background: linear-gradient(135deg, oklch(0.90 0.19 159.5), oklch(0.80 0.19 159.5));
       border-radius: 0.5rem;
       display: inline-flex;
       align-items: center;
@@ -93,7 +93,7 @@ export function renderLoginPage (args: LoginPageArgs): string {
       font-weight: 600;
       text-decoration: none;
     }
-    .login-footer a:hover { color: oklch(0.80 0.18 151.71); }
+    .login-footer a:hover { color: oklch(0.90 0.19 159.5); }
     .login-status {
       margin-top: 2rem;
       display: flex;
