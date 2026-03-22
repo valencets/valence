@@ -1,10 +1,5 @@
 // @valencets/reactive — Core signal primitives.
 // TC39-aligned pull/push algorithm with Preact-style .value accessor.
-//
-// Subscriber references: currently STRONG (Set<() => void>).
-// Phase 7 will evaluate WeakRef for automatic GC of orphaned computeds/effects.
-// Strong refs are correct for now — all subscribers are explicitly disposed
-// via unsubscribe or effect dispose functions.
 
 export interface SignalOptions<T> {
   readonly equals?: (prev: T, next: T) => boolean
@@ -22,18 +17,69 @@ export interface ReadonlySignal<T> {
   peek (): T
 }
 
-// --- Tracking scope (used by computed/effect in later phases) ---
+// --- Tracking scope ---
 
 let currentScope: (() => void) | null = null
+// Set of subscriber-sets that the current scope has been added to.
+// Used by effect() to remove itself from old dependencies on re-run.
+let currentCleanups: Array<Set<() => void>> | null = null
 
-/** @internal — get the current tracking scope for dependency registration. */
-export function _getCurrentScope (): (() => void) | null {
-  return currentScope
-}
+// --- effect() ---
 
-/** @internal — set the current tracking scope. */
-export function _setCurrentScope (scope: (() => void) | null): void {
-  currentScope = scope
+export function effect (fn: () => undefined | void | (() => void)): () => void {
+  let userCleanup: (() => void) | undefined
+  let disposed = false
+  let running = false
+  // All subscriber sets this effect has been added to
+  let trackedSets: Array<Set<() => void>> = []
+
+  function run (): void {
+    if (disposed || running) return
+    running = true
+
+    // Run previous user cleanup
+    if (userCleanup !== undefined) {
+      userCleanup()
+      userCleanup = undefined
+    }
+
+    // Remove from all old subscriber sets
+    for (const set of trackedSets) {
+      set.delete(run)
+    }
+    trackedSets = []
+
+    // Execute fn with tracking — signals/computeds will add `run` to their subscriber sets
+    // and register those sets in currentCleanups for future removal
+    const prevScope = currentScope
+    const prevCleanups = currentCleanups
+    currentScope = run
+    currentCleanups = trackedSets
+    const result = fn()
+    currentScope = prevScope
+    currentCleanups = prevCleanups
+
+    if (typeof result === 'function') {
+      userCleanup = result
+    }
+
+    running = false
+  }
+
+  run()
+
+  return () => {
+    if (disposed) return
+    disposed = true
+    if (userCleanup !== undefined) {
+      userCleanup()
+      userCleanup = undefined
+    }
+    for (const set of trackedSets) {
+      set.delete(run)
+    }
+    trackedSets = []
+  }
 }
 
 // --- computed() ---
@@ -49,9 +95,12 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
 
   function recompute (): void {
     const prevScope = currentScope
+    const prevCleanups = currentCleanups
     currentScope = markDirty
+    currentCleanups = null // computeds don't need cleanup tracking
     const next = fn()
     currentScope = prevScope
+    currentCleanups = prevCleanups
     if (state === CLEAN && equals(value, next)) return
     value = next
     state = CLEAN
@@ -60,7 +109,8 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
   function markDirty (): void {
     if (state === DIRTY) return
     state = DIRTY
-    for (const sub of subscribers) {
+    const snapshot = [...subscribers]
+    for (const sub of snapshot) {
       sub()
     }
   }
@@ -72,6 +122,9 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
       }
       if (currentScope !== null) {
         subscribers.add(currentScope)
+        if (currentCleanups !== null) {
+          currentCleanups.push(subscribers)
+        }
       }
       return value
     },
@@ -84,7 +137,6 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
     }
   }
 
-  // Freeze to prevent .value assignment — strict mode throws TypeError automatically
   return Object.freeze(obj)
 }
 
@@ -93,14 +145,15 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
 export function signal<T> (initialValue: T, options?: SignalOptions<T>): Signal<T> {
   let value = initialValue
   const equals = options?.equals ?? Object.is
-  // Strong references — see comment at top of file
   const subscribers = new Set<() => void>()
 
   const sig: Signal<T> = {
     get value (): T {
-      // Register dependency if inside a tracking scope
       if (currentScope !== null) {
         subscribers.add(currentScope)
+        if (currentCleanups !== null) {
+          currentCleanups.push(subscribers)
+        }
       }
       return value
     },
@@ -108,7 +161,9 @@ export function signal<T> (initialValue: T, options?: SignalOptions<T>): Signal<
     set value (next: T) {
       if (equals(value, next)) return
       value = next
-      for (const fn of subscribers) {
+      // Snapshot to avoid infinite loop from concurrent add/delete during iteration
+      const snapshot = [...subscribers]
+      for (const fn of snapshot) {
         fn()
       }
     },
