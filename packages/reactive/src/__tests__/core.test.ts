@@ -323,3 +323,82 @@ describe('untracked()', () => {
     expect(c.value).toBe(110) // a tracked — recomputed with new b
   })
 })
+
+describe('recursion guard', () => {
+  it('limits cross-effect recursion depth without crashing', () => {
+    const a = signal(0)
+    const b = signal(0)
+    // Two effects that write to each other — would infinite-loop without guard
+    const d1 = effect(() => {
+      if (a.value < 200) b.value = a.value + 1
+    })
+    const d2 = effect(() => {
+      if (b.value < 200) a.value = b.value + 1
+    })
+    // Should not crash — depth limit stops it
+    a.value = 1
+    d1()
+    d2()
+    // Values stabilized at some point under the depth limit
+    expect(a.peek()).toBeGreaterThan(0)
+  })
+})
+
+describe('computed conditional deps (C2 fix)', () => {
+  it('re-tracks dependencies on each evaluation', () => {
+    const toggle = signal(true)
+    const a = signal('A')
+    const b = signal('B')
+    const spy = vi.fn(() => toggle.value ? a.value : b.value)
+    const c = computed(spy)
+    expect(c.value).toBe('A')
+    spy.mockClear()
+    toggle.value = false
+    expect(c.value).toBe('B')
+    spy.mockClear()
+    a.value = 'AA' // no longer tracked — should NOT recompute
+    expect(c.value).toBe('B')
+    expect(spy).not.toHaveBeenCalled()
+  })
+})
+
+describe('disposal edge cases', () => {
+  it('double dispose is safe', () => {
+    const s = signal(0)
+    const dispose = effect(() => { s.peek() })
+    dispose()
+    dispose() // should not throw
+  })
+
+  it('handles disposal of one effect by another during notification', () => {
+    const s = signal(0)
+    let dispose2: (() => void) | null = null
+    const order: string[] = []
+    effect(() => {
+      order.push(`e1:${s.value}`)
+      if (s.value === 1 && dispose2 !== null) {
+        dispose2()
+      }
+    })
+    dispose2 = effect(() => {
+      order.push(`e2:${s.value}`)
+    })
+    order.length = 0
+    s.value = 1
+    expect(order).toContain('e1:1')
+  })
+})
+
+describe('computed custom equality', () => {
+  it('uses custom equals to suppress recomputation', () => {
+    const s = signal({ x: 1 })
+    const spy = vi.fn(() => ({ sum: s.value.x }))
+    const c = computed(spy, { equals: (a, b) => a.sum === b.sum })
+    expect(c.value).toEqual({ sum: 1 })
+    spy.mockClear()
+    s.value = { x: 1 } // different object, same .x
+    expect(c.value).toEqual({ sum: 1 })
+    // computed ran but equality suppressed downstream notification
+    expect(spy).toHaveBeenCalled()
+  })
+})

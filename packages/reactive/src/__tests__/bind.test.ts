@@ -1,8 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { signal } from '../core.js'
 import { bind } from '../bind.js'
 
 describe('bind()', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
   function el (tag: string): HTMLElement {
     const e = document.createElement(tag)
     document.body.appendChild(e)
@@ -154,6 +158,38 @@ describe('bind()', () => {
       dispose()
       s.value = 'world'
       expect(div.textContent).toBe('hello') // not updated
+    })
+
+    it('removes input event listener on dispose', () => {
+      const s = signal('')
+      const inp = input()
+      const dispose = bind(inp, { value: s })
+      dispose()
+      inp.value = 'after-dispose'
+      inp.dispatchEvent(new Event('input', { bubbles: true }))
+      expect(s.value).toBe('') // should not have updated
+    })
+
+    it('removes change event listener on dispose', () => {
+      const s = signal(false)
+      const inp = input()
+      inp.type = 'checkbox'
+      const dispose = bind(inp, { checked: s })
+      dispose()
+      inp.checked = true
+      inp.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(s.value).toBe(false) // should not have updated
+    })
+  })
+
+  describe('security', () => {
+    it('blocks on* event handler attributes', () => {
+      const s = signal('alert(1)')
+      const div = el('div')
+      bind(div, { attr: { onclick: s, onmouseover: s, 'aria-label': signal('safe') } })
+      expect(div.hasAttribute('onclick')).toBe(false)
+      expect(div.hasAttribute('onmouseover')).toBe(false)
+      expect(div.getAttribute('aria-label')).toBe('safe')
     })
   })
 })

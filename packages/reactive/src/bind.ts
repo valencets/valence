@@ -15,6 +15,15 @@ export interface BindingMap {
   readonly disabled?: ReadonlySignal<boolean>
 }
 
+// H1: denylist event handler attributes to prevent XSS via setAttribute
+const DENIED_ATTR_PREFIX = 'on'
+
+function isInputLike (el: Element): el is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
+  return el instanceof HTMLInputElement ||
+    el instanceof HTMLTextAreaElement ||
+    el instanceof HTMLSelectElement
+}
+
 export function bind (el: Element, bindings: BindingMap): () => void {
   const disposers: Array<() => void> = []
 
@@ -25,9 +34,9 @@ export function bind (el: Element, bindings: BindingMap): () => void {
     }))
   }
 
-  if (bindings.value !== undefined) {
+  if (bindings.value !== undefined && isInputLike(el)) {
     const sig = bindings.value
-    const inp = el as HTMLInputElement
+    const inp = el
     disposers.push(effect(() => {
       inp.value = sig.value
     }))
@@ -36,9 +45,9 @@ export function bind (el: Element, bindings: BindingMap): () => void {
     disposers.push(() => { inp.removeEventListener('input', onInput) })
   }
 
-  if (bindings.checked !== undefined) {
+  if (bindings.checked !== undefined && el instanceof HTMLInputElement) {
     const sig = bindings.checked
-    const inp = el as HTMLInputElement
+    const inp = el
     disposers.push(effect(() => {
       inp.checked = sig.value
     }))
@@ -47,9 +56,9 @@ export function bind (el: Element, bindings: BindingMap): () => void {
     disposers.push(() => { inp.removeEventListener('change', onChange) })
   }
 
-  if (bindings.visible !== undefined) {
+  if (bindings.visible !== undefined && el instanceof HTMLElement) {
     const sig = bindings.visible
-    const htmlEl = el as HTMLElement
+    const htmlEl = el
     disposers.push(effect(() => {
       htmlEl.style.display = sig.value ? '' : 'none'
     }))
@@ -69,6 +78,8 @@ export function bind (el: Element, bindings: BindingMap): () => void {
 
   if (bindings.attr !== undefined) {
     for (const [attrName, sig] of Object.entries(bindings.attr)) {
+      // H1: block event handler attributes to prevent XSS
+      if (attrName.toLowerCase().startsWith(DENIED_ATTR_PREFIX)) continue
       disposers.push(effect(() => {
         const val = sig.value
         if (val === null) {
@@ -80,9 +91,9 @@ export function bind (el: Element, bindings: BindingMap): () => void {
     }
   }
 
-  if (bindings.disabled !== undefined) {
+  if (bindings.disabled !== undefined && isInputLike(el)) {
     const sig = bindings.disabled
-    const inp = el as HTMLInputElement
+    const inp = el
     disposers.push(effect(() => {
       inp.disabled = sig.value
     }))

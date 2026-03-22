@@ -1,5 +1,9 @@
 // @valencets/reactive — Core signal primitives.
 // TC39-aligned pull/push algorithm with Preact-style .value accessor.
+//
+// Convention: callbacks passed to effect(), computed(), batch(), untracked()
+// MUST NOT throw. Valence uses Result monads for error handling — thrown
+// exceptions in callbacks are caller bugs and result in undefined behavior.
 
 export interface SignalOptions<T> {
   readonly equals?: (prev: T, next: T) => boolean
@@ -27,26 +31,37 @@ export function batch<T> (fn: () => T): T {
   const result = fn()
   batchDepth--
   if (batchDepth === 0) {
-    const snapshot = [...batchQueue]
+    const queued = [...batchQueue]
     batchQueue.clear()
-    for (const sub of snapshot) {
+    for (const sub of queued) {
       sub()
     }
   }
   return result
 }
 
+// --- Notification with recursion guard ---
+
+let notifyDepth = 0
+const MAX_NOTIFY_DEPTH = 100
+
 function notify (subscribers: Set<() => void>): void {
-  const snapshot = [...subscribers]
   if (batchDepth > 0) {
-    for (const fn of snapshot) {
+    for (const fn of subscribers) {
       batchQueue.add(fn)
     }
-  } else {
-    for (const fn of snapshot) {
-      fn()
-    }
+    return
   }
+  if (++notifyDepth > MAX_NOTIFY_DEPTH) {
+    notifyDepth = 0
+    process.stderr.write('@valencets/reactive: maximum notify depth exceeded (possible infinite signal loop)\n')
+    return
+  }
+  const snapshot = [...subscribers]
+  for (const fn of snapshot) {
+    fn()
+  }
+  notifyDepth--
 }
 
 // --- untracked() ---
@@ -65,8 +80,6 @@ export function untracked<T> (fn: () => T): T {
 // --- Tracking scope ---
 
 let currentScope: (() => void) | null = null
-// Set of subscriber-sets that the current scope has been added to.
-// Used by effect() to remove itself from old dependencies on re-run.
 let currentCleanups: Array<Set<() => void>> | null = null
 
 // --- effect() ---
@@ -75,27 +88,28 @@ export function effect (fn: () => undefined | void | (() => void)): () => void {
   let userCleanup: (() => void) | undefined
   let disposed = false
   let running = false
-  // All subscriber sets this effect has been added to
   let trackedSets: Array<Set<() => void>> = []
 
   function run (): void {
-    if (disposed || running) return
+    if (disposed) return
+    if (running) {
+      if (typeof console !== 'undefined') {
+        console.warn('@valencets/reactive: effect() re-entered itself — update dropped')
+      }
+      return
+    }
     running = true
 
-    // Run previous user cleanup
     if (userCleanup !== undefined) {
       userCleanup()
       userCleanup = undefined
     }
 
-    // Remove from all old subscriber sets
     for (const set of trackedSets) {
       set.delete(run)
     }
     trackedSets = []
 
-    // Execute fn with tracking — signals/computeds will add `run` to their subscriber sets
-    // and register those sets in currentCleanups for future removal
     const prevScope = currentScope
     const prevCleanups = currentCleanups
     currentScope = run
@@ -129,37 +143,43 @@ export function effect (fn: () => undefined | void | (() => void)): () => void {
 
 // --- computed() ---
 
-const DIRTY = 1
-const CLEAN = 0
+const ComputedState = { DIRTY: 1, CLEAN: 0 } as const
+type ComputedState = typeof ComputedState[keyof typeof ComputedState]
 
 export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlySignal<T> {
   let value: T
-  let state: 0 | 1 = DIRTY
+  let state: ComputedState = ComputedState.DIRTY
   const equals = options?.equals ?? Object.is
   const subscribers = new Set<() => void>()
+  let sourceSets: Array<Set<() => void>> = []
 
   function recompute (): void {
+    for (const set of sourceSets) {
+      set.delete(markDirty)
+    }
+    sourceSets = []
+
     const prevScope = currentScope
     const prevCleanups = currentCleanups
     currentScope = markDirty
-    currentCleanups = null // computeds don't need cleanup tracking
+    currentCleanups = sourceSets
     const next = fn()
     currentScope = prevScope
     currentCleanups = prevCleanups
-    if (state === CLEAN && equals(value, next)) return
+    if (state === ComputedState.CLEAN && equals(value, next)) return
     value = next
-    state = CLEAN
+    state = ComputedState.CLEAN
   }
 
   function markDirty (): void {
-    if (state === DIRTY) return
-    state = DIRTY
+    if (state === ComputedState.DIRTY) return
+    state = ComputedState.DIRTY
     notify(subscribers)
   }
 
   const obj: ReadonlySignal<T> = {
     get value (): T {
-      if (state === DIRTY) {
+      if (state === ComputedState.DIRTY) {
         recompute()
       }
       if (currentScope !== null) {
@@ -172,7 +192,7 @@ export function computed<T> (fn: () => T, options?: SignalOptions<T>): ReadonlyS
     },
 
     peek (): T {
-      if (state === DIRTY) {
+      if (state === ComputedState.DIRTY) {
         recompute()
       }
       return value
