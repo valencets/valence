@@ -5,11 +5,22 @@
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { fromThrowable } from 'neverthrow'
 
 const stylesDir = resolve(dirname(fileURLToPath(import.meta.url)), 'styles')
 
+const safeReadFile = fromThrowable(
+  (path: string) => readFileSync(path, 'utf-8'),
+  (e: unknown) => e instanceof Error ? e.message : 'Failed to read CSS file'
+)
+
 function readStyle (filename: string): string {
-  return readFileSync(resolve(stylesDir, filename), 'utf-8')
+  const result = safeReadFile(resolve(stylesDir, filename))
+  if (result.isErr()) {
+    process.stderr.write(`km-theme: ${result.error} (${filename})\n`)
+    return ''
+  }
+  return result.value
 }
 
 /** ValElement token overrides — adopted into shadow DOM via themeManager. */
