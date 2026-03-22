@@ -142,8 +142,7 @@ export function renderLoginPage (args: LoginPageArgs): string {
               <span class="km-label">Password</span>
               <a href="#" class="km-forgot-link">Forgot?</a>
             </div>
-            <val-input name="password" type="password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" required autocomplete="current-password" size="lg">
-              <span slot="label" class="km-label">Password</span>
+            <val-input name="password" type="password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" required autocomplete="current-password" size="lg" aria-label="Password">
               <svg slot="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </val-input>
           </div>
