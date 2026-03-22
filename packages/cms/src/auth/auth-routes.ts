@@ -6,7 +6,7 @@ import type { RestRouteEntry } from '../api/rest-api.js'
 import type { IncomingMessage } from 'node:http'
 import type { DocumentData } from '../db/query-builder.js'
 import { z } from 'zod'
-import { sendJson, sendErrorJson, safeReadBody, safeJsonParse } from '../api/http-utils.js'
+import { sendApiJson, sendErrorJson, safeReadBody, safeJsonParse } from '../api/http-utils.js'
 import { verifyPassword } from './password.js'
 import { createRateLimiter } from './rate-limit.js'
 import { parseCookie } from './cookie.js'
@@ -100,7 +100,7 @@ export function createAuthRoutes (
       const sessionCookie = buildSessionCookie(sessionResult.value, 7200, secure)
       // Set both the HttpOnly session cookie and a JS-readable indicator cookie
       const secureFlag = secure ? '; Secure' : ''
-      const indicatorCookie = `cms_authed=1; Path=/; SameSite=Strict${secureFlag}; Max-Age=7200`
+      const indicatorCookie = `cms_authed=1; Path=/; SameSite=Lax${secureFlag}; Max-Age=7200`
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
         'Set-Cookie': [sessionCookie, indicatorCookie]
@@ -119,7 +119,7 @@ export function createAuthRoutes (
       const secure = isEncrypted(req)
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
-        'Set-Cookie': [buildExpiredSessionCookie(secure), `cms_authed=; Path=/; SameSite=Strict${secure ? '; Secure' : ''}; Max-Age=0`]
+        'Set-Cookie': [buildExpiredSessionCookie(secure), `cms_authed=; Path=/; SameSite=Lax${secure ? '; Secure' : ''}; Max-Age=0`]
       })
       res.end(JSON.stringify({ message: 'Logged out' }))
     }
@@ -147,7 +147,7 @@ export function createAuthRoutes (
       }
 
       const user = userResult.value
-      sendJson(res, { id: user.id, email: user.email, [displayField]: Reflect.get(user, displayField) as string | undefined ?? user.email } as DocumentData)
+      sendApiJson(res, { id: user.id, email: user.email, [displayField]: Reflect.get(user, displayField) as string | undefined ?? user.email } as DocumentData)
     }
   })
 

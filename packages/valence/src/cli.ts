@@ -1,5 +1,6 @@
 import { writeFile, mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
 import { execSync } from 'node:child_process'
@@ -18,7 +19,7 @@ import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loade
 import type { RouteHandler } from './define-config.js'
 import { resolveCustomRoute } from './route-matcher.js'
 import { generateCollectionRoutes, buildGeneratedRouteMap, buildUserRouteMap } from './route-generator.js'
-import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash } from '@valencets/core/server'
+import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash, setSecurityHeaders } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
@@ -146,6 +147,10 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
     extraDeps.astro = '^5.0.0'
   }
 
+  const cliDir = dirname(fileURLToPath(import.meta.url))
+  const cliPkg = JSON.parse(readFileSync(join(cliDir, '..', 'package.json'), 'utf-8')) as { version: string }
+  const cliVersion = `^${cliPkg.version}`
+
   await writeFile(join(dir, 'package.json'), JSON.stringify({
     name: projectName,
     version: '0.1.0',
@@ -158,9 +163,9 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
       start: 'node dist/server.js'
     },
     dependencies: {
-      '@valencets/valence': '^0.7.1',
-      '@valencets/cms': '^0.2.1',
-      '@valencets/db': '^0.1.2',
+      '@valencets/valence': cliVersion,
+      '@valencets/cms': 'latest',
+      '@valencets/db': 'latest',
       tsx: '^4.21.0',
       ...extraDeps
     },
@@ -585,6 +590,23 @@ async function runDev (): Promise<void> {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
     const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
+    // Global security headers — baseline for all responses
+    // Admin routes will override CSP with nonce-based policy via sendHtml()
+    setSecurityHeaders(res)
+
+    // Body-limit check for requests with Content-Length header
+    if (method === 'POST' || method === 'PATCH') {
+      const contentLength = req.headers['content-length']
+      if (contentLength !== undefined) {
+        const length = parseInt(contentLength, 10)
+        if (!Number.isNaN(length) && length > 10_485_760) {
+          res.writeHead(413, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Request entity too large' }))
+          return
+        }
+      }
+    }
+
     // Trailing-slash redirect (301) — before any route matching
     const redirectTarget = stripTrailingSlash(req.url ?? '/')
     if (redirectTarget !== null && redirectTarget.startsWith('/') && !redirectTarget.startsWith('//')) {
@@ -817,9 +839,27 @@ export async function runStart (): Promise<void> {
 
   const cms = cmsResult.value
 
+  // eslint-disable-next-line complexity
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
     const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
+
+    // Global security headers — baseline for all responses
+    // Admin routes will override CSP with nonce-based policy via sendHtml()
+    setSecurityHeaders(res)
+
+    // Body-limit check for requests with Content-Length header
+    if (method === 'POST' || method === 'PATCH') {
+      const contentLength = req.headers['content-length']
+      if (contentLength !== undefined) {
+        const length = parseInt(contentLength, 10)
+        if (!Number.isNaN(length) && length > 10_485_760) {
+          res.writeHead(413, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Request entity too large' }))
+          return
+        }
+      }
+    }
 
     // Trailing-slash redirect (301) — before any route matching
     const redirectTarget = stripTrailingSlash(req.url ?? '/')
@@ -1011,7 +1051,11 @@ async function runUserCreate (): Promise<void> {
 async function runBuild (): Promise<void> {
   log('Building for production...')
   const pm = detectPackageManager()
-  exec(`${pm} exec tsc`, process.cwd())
+  const ok = exec(`${pm} exec tsc`, process.cwd())
+  if (!ok) {
+    console.error('Build failed — TypeScript compilation errors above.')
+    process.exit(1)
+  }
   log('Build complete.')
 }
 

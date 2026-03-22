@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeMockPool } from '@valencets/db'
+import { makeMockPool } from '@valencets/db/test'
 import {
   collection,
   field,

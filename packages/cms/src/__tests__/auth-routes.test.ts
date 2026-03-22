@@ -3,11 +3,12 @@ import { createAuthRoutes, resolveDisplayField } from '../auth/auth-routes.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool } from './test-helpers.js'
+import { makeMockPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 function makeMockReq (method: string, cookie: string | undefined, body: string = '', encrypted = false): IncomingMessage {
-  const req = {
+  const req: MockIncomingMessage = {
     method,
     url: '',
     headers: { cookie, 'content-type': 'application/json' },
@@ -19,19 +20,20 @@ function makeMockReq (method: string, cookie: string | undefined, body: string =
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req as unknown as IncomingMessage
+  return asReq(req)
 }
 
 function makeMockRes (): ServerResponse & { body: string, setCookie: string | string[] } {
-  const res = {
+  const res: MockServerResponse = {
     writeHead: vi.fn((_code: number, headers: Record<string, string | string[]>) => {
       if (headers['Set-Cookie']) res.setCookie = headers['Set-Cookie']
     }),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     body: '',
+    statusCode: 200,
     setCookie: '' as string | string[]
   }
-  return res as unknown as ServerResponse & { body: string, setCookie: string | string[] }
+  return asRes<{ body: string, setCookie: string | string[] }>(res)
 }
 
 describe('createAuthRoutes()', () => {

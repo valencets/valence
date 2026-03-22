@@ -188,7 +188,7 @@ describe('buildCms() requireAuth forwarding', () => {
     expect(res.writeHead).toHaveBeenCalledWith(302, { Location: '/admin/login' })
   })
 
-  it('admin routes work without auth when requireAuth is not set', async () => {
+  it('admin routes require auth by default when requireAuth is not set', async () => {
     const config: CmsConfig = {
       db: makeMockPool(),
       secret: 'test-secret',
@@ -207,7 +207,31 @@ describe('buildCms() requireAuth forwarding', () => {
       setHeader: vi.fn()
     }
     await handler!(req as never, res as never, {})
-    // Should return 200 (renders dashboard), not redirect
+    // Default is auth-required: unauthenticated requests redirect to login
+    expect(res.writeHead).toHaveBeenCalledWith(302, { Location: '/admin/login' })
+  })
+
+  it('admin routes allow open access when requireAuth is explicitly false', async () => {
+    const config: CmsConfig = {
+      db: makeMockPool(),
+      secret: 'test-secret',
+      requireAuth: false,
+      collections: [
+        collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
+      ]
+    }
+    const cms = buildCms(config)._unsafeUnwrap()
+    const handler = cms.adminRoutes.get('/admin')?.GET
+    expect(handler).toBeDefined()
+
+    const req = { headers: {}, url: '/admin', method: 'GET' }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn((data: string) => {}),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    // Explicit requireAuth: false should allow open access
     expect(res.writeHead).toHaveBeenCalledWith(200)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { initTelemetry } from '../init.js'
-import { TelemetryErrorCode } from '@valencets/core'
+import { TelemetryErrorCode } from '@valencets/core/client'
 
 describe('initTelemetry autoPageview', () => {
   beforeEach(() => {

@@ -1,18 +1,32 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createRestRoutes } from '../api/rest-api.js'
 import { createCollectionRegistry, createGlobalRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool, makeSequentialPool } from './test-helpers.js'
+import { makeMockPool, makeSequentialPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { PaginatedResult } from '../db/query-types.js'
 import type { DocumentRow } from '../db/query-builder.js'
+import { okAsync } from 'neverthrow'
+
+vi.mock('../auth/session.js', () => ({
+  validateSession: vi.fn()
+}))
+
+import { validateSession } from '../auth/session.js'
+
+const AUTH_COOKIE = 'cms_session=valid-session-id'
+
+beforeEach(() => {
+  vi.mocked(validateSession).mockReturnValue(okAsync('user-1'))
+})
 
 function makeMockReq (method: string, url: string, body: string = ''): IncomingMessage {
-  const req = {
+  const req: MockIncomingMessage = {
     method,
     url,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', cookie: AUTH_COOKIE },
     on: vi.fn((event: string, cb: (data?: Buffer) => void) => {
       if (event === 'data' && body) cb(Buffer.from(body))
       if (event === 'end') cb()
@@ -20,17 +34,17 @@ function makeMockReq (method: string, url: string, body: string = ''): IncomingM
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req as unknown as IncomingMessage
+  return asReq(req)
 }
 
 function makeMockRes (): ServerResponse & { body: string } {
-  const res = {
+  const res: MockServerResponse = {
     writeHead: vi.fn(),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     body: '',
     statusCode: 200
   }
-  return res as unknown as ServerResponse & { body: string }
+  return asRes<{ body: string }>(res)
 }
 
 function setup (poolReturn: readonly Record<string, string | number | null>[] = []) {
@@ -57,9 +71,19 @@ describe('createRestRoutes()', () => {
 })
 
 describe('GET /api/:collection', () => {
-  it('returns JSON array of documents', async () => {
-    const rows = [{ id: '1', title: 'Hello', slug: 'hello' }]
-    const { pool, collections, globals } = setup(rows)
+  it('returns paginated result of documents', async () => {
+    const dataRows = [{ id: '1', title: 'Hello', slug: 'hello' }]
+    const countRows = [{ count: '1' }]
+    const pool = makeSequentialPool([countRows, dataRows])
+    const collections = createCollectionRegistry()
+    const globals = createGlobalRegistry()
+    collections.register(collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true })
+      ]
+    }))
     const routes = createRestRoutes(pool, collections, globals)
     const handler = routes.get('/api/posts')?.GET
     expect(handler).toBeDefined()
@@ -68,6 +92,8 @@ describe('GET /api/:collection', () => {
     const res = makeMockRes()
     await handler!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
+    const body = JSON.parse(res.body) as PaginatedResult<DocumentRow>
+    expect(body).toHaveProperty('docs')
   })
 })
 
@@ -88,8 +114,18 @@ describe('POST /api/:collection', () => {
 
 describe('GET /api/:collection query params', () => {
   it('passes search param to find()', async () => {
-    const rows = [{ id: '1', title: 'Hello World', slug: 'hello-world' }]
-    const { pool, collections, globals } = setup(rows)
+    const dataRows = [{ id: '1', title: 'Hello World', slug: 'hello-world' }]
+    const countRows = [{ count: '1' }]
+    const pool = makeSequentialPool([countRows, dataRows])
+    const collections = createCollectionRegistry()
+    const globals = createGlobalRegistry()
+    collections.register(collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true })
+      ]
+    }))
     const routes = createRestRoutes(pool, collections, globals)
     const handler = routes.get('/api/posts')?.GET
     expect(handler).toBeDefined()
@@ -98,13 +134,23 @@ describe('GET /api/:collection query params', () => {
     const res = makeMockRes()
     await handler!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
-    const body = JSON.parse(res.body) as DocumentRow[]
-    expect(Array.isArray(body)).toBe(true)
+    const body = JSON.parse(res.body) as PaginatedResult<DocumentRow>
+    expect(body).toHaveProperty('docs')
   })
 
   it('passes sort and dir params as orderBy to find()', async () => {
-    const rows = [{ id: '1', title: 'A', slug: 'a' }, { id: '2', title: 'B', slug: 'b' }]
-    const { pool, collections, globals } = setup(rows)
+    const dataRows = [{ id: '1', title: 'A', slug: 'a' }, { id: '2', title: 'B', slug: 'b' }]
+    const countRows = [{ count: '2' }]
+    const pool = makeSequentialPool([countRows, dataRows])
+    const collections = createCollectionRegistry()
+    const globals = createGlobalRegistry()
+    collections.register(collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true })
+      ]
+    }))
     const routes = createRestRoutes(pool, collections, globals)
     const handler = routes.get('/api/posts')?.GET
     expect(handler).toBeDefined()
@@ -113,8 +159,8 @@ describe('GET /api/:collection query params', () => {
     const res = makeMockRes()
     await handler!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
-    const body = JSON.parse(res.body) as DocumentRow[]
-    expect(Array.isArray(body)).toBe(true)
+    const body = JSON.parse(res.body) as PaginatedResult<DocumentRow>
+    expect(body).toHaveProperty('docs')
   })
 
   it('passes page and limit params to find() and returns PaginatedResult envelope', async () => {
@@ -146,8 +192,18 @@ describe('GET /api/:collection query params', () => {
   })
 
   it('passes field filter params as where clause to find()', async () => {
-    const rows = [{ id: '1', title: 'Hello', slug: 'hello' }]
-    const { pool, collections, globals } = setup(rows)
+    const dataRows = [{ id: '1', title: 'Hello', slug: 'hello' }]
+    const countRows = [{ count: '1' }]
+    const pool = makeSequentialPool([countRows, dataRows])
+    const collections = createCollectionRegistry()
+    const globals = createGlobalRegistry()
+    collections.register(collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true })
+      ]
+    }))
     const routes = createRestRoutes(pool, collections, globals)
     const handler = routes.get('/api/posts')?.GET
     expect(handler).toBeDefined()
@@ -156,24 +212,62 @@ describe('GET /api/:collection query params', () => {
     const res = makeMockRes()
     await handler!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
-    const body = JSON.parse(res.body) as DocumentRow[]
-    expect(Array.isArray(body)).toBe(true)
+    const body = JSON.parse(res.body) as PaginatedResult<DocumentRow>
+    expect(body).toHaveProperty('docs')
   })
 
-  it('returns flat array when no ?page= present (backwards compatible)', async () => {
-    const rows = [{ id: '1', title: 'Hello', slug: 'hello' }]
-    const { pool, collections, globals } = setup(rows)
+  it('returns paginated result even without page/limit params', async () => {
+    const dataRows = [{ id: '1', title: 'Hello', slug: 'hello' }]
+    const countRows = [{ count: '1' }]
+    const pool = makeSequentialPool([countRows, dataRows])
+    const collections = createCollectionRegistry()
+    const globals = createGlobalRegistry()
+    collections.register(collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true })
+      ]
+    }))
     const routes = createRestRoutes(pool, collections, globals)
     const handler = routes.get('/api/posts')?.GET
     expect(handler).toBeDefined()
 
-    const req = makeMockReq('GET', '/api/posts?search=hello')
+    const req = makeMockReq('GET', '/api/posts')
     const res = makeMockRes()
     await handler!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
-    const body = JSON.parse(res.body)
-    expect(Array.isArray(body)).toBe(true)
-    expect(body).not.toHaveProperty('docs')
+    const body = JSON.parse(res.body) as PaginatedResult<DocumentRow>
+    expect(body).toHaveProperty('docs')
+    expect(body).toHaveProperty('totalDocs')
+    expect(body).toHaveProperty('page')
+    expect(body).toHaveProperty('totalPages')
+  })
+
+  it('caps limit at 100 when higher value is requested', async () => {
+    const dataRows = [{ id: '1', title: 'Hello', slug: 'hello' }]
+    const countRows = [{ count: '1' }]
+    const pool = makeSequentialPool([countRows, dataRows])
+    const collections = createCollectionRegistry()
+    const globals = createGlobalRegistry()
+    collections.register(collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true })
+      ]
+    }))
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts')?.GET
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('GET', '/api/posts?limit=200')
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
+    const body = JSON.parse(res.body) as PaginatedResult<DocumentRow>
+    expect(body).toHaveProperty('docs')
+    expect(body).toHaveProperty('totalPages')
   })
 
   it('rejects invalid sort field name (not in collection schema)', async () => {
@@ -201,8 +295,18 @@ describe('GET /api/:collection query params', () => {
   })
 
   it('allows system column sort fields (id, created_at, updated_at)', async () => {
-    const rows = [{ id: '1', title: 'Hello', slug: 'hello' }]
-    const { pool, collections, globals } = setup(rows)
+    const dataRows = [{ id: '1', title: 'Hello', slug: 'hello' }]
+    const countRows = [{ count: '1' }]
+    const pool = makeSequentialPool([countRows, dataRows])
+    const collections = createCollectionRegistry()
+    const globals = createGlobalRegistry()
+    collections.register(collection({
+      slug: 'posts',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.slug({ name: 'slug', required: true })
+      ]
+    }))
     const routes = createRestRoutes(pool, collections, globals)
     const handler = routes.get('/api/posts')?.GET
     expect(handler).toBeDefined()
@@ -266,7 +370,7 @@ describe('PATCH /api/:collection/:id', () => {
     expect(handler).toBeDefined()
 
     const req = makeMockReq('PATCH', '/api/posts/abc-123', '{"title":"x"}')
-    req.headers = {}
+    req.headers = { cookie: AUTH_COOKIE }
     const res = makeMockRes()
     await handler!(req, res, { id: 'abc-123' })
     expect(res.writeHead).toHaveBeenCalledWith(415, expect.any(Object))

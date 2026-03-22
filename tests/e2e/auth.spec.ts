@@ -37,10 +37,18 @@ test.describe('Auth flow (authenticated)', () => {
     await expect(page.locator('h1')).toHaveText('Dashboard')
   })
 
-  test('logout endpoint destroys session', async ({ page }) => {
+  test('logout endpoint destroys session', async ({ browser }) => {
+    // Use a fresh context so we don't destroy the shared session
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
+    const login = new LoginPage(page)
+    await login.goto()
+    await login.login('admin@test.local', 'admin123')
+    await expect(page).toHaveURL('/admin')
     // POST to logout — verify it redirects to login
     const response = await page.request.post('/admin/logout', { maxRedirects: 0 })
     expect(response.status()).toBe(302)
     expect(response.headers()['location']).toBe('/admin/login')
+    await ctx.close()
   })
 })

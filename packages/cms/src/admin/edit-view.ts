@@ -116,7 +116,7 @@ export function renderFormFieldsFragment (col: CollectionConfig, formData: Recor
   ).map(f => {
     const raw = formData ? formData[f.name] : undefined
     const value = resolveFieldValue(raw, f.localized, localeConfig)
-    const inputHtml = renderFieldInput(f, value, relationContext)
+    const inputHtml = renderFieldInput(f, value, relationContext, undefined, formData ?? undefined)
     return hasConditions ? `<div class="condition-trigger">${inputHtml}</div>` : inputHtml
   }).join('\n')
 }
@@ -183,12 +183,12 @@ function renderGhostLayout (
   const titleHtml = fields.titleField ? renderTitleInput(fields.titleField, titleValue) : ''
 
   const richtextValue = formData ? (formData[fields.richtextField.name] ?? '') : ''
-  const richtextHtml = renderFieldInput(fields.richtextField, richtextValue, relationContext)
+  const richtextHtml = renderFieldInput(fields.richtextField, richtextValue, relationContext, undefined, formData ?? undefined)
 
   const sidebarHtml = fields.sidebarFields.map(f => {
     const raw = formData ? formData[f.name] : undefined
     const value = resolveFieldValue(raw, f.localized, localeConfig)
-    return renderFieldInput(f, value, relationContext)
+    return renderFieldInput(f, value, relationContext, undefined, formData ?? undefined)
   }).join('\n')
 
   return `<div class="ghost-layout">

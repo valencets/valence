@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { renderLayout } from '../admin/layout.js'
+import { renderAdminLayout } from '../admin/layout.js'
 import { renderDashboard } from '../admin/dashboard.js'
 import { renderListView } from '../admin/list-view.js'
 import { renderEditView } from '../admin/edit-view.js'
@@ -40,9 +40,9 @@ function makePostsCollection (): CollectionConfig {
   })
 }
 
-describe('renderLayout()', () => {
+describe('renderAdminLayout()', () => {
   it('returns HTML string with sidebar and main content', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Dashboard',
       content: '<p>Hello</p>',
       collections: [makePostsCollection()]
@@ -54,7 +54,7 @@ describe('renderLayout()', () => {
   })
 
   it('includes navigation links for each collection', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [makePostsCollection()]
@@ -185,6 +185,13 @@ describe('renderFieldInput()', () => {
     expect(html).toContain('<fieldset')
     expect(html).toContain('seo')
   })
+
+  it('escapes richtext value in template tag to prevent XSS', () => {
+    const xssPayload = '</template><script>alert(1)</script>'
+    const html = renderFieldInput(field.richtext({ name: 'content' }), xssPayload)
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('&lt;script&gt;')
+  })
 })
 
 describe('createAdminRoutes()', () => {
@@ -192,7 +199,7 @@ describe('createAdminRoutes()', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     expect(routes.has('/admin')).toBe(true)
     expect(routes.has('/admin/posts')).toBe(true)
     expect(routes.has('/admin/posts/new')).toBe(true)
@@ -202,7 +209,7 @@ describe('createAdminRoutes()', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/:id/edit')
     expect(entry).toBeDefined()
     expect(entry?.GET).toBeDefined()
@@ -215,15 +222,15 @@ describe('admin POST handlers', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/new')
     expect(entry?.POST).toBeDefined()
   })
 })
 
-describe('renderLayout() richtext CSS', () => {
+describe('renderAdminLayout() richtext CSS', () => {
   it('includes min-height on .richtext-editor class', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [makePostsCollection()]
@@ -254,6 +261,38 @@ describe('admin auth protection', () => {
     }
     await handler!(req as never, res as never, {})
     expect(res.writeHead).toHaveBeenCalledWith(302, { Location: '/admin/login' })
+  })
+
+  it('default config (no requireAuth option) redirects unauthenticated requests to /admin/login', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry)
+    const handler = routes.get('/admin')?.GET
+    const req = { headers: {}, url: '/admin', method: 'GET' }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(302, { Location: '/admin/login' })
+  })
+
+  it('requireAuth: false allows unauthenticated access to admin routes', async () => {
+    const registry = createCollectionRegistry()
+    registry.register(makePostsCollection())
+    const pool = makeMockPool()
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
+    const handler = routes.get('/admin')?.GET
+    const req = { headers: {}, url: '/admin', method: 'GET' }
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      setHeader: vi.fn()
+    }
+    await handler!(req as never, res as never, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200)
   })
 })
 
@@ -327,7 +366,7 @@ describe('renderEditView() with relation context', () => {
 
 describe('nonce threading', () => {
   it('renderLayout adds nonce to inline toast script', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '<p>hi</p>',
       collections: [makePostsCollection()],
@@ -342,7 +381,7 @@ describe('nonce threading', () => {
   })
 
   it('renderLayout adds nonce to admin-client script tag', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [],
@@ -363,7 +402,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '0' }], []])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -384,7 +423,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '0' }], []])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -404,7 +443,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '0' }], []])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -424,7 +463,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '5' }], [{ id: '1', title: 'Hello', slug: 'hello', published: 'true' }]])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -444,7 +483,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeSequentialPool([[{ count: '0' }], []])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -464,7 +503,7 @@ describe('admin GET /admin/:slug query param wiring', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts')?.GET
     const req = {
       headers: { cookie: '' },
@@ -481,9 +520,9 @@ describe('admin GET /admin/:slug query param wiring', () => {
   })
 })
 
-describe('renderLayout() logout button', () => {
+describe('renderAdminLayout() logout button', () => {
   it('includes a logout form with POST method and /admin/logout action', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Dashboard',
       content: '',
       collections: [makePostsCollection()]
@@ -493,7 +532,7 @@ describe('renderLayout() logout button', () => {
   })
 
   it('includes logout label text', () => {
-    const html = renderLayout({
+    const html = renderAdminLayout({
       title: 'Dashboard',
       content: '',
       collections: [makePostsCollection()]

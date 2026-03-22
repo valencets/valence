@@ -60,7 +60,14 @@ async function main () {
   `
 
   // Provision fresh database
-  const adminSql = postgres({ database: 'postgres', max: 2 })
+  const adminSql = postgres({
+    host: process.env.PGHOST ?? 'localhost',
+    port: Number(process.env.PGPORT ?? 5432),
+    username: process.env.PGUSER ?? 'postgres',
+    password: process.env.PGPASSWORD ?? '',
+    database: 'postgres',
+    max: 2
+  })
   const existing = await adminSql`SELECT 1 FROM pg_database WHERE datname = ${TEST_DB}`
   if (existing.length > 0) {
     await adminSql`
@@ -76,7 +83,7 @@ async function main () {
     host: process.env.PGHOST ?? 'localhost',
     port: Number(process.env.PGPORT ?? 5432),
     database: TEST_DB,
-    username: process.env.PGUSER ?? '',
+    username: process.env.PGUSER ?? 'postgres',
     password: process.env.PGPASSWORD ?? '',
     max: 10,
     idle_timeout: 30,
@@ -86,6 +93,7 @@ async function main () {
   await pool.sql.unsafe(INIT_SQL)
 
   const hashResult = await hashPassword('admin123')
+  // throw is acceptable here — this is test bootstrap, not production code
   if (hashResult.isErr()) throw new Error('Failed to hash password for LHCI seed')
   await pool.sql.unsafe(
     'INSERT INTO "users" ("email", "password_hash", "name", "role") VALUES ($1, $2, $3, $4)',

@@ -333,7 +333,7 @@ await destroySession(sessionId, pool)
 ### Session Cookies
 
 - `HttpOnly` — not accessible to JavaScript
-- `SameSite=Strict` — not sent on cross-site requests
+- `SameSite=Lax` — not sent on cross-site subrequests (POST, iframe, etc.)
 - `Secure` — HTTPS only
 - `Max-Age=7200` — 2 hour expiration
 
@@ -457,7 +457,7 @@ result.match(
 - **XSS** — All HTML output uses `escapeHtml()` (escapes `& < > " '`). No raw interpolation.
 - **CSRF** — One-time tokens with constant-time validation and 1-hour TTL on admin forms. REST API requires `Content-Type: application/json`.
 - **Path traversal** — Media filenames validated against `[a-zA-Z0-9][a-zA-Z0-9._-]*`, resolved paths checked with `startsWith(uploadDir)`.
-- **Auth** — Argon2id hashing, `HttpOnly; SameSite=Strict; Secure` cookies, rate limiting on login.
+- **Auth** — Argon2id hashing, `HttpOnly; SameSite=Lax; Secure` cookies, rate limiting on login.
 - **Input validation** — Zod schemas enforced on REST POST/PATCH and admin form POST.
 
 ## Module Map

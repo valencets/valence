@@ -38,7 +38,7 @@ describe('admin POST error re-rendering', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     // First GET to generate a CSRF token
     const getReq = { headers: {}, url: '/admin/posts/new', method: 'GET' }
@@ -73,7 +73,7 @@ describe('admin POST error re-rendering', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('_csrf=bad-token&title=Test&slug=test')
     let body = ''
     const res = {
@@ -94,7 +94,7 @@ describe('admin POST error re-rendering', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: '1' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     // GET to generate CSRF token
     const getReq = { headers: {}, url: '/admin/posts/new', method: 'GET' }
@@ -123,7 +123,7 @@ describe('admin GET list page flash cookie', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     const flashValue = serializeFlash({ type: 'success', text: 'Post created successfully' })
     const req = { headers: { cookie: `cms_flash=${flashValue}` }, url: '/admin/posts', method: 'GET' }
@@ -145,7 +145,7 @@ describe('admin GET list page flash cookie', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     const req = { headers: {}, url: '/admin/posts', method: 'GET' }
     let body = ''

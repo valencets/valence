@@ -3,7 +3,9 @@ import { createAdminRoutes } from '../admin/admin-routes.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool } from './test-helpers.js'
+import { makeMockPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { CollectionConfig } from '../schema/collection.js'
 
 function makePostsCollection (): CollectionConfig {
@@ -17,8 +19,8 @@ function makePostsCollection (): CollectionConfig {
   })
 }
 
-function makeMockReq (body: string, cookie: string = ''): Record<string, unknown> {
-  const req = {
+function makeMockReq (body: string, cookie: string = ''): IncomingMessage {
+  const req: MockIncomingMessage = {
     headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
     url: '/admin/posts/bulk',
     method: 'POST',
@@ -29,23 +31,32 @@ function makeMockReq (body: string, cookie: string = ''): Record<string, unknown
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req
+  return asReq(req)
 }
 
-function makeMockRes (): Record<string, ReturnType<typeof vi.fn>> {
-  return { writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn() }
+function makeMockRes (): ServerResponse & { writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn> } {
+  const res: MockServerResponse = {
+    writeHead: vi.fn(),
+    end: vi.fn(),
+    setHeader: vi.fn(),
+    body: '',
+    statusCode: 200
+  }
+  return asRes<{ writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn> }>(res)
 }
 
 /** Get a fresh CSRF token by hitting the new-doc form GET route */
 async function getValidCsrfToken (routes: ReturnType<typeof createAdminRoutes>, colSlug: string): Promise<string> {
-  const getReq = { headers: {}, url: `/admin/${colSlug}/new`, method: 'GET' }
+  const getReq: MockIncomingMessage = { headers: {}, url: `/admin/${colSlug}/new`, method: 'GET', on: vi.fn(), removeAllListeners: vi.fn() }
   let htmlBody = ''
-  const getRes = {
+  const getRes: MockServerResponse = {
     writeHead: vi.fn(),
     end: vi.fn((data: string) => { htmlBody = data }),
-    setHeader: vi.fn()
+    setHeader: vi.fn(),
+    body: '',
+    statusCode: 200
   }
-  await routes.get(`/admin/${colSlug}/new`)!.GET!(getReq as never, getRes as never, {})
+  await routes.get(`/admin/${colSlug}/new`)!.GET!(asReq(getReq), asRes(getRes), {})
   const csrfMatch = htmlBody.match(/name="_csrf" value="([^"]+)"/)
   if (!csrfMatch?.[1]) throw new Error('CSRF token not found in new-doc form HTML')
   return csrfMatch[1]
@@ -56,7 +67,7 @@ describe('admin bulk handler — route registration', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/bulk')
     expect(entry).toBeDefined()
     expect(entry?.POST).toBeDefined()
@@ -68,10 +79,10 @@ describe('admin bulk handler — CSRF validation', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('action=delete&ids=abc')
     const res = makeMockRes()
-    await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
+    await routes.get('/admin/posts/bulk')!.POST!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
   })
 
@@ -79,10 +90,10 @@ describe('admin bulk handler — CSRF validation', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('_csrf=invalid-token&action=delete&ids=abc')
     const res = makeMockRes()
-    await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
+    await routes.get('/admin/posts/bulk')!.POST!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
   })
 })
@@ -92,12 +103,12 @@ describe('admin bulk handler — unknown action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', deleted_at: null }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=unknown&ids=abc`
     const req = makeMockReq(body)
     const res = makeMockRes()
-    await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
+    await routes.get('/admin/posts/bulk')!.POST!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(400, expect.anything())
   })
 })
@@ -107,12 +118,12 @@ describe('admin bulk handler — empty IDs', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=delete`
     const req = makeMockReq(body)
     const res = makeMockRes()
-    await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
+    await routes.get('/admin/posts/bulk')!.POST!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: '/admin/posts' }))
   })
 })
@@ -122,12 +133,12 @@ describe('admin bulk handler — delete action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', deleted_at: '2026-01-01' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=delete&ids=abc&ids=def`
     const req = makeMockReq(body)
     const res = makeMockRes()
-    await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
+    await routes.get('/admin/posts/bulk')!.POST!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: '/admin/posts' }))
   })
 
@@ -135,13 +146,13 @@ describe('admin bulk handler — delete action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', deleted_at: '2026-01-01' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=delete&ids=abc`
     const req = makeMockReq(body)
     const res = makeMockRes()
-    await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
-    const setCookieCalls = res.setHeader.mock.calls.filter((c: unknown[]) => c[0] === 'Set-Cookie')
+    await routes.get('/admin/posts/bulk')!.POST!(req, res, {})
+    const setCookieCalls = res.setHeader.mock.calls.filter((c: [string, string | string[]]) => c[0] === 'Set-Cookie')
     expect(setCookieCalls.length).toBeGreaterThan(0)
   })
 })
@@ -151,12 +162,12 @@ describe('admin bulk handler — publish action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', _status: 'published' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=publish&ids=abc`
     const req = makeMockReq(body)
     const res = makeMockRes()
-    await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
+    await routes.get('/admin/posts/bulk')!.POST!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: '/admin/posts' }))
   })
 })
@@ -166,12 +177,12 @@ describe('admin bulk handler — unpublish action', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool([{ id: 'abc', title: 'Test', slug: 'test', _status: 'draft' }])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const csrfToken = await getValidCsrfToken(routes, 'posts')
     const body = `_csrf=${encodeURIComponent(csrfToken)}&action=unpublish&ids=abc`
     const req = makeMockReq(body)
     const res = makeMockRes()
-    await routes.get('/admin/posts/bulk')!.POST!(req as never, res as never, {})
+    await routes.get('/admin/posts/bulk')!.POST!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: '/admin/posts' }))
   })
 })
@@ -182,15 +193,17 @@ describe('admin bulk handler — list GET includes CSRF token', () => {
     registry.register(makePostsCollection())
     // Pool must return at least one doc to trigger renderTable (which contains the bulk form with CSRF)
     const pool = makeMockPool([{ id: '1', title: 'Test', slug: 'test' }])
-    const routes = createAdminRoutes(pool, registry)
-    const getReq = { headers: {}, url: '/admin/posts', method: 'GET' }
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
+    const getReq: MockIncomingMessage = { headers: {}, url: '/admin/posts', method: 'GET', on: vi.fn(), removeAllListeners: vi.fn() }
     let htmlBody = ''
-    const getRes = {
+    const getRes: MockServerResponse = {
       writeHead: vi.fn(),
       end: vi.fn((data: string) => { htmlBody = data }),
-      setHeader: vi.fn()
+      setHeader: vi.fn(),
+      body: '',
+      statusCode: 200
     }
-    await routes.get('/admin/posts')!.GET!(getReq as never, getRes as never, {})
+    await routes.get('/admin/posts')!.GET!(asReq(getReq), asRes(getRes), {})
     expect(htmlBody).toContain('name="_csrf"')
     expect(htmlBody).toContain('action="/admin/posts/bulk"')
   })

@@ -9,7 +9,7 @@ import type { RestRouteEntry } from '../api/rest-api.js'
 import type { DocumentData, DocumentRow } from '../db/query-builder.js'
 import type { FlashMessage } from './flash.js'
 import type { CollectionConfig } from '../schema/collection.js'
-import { renderLayout } from './layout.js'
+import { renderAdminLayout } from './layout.js'
 import { renderDashboard } from './dashboard.js'
 import { renderListView } from './list-view.js'
 import type { ListViewPagination } from './list-view.js'
@@ -27,16 +27,16 @@ import { saveRevision, getRevisions, getRevision } from '../db/revision-queries.
 import { safeQuery } from '../db/safe-query.js'
 import { getValidFieldNames, isAllowedField } from '../db/sql-sanitize.js'
 import type { PaginatedResult } from '../db/query-types.js'
-import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
 import { readStringBody } from '../api/read-body.js'
+import { createRateLimiter } from '../auth/rate-limit.js'
 import { generateConditionalSchema, generateConditionalPartialSchema } from '../validation/zod-generator.js'
 import { setFlashCookie, readFlash, clearFlashCookie } from './flash.js'
 import { readFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
-import { generateNonce, setSecurityHeaders, CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
+import { generateNonce, setSecurityHeaders, CSP_NONCE_PLACEHOLDER, generateCsrfToken, validateCsrfToken } from '@valencets/core/server'
 import { fileURLToPath } from 'node:url'
 
-type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
+export type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
 interface AdminOptions {
   readonly requireAuth?: boolean | undefined
@@ -115,7 +115,7 @@ function renderErrorPage (
     ? formData as FormSnapshot & { id?: string }
     : null
   const content = renderEditView(col, docRow, csrfToken, relationContext)
-  return renderLayout({ title, content, collections: allCollections, toast })
+  return renderAdminLayout({ title, content, collections: allCollections, toast })
 }
 
 export function createAdminRoutes (
@@ -123,7 +123,7 @@ export function createAdminRoutes (
   collections: CollectionRegistry,
   options: AdminOptions = {}
 ): Map<string, RestRouteEntry> {
-  const wrap = options.requireAuth
+  const wrap = options.requireAuth !== false
     ? (handler: AdminRouteHandler): AdminRouteHandler => wrapWithAuth(pool, handler)
     : (handler: AdminRouteHandler): AdminRouteHandler => handler
   const routes = new Map<string, RestRouteEntry>()
@@ -133,6 +133,7 @@ export function createAdminRoutes (
   const api = createLocalApi(pool, collections, globals)
   const CSRF_TTL_MS = 3_600_000
   const csrfTokens = new Map<string, number>()
+  const loginLimiter = createRateLimiter({ maxAttempts: 5, windowMs: 900_000 })
 
   function evictExpiredTokens (): void {
     const now = Date.now()
@@ -235,6 +236,13 @@ export function createAdminRoutes (
         sendHtml(res, html, 403)
         return
       }
+      const ip = req.socket.remoteAddress ?? 'unknown'
+      if (!loginLimiter.check(ip)) {
+        const token = freshCsrfToken()
+        const html = renderLoginPage({ error: 'Too many login attempts. Please try again later.', csrfToken: token })
+        sendHtml(res, html, 429)
+        return
+      }
       const email = String(formData.email ?? '').trim()
       const password = String(formData.password ?? '')
       if (!email || !password) {
@@ -277,7 +285,9 @@ export function createAdminRoutes (
         sendHtml(res, html, 500)
         return
       }
-      res.setHeader('Set-Cookie', buildSessionCookie(sessionResult.value, sessionMaxAge))
+      loginLimiter.reset(ip)
+      const secure = !!(req.socket as { encrypted?: boolean }).encrypted
+      res.setHeader('Set-Cookie', buildSessionCookie(sessionResult.value, sessionMaxAge, secure))
       res.writeHead(302, { Location: '/admin' })
       res.end()
     }
@@ -300,7 +310,7 @@ export function createAdminRoutes (
     GET: wrap(async (_req, res) => {
       if (!options.telemetryPool) {
         const content = renderAnalyticsView(null)
-        const html = renderLayout({ title: 'Analytics', content, collections: allCollections, headTags })
+        const html = renderAdminLayout({ title: 'Analytics', content, collections: allCollections, headTags })
         sendHtml(res, html)
         return
       }
@@ -339,7 +349,7 @@ export function createAdminRoutes (
       )
       const analyticsData = analyticsResult.isOk() ? analyticsResult.value : null
       const analyticsContent = analyticsData === null ? renderAnalyticsView(null) : renderAnalyticsView(analyticsData)
-      const analyticsHtml = renderLayout({ title: 'Analytics', content: analyticsContent, collections: allCollections, headTags })
+      const analyticsHtml = renderAdminLayout({ title: 'Analytics', content: analyticsContent, collections: allCollections, headTags })
       sendHtml(res, analyticsHtml)
     })
   })
@@ -364,7 +374,7 @@ export function createAdminRoutes (
       })
       const stats = await Promise.all(statsPromises)
       const content = renderDashboard({ stats })
-      const html = renderLayout({ title: 'Dashboard', content, collections: allCollections, headTags })
+      const html = renderAdminLayout({ title: 'Dashboard', content, collections: allCollections, headTags })
       sendHtml(res, html)
     })
   })
@@ -449,7 +459,7 @@ export function createAdminRoutes (
           filters: Object.keys(filters).length > 0 ? filters : undefined,
           csrfToken: listCsrfToken
         })
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: col.labels?.plural ?? col.slug,
           content,
           collections: allCollections,
@@ -465,7 +475,7 @@ export function createAdminRoutes (
         const token = freshCsrfToken()
         const relationContext = await buildRelationContext(col)
         const content = renderEditView(col, null, token, relationContext)
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: `New ${col.labels?.singular ?? col.slug}`,
           content,
           collections: allCollections,
@@ -636,7 +646,7 @@ export function createAdminRoutes (
         const token = freshCsrfToken()
         const relationContext = await buildRelationContext(col)
         const content = renderEditView(col, doc, token, relationContext)
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: `Edit ${col.labels?.singular ?? col.slug}`,
           content,
           collections: allCollections,
@@ -696,7 +706,7 @@ export function createAdminRoutes (
         const result = await getRevisions(pool, col.slug, id)
         const revisions = result.match(rows => rows, () => [])
         const content = renderRevisionList(col.slug, id, revisions)
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: `History — ${col.labels?.singular ?? col.slug}`,
           content,
           collections: allCollections,
@@ -719,7 +729,7 @@ export function createAdminRoutes (
         const oldData = prev?.data ?? {}
         const newData = current?.data ?? {}
         const content = renderRevisionDiff(col.slug, id, rev, oldData, newData)
-        const html = renderLayout({
+        const html = renderAdminLayout({
           title: `Revision ${rev} — ${col.labels?.singular ?? col.slug}`,
           content,
           collections: allCollections,

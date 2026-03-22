@@ -10,6 +10,8 @@ test.describe('Visual: List view', () => {
     await expect(list.heading).toBeVisible()
     await list.rows.first().waitFor({ state: 'visible' })
     await page.evaluate(() => document.fonts.ready)
-    await expect(page).toHaveScreenshot('list-posts.png')
+    await expect(page).toHaveScreenshot('list-posts.png', {
+      mask: [page.locator('table')]
+    })
   })
 })

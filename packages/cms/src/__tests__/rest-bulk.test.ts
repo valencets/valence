@@ -1,16 +1,30 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createRestRoutes } from '../api/rest-api.js'
 import { createCollectionRegistry, createGlobalRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool, makeErrorPool, makeSequentialPool } from './test-helpers.js'
+import { makeMockPool, makeErrorPool, makeSequentialPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { okAsync } from 'neverthrow'
+
+vi.mock('../auth/session.js', () => ({
+  validateSession: vi.fn()
+}))
+
+import { validateSession } from '../auth/session.js'
+
+const AUTH_COOKIE = 'cms_session=valid-session-id'
+
+beforeEach(() => {
+  vi.mocked(validateSession).mockReturnValue(okAsync('user-1'))
+})
 
 function makeMockReq (method: string, url: string, body: string = '', contentType: string = 'application/json'): IncomingMessage {
-  const req = {
+  const req: MockIncomingMessage = {
     method,
     url,
-    headers: contentType ? { 'content-type': contentType } : {},
+    headers: contentType ? { 'content-type': contentType, cookie: AUTH_COOKIE } : { cookie: AUTH_COOKIE },
     on: vi.fn((event: string, cb: (data?: Buffer) => void) => {
       if (event === 'data' && body) cb(Buffer.from(body))
       if (event === 'end') cb()
@@ -18,17 +32,17 @@ function makeMockReq (method: string, url: string, body: string = '', contentTyp
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req as unknown as IncomingMessage
+  return asReq(req)
 }
 
 function makeMockRes (): ServerResponse & { body: string } {
-  const res = {
+  const res: MockServerResponse = {
     writeHead: vi.fn(),
     end: vi.fn((data?: string) => { res.body = data ?? '' }),
     body: '',
     statusCode: 200
   }
-  return res as unknown as ServerResponse & { body: string }
+  return asRes<{ body: string }>(res)
 }
 
 function setup (poolReturn: readonly Record<string, string | number | null>[] = []) {

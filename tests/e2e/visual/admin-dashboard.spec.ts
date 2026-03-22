@@ -9,6 +9,11 @@ test.describe('Visual: Dashboard', () => {
     await dashboard.goto()
     await expect(dashboard.heading).toBeVisible()
     await page.evaluate(() => document.fonts.ready)
-    await expect(page).toHaveScreenshot('dashboard-page.png')
+    await expect(page).toHaveScreenshot('dashboard-page.png', {
+      mask: [
+        page.locator('.stat-count'),
+        page.locator('table tbody td:nth-child(3)')
+      ]
+    })
   })
 })

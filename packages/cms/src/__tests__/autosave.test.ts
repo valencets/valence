@@ -4,7 +4,9 @@ import { renderEditView } from '../admin/edit-view.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool, makeSequentialPool } from './test-helpers.js'
+import { makeMockPool, makeSequentialPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { CollectionConfig } from '../schema/collection.js'
 
 function makeVersionedCollection (): CollectionConfig {
@@ -31,8 +33,8 @@ function makeNonVersionedCollection (): CollectionConfig {
   })
 }
 
-function makeMockReq (body: string, cookie: string = ''): Record<string, unknown> {
-  const req = {
+function makeMockReq (body: string, cookie: string = ''): IncomingMessage {
+  const req: MockIncomingMessage = {
     headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
     url: '/admin/posts/abc/autosave',
     method: 'POST',
@@ -43,11 +45,18 @@ function makeMockReq (body: string, cookie: string = ''): Record<string, unknown
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req
+  return asReq(req)
 }
 
-function makeMockRes (): Record<string, ReturnType<typeof vi.fn>> {
-  return { writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn() }
+function makeMockRes (): ServerResponse & { writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn> } {
+  const res: MockServerResponse = {
+    writeHead: vi.fn(),
+    end: vi.fn(),
+    setHeader: vi.fn(),
+    body: '',
+    statusCode: 200
+  }
+  return asRes<{ writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn> }>(res)
 }
 
 describe('autosave endpoint route registration', () => {
@@ -55,7 +64,7 @@ describe('autosave endpoint route registration', () => {
     const registry = createCollectionRegistry()
     registry.register(makeVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/posts/:id/autosave')
     expect(entry).toBeDefined()
     expect(entry?.POST).toBeDefined()
@@ -65,7 +74,7 @@ describe('autosave endpoint route registration', () => {
     const registry = createCollectionRegistry()
     registry.register(makeNonVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const entry = routes.get('/admin/pages/:id/autosave')
     expect(entry).toBeUndefined()
   })
@@ -76,10 +85,10 @@ describe('autosave endpoint POST handler', () => {
     const registry = createCollectionRegistry()
     registry.register(makeVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('_csrf=invalid&title=Hello')
     const res = makeMockRes()
-    await routes.get('/admin/posts/:id/autosave')!.POST!(req as never, res as never, { id: 'abc' })
+    await routes.get('/admin/posts/:id/autosave')!.POST!(req, res, { id: 'abc' })
     expect(res.writeHead).toHaveBeenCalledWith(403)
     const body = JSON.parse(res.end.mock.calls[0]?.[0] ?? '{}') as { success: boolean; error: string }
     expect(body.success).toBe(false)
@@ -93,25 +102,27 @@ describe('autosave endpoint POST handler', () => {
       // For update query
       [{ id: 'abc', title: 'Updated Title', slug: 'updated', _status: 'draft' }]
     ])
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
     // Get a valid CSRF token
-    const getReq = { headers: {}, url: '/admin/posts/abc/edit', method: 'GET' }
+    const getReq: MockIncomingMessage = { headers: {}, url: '/admin/posts/abc/edit', method: 'GET', on: vi.fn(), removeAllListeners: vi.fn() }
     let htmlBody = ''
-    const getRes = {
+    const getRes: MockServerResponse = {
       writeHead: vi.fn(),
       end: vi.fn((data: string) => { htmlBody = data }),
-      setHeader: vi.fn()
+      setHeader: vi.fn(),
+      body: '',
+      statusCode: 200
     }
     // Hit edit page to get valid CSRF token
     const editEntry = routes.get('/admin/posts/:id/edit')
-    await editEntry!.GET!(getReq as never, getRes as never, { id: 'abc' })
+    await editEntry!.GET!(asReq(getReq), asRes(getRes), { id: 'abc' })
     const csrfMatch = htmlBody.match(/name="_csrf" value="([^"]+)"/)
     const csrfToken = csrfMatch![1]!
 
     const req = makeMockReq(`_csrf=${encodeURIComponent(csrfToken)}&title=Updated+Title&slug=updated`)
     const res = makeMockRes()
-    await routes.get('/admin/posts/:id/autosave')!.POST!(req as never, res as never, { id: 'abc' })
+    await routes.get('/admin/posts/:id/autosave')!.POST!(req, res, { id: 'abc' })
 
     const statusCode = res.writeHead.mock.calls[0]?.[0]
     expect(statusCode).toBe(200)
@@ -125,10 +136,10 @@ describe('autosave endpoint POST handler', () => {
     const registry = createCollectionRegistry()
     registry.register(makeVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const req = makeMockReq('_csrf=invalid&title=Hello')
     const res = makeMockRes()
-    await routes.get('/admin/posts/:id/autosave')!.POST!(req as never, res as never, { id: 'abc' })
+    await routes.get('/admin/posts/:id/autosave')!.POST!(req, res, { id: 'abc' })
     const contentTypeCall = res.setHeader.mock.calls.find(
       (c: string[]) => c[0] === 'Content-Type'
     )
@@ -140,9 +151,9 @@ describe('autosave endpoint POST handler', () => {
     const registry = createCollectionRegistry()
     registry.register(makeVersionedCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
 
-    const brokenReq = {
+    const brokenReq: MockIncomingMessage = {
       headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: '' },
       url: '/admin/posts/abc/autosave',
       method: 'POST',
@@ -154,7 +165,7 @@ describe('autosave endpoint POST handler', () => {
       removeAllListeners: vi.fn(() => brokenReq)
     }
     const res = makeMockRes()
-    await routes.get('/admin/posts/:id/autosave')!.POST!(brokenReq as never, res as never, { id: 'abc' })
+    await routes.get('/admin/posts/:id/autosave')!.POST!(asReq(brokenReq), asRes(res), { id: 'abc' })
     const statusCode = res.writeHead.mock.calls[0]?.[0]
     expect([400, 403]).toContain(statusCode)
   })

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeMockPool, makeErrorPool } from '@valencets/db'
+import { makeMockPool, makeErrorPool } from '@valencets/db/test'
 import {
   getEventCategorySummaries,
   getEventCountsByCategory,

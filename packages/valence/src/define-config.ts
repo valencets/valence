@@ -258,7 +258,7 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
     admin: data.admin
       ? {
           pathPrefix: data.admin.pathPrefix ?? '/admin',
-          requireAuth: data.admin.requireAuth ?? false
+          requireAuth: data.admin.requireAuth ?? true
         }
       : undefined,
     media: data.media

@@ -4,7 +4,8 @@ import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 import { CmsErrorCode } from '../schema/types.js'
-import { makeMockPool, makeErrorPool } from './test-helpers.js'
+import { makeMockPool, makeErrorPool, asSql } from './test-helpers.js'
+import type { MockSql } from './test-helpers.js'
 import type { DbPool } from '@valencets/db'
 
 function setupRegistry () {
@@ -217,8 +218,8 @@ describe('.page()', () => {
     const sql = Object.assign(
       vi.fn(() => Promise.resolve([])),
       { unsafe }
-    ) as unknown as DbPool['sql']
-    const pool: DbPool = { sql }
+    ) as MockSql
+    const pool: DbPool = { sql: asSql(sql) }
     const registry = setupRegistry()
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('posts').page(1, 10)

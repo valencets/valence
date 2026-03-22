@@ -67,7 +67,8 @@
       "msw"
     ],
     "overrides": {
-      "flatted": ">=3.4.2"
+      "flatted": ">=3.4.2",
+      "fast-xml-parser": ">=5.5.7"
     }
   },
   "license": "MIT",

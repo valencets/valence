@@ -3,7 +3,9 @@ import { createAdminRoutes } from '../admin/admin-routes.js'
 import { createCollectionRegistry } from '../schema/registry.js'
 import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
-import { makeMockPool } from './test-helpers.js'
+import { makeMockPool, asReq, asRes } from './test-helpers.js'
+import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 
 function makePostsCollection () {
   return collection({
@@ -15,8 +17,8 @@ function makePostsCollection () {
   })
 }
 
-function makeMockReq (body: string, cookie: string = ''): Record<string, unknown> {
-  const req = {
+function makeMockReq (body: string, cookie: string = ''): IncomingMessage {
+  const req: MockIncomingMessage = {
     headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
     url: '/admin/posts/new',
     method: 'POST',
@@ -27,11 +29,18 @@ function makeMockReq (body: string, cookie: string = ''): Record<string, unknown
     }),
     removeAllListeners: vi.fn(() => req)
   }
-  return req
+  return asReq(req)
 }
 
-function makeMockRes (): Record<string, ReturnType<typeof vi.fn>> {
-  return { writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn() }
+function makeMockRes (): ServerResponse & { writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn> } {
+  const res: MockServerResponse = {
+    writeHead: vi.fn(),
+    end: vi.fn(),
+    setHeader: vi.fn(),
+    body: '',
+    statusCode: 200
+  }
+  return asRes<{ writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn> }>(res)
 }
 
 describe('admin CSRF protection', () => {
@@ -39,11 +48,11 @@ describe('admin CSRF protection', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts/new')?.POST
     const req = makeMockReq('title=Hello&slug=hello')
     const res = makeMockRes()
-    await handler!(req as never, res as never, {})
+    await handler!(req, res, {})
     expect(res.writeHead).toHaveBeenCalledWith(403)
   })
 
@@ -51,16 +60,18 @@ describe('admin CSRF protection', () => {
     const registry = createCollectionRegistry()
     registry.register(makePostsCollection())
     const pool = makeMockPool()
-    const routes = createAdminRoutes(pool, registry)
+    const routes = createAdminRoutes(pool, registry, { requireAuth: false })
     const handler = routes.get('/admin/posts/new')?.GET
-    const req = { headers: {}, url: '/admin/posts/new', method: 'GET' }
+    const getReq: MockIncomingMessage = { headers: {}, url: '/admin/posts/new', method: 'GET', on: vi.fn(), removeAllListeners: vi.fn() }
     let body = ''
-    const res = {
+    const getRes: MockServerResponse = {
       writeHead: vi.fn(),
       end: vi.fn((data: string) => { body = data }),
-      setHeader: vi.fn()
+      setHeader: vi.fn(),
+      body: '',
+      statusCode: 200
     }
-    await handler!(req as never, res as never, {})
+    await handler!(asReq(getReq), asRes(getRes), {})
     expect(body).toContain('name="_csrf"')
     expect(body).toContain('type="hidden"')
   })

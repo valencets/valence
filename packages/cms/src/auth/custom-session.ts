@@ -3,6 +3,7 @@ import type { ResultAsync } from 'neverthrow'
 import type { DbPool } from '@valencets/db'
 import { safeQuery } from '../db/safe-query.js'
 import { generateToken } from './token-utils.js'
+import { isValidIdentifier, sanitizeIdentifier } from '../db/sql-sanitize.js'
 
 export const SessionErrorCode = Object.freeze({
   INTERNAL: 'INTERNAL',
@@ -41,6 +42,13 @@ export function createCustomSession (
   userId: string,
   maxAge = DEFAULT_SESSION_MAX_AGE
 ): ResultAsync<{ sessionId: string, expiresAt: Date }, SessionError> {
+  if (!isValidIdentifier(tableName)) {
+    return errAsync({
+      code: SessionErrorCode.INTERNAL,
+      message: 'Invalid table name'
+    })
+  }
+
   const tokenResult = generateToken()
   if (tokenResult.isErr()) {
     return errAsync({
@@ -49,12 +57,13 @@ export function createCustomSession (
     })
   }
 
+  const safeTable = sanitizeIdentifier(tableName)
   const sessionId = tokenResult.value
   const intervalSec = Math.max(60, Math.floor(maxAge))
 
   return safeQuery<SessionRow[]>(
     pool,
-    `INSERT INTO ${tableName} (id, user_id, expires_at) VALUES ($1, $2, NOW() + make_interval(secs => $3)) RETURNING id, user_id, expires_at`,
+    `INSERT INTO ${safeTable} (id, user_id, expires_at) VALUES ($1, $2, NOW() + make_interval(secs => $3)) RETURNING id, user_id, expires_at`,
     [sessionId, userId, intervalSec]
   ).mapErr((e): SessionError => ({
     code: SessionErrorCode.INTERNAL,
@@ -84,9 +93,18 @@ export function validateCustomSession (
   tableName: string,
   sessionId: string
 ): ResultAsync<{ userId: string }, SessionError> {
+  if (!isValidIdentifier(tableName)) {
+    return errAsync({
+      code: SessionErrorCode.INTERNAL,
+      message: 'Invalid table name'
+    })
+  }
+
+  const safeTable = sanitizeIdentifier(tableName)
+
   return safeQuery<SessionRow[]>(
     pool,
-    `SELECT id, user_id, expires_at FROM ${tableName} WHERE id = $1 AND expires_at > NOW()`,
+    `SELECT id, user_id, expires_at FROM ${safeTable} WHERE id = $1 AND expires_at > NOW()`,
     [sessionId]
   ).mapErr((e): SessionError => ({
     code: SessionErrorCode.INTERNAL,
@@ -115,9 +133,18 @@ export function destroyCustomSession (
   tableName: string,
   sessionId: string
 ): ResultAsync<void, SessionError> {
+  if (!isValidIdentifier(tableName)) {
+    return errAsync({
+      code: SessionErrorCode.INTERNAL,
+      message: 'Invalid table name'
+    })
+  }
+
+  const safeTable = sanitizeIdentifier(tableName)
+
   return safeQuery<SessionRow[]>(
     pool,
-    `DELETE FROM ${tableName} WHERE id = $1`,
+    `DELETE FROM ${safeTable} WHERE id = $1`,
     [sessionId]
   ).map(() => undefined).mapErr((e): SessionError => ({
     code: SessionErrorCode.INTERNAL,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateCsrfToken, validateCsrfToken } from '../auth/csrf.js'
+import { generateCsrfToken, validateCsrfToken } from '../auth/index.js'
 
 describe('generateCsrfToken()', () => {
   it('returns a 64-char hex string', () => {
@@ -29,5 +29,10 @@ describe('validateCsrfToken()', () => {
 
   it('returns false for different lengths', () => {
     expect(validateCsrfToken('short', 'longer-token')).toBe(false)
+  })
+
+  it('returns false when token is empty string', () => {
+    const token = generateCsrfToken()
+    expect(validateCsrfToken('', token)).toBe(false)
   })
 })
