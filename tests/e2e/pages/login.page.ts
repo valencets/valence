@@ -10,7 +10,7 @@ export class LoginPage {
     this.emailInput = page.getByLabel('Email')
     this.passwordInput = page.getByLabel('Password')
     this.loginButton = page.getByRole('button', { name: /sign\s*in/i })
-    this.errorMessage = page.locator('.login-error')
+    this.errorMessage = page.locator('.km-error')
   }
 
   async goto (): Promise<void> {
