@@ -40,11 +40,11 @@ describe('createCmsAuthValidator', () => {
   it('returns authenticated true with user for valid session', async () => {
     // First call: validateSession returns user_id, second call: query user returns user row
     const pool = makeSequentialPool([
-      [{ id: 'sess-1', user_id: 'user-1', expires_at: '2099-01-01' }],
+      [{ id: 'a0a0a0a0-b1b1-c2c2-d3d3-e4e4e4e4e4e4', user_id: 'user-1', expires_at: '2099-01-01' }],
       [{ id: 'user-1', email: 'admin@test.com', role: 'admin' }]
     ])
     const validate = createCmsAuthValidator(pool)
-    const req = makeMockReq('cms_session=sess-1')
+    const req = makeMockReq('cms_session=a0a0a0a0-b1b1-c2c2-d3d3-e4e4e4e4e4e4')
     const result = await validate(req)
     expect(result.authenticated).toBe(true)
     if (result.authenticated) {

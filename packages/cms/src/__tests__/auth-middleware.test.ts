@@ -20,9 +20,9 @@ function makeMockRes (): ServerResponse {
 
 describe('createAuthMiddleware()', () => {
   it('calls next with user context when session is valid', async () => {
-    const pool = makeMockPool([{ id: 'sess-1', user_id: 'user-1', expires_at: '2099-01-01T00:00:00Z' }])
+    const pool = makeMockPool([{ id: 'a0a0a0a0-b1b1-c2c2-d3d3-e4e4e4e4e4e4', user_id: 'user-1', expires_at: '2099-01-01T00:00:00Z' }])
     const middleware = createAuthMiddleware(pool)
-    const req = makeMockReq('cms_session=sess-1')
+    const req = makeMockReq('cms_session=a0a0a0a0-b1b1-c2c2-d3d3-e4e4e4e4e4e4')
     const res = makeMockRes()
     const next = vi.fn()
     await middleware(req, res, next)

@@ -265,6 +265,8 @@ export function createAdminRoutes (
       }
       const user = userResult.value[0]
       if (!user) {
+        // Prevent timing-based user enumeration (NEW-06)
+        await verifyPassword(password, '$argon2id$v=19$m=65536,t=3,p=4$dummysalt$dummyhash')
         const token = freshCsrfToken()
         const html = renderLoginPage({ error: 'Invalid email or password.', csrfToken: token })
         sendHtml(res, html, 401)
