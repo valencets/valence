@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { okAsync } from 'neverthrow'
+import { okAsync } from '@valencets/resultkit'
 import { createS3Adapter } from '../s3-adapter.js'
 import { cloudStoragePlugin } from '../cloud-storage-plugin.js'
 import type { CloudStorageAdapter } from '../storage-adapter.js'

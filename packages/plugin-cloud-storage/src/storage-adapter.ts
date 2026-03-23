@@ -1,4 +1,4 @@
-import type { ResultAsync } from 'neverthrow'
+import type { ResultAsync } from '@valencets/resultkit'
 
 export interface StorageError {
   readonly message: string
