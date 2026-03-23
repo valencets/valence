@@ -65,6 +65,24 @@ Zero-padded 3-digit sequence number. The runner creates a `_migrations` tracking
 
 Tests use **Vitest** with **happy-dom** environment. No database or network required.
 
+## CI Parity Workflow
+
+The canonical local CI path is:
+
+```bash
+pnpm db:up
+pnpm ci:local
+```
+
+Visual regression has one extra rule: host screenshots are not authoritative. GitHub runs visual tests on Ubuntu in CI, so local visual baselines must be generated through:
+
+```bash
+pnpm test:visual:ci
+pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-dashboard.spec.ts --project=chromium
+```
+
+`test:visual:ci` creates a clean temporary worktree from `HEAD`, installs dependencies, builds the repo, and runs Playwright inside the matching Ubuntu Playwright container. That is the baseline source of truth.
+
 ### Dynamic import pattern
 
 Web Component tests use `beforeAll` with dynamic import to ensure the component registers in the happy-dom environment:

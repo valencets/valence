@@ -21,6 +21,7 @@
     "check:patterns": "bash scripts/check-banned-patterns.sh",
     "check:size": "bash scripts/check-bundle-size.sh",
     "test:visual": "playwright test tests/e2e/visual/",
+    "test:visual:ci": "bash scripts/run-visual-ci.sh",
     "test:perf:smoke": "k6 run tests/perf/smoke.js",
     "test:perf": "k6 run tests/perf/load.js",
     "test:lighthouse": "lhci autorun --config=lighthouserc.cjs",

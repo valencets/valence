@@ -8,6 +8,7 @@ pnpm build              # Required before first test run
 pnpm test               # All workspace tests
 npx vitest run tests/integration/   # Integration tests (requires PostgreSQL)
 pnpm test:e2e           # Playwright E2E tests
+pnpm test:visual:ci     # GitHub-parity visual regression in Ubuntu container
 pnpm test:coverage      # Unit tests with coverage report
 pnpm test:mutate        # Stryker mutation testing
 pnpm test:watch         # Watch mode for local development
@@ -150,14 +151,15 @@ GitHub Actions runs these jobs in order:
 - Pre-commit: `lint-staged` on staged code and shell files
 - Commit messages: Conventional Commits, with required TDD suffixes for code commits
 - Pre-push: `pnpm validate`, `pnpm check:patterns`, and `pnpm test:smoke`
+- Full pre-push parity is opt-in: `VALENCE_PREPUSH_FULL=1 git push`
 
 ## Known Caveats
 
 - `pnpm test:integration` is currently broken with Vitest 4.0.18. Use `npx vitest run tests/integration/` directly.
-- Visual baseline refreshes should be run selectively, for example:
+- Visual baseline refreshes must be run from the Ubuntu parity path, for example:
 
 ```bash
-pnpm exec playwright test tests/e2e/visual/admin-login.spec.ts --project=chromium --update-snapshots
+pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-login.spec.ts --project=chromium
 ```
 
 ## Pre-PR Gate
@@ -180,7 +182,7 @@ This mirrors the main CI workflow locally in CI order:
 - typecheck/build + bundle size
 - security audit
 - API review
-- unit, contract, integration, visual, and sharded E2E tests
+- unit, contract, integration, Ubuntu-parity visual, and sharded E2E tests
 - CMS coverage gate
 - Lighthouse smoke run
 
@@ -199,6 +201,26 @@ This starts `postgres:16-alpine` via [`docker-compose.dev.yml`](/home/forrest/de
 - `PGPORT=55432`
 - `PGUSER=postgres`
 - `PGPASSWORD=postgres`
+
+## Visual Parity
+
+Host screenshots are not source of truth. Visual baselines are accepted only from the GitHub-parity path:
+
+```bash
+pnpm test:visual:ci
+pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-list.spec.ts --project=chromium
+```
+
+What `pnpm test:visual:ci` does:
+
+- requires a clean git worktree so it can mirror PR state
+- creates a temporary clean worktree from `HEAD`
+- runs `pnpm install --frozen-lockfile`
+- runs `pnpm build`
+- runs Playwright inside the matching Ubuntu Playwright container
+- copies refreshed snapshot files back into the main workspace when `--update-snapshots` is used
+
+This is intentionally not part of `pre-commit`. It is too slow and too dependent on the runner environment. It is part of the pre-PR gate instead.
 
 ## Flaky Test Quarantine
 

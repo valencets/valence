@@ -140,6 +140,7 @@ Commits are enforced via Husky:
 - `commit-msg` enforces Conventional Commit format and required TDD suffixes for code commits:
   `test(...) -- RED`, `feat(...) -- GREEN`, `fix(...) -- GREEN`, `refactor(...) -- REFACTOR`
 - `pre-push` runs `pnpm validate`, `pnpm check:patterns`, and `pnpm test:smoke`
+- `VALENCE_PREPUSH_FULL=1 git push` also runs `pnpm test:visual:ci`
 
 ## Branching
 
@@ -159,6 +160,29 @@ Merge feature/fix branches into `development` with `--no-ff`. Merge `development
 5. Run `pnpm ci:local` before opening the PR. This is the local mirror of the main CI workflow and is the required pre-PR gate.
 6. Confirm local prerequisites first: `pnpm db:up` has started PostgreSQL, Playwright browsers are installed, and dependencies are installed from the current lockfile.
 7. Open a PR against `development`. CI runs lint, typecheck, and tests.
+
+## CI Parity
+
+Use one canonical local path for GitHub-parity checks:
+
+```bash
+pnpm ci:local
+```
+
+Visual regression is not a `pre-commit` concern. It is too slow and too environment-sensitive. The repo standard is:
+
+- `pre-commit`: fast staged checks only
+- `pre-push`: fast validation by default
+- `pnpm ci:local`: required before opening a PR
+- `pnpm test:visual:ci`: clean-worktree, Ubuntu-container visual regression parity with GitHub Actions
+
+Refresh visual baselines from the containerized path, not from an arbitrary host render:
+
+```bash
+pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-dashboard.spec.ts --project=chromium
+```
+
+`pnpm test:visual:ci` creates a temporary clean worktree, installs dependencies, builds the repo, and runs Playwright inside the matching Ubuntu Playwright container. This is the source of truth for visual baselines.
 
 ## Local PostgreSQL
 
