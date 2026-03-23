@@ -204,7 +204,15 @@ PORT=${serverPort}
 CMS_SECRET=${generateSecret()}
 `
   await writeFile(join(dir, '.env'), envContent)
-  await writeFile(join(dir, '.env.example'), envContent.replace(dbPassword, '').replace(/CMS_SECRET=.*/, 'CMS_SECRET=change-me'))
+  const envExampleContent = `DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=${dbName}
+DB_USER=${dbUser}
+DB_PASSWORD=
+PORT=${serverPort}
+CMS_SECRET=change-me
+`
+  await writeFile(join(dir, '.env.example'), envExampleContent)
 
   const gitignoreLines = ['node_modules/', 'dist/', '.env', 'uploads/', '*.log']
   if (learnMode) gitignoreLines.push('.valence/')
