@@ -189,6 +189,8 @@ export interface ResolvedValenceConfig {
         readonly idle_timeout: number;
         readonly connect_timeout: number;
         readonly query_timeout?: number | undefined;
+        readonly sslmode: 'disable' | 'require' | 'verify-ca' | 'verify-full';
+        readonly sslrootcert?: string | undefined;
     };
     // (undocumented)
     readonly graphql?: boolean | undefined;
@@ -267,6 +269,8 @@ export interface ValenceConfig {
         readonly idle_timeout?: number | undefined;
         readonly connect_timeout?: number | undefined;
         readonly query_timeout?: number | undefined;
+        readonly sslmode?: 'disable' | 'require' | 'verify-ca' | 'verify-full' | undefined;
+        readonly sslrootcert?: string | undefined;
     };
     // (undocumented)
     readonly graphql?: boolean | undefined;
