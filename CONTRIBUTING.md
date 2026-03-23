@@ -6,7 +6,7 @@
 git clone https://github.com/valencets/valence.git
 cd valence
 pnpm install
-pnpm db:up   # Start local PostgreSQL on localhost:5432
+pnpm db:up   # Start local PostgreSQL on localhost:55432
 pnpm build   # Build all packages (required before first test run)
 pnpm test    # 1,306 tests across all packages
 pnpm lint    # Neostandard lint
@@ -174,7 +174,7 @@ pnpm db:reset
 Defaults:
 
 - `PGHOST=localhost`
-- `PGPORT=5432`
+- `PGPORT=55432`
 - `PGUSER=postgres`
 - `PGPASSWORD=postgres`
 

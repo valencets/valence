@@ -184,7 +184,7 @@ This mirrors the main CI workflow locally in CI order:
 - CMS coverage gate
 - Lighthouse smoke run
 
-It assumes local PostgreSQL is reachable via `PGHOST`, `PGPORT`, and `PGUSER`. Defaults are `localhost`, `5432`, and `postgres`.
+It assumes local PostgreSQL is reachable via `PGHOST`, `PGPORT`, and `PGUSER`. Defaults are `localhost`, `55432`, and `postgres`.
 Treat `pnpm ci:local` as the last gate before `git push` or `gh pr create`. GitHub CI should confirm a local pass, not discover missing manifest or typecheck drift first.
 
 For repo-standard local database setup:
@@ -196,7 +196,7 @@ pnpm db:up
 This starts `postgres:16-alpine` via [`docker-compose.dev.yml`](/home/forrest/dev/valence/docker-compose.dev.yml) with:
 
 - `PGHOST=localhost`
-- `PGPORT=5432`
+- `PGPORT=55432`
 - `PGUSER=postgres`
 - `PGPASSWORD=postgres`
 

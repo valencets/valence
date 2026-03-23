@@ -5,8 +5,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 export PGHOST="${PGHOST:-localhost}"
-export PGPORT="${PGPORT:-5432}"
+export PGPORT="${PGPORT:-55432}"
 export PGUSER="${PGUSER:-postgres}"
+export PGPASSWORD="${PGPASSWORD:-postgres}"
 export LHCI_PORT="${LHCI_PORT:-3111}"
 
 run_step() {
