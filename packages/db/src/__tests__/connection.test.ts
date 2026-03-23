@@ -6,7 +6,7 @@ const { mockPostgres } = vi.hoisted(() => {
 })
 vi.mock('postgres', () => ({ default: mockPostgres }))
 
-import { validateDbConfig, createPool, mapPostgresError } from '../connection.js'
+import { validateDbConfig, createPool, mapPostgresError, closePool } from '../connection.js'
 import type { DbConfig } from '../types.js'
 
 const validConfig: DbConfig = {
@@ -17,7 +17,8 @@ const validConfig: DbConfig = {
   password: 'secret',
   max: 10,
   idle_timeout: 30,
-  connect_timeout: 5
+  connect_timeout: 5,
+  sslmode: 'disable'
 }
 
 beforeEach(() => {
@@ -117,6 +118,64 @@ describe('createPool', () => {
     expect(opts).toHaveProperty('onnotice')
     expect(typeof opts.onnotice).toBe('function')
   })
+
+  it('passes query_timeout as statement_timeout', () => {
+    createPool({ ...validConfig, query_timeout: 30_000 })
+    const opts = mockPostgres.mock.calls[0]![0]
+    expect(opts.connection.statement_timeout).toBe(30_000)
+  })
+
+  it('disables ssl when sslmode is disable', () => {
+    createPool(validConfig)
+    const opts = mockPostgres.mock.calls[0]![0]
+    expect(opts.ssl).toBe(false)
+  })
+
+  it('enables ssl without certificate pinning for require mode', () => {
+    createPool({ ...validConfig, sslmode: 'require' })
+    const opts = mockPostgres.mock.calls[0]![0]
+    expect(opts.ssl).toBe('require')
+  })
+
+  it('passes CA verification settings for verify-full mode', () => {
+    createPool({
+      ...validConfig,
+      sslmode: 'verify-full',
+      sslrootcert: '-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----'
+    })
+    const opts = mockPostgres.mock.calls[0]![0]
+    expect(opts.ssl.rejectUnauthorized).toBe(true)
+    expect(opts.ssl.ca).toContain('BEGIN CERTIFICATE')
+  })
+
+  it('disables hostname verification only for verify-ca mode', () => {
+    createPool({
+      ...validConfig,
+      sslmode: 'verify-ca',
+      sslrootcert: '-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----'
+    })
+    const opts = mockPostgres.mock.calls[0]![0]
+    expect(opts.ssl.rejectUnauthorized).toBe(true)
+    expect(typeof opts.ssl.checkServerIdentity).toBe('function')
+  })
+})
+
+describe('closePool', () => {
+  it('returns Ok when pool shutdown succeeds', async () => {
+    const result = await closePool(createPool(validConfig))
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('returns Err when pool shutdown fails', async () => {
+    const pool = {
+      sql: Object.assign(() => {}, {
+        end: () => Promise.reject(new Error('shutdown failed'))
+      })
+    }
+    const result = await closePool(pool)
+    expect(result.isErr()).toBe(true)
+    expect(result.unwrapErr().code).toBe('CONNECTION_FAILED')
+  })
 })
 
 describe('validateDbConfig extended validation', () => {
@@ -164,6 +223,28 @@ describe('validateDbConfig extended validation', () => {
   it('accepts config without query_timeout', () => {
     const result = validateDbConfig(validConfig)
     expect(result.isOk()).toBe(true)
+  })
+
+  it('accepts supported sslmode values', () => {
+    for (const sslmode of ['disable', 'require', 'verify-ca', 'verify-full'] as const) {
+      const sslConfig = sslmode === 'disable'
+        ? { ...validConfig, sslmode }
+        : { ...validConfig, sslmode, sslrootcert: '-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----' }
+      const result = validateDbConfig(sslConfig)
+      expect(result.isOk()).toBe(true)
+    }
+  })
+
+  it('requires sslrootcert for verify-ca', () => {
+    const result = validateDbConfig({ ...validConfig, sslmode: 'verify-ca' })
+    expect(result.isErr()).toBe(true)
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
+  })
+
+  it('requires sslrootcert for verify-full', () => {
+    const result = validateDbConfig({ ...validConfig, sslmode: 'verify-full' })
+    expect(result.isErr()).toBe(true)
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 })
 
