@@ -74,6 +74,8 @@ pnpm db:up
 pnpm ci:local
 ```
 
+`pnpm ci:local` assumes dependencies were installed from the current lockfile, including the local `@lhci/cli` binary used for the Lighthouse step.
+
 Visual regression has one extra rule: host screenshots are not authoritative. GitHub runs visual tests on Ubuntu in CI, so local visual baselines must be generated through:
 
 ```bash
@@ -82,6 +84,8 @@ pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-dashboard.spec.
 ```
 
 `test:visual:ci` creates a clean temporary worktree from `HEAD`, installs dependencies, builds the repo, and runs Playwright inside the matching Ubuntu Playwright container. That is the baseline source of truth.
+
+For non-visual Playwright shards in the local CI flow, artifact output is redirected to `/tmp` instead of the repo-local `test-results/` tree. This prevents stale ownership from previous containerized runs from blocking the developer workflow.
 
 ### Dynamic import pattern
 

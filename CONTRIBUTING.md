@@ -13,7 +13,7 @@ pnpm lint    # Neostandard lint
 ```
 
 Requires Node.js >= 22 and pnpm 10.x. The `packageManager` field in `package.json` enforces the exact pnpm version.
-Local CI, integration tests, E2E, and scaffold flows also require Docker Desktop or Docker Engine so `pnpm db:up` can provision PostgreSQL.
+Local CI, integration tests, E2E, visual parity, and scaffold flows also require Docker Desktop or Docker Engine so `pnpm db:up` can provision PostgreSQL and `pnpm test:visual:ci` can run the Ubuntu Playwright container.
 
 New to the codebase? Create a test project with the interactive tutorial:
 
@@ -160,7 +160,7 @@ Merge feature/fix branches into `development` with `--no-ff`. Merge `development
 3. Ensure `pnpm test` and `pnpm lint` both pass.
 4. Ensure `pnpm build` (typecheck) passes.
 5. Run `pnpm ci:local` before opening the PR. This is the local mirror of the main CI workflow and is the required pre-PR gate.
-6. Confirm local prerequisites first: `pnpm db:up` has started PostgreSQL, Playwright browsers are installed, and dependencies are installed from the current lockfile.
+6. Confirm local prerequisites first: `pnpm db:up` has started PostgreSQL, Playwright browsers are installed, and dependencies are installed from the current lockfile. `pnpm install` also installs the local Lighthouse CLI used by `pnpm ci:local`.
 7. Open a PR against `development`. CI runs lint, typecheck, and tests.
 
 ## CI Parity
@@ -186,6 +186,8 @@ pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-dashboard.spec.
 ```
 
 `pnpm test:visual:ci` creates a temporary clean worktree, installs dependencies, builds the repo, and runs Playwright inside the matching Ubuntu Playwright container. This is the source of truth for visual baselines.
+
+For non-visual Playwright shards in `pnpm ci:local`, repo-local artifact directories are not reused. The local CI runner redirects Playwright output and HTML report directories into `/tmp` so stale ownership in `test-results/` or `playwright-report/` does not block the pre-PR gate.
 
 ## Local PostgreSQL
 
