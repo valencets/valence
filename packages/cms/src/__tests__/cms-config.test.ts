@@ -21,7 +21,7 @@ describe('buildCms()', () => {
     }
     const result = buildCms(config)
     expect(result.isOk()).toBe(true)
-    const cms = result._unsafeUnwrap()
+    const cms = result.unwrap()
     expect(cms.api).toBeDefined()
     expect(cms.collections.has('posts')).toBe(true)
   })
@@ -37,7 +37,7 @@ describe('buildCms()', () => {
     }
     const result = buildCms(config)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().globals.has('site-settings')).toBe(true)
+    expect(result.unwrap().globals.has('site-settings')).toBe(true)
   })
 
   it('returns Err on duplicate collection slug', () => {
@@ -49,7 +49,7 @@ describe('buildCms()', () => {
     }
     const result = buildCms(config)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('DUPLICATE_SLUG')
+    expect(result.unwrapErr().code).toBe('DUPLICATE_SLUG')
   })
 
   it('auto-injects auth fields on auth-enabled collections', () => {
@@ -62,10 +62,10 @@ describe('buildCms()', () => {
     }
     const result = buildCms(config)
     expect(result.isOk()).toBe(true)
-    const cms = result._unsafeUnwrap()
+    const cms = result.unwrap()
     const users = cms.collections.get('users')
     expect(users.isOk()).toBe(true)
-    const fieldNames = users._unsafeUnwrap().fields.map(f => f.name)
+    const fieldNames = users.unwrap().fields.map(f => f.name)
     expect(fieldNames).toContain('email')
     expect(fieldNames).toContain('password_hash')
   })
@@ -102,7 +102,7 @@ describe('buildCms()', () => {
     }
     const result = buildCms(config)
     expect(result.isOk()).toBe(true)
-    const cms = result._unsafeUnwrap()
+    const cms = result.unwrap()
     expect(cms.collections.has('posts')).toBe(true)
     expect(cms.collections.has('pages')).toBe(true)
   })
@@ -128,7 +128,7 @@ describe('buildCms()', () => {
     }
     const result = buildCms(config)
     expect(result.isOk()).toBe(true)
-    const cms = result._unsafeUnwrap()
+    const cms = result.unwrap()
     expect(cms.collections.has('posts')).toBe(true)
     expect(cms.collections.has('pages')).toBe(true)
   })
@@ -164,7 +164,7 @@ describe('buildCms()', () => {
       collections: [],
       plugins: [plugin]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     expect(cms.pluginHooks).toHaveLength(1)
     expect(cms.pluginHooks[0]?.onInit).toBe(onInit)
     expect(cms.pluginHooks[0]?.onReady).toBe(onReady)
@@ -181,7 +181,7 @@ describe('buildCms()', () => {
       collections: [],
       plugins: [plugin]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     expect(cms.pluginHooks).toHaveLength(0)
   })
 
@@ -191,7 +191,7 @@ describe('buildCms()', () => {
       secret: 'test-secret',
       collections: []
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     expect(cms.pluginHooks).toHaveLength(0)
   })
 
@@ -207,7 +207,7 @@ describe('buildCms()', () => {
       collections: [],
       plugins: [plugin1, fnPlugin, plugin2]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     expect(cms.pluginHooks).toHaveLength(2)
     expect(cms.pluginHooks[0]?.onInit).toBe(hooks1.onInit)
     expect(cms.pluginHooks[1]?.onReady).toBe(hooks2.onReady)
@@ -223,7 +223,7 @@ describe('CmsInstance', () => {
         collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
       ]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     expect(cms.restRoutes).toBeDefined()
     expect(cms.restRoutes.has('/api/posts')).toBe(true)
   })
@@ -236,7 +236,7 @@ describe('CmsInstance', () => {
         collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
       ]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     expect(cms.adminRoutes).toBeDefined()
     expect(cms.adminRoutes.has('/admin')).toBe(true)
   })
@@ -249,7 +249,7 @@ describe('CmsInstance', () => {
         collection({ slug: 'users', auth: true, fields: [field.text({ name: 'name' })] })
       ]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     expect(cms.restRoutes.has('/api/users/login')).toBe(true)
     expect(cms.restRoutes.has('/api/users/logout')).toBe(true)
     expect(cms.restRoutes.has('/api/users/me')).toBe(true)
@@ -264,7 +264,7 @@ describe('CmsInstance', () => {
       ],
       uploadDir: '/tmp/uploads'
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     expect(cms.restRoutes.has('/media/upload')).toBe(true)
     expect(cms.restRoutes.has('/media/:filename')).toBe(true)
   })
@@ -280,7 +280,7 @@ describe('buildCms() requireAuth forwarding', () => {
         collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
       ]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     const handler = cms.adminRoutes.get('/admin')?.GET
     expect(handler).toBeDefined()
 
@@ -302,7 +302,7 @@ describe('buildCms() requireAuth forwarding', () => {
         collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
       ]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     const handler = cms.adminRoutes.get('/admin')?.GET
     expect(handler).toBeDefined()
 
@@ -326,7 +326,7 @@ describe('buildCms() requireAuth forwarding', () => {
         collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
       ]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     const handler = cms.adminRoutes.get('/admin')?.GET
     expect(handler).toBeDefined()
 

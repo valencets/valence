@@ -1,7 +1,7 @@
 import postgres from 'postgres'
 import type { Sql } from 'postgres'
-import { ok, err, ResultAsync } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err, ResultAsync } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import { z } from 'zod'
 import { DbErrorCode } from './types.js'
 import type { DbConfig, DbError } from './types.js'
@@ -15,7 +15,7 @@ const dbConfigSchema = z.object({
   port: z.number().int().min(1).max(65535),
   database: z.string().min(1),
   username: z.string().min(1),
-  password: z.string(),
+  password: z.string().min(1),
   max: z.number().int().min(1).max(100),
   idle_timeout: z.number().min(0).max(3_600_000),
   connect_timeout: z.number().min(0).max(60_000),

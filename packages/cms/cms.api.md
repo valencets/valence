@@ -9,8 +9,8 @@ import type { DbPool } from '@valencets/db';
 import { generateCsrfToken } from '@valencets/core/server';
 import type { IncomingMessage } from 'node:http';
 import type { Middleware } from '@valencets/core/server';
-import type { Result } from 'neverthrow';
-import { ResultAsync } from 'neverthrow';
+import type { Result } from '@valencets/resultkit';
+import { ResultAsync } from '@valencets/resultkit';
 import type { ServerResponse } from 'node:http';
 import { validateCsrfToken } from '@valencets/core/server';
 import type { ZodObject } from 'zod';
@@ -316,6 +316,8 @@ export interface CollectionQueryBuilder {
     where(field: string, value: SqlValue): CollectionQueryBuilder;
     // (undocumented)
     where(field: string, operator: WhereOperator, value: SqlValue): CollectionQueryBuilder;
+    // (undocumented)
+    whereClause(clause: WhereClause): CollectionQueryBuilder;
     // (undocumented)
     withDeleted(): CollectionQueryBuilder;
 }

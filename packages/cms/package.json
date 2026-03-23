@@ -34,8 +34,8 @@
     "@valencets/telemetry": "workspace:*",
     "@valencets/reactive": "workspace:*",
     "@valencets/ui": "workspace:*",
+    "@valencets/resultkit": "^0.2.0",
     "argon2": "^0.44.0",
-    "neverthrow": "^8.2.0",
     "sharp": "^0.34.5",
     "zod": "^4.3.6"
   },

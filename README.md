@@ -208,12 +208,12 @@ Plugins are config transformers: a function that receives a `CmsConfig` and retu
 | Package | What it does | External deps |
 |---------|-------------|---------------|
 | `@valencets/ui` | 23 Web Components. ARIA, i18n, telemetry hooks, hydration directives. OKLCH tokens. | none |
-| `@valencets/core` | Router + server. pushState nav, fragment swaps, prefetch, view transitions, server islands. | neverthrow |
-| `@valencets/db` | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | postgres, neverthrow, zod |
-| `@valencets/cms` | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media. Rich text via Tiptap. | tiptap, argon2, sharp, zod, neverthrow |
-| `@valencets/graphql` | Auto-generated GraphQL schema + resolvers from CMS collections. | graphql, neverthrow |
-| `@valencets/telemetry` | Beacon ingestion, event storage, daily summaries, fleet aggregation. | postgres, neverthrow |
-| `@valencets/valence` | CLI + FSD scaffold + entity codegen + route types. | tsx, zod, neverthrow |
+| `@valencets/core` | Router + server. pushState nav, fragment swaps, prefetch, view transitions, server islands. | @valencets/resultkit |
+| `@valencets/db` | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | postgres, @valencets/resultkit, zod |
+| `@valencets/cms` | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media. Rich text via Tiptap. | tiptap, argon2, sharp, zod, @valencets/resultkit |
+| `@valencets/graphql` | Auto-generated GraphQL schema + resolvers from CMS collections. | graphql, @valencets/resultkit |
+| `@valencets/telemetry` | Beacon ingestion, event storage, daily summaries, fleet aggregation. | postgres, @valencets/resultkit |
+| `@valencets/valence` | CLI + FSD scaffold + entity codegen + route types. | tsx, zod, @valencets/resultkit |
 
 Core external runtime deps: 8. All MIT-licensed, all audited via Socket. Public-facing pages ship zero third-party JavaScript.
 

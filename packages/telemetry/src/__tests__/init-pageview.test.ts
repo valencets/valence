@@ -20,11 +20,11 @@ describe('initTelemetry autoPageview', () => {
       flushIntervalMs: 999999
     })
     expect(result.isOk()).toBe(true)
-    const handle = result._unsafeUnwrap()
+    const handle = result.unwrap()
 
     const flushResult = handle.flushNow()
     expect(flushResult.isOk()).toBe(true)
-    expect(flushResult._unsafeUnwrap()).toBe(1)
+    expect(flushResult.unwrap()).toBe(1)
 
     handle.destroy()
   })
@@ -38,11 +38,11 @@ describe('initTelemetry autoPageview', () => {
       flushIntervalMs: 999999
     })
     expect(result.isOk()).toBe(true)
-    const handle = result._unsafeUnwrap()
+    const handle = result.unwrap()
 
     const flushResult = handle.flushNow()
     expect(flushResult.isErr()).toBe(true)
-    expect(flushResult._unsafeUnwrapErr().code).toBe(TelemetryErrorCode.FLUSH_EMPTY)
+    expect(flushResult.unwrapErr().code).toBe(TelemetryErrorCode.FLUSH_EMPTY)
 
     handle.destroy()
   })

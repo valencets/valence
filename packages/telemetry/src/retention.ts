@@ -1,6 +1,6 @@
 // Data retention — cleanup old events and sessions
 
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@valencets/resultkit'
 import { mapPostgresError } from '@valencets/db'
 import type { DbError, DbPool } from '@valencets/db'
 

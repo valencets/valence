@@ -7,8 +7,8 @@
 import type { DbError } from '@valencets/db';
 import type { DbPool } from '@valencets/db';
 import type { IncomingMessage } from 'node:http';
-import type { Result } from 'neverthrow';
-import { ResultAsync } from 'neverthrow';
+import type { Result } from '@valencets/resultkit';
+import { ResultAsync } from '@valencets/resultkit';
 import type { ServerResponse } from 'node:http';
 import type { TelemetryError } from '@valencets/core/client';
 

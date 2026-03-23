@@ -5,8 +5,8 @@
 ```ts
 
 import type { IncomingMessage } from 'node:http';
-import type { Result } from 'neverthrow';
-import { ResultAsync } from 'neverthrow';
+import type { Result } from '@valencets/resultkit';
+import { ResultAsync } from '@valencets/resultkit';
 import type { Server } from 'node:http';
 import type { ServerResponse } from 'node:http';
 

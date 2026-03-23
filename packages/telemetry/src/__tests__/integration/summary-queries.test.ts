@@ -37,7 +37,7 @@ describe('getSessionSummaries', () => {
   it('returns empty array when no summaries exist', async () => {
     const result = await getSessionSummaries(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 
   it('returns summaries within period', async () => {
@@ -49,7 +49,7 @@ describe('getSessionSummaries', () => {
     const result = await getSessionSummaries(pool, period)
     expect(result.isOk()).toBe(true)
 
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     expect(rows).toHaveLength(1)
     expect(rows[0]!.total_sessions).toBe(10)
     expect(rows[0]!.unique_referrers).toBe(3)
@@ -67,7 +67,7 @@ describe('getSessionSummaries', () => {
     `
 
     const result = await getSessionSummaries(pool, period)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 })
 
@@ -75,7 +75,7 @@ describe('getEventSummaries', () => {
   it('returns empty array when no summaries exist', async () => {
     const result = await getEventSummaries(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 
   it('returns event summaries within period', async () => {
@@ -87,7 +87,7 @@ describe('getEventSummaries', () => {
     const result = await getEventSummaries(pool, period)
     expect(result.isOk()).toBe(true)
 
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     expect(rows).toHaveLength(1)
     expect(rows[0]!.event_category).toBe('CLICK')
     expect(rows[0]!.total_count).toBe(50)
@@ -99,7 +99,7 @@ describe('getConversionSummaries', () => {
   it('returns empty array when no summaries exist', async () => {
     const result = await getConversionSummaries(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 
   it('returns conversion summaries with top_sources JSON', async () => {
@@ -112,7 +112,7 @@ describe('getConversionSummaries', () => {
     const result = await getConversionSummaries(pool, period)
     expect(result.isOk()).toBe(true)
 
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     expect(rows).toHaveLength(1)
     expect(rows[0]!.intent_type).toBe('INTENT_CALL')
     expect(rows[0]!.total_count).toBe(10)
@@ -133,7 +133,7 @@ describe('insertIngestionHealth + getIngestionHealth', () => {
     const insertResult = await insertIngestionHealth(pool, record)
     expect(insertResult.isOk()).toBe(true)
 
-    const inserted = insertResult._unsafeUnwrap()
+    const inserted = insertResult.unwrap()
     expect(inserted.payloads_accepted).toBe(100)
     expect(inserted.payloads_rejected).toBe(5)
     expect(inserted.avg_processing_ms).toBeCloseTo(12.5)
@@ -142,7 +142,7 @@ describe('insertIngestionHealth + getIngestionHealth', () => {
     const getResult = await getIngestionHealth(pool, period)
     expect(getResult.isOk()).toBe(true)
 
-    const rows = getResult._unsafeUnwrap()
+    const rows = getResult.unwrap()
     expect(rows).toHaveLength(1)
     expect(rows[0]!.payloads_accepted).toBe(100)
   })
@@ -150,6 +150,6 @@ describe('insertIngestionHealth + getIngestionHealth', () => {
   it('returns empty when no health records exist', async () => {
     const result = await getIngestionHealth(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 })

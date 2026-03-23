@@ -124,7 +124,7 @@ describe('query builder .locale()', () => {
     const qb = createQueryBuilder(pool, registry, 'en')
     const result = await qb.query('posts').locale('es').page(1, 5)
     expect(result.isOk()).toBe(true)
-    const paginated = result._unsafeUnwrap()
+    const paginated = result.unwrap()
     expect(paginated.totalDocs).toBe(10)
     // The second call (data query) should have COALESCE
     const dataCall = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls[1]

@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { ResultAsync, fromThrowable, ok } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ResultAsync, fromThrowable, ok } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 
 import type { CmsError } from '../schema/types.js'
 import type { DbPool } from '@valencets/db'

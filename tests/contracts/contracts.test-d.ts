@@ -1,5 +1,5 @@
 import { describe, it, expectTypeOf } from 'vitest'
-import type { Result, ResultAsync } from 'neverthrow'
+import type { Result, ResultAsync } from '@valencets/resultkit'
 import { createPool, closePool } from '@valencets/db'
 import { makeMockPool } from '@valencets/db/test'
 import type { DbPool, DbConfig, DbError } from '@valencets/db'

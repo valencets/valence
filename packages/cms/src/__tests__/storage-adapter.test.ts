@@ -24,7 +24,7 @@ describe('createLocalStorage()', () => {
       const data = Buffer.from('hello world')
       const result = await storage.write('test.txt', data)
       expect(result.isOk()).toBe(true)
-      expect(result._unsafeUnwrap()).toBe('test.txt')
+      expect(result.unwrap()).toBe('test.txt')
     })
 
     it('file exists on disk after write', async () => {
@@ -42,13 +42,13 @@ describe('createLocalStorage()', () => {
       await storage.write('read-test.txt', data)
       const result = await storage.read('read-test.txt')
       expect(result.isOk()).toBe(true)
-      expect(result._unsafeUnwrap().toString()).toBe('test content')
+      expect(result.unwrap().toString()).toBe('test content')
     })
 
     it('returns Err for non-existent file', async () => {
       const result = await storage.read('does-not-exist.txt')
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe('NOT_FOUND')
+      expect(result.unwrapErr().code).toBe('NOT_FOUND')
     })
   })
 
@@ -85,7 +85,7 @@ describe('createLocalStorage()', () => {
       const result = await storage.write('../evil.txt', data)
       expect(result.isOk()).toBe(true)
       // basename strips the ../ so it writes 'evil.txt' inside testDir
-      expect(result._unsafeUnwrap()).toBe('evil.txt')
+      expect(result.unwrap()).toBe('evil.txt')
       expect(existsSync(join(testDir, 'evil.txt'))).toBe(true)
     })
 

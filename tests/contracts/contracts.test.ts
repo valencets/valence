@@ -90,7 +90,7 @@ describe('buildCms contract', () => {
     })
 
     expect(result.isOk()).toBe(true)
-    const cms = result._unsafeUnwrap()
+    const cms = result.unwrap()
     expect(cms.api).toBeDefined()
     expect(cms.collections).toBeDefined()
     expect(cms.restRoutes instanceof Map).toBe(true)
@@ -171,24 +171,24 @@ describe('auth contract', () => {
   it('hashPassword returns ResultAsync resolving to Ok<string>', async () => {
     const result = await hashPassword('secret123')
     expect(result.isOk()).toBe(true)
-    expect(typeof result._unsafeUnwrap()).toBe('string')
-    expect(result._unsafeUnwrap().length).toBeGreaterThan(0)
+    expect(typeof result.unwrap()).toBe('string')
+    expect(result.unwrap().length).toBeGreaterThan(0)
   })
 
   it('verifyPassword returns Ok<true> for correct password', async () => {
     const hashResult = await hashPassword('secret123')
-    const hash = hashResult._unsafeUnwrap()
+    const hash = hashResult.unwrap()
     const result = await verifyPassword('secret123', hash)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(true)
+    expect(result.unwrap()).toBe(true)
   })
 
   it('verifyPassword returns Ok<false> for wrong password', async () => {
     const hashResult = await hashPassword('secret123')
-    const hash = hashResult._unsafeUnwrap()
+    const hash = hashResult.unwrap()
     const result = await verifyPassword('wrong', hash)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(false)
+    expect(result.unwrap()).toBe(false)
   })
 })
 
@@ -200,7 +200,7 @@ describe('createCollectionRegistry contract', () => {
     const col = collection({ slug: 'items', fields: [field.text({ name: 'name' })] })
     const result = registry.register(col)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().slug).toBe('items')
+    expect(result.unwrap().slug).toBe('items')
   })
 
   it('register() returns Err on duplicate slug', () => {
@@ -215,7 +215,7 @@ describe('createCollectionRegistry contract', () => {
     registry.register(collection({ slug: 'items', fields: [] }))
     const result = registry.get('items')
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().slug).toBe('items')
+    expect(result.unwrap().slug).toBe('items')
   })
 
   it('get() returns Err for an unknown slug', () => {

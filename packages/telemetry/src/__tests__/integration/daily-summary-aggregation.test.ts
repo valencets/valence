@@ -92,7 +92,7 @@ describe('generateDailySummary', () => {
     const result = await generateDailySummary(pool, 'site-1', 'dental', testDate)
     expect(result.isOk()).toBe(true)
 
-    const row = result._unsafeUnwrap()
+    const row = result.unwrap()
     expect(row.site_id).toBe('site-1')
     expect(row.business_type).toBe('dental')
     expect(row.schema_version).toBe(1)
@@ -128,7 +128,7 @@ describe('generateDailySummary', () => {
     const result = await generateDailySummary(pool, 'site-empty', 'plumbing', testDate)
     expect(result.isOk()).toBe(true)
 
-    const row = result._unsafeUnwrap()
+    const row = result.unwrap()
     expect(row.session_count).toBe(0)
     expect(row.pageview_count).toBe(0)
     expect(row.conversion_count).toBe(0)
@@ -149,7 +149,7 @@ describe('generateDailySummary', () => {
 
     const result2 = await generateDailySummary(pool, 'site-dup', 'dental', testDate)
     expect(result2.isOk()).toBe(true)
-    expect(result2._unsafeUnwrap().session_count).toBe(5)
+    expect(result2.unwrap().session_count).toBe(5)
 
     // Only one row for this site+date
     const rows = await pool.sql`

@@ -1,5 +1,5 @@
-import { ok, err, fromThrowable } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err, fromThrowable } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import {
   BeaconValidationErrorCode,
   MAX_BEACON_EVENTS,

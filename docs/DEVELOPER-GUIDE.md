@@ -22,7 +22,7 @@ Each package has its own `CLAUDE.md` with detailed rules and context.
 These are non-negotiable. Code that violates them will fail code review.
 
 1. **AV Rule 206** -- No dynamic memory allocation after init. Pre-allocate buffers and pools at boot, mutate in place at runtime.
-2. **AV Rule 208** -- No exceptions. Zero `try/catch/throw` in business logic. Everything uses `Result<Ok, Err>` monads from `neverthrow`.
+2. **AV Rule 208** -- No exceptions. Zero `try/catch/throw` in business logic. Everything uses `Result<Ok, Err>` monads from `@valencets/resultkit`.
 3. **AV Rule 3** -- Cyclomatic complexity < 20. Early returns, static dictionary maps, micro-componentization. No `switch` statements.
 4. **14kB Protocol Limit** -- Critical shell (inline CSS + initial DOM) fits in the first 10 TCP packets (~14kB compressed).
 
@@ -31,11 +31,11 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full rationale.
 ## Dependency Graph
 
 ```
-core                (neverthrow)
-db                  (neverthrow, postgres, zod)
+core                (@valencets/resultkit)
+db                  (@valencets/resultkit, postgres, zod)
     ^
     |
-    +--- telemetry  (db, neverthrow, postgres)
+    +--- telemetry  (db, @valencets/resultkit, postgres)
 
 ui                  (standalone)
 cms                 (core, db, ui, zod)
@@ -65,6 +65,24 @@ Zero-padded 3-digit sequence number. The runner creates a `_migrations` tracking
 
 Tests use **Vitest** with **happy-dom** environment. No database or network required.
 
+## CI Parity Workflow
+
+The canonical local CI path is:
+
+```bash
+pnpm db:up
+pnpm ci:local
+```
+
+Visual regression has one extra rule: host screenshots are not authoritative. GitHub runs visual tests on Ubuntu in CI, so local visual baselines must be generated through:
+
+```bash
+pnpm test:visual:ci
+pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-dashboard.spec.ts --project=chromium
+```
+
+`test:visual:ci` creates a clean temporary worktree from `HEAD`, installs dependencies, builds the repo, and runs Playwright inside the matching Ubuntu Playwright container. That is the baseline source of truth.
+
 ### Dynamic import pattern
 
 Web Component tests use `beforeAll` with dynamic import to ensure the component registers in the happy-dom environment:
@@ -92,17 +110,24 @@ function createElement (): HTMLElement {
 
 Commits during TDD are tagged in the message:
 
-- `test(feature): RED -- add test for new behavior` (test written, failing)
-- `feat(feature): GREEN -- implement behavior` (test passing)
-- `refactor(feature): REFACTOR -- extract helper` (same tests, cleaner code)
+- `test(feature): add test for new behavior -- RED` (test written, failing)
+- `feat(feature): implement behavior -- GREEN` (test passing)
+- `refactor(feature): extract helper -- REFACTOR` (same tests, cleaner code)
+
+The sequence is enforced:
+
+- `GREEN` must immediately follow a same-scope `RED`
+- `REFACTOR` must immediately follow a same-scope `GREEN`
+- local hooks enforce this at commit and push time
+- CI re-checks the entire PR commit range
 
 ## Banned Patterns
 
-These fail code review. The pre-commit hook enforces lint rules, and manual review catches the rest.
+These fail code review. The hook chain enforces staged linting, shell syntax checks, commit-message format, and push-time validation; manual review catches the rest.
 
 | Pattern | Why | Alternative |
 |---------|-----|-------------|
-| `throw new Error` | AV Rule 208: no exceptions | `err()` / `errAsync()` from neverthrow |
+| `throw new Error` | AV Rule 208: no exceptions | `err()` / `errAsync()` from @valencets/resultkit |
 | `try { }` | AV Rule 208: no try/catch | Result monads |
 | `switch (` | AV Rule 3: complexity | Static dictionary maps |
 | `enum Foo` | Banned keyword | `const Foo = [...] as const` |
@@ -120,7 +145,7 @@ These fail code review. The pre-commit hook enforces lint rules, and manual revi
 - **No inferred return types** on public functions -- always explicit
 - **Comments explain WHY**, not WHAT
 - **Error types** -- const union + interface pattern: `const FooErrorCode = { ... } as const` + `interface FooError { code, message }`
-- **Fetchers** -- `ResultAsync.fromPromise()` from neverthrow
+- **Fetchers** -- `ResultAsync.fromPromise()` from @valencets/resultkit
 - **Commit format** -- `type(scope): description` (see [GETTING-STARTED.md](./GETTING-STARTED.md))
 
 ## Further Reading

@@ -160,7 +160,7 @@ type Post = InferFieldsType<typeof postFields>
 Direct function calls for server-side operations. All methods return `ResultAsync<T, CmsError>`.
 
 ```typescript
-const cms = buildCms(config)._unsafeUnwrap()
+const cms = buildCms(config).unwrap()
 const api = cms.api
 
 // Find all

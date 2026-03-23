@@ -23,7 +23,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "neverthrow": "^8.2.0"
+    "@valencets/resultkit": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^25.4.0"

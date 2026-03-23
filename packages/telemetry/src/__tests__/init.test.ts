@@ -19,13 +19,13 @@ describe('initTelemetry', () => {
 
   it('handle has destroy method', () => {
     const result = initTelemetry({ endpoint: '/api/telemetry', siteId: 'test-site' })
-    const handle = result._unsafeUnwrap()
+    const handle = result.unwrap()
     expect(typeof handle.destroy).toBe('function')
   })
 
   it('handle has flushNow method', () => {
     const result = initTelemetry({ endpoint: '/api/telemetry', siteId: 'test-site' })
-    const handle = result._unsafeUnwrap()
+    const handle = result.unwrap()
     expect(typeof handle.flushNow).toBe('function')
   })
 

@@ -51,6 +51,9 @@ importers:
       '@valencets/plugin-seo':
         specifier: workspace:*
         version: link:packages/plugin-seo
+      '@valencets/resultkit':
+        specifier: ^0.2.0
+        version: 0.2.0
       '@vitest/coverage-v8':
         specifier: ^4.0.18
         version: 4.0.18(vitest@4.0.18(@types/node@25.4.0)(happy-dom@20.8.3)(lightningcss@1.32.0)(msw@2.12.13(@types/node@25.4.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
@@ -111,6 +114,9 @@ importers:
       '@valencets/reactive':
         specifier: workspace:*
         version: link:../reactive
+      '@valencets/resultkit':
+        specifier: ^0.2.0
+        version: 0.2.0
       '@valencets/telemetry':
         specifier: workspace:*
         version: link:../telemetry
@@ -120,9 +126,6 @@ importers:
       argon2:
         specifier: ^0.44.0
         version: 0.44.0
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -145,9 +148,9 @@ importers:
 
   packages/core:
     dependencies:
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
+      '@valencets/resultkit':
+        specifier: ^0.2.0
+        version: 0.2.0
     devDependencies:
       '@types/node':
         specifier: ^25.4.0
@@ -155,9 +158,9 @@ importers:
 
   packages/db:
     dependencies:
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
+      '@valencets/resultkit':
+        specifier: ^0.2.0
+        version: 0.2.0
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -174,12 +177,12 @@ importers:
       '@valencets/cms':
         specifier: workspace:*
         version: link:../cms
+      '@valencets/resultkit':
+        specifier: ^0.2.0
+        version: 0.2.0
       graphql:
         specifier: ^16.10.0
         version: 16.13.1
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
     devDependencies:
       '@types/node':
         specifier: ^25.4.0
@@ -196,9 +199,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.782.0
         version: 3.1013.0
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
+      '@valencets/resultkit':
+        specifier: ^0.2.0
+        version: 0.2.0
     devDependencies:
       '@types/node':
         specifier: ^25.4.0
@@ -266,9 +269,9 @@ importers:
       '@valencets/db':
         specifier: workspace:*
         version: link:../db
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
+      '@valencets/resultkit':
+        specifier: ^0.2.0
+        version: 0.2.0
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -331,12 +334,12 @@ importers:
       '@valencets/db':
         specifier: workspace:*
         version: link:../db
+      '@valencets/resultkit':
+        specifier: ^0.2.0
+        version: 0.2.0
       '@valencets/telemetry':
         specifier: workspace:*
         version: link:../telemetry
-      neverthrow:
-        specifier: ^8.2.0
-        version: 8.2.0
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -2202,6 +2205,10 @@ packages:
     resolution: {integrity: sha512-zm6xx8UT/Xy2oSr2ZXD0pZo7Jx2XsCoID2IUh9YSTFRu7z+WdwYTRk6LhUftm1crwqbuoF6I8zAFeCMw0YjwDg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
+  '@valencets/resultkit@0.2.0':
+    resolution: {integrity: sha512-CxyFQHriiwM0wpvsG+c9b1OwSFsS2qtBUS1PVr1tWcBHyJbgAC2J1/qA+AisSxDGbfLjcBUmjfrxb6oxGA3zZA==}
+    engines: {node: '>=22'}
+
   '@vitest/coverage-v8@4.0.18':
     resolution: {integrity: sha512-7i+N2i0+ME+2JFZhfuz7Tg/FqKtilHjGyGvoHYQ6iLV0zahbsJ9sljC9OcFcPDbhYKCet+sG8SsVqlyGvPflZg==}
     peerDependencies:
@@ -3703,10 +3710,6 @@ packages:
     hasBin: true
     peerDependencies:
       eslint: ^9.0.0
-
-  neverthrow@8.2.0:
-    resolution: {integrity: sha512-kOCT/1MCPAxY5iUV3wytNFUMUolzuwd/VF/1KCx7kf6CutrOsTie+84zTGTpgQycjvfLdBBdvBvFLqFD2c0wkQ==}
-    engines: {node: '>=18'}
 
   node-addon-api@8.6.0:
     resolution: {integrity: sha512-gBVjCaqDlRUk0EwoPNKzIr9KkS9041G/q31IBShPs1Xz6UTA+EXdZADbzqAJQrpDRq71CIMnOP5VMut3SL0z5Q==}
@@ -7012,6 +7015,8 @@ snapshots:
       '@typescript-eslint/types': 8.57.0
       eslint-visitor-keys: 5.0.1
 
+  '@valencets/resultkit@0.2.0': {}
+
   '@vitest/coverage-v8@4.0.18(vitest@4.0.18(@types/node@25.4.0)(happy-dom@20.8.3)(lightningcss@1.32.0)(msw@2.12.13(@types/node@25.4.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
@@ -8656,10 +8661,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
-
-  neverthrow@8.2.0:
-    optionalDependencies:
-      '@rollup/rollup-linux-x64-gnu': 4.59.0
 
   node-addon-api@8.6.0: {}
 

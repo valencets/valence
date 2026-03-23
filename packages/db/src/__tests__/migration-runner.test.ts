@@ -6,7 +6,7 @@ describe('parseMigrationFilename', () => {
   it('parses 001-init.sql', () => {
     const result = parseMigrationFilename('001-init.sql')
     expect(result.isOk()).toBe(true)
-    const file = result._unsafeUnwrap()
+    const file = result.unwrap()
     expect(file.version).toBe(1)
     expect(file.name).toBe('init')
   })
@@ -14,7 +14,7 @@ describe('parseMigrationFilename', () => {
   it('parses 002-rbac.sql', () => {
     const result = parseMigrationFilename('002-rbac.sql')
     expect(result.isOk()).toBe(true)
-    const file = result._unsafeUnwrap()
+    const file = result.unwrap()
     expect(file.version).toBe(2)
     expect(file.name).toBe('rbac')
   })
@@ -22,7 +22,7 @@ describe('parseMigrationFilename', () => {
   it('parses multi-word names with hyphens', () => {
     const result = parseMigrationFilename('010-add-user-table.sql')
     expect(result.isOk()).toBe(true)
-    const file = result._unsafeUnwrap()
+    const file = result.unwrap()
     expect(file.version).toBe(10)
     expect(file.name).toBe('add-user-table')
   })
@@ -30,13 +30,13 @@ describe('parseMigrationFilename', () => {
   it('rejects non-SQL files', () => {
     const result = parseMigrationFilename('001-init.txt')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('MIGRATION_FAILED')
+    expect(result.unwrapErr().code).toBe('MIGRATION_FAILED')
   })
 
   it('rejects files without version prefix', () => {
     const result = parseMigrationFilename('init.sql')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('MIGRATION_FAILED')
+    expect(result.unwrapErr().code).toBe('MIGRATION_FAILED')
   })
 
   it('rejects gitkeep files', () => {
@@ -100,7 +100,7 @@ describe('validateMigrations', () => {
     ]
     const result = validateMigrations(migrations)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('MIGRATION_FAILED')
+    expect(result.unwrapErr().code).toBe('MIGRATION_FAILED')
   })
 
   it('error message mentions duplicate version', () => {
@@ -110,7 +110,7 @@ describe('validateMigrations', () => {
     ]
     const result = validateMigrations(migrations)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('5')
+    expect(result.unwrapErr().message).toContain('5')
   })
 
   it('MigrationFile has version, name, and sql', () => {
@@ -132,14 +132,14 @@ describe('loadMigrations', () => {
   it('returns Err for nonexistent directory', async () => {
     const result = await loadMigrations('/tmp/does-not-exist-' + Date.now())
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('MIGRATION_FAILED')
+    expect(result.unwrapErr().code).toBe('MIGRATION_FAILED')
   })
 
   it('returns Ok([]) for empty directory', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'val-db-test-'))
     const result = await loadMigrations(dir)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual([])
+    expect(result.unwrap()).toEqual([])
     await rm(dir, { recursive: true })
   })
 
@@ -149,7 +149,7 @@ describe('loadMigrations', () => {
     await writeFile(join(dir, '.gitkeep'), '')
     const result = await loadMigrations(dir)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual([])
+    expect(result.unwrap()).toEqual([])
     await rm(dir, { recursive: true })
   })
 
@@ -158,7 +158,7 @@ describe('loadMigrations', () => {
     await writeFile(join(dir, '001-init.sql'), 'CREATE TABLE foo (id INT);')
     const result = await loadMigrations(dir)
     expect(result.isOk()).toBe(true)
-    const migrations = result._unsafeUnwrap()
+    const migrations = result.unwrap()
     expect(migrations.length).toBe(1)
     expect(migrations[0]!.version).toBe(1)
     expect(migrations[0]!.name).toBe('init')
@@ -186,7 +186,7 @@ describe('runMigrations edge cases', () => {
     const pool = makeMockPool([])
     const result = await runMigrations(pool, [])
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(0)
+    expect(result.unwrap()).toBe(0)
   })
 })
 

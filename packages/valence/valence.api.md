@@ -11,8 +11,8 @@ import type { DbPool } from '@valencets/db';
 import { field } from '@valencets/cms';
 import { global as global_2 } from '@valencets/cms';
 import { IncomingMessage } from 'node:http';
-import type { Result } from 'neverthrow';
-import { ResultAsync } from 'neverthrow';
+import type { Result } from '@valencets/resultkit';
+import { ResultAsync } from '@valencets/resultkit';
 import type { Server } from 'node:http';
 import type { ServerResponse } from 'node:http';
 

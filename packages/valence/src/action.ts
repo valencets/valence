@@ -1,4 +1,4 @@
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@valencets/resultkit'
 import type { ActionContext, ActionResult } from './define-config.js'
 
 export interface ActionError {

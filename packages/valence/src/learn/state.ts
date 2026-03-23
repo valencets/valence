@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
-import { ResultAsync, fromThrowable } from 'neverthrow'
+import { ResultAsync, fromThrowable } from '@valencets/resultkit'
 import { join } from 'node:path'
 import type { LearnProgress, LearnStepId } from './types.js'
 

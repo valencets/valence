@@ -70,7 +70,7 @@ describe('field-level read filtering', () => {
     const { api } = setupWithAccess(rows)
     const result = await api.find({ collection: 'articles' })
     expect(result.isOk()).toBe(true)
-    const docs = result._unsafeUnwrap() as Record<string, string | number | null>[]
+    const docs = result.unwrap() as Record<string, string | number | null>[]
     expect(docs[0]).not.toHaveProperty('secret')
     expect(docs[0]).toHaveProperty('visible', 'shown')
     expect(docs[0]).toHaveProperty('noAccess', 'open')
@@ -82,7 +82,7 @@ describe('field-level read filtering', () => {
     const { api } = setupWithAccess([row])
     const result = await api.findByID({ collection: 'articles', id: '1' })
     expect(result.isOk()).toBe(true)
-    const doc = result._unsafeUnwrap() as Record<string, string | number | null>
+    const doc = result.unwrap() as Record<string, string | number | null>
     expect(doc).not.toHaveProperty('secret')
     expect(doc).toHaveProperty('visible', 'shown')
   })
@@ -92,7 +92,7 @@ describe('field-level read filtering', () => {
     const { api } = setupWithAccess(rows)
     const result = await api.find({ collection: 'articles' })
     expect(result.isOk()).toBe(true)
-    const docs = result._unsafeUnwrap() as Record<string, string | number | null>[]
+    const docs = result.unwrap() as Record<string, string | number | null>[]
     expect(docs[0]).toHaveProperty('visible', 'shown')
   })
 
@@ -101,7 +101,7 @@ describe('field-level read filtering', () => {
     const { api } = setupWithAccess(rows)
     const result = await api.find({ collection: 'articles' })
     expect(result.isOk()).toBe(true)
-    const docs = result._unsafeUnwrap() as Record<string, string | number | null>[]
+    const docs = result.unwrap() as Record<string, string | number | null>[]
     expect(docs[0]).toHaveProperty('noAccess', 'open')
     expect(docs[0]).toHaveProperty('title', 'Hello')
   })
@@ -111,7 +111,7 @@ describe('field-level read filtering', () => {
     const { api } = setupWithAccess([inserted])
     const result = await api.create({ collection: 'articles', data: { title: 'New', secret: 'hidden', visible: 'shown' } })
     expect(result.isOk()).toBe(true)
-    const doc = result._unsafeUnwrap() as Record<string, string | number | null>
+    const doc = result.unwrap() as Record<string, string | number | null>
     expect(doc).not.toHaveProperty('secret')
     expect(doc).toHaveProperty('visible', 'shown')
   })
@@ -121,7 +121,7 @@ describe('field-level read filtering', () => {
     const { api } = setupWithAccess([updated])
     const result = await api.update({ collection: 'articles', id: '1', data: { title: 'Updated' } })
     expect(result.isOk()).toBe(true)
-    const doc = result._unsafeUnwrap() as Record<string, string | number | null>
+    const doc = result.unwrap() as Record<string, string | number | null>
     expect(doc).not.toHaveProperty('secret')
     expect(doc).toHaveProperty('visible', 'shown')
   })

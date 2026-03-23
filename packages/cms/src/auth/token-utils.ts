@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
-import { ok, err, fromThrowable } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err, fromThrowable } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 
 export const TokenErrorCode = Object.freeze({
   GENERATION_FAILED: 'GENERATION_FAILED',

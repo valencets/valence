@@ -6,12 +6,14 @@
 git clone https://github.com/valencets/valence.git
 cd valence
 pnpm install
+pnpm db:up   # Start local PostgreSQL on localhost:55432
 pnpm build   # Build all packages (required before first test run)
 pnpm test    # 1,306 tests across all packages
 pnpm lint    # Neostandard lint
 ```
 
 Requires Node.js >= 22 and pnpm 10.x. The `packageManager` field in `package.json` enforces the exact pnpm version.
+Local CI, integration tests, E2E, and scaffold flows also require Docker Desktop or Docker Engine so `pnpm db:up` can provision PostgreSQL.
 
 New to the codebase? Create a test project with the interactive tutorial:
 
@@ -131,9 +133,15 @@ docs(scope): description        # Documentation
 chore(scope): description       # Dependencies, config, tooling
 ```
 
-**Scopes:** `core`, `db`, `ui`, `cms`, `telemetry`, `studio`
+**Common scopes:** `core`, `db`, `ui`, `cms`, `telemetry`, `graphql`, `valence`, `tooling`, `docs`, `plugin-cloud-storage`, `plugin-nested-docs`, `plugin-seo`
 
-Commits are enforced via Husky pre-commit hooks that run lint.
+Commits are enforced via Husky:
+- `pre-commit` runs `lint-staged` on staged code and shell files
+- `commit-msg` enforces Conventional Commit format and required TDD suffixes for code commits:
+  `test(...) -- RED`, `feat(...) -- GREEN`, `fix(...) -- GREEN`, `refactor(...) -- REFACTOR`
+- `commit-msg` also rejects `GREEN` commits that do not immediately follow a same-scope `RED`, and rejects `REFACTOR` commits that do not immediately follow a same-scope `GREEN`
+- `pre-push` validates the branch-local TDD sequence against its upstream, then runs `pnpm validate`, `pnpm check:patterns`, and `pnpm test:smoke`
+- `VALENCE_PREPUSH_FULL=1 git push` also runs `pnpm test:visual:ci`
 
 ## Branching
 
@@ -148,20 +156,67 @@ Merge feature/fix branches into `development` with `--no-ff`. Merge `development
 
 1. Create a feature branch from `development`.
 2. Follow TDD: RED, GREEN, REFACTOR commits.
+   `GREEN` must immediately follow a same-scope `RED`, and `REFACTOR` must immediately follow a same-scope `GREEN`.
 3. Ensure `pnpm test` and `pnpm lint` both pass.
 4. Ensure `pnpm build` (typecheck) passes.
-5. Open a PR against `development`. CI runs lint, typecheck, and tests.
+5. Run `pnpm ci:local` before opening the PR. This is the local mirror of the main CI workflow and is the required pre-PR gate.
+6. Confirm local prerequisites first: `pnpm db:up` has started PostgreSQL, Playwright browsers are installed, and dependencies are installed from the current lockfile.
+7. Open a PR against `development`. CI runs lint, typecheck, and tests.
+
+## CI Parity
+
+Use one canonical local path for GitHub-parity checks:
+
+```bash
+pnpm ci:local
+```
+
+Visual regression is not a `pre-commit` concern. It is too slow and too environment-sensitive. The repo standard is:
+
+- `pre-commit`: fast staged checks only
+- `pre-push`: fast validation by default
+- `pnpm ci:local`: required before opening a PR
+- `pnpm test:visual:ci`: clean-worktree, Ubuntu-container visual regression parity with GitHub Actions
+- CI also validates the TDD commit sequence for the full PR range, so bypassing local hooks does not bypass the policy
+
+Refresh visual baselines from the containerized path, not from an arbitrary host render:
+
+```bash
+pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-dashboard.spec.ts --project=chromium
+```
+
+`pnpm test:visual:ci` creates a temporary clean worktree, installs dependencies, builds the repo, and runs Playwright inside the matching Ubuntu Playwright container. This is the source of truth for visual baselines.
+
+## Local PostgreSQL
+
+Use the repo-managed PostgreSQL instance for local development and CI parity:
+
+```bash
+pnpm db:up
+pnpm db:logs
+pnpm db:down
+pnpm db:reset
+```
+
+Defaults:
+
+- `PGHOST=localhost`
+- `PGPORT=55432`
+- `PGUSER=postgres`
+- `PGPASSWORD=postgres`
+
+The container uses `postgres:16-alpine` and creates the default `postgres` maintenance database expected by the integration, E2E, and scaffold test flows.
 
 ## Cross-Package Import Rules
 
 | Package | Can Import From |
 |---------|----------------|
-| `@valencets/core` | `neverthrow` only |
-| `@valencets/db` | `neverthrow`, `postgres`, `zod` |
+| `@valencets/core` | `@valencets/resultkit` only |
+| `@valencets/db` | `@valencets/resultkit`, `postgres`, `zod` |
 | `@valencets/ui` | Nothing (zero deps) |
-| `@valencets/cms` | `@valencets/core`, `@valencets/db`, `@valencets/ui`, `zod`, `neverthrow`, `argon2` |
+| `@valencets/cms` | `@valencets/core`, `@valencets/db`, `@valencets/ui`, `zod`, `@valencets/resultkit`, `argon2` |
 | `@valencets/telemetry` | `@valencets/db`, `@valencets/core` |
-| `@valencets/valence` | `@valencets/cms`, `@valencets/core`, `@valencets/db`, `@valencets/telemetry`, `tsx`, `zod`, `neverthrow` |
+| `@valencets/valence` | `@valencets/cms`, `@valencets/core`, `@valencets/db`, `@valencets/telemetry`, `tsx`, `zod`, `@valencets/resultkit` |
 
 ## Working with the CMS Package
 

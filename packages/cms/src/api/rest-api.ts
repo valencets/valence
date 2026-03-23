@@ -1,13 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry, GlobalRegistry } from '../schema/registry.js'
-import type { ResultAsync } from 'neverthrow'
+import type { ResultAsync } from '@valencets/resultkit'
 import { createLocalApi } from './local-api.js'
 import { sendApiJson, sendErrorJson, safeReadBody, safeJsonParse } from './http-utils.js'
 import type { DocumentData } from '../db/query-builder.js'
 import { generateZodSchema, generatePartialSchema, generateDraftSchema } from '../validation/zod-generator.js'
 import type { CollectionConfig } from '../schema/collection.js'
-import type { PaginatedResult } from '../db/query-types.js'
+import type { PaginatedResult, WhereClause } from '../db/query-types.js'
 import type { DocumentRow } from '../db/query-builder.js'
 import type { CmsError } from '../schema/types.js'
 import { flattenFields } from '../schema/field-utils.js'
@@ -32,6 +32,11 @@ interface LocalizationParam {
 
 interface AuthenticatedUser {
   readonly id: string
+}
+
+interface AccessCheckResult {
+  readonly allowed: boolean
+  readonly whereClause?: WhereClause | undefined
 }
 
 type Operation = 'read' | 'create' | 'update' | 'delete'
@@ -167,24 +172,38 @@ async function authenticateRequest (req: IncomingMessage, pool: DbPool): Promise
 async function checkAccess (
   col: CollectionConfig,
   operation: Operation,
+  req: IncomingMessage,
   user: AuthenticatedUser | null,
-  res: ServerResponse
-): Promise<boolean> {
+  res: ServerResponse,
+  id?: string
+): Promise<AccessCheckResult> {
   const accessConfig = col.access
   const accessFn = accessConfig?.[operation]
 
   if (!accessFn) {
     if (!user) {
       sendErrorJson(res, 'Unauthorized', 401)
-      return false
+      return { allowed: false }
     }
-    return true
+    return { allowed: true }
   }
 
-  const result = await resolveAccess(accessFn, {})
+  const normalizedHeaders = Object.fromEntries(
+    Object.entries(req.headers).flatMap(([key, value]) => {
+      if (value === undefined) return []
+      if (Array.isArray(value)) return [[key, value.join(', ')]]
+      return [[key, value]]
+    })
+  )
+
+  const accessArgs = id === undefined
+    ? { req: { headers: normalizedHeaders } }
+    : { req: { headers: normalizedHeaders }, id }
+
+  const result = await resolveAccess(accessFn, accessArgs)
   if (result.isErr()) {
     sendErrorJson(res, 'Access check failed', 500)
-    return false
+    return { allowed: false }
   }
 
   const access = result.value
@@ -194,10 +213,11 @@ async function checkAccess (
     } else {
       sendErrorJson(res, 'Forbidden', 403)
     }
-    return false
+    return { allowed: false }
   }
 
-  return true
+  if (access === true) return { allowed: true }
+  return { allowed: true, whereClause: access }
 }
 
 export function createRestRoutes (
@@ -235,7 +255,8 @@ export function createRestRoutes (
     routes.set(`/api/${slug}`, {
       GET: async (req, res) => {
         const user = await authenticateRequest(req, pool)
-        if (!await checkAccess(col, 'read', user, res)) return
+        const access = await checkAccess(col, 'read', req, user, res)
+        if (!access.allowed) return
         const url = req.url ?? `/${slug}`
         const parsed = parseQueryParams(url, col)
         if (!parsed.ok) {
@@ -252,6 +273,7 @@ export function createRestRoutes (
           page,
           perPage,
           filters,
+          whereClause: access.whereClause,
           includeDrafts
         })
         result.match(
@@ -263,7 +285,8 @@ export function createRestRoutes (
       },
       POST: async (req, res) => {
         const user = await authenticateRequest(req, pool)
-        if (!await checkAccess(col, 'create', user, res)) return
+        const access = await checkAccess(col, 'create', req, user, res)
+        if (!access.allowed) return
         if (!requireJsonContentType(req, res)) return
         const url = req.url ?? `/${slug}`
         const locale = parseLocaleFromUrl(url)
@@ -292,11 +315,12 @@ export function createRestRoutes (
     routes.set(`/api/${slug}/:id`, {
       GET: async (req, res) => {
         const user = await authenticateRequest(req, pool)
-        if (!await checkAccess(col, 'read', user, res)) return
         const rawId = req.url?.split('/').pop() ?? ''
         const id = rawId.split('?')[0] ?? ''
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
-        const result = await api.findByID({ collection: slug, id })
+        const access = await checkAccess(col, 'read', req, user, res, id)
+        if (!access.allowed) return
+        const result = await api.findByID({ collection: slug, id, whereClause: access.whereClause })
         result.match(
           (doc) => doc ? sendApiJson(res, doc as DocumentData) : sendErrorJson(res, 'Not found', 404),
           (err) => sendErrorJson(res, err.message, 500)
@@ -304,11 +328,12 @@ export function createRestRoutes (
       },
       PATCH: async (req, res) => {
         const user = await authenticateRequest(req, pool)
-        if (!await checkAccess(col, 'update', user, res)) return
         if (!requireJsonContentType(req, res)) return
         const rawId = req.url?.split('/').pop() ?? ''
         const id = rawId.split('?')[0] ?? ''
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
+        const access = await checkAccess(col, 'update', req, user, res, id)
+        if (!access.allowed) return
         const url = req.url ?? `/${slug}/${id}`
         const locale = parseLocaleFromUrl(url)
         if (!validateLocale(locale, validLocaleCodes, res)) return
@@ -340,10 +365,11 @@ export function createRestRoutes (
       },
       DELETE: async (req, res) => {
         const user = await authenticateRequest(req, pool)
-        if (!await checkAccess(col, 'delete', user, res)) return
         const rawId = req.url?.split('/').pop() ?? ''
         const id = rawId.split('?')[0] ?? ''
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
+        const access = await checkAccess(col, 'delete', req, user, res, id)
+        if (!access.allowed) return
         const result = await api.delete({ collection: slug, id })
         result.match(
           (doc) => sendApiJson(res, doc as DocumentData),
@@ -355,9 +381,10 @@ export function createRestRoutes (
     routes.set(`/api/${slug}/:id/unpublish`, {
       POST: async (req, res, ctx) => {
         const user = await authenticateRequest(req, pool)
-        if (!await checkAccess(col, 'update', user, res)) return
         const id = ctx.id ?? ''
         if (!id) { sendErrorJson(res, 'Missing document ID', 400); return }
+        const access = await checkAccess(col, 'update', req, user, res, id)
+        if (!access.allowed) return
         const result = await api.unpublish({ collection: slug, id })
         result.match(
           (doc) => sendApiJson(res, doc as DocumentData),
@@ -391,7 +418,8 @@ export function createRestRoutes (
         const operation = BULK_ACTION_OPERATIONS[action]
         if (!operation) { sendErrorJson(res, `Unknown action: ${action}`, 400); return }
 
-        if (!await checkAccess(col, operation, user, res)) return
+        const access = await checkAccess(col, operation, req, user, res)
+        if (!access.allowed) return
 
         const ACTIONS: Record<string, (id: string) => ResultAsync<DocumentRow, CmsError>> = {
           delete: (id) => api.delete({ collection: slug, id }),

@@ -19,6 +19,25 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  tdd-history:
+    name: TDD History
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate TDD commit sequence
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            BASE="$(git merge-base HEAD "origin/${{ github.base_ref }}")"
+            bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
+          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            bash scripts/check-tdd-commit-sequence.sh range "${{ github.event.before }}..${{ github.sha }}"
+          elif git rev-parse HEAD^ >/dev/null 2>&1; then
+            bash scripts/check-tdd-commit-sequence.sh range "HEAD^..HEAD"
+          fi
+
   lint:
     name: Lint
     runs-on: ubuntu-24.04

@@ -28,7 +28,7 @@ describe('executeAction', () => {
       redirect: '/done'
     })
     const result = await executeAction(action, makeCtx())
-    expect(result._unsafeUnwrap().redirect).toBe('/done')
+    expect(result.unwrap().redirect).toBe('/done')
   })
 
   it('returns errors from the action', async () => {
@@ -36,7 +36,7 @@ describe('executeAction', () => {
       errors: { email: ['Invalid email format'] }
     })
     const result = await executeAction(action, makeCtx())
-    expect(result._unsafeUnwrap().errors?.['email']).toEqual(['Invalid email format'])
+    expect(result.unwrap().errors?.['email']).toEqual(['Invalid email format'])
   })
 
   it('passes context to the action function', async () => {
@@ -106,7 +106,7 @@ describe('executeAction', () => {
       data: { id: 42, saved: true }
     })
     const result = await executeAction(action, makeCtx())
-    expect(result._unsafeUnwrap().data?.['id']).toBe(42)
+    expect(result.unwrap().data?.['id']).toBe(42)
   })
 
   it('returns status from action result', async () => {
@@ -115,7 +115,7 @@ describe('executeAction', () => {
       errors: { name: ['Required'] }
     })
     const result = await executeAction(action, makeCtx())
-    expect(result._unsafeUnwrap().status).toBe(422)
+    expect(result.unwrap().status).toBe(422)
   })
 
   it('is independent across multiple calls', async () => {
@@ -126,8 +126,8 @@ describe('executeAction', () => {
     }
     const r1 = await executeAction(action, makeCtx())
     const r2 = await executeAction(action, makeCtx())
-    expect(r1._unsafeUnwrap().data?.['call']).toBe(1)
-    expect(r2._unsafeUnwrap().data?.['call']).toBe(2)
+    expect(r1.unwrap().data?.['call']).toBe(1)
+    expect(r2.unwrap().data?.['call']).toBe(2)
   })
 })
 

@@ -3,13 +3,16 @@
 ## Quick Start
 
 ```bash
+pnpm db:up              # Start local PostgreSQL
 pnpm build              # Required before first test run
-pnpm test               # All unit tests (~1,600 across 6 packages)
-pnpm test:integration   # Integration tests (requires PostgreSQL)
-pnpm test:e2e           # Playwright E2E tests (requires built app)
+pnpm test               # All workspace tests
+npx vitest run tests/integration/   # Integration tests (requires PostgreSQL)
+pnpm test:e2e           # Playwright E2E tests
+pnpm test:visual:ci     # GitHub-parity visual regression in Ubuntu container
 pnpm test:coverage      # Unit tests with coverage report
 pnpm test:mutate        # Stryker mutation testing
 pnpm test:watch         # Watch mode for local development
+pnpm ci:local           # Full local pre-PR gate (lint, build, tests, coverage, API check, Lighthouse)
 ```
 
 ## Test Architecture
@@ -21,7 +24,7 @@ pnpm test:watch         # Watch mode for local development
 | **Unit** | Vitest | `packages/*/src/__tests__/*.test.ts` | No (mocked) | Fast (~5s) |
 | **Integration** | Vitest + Supertest | `tests/integration/*.test.ts` | Yes (PostgreSQL) | Medium (~10s) |
 | **E2E** | Playwright | `tests/e2e/*.spec.ts` | Yes (full app) | Slow (~30s) |
-| **Contract** | Vitest | `tests/integration/contracts.test.ts` | No | Fast (~1s) |
+| **Contract** | Vitest | `tests/contracts/*.test.ts` | No | Fast (~1s) |
 
 ### Directory Structure
 
@@ -34,8 +37,10 @@ tests/
 │   ├── auth.integration.test.ts
 │   ├── crud.integration.test.ts
 │   ├── schema.integration.test.ts
-│   ├── telemetry.integration.test.ts
-│   └── contracts.test.ts  # Package boundary contracts
+│   └── telemetry.integration.test.ts
+├── contracts/             # Package boundary + type-level contracts
+│   ├── contracts.test.ts
+│   └── contracts.test-d.ts
 ├── e2e/                   # Playwright E2E tests
 │   ├── auth.setup.ts      # Global auth (login + save state)
 │   ├── auth.spec.ts
@@ -140,11 +145,83 @@ GitHub Actions runs these jobs in order:
 ## Conventions
 
 - TDD workflow: RED → GREEN → REFACTOR with micro-commits
-- Result monads everywhere — no try/catch in test setup
+- Result monads everywhere in production code — avoid try/catch in shared logic
 - Integration tests create/drop their own test database
 - E2E tests use `storageState` for auth (login once, reuse)
-- Pre-commit: lint-staged (eslint --fix on staged files)
-- Pre-push: build + full test suite
+- Pre-commit: `lint-staged` on staged code and shell files
+- Commit messages: Conventional Commits, with required TDD suffixes for code commits
+- Commit sequence: `GREEN` must immediately follow a same-scope `RED`; `REFACTOR` must immediately follow a same-scope `GREEN`
+- Pre-push: branch-local TDD sequence validation, then `pnpm validate`, `pnpm check:patterns`, and `pnpm test:smoke`
+- Full pre-push parity is opt-in: `VALENCE_PREPUSH_FULL=1 git push`
+
+## Known Caveats
+
+- `pnpm test:integration` is currently broken with Vitest 4.0.18. Use `npx vitest run tests/integration/` directly.
+- Visual baseline refreshes must be run from the Ubuntu parity path, for example:
+
+```bash
+pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-login.spec.ts --project=chromium
+```
+
+## Pre-PR Gate
+
+Before opening a PR, run:
+
+```bash
+pnpm ci:local
+```
+
+Local prerequisites:
+
+- PostgreSQL must be running. `pnpm db:up` is the standard local setup path.
+- Playwright browsers must already be installed
+- `pnpm install` must have been run against the current lockfile
+
+This mirrors the main CI workflow locally in CI order:
+
+- lint + banned patterns
+- typecheck/build + bundle size
+- security audit
+- API review
+- unit, contract, integration, Ubuntu-parity visual, and sharded E2E tests
+- CMS coverage gate
+- Lighthouse smoke run
+
+It assumes local PostgreSQL is reachable via `PGHOST`, `PGPORT`, and `PGUSER`. Defaults are `localhost`, `55432`, and `postgres`.
+Treat `pnpm ci:local` as the last gate before `git push` or `gh pr create`. GitHub CI should confirm a local pass, not discover missing manifest or typecheck drift first.
+
+For repo-standard local database setup:
+
+```bash
+pnpm db:up
+```
+
+This starts `postgres:16-alpine` via [`docker-compose.dev.yml`](/home/forrest/dev/valence/docker-compose.dev.yml) with:
+
+- `PGHOST=localhost`
+- `PGPORT=55432`
+- `PGUSER=postgres`
+- `PGPASSWORD=postgres`
+
+## Visual Parity
+
+Host screenshots are not source of truth. Visual baselines are accepted only from the GitHub-parity path:
+
+```bash
+pnpm test:visual:ci
+pnpm test:visual:ci -- --update-snapshots tests/e2e/visual/admin-list.spec.ts --project=chromium
+```
+
+What `pnpm test:visual:ci` does:
+
+- requires a clean git worktree so it can mirror PR state
+- creates a temporary clean worktree from `HEAD`
+- runs `pnpm install --frozen-lockfile`
+- runs `pnpm build`
+- runs Playwright inside the matching Ubuntu Playwright container
+- copies refreshed snapshot files back into the main workspace when `--update-snapshots` is used
+
+This is intentionally not part of `pre-commit`. It is too slow and too dependent on the runner environment. It is part of the pre-PR gate instead.
 
 ## Flaky Test Quarantine
 

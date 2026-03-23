@@ -7,7 +7,7 @@ describe('createSession()', () => {
     const pool = makeMockPool([{ id: 'session-abc', user_id: 'user-1' }])
     const result = await createSession('user-1', pool)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe('session-abc')
+    expect(result.unwrap()).toBe('session-abc')
     expect(pool.sql.unsafe).toHaveBeenCalled()
   })
 
@@ -38,7 +38,7 @@ describe('validateSession()', () => {
     const pool = makeMockPool([{ id: 'session-abc', user_id: 'user-1', expires_at: '2099-01-01T00:00:00Z' }])
     const result = await validateSession('a0a0a0a0-b1b1-c2c2-d3d3-e4e4e4e4e4e4', pool)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe('user-1')
+    expect(result.unwrap()).toBe('user-1')
   })
 
   it('queries cms_sessions table with session id', async () => {
@@ -55,13 +55,13 @@ describe('validateSession()', () => {
     const pool = makeMockPool([])
     const result = await validateSession('00000000-0000-0000-0000-000000000000', pool)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('NOT_FOUND')
+    expect(result.unwrapErr().code).toBe('NOT_FOUND')
   })
 
   it('returns Err NOT_FOUND message includes session context', async () => {
     const pool = makeMockPool([])
     const result = await validateSession('00000000-0000-0000-0000-000000000001', pool)
-    const err = result._unsafeUnwrapErr()
+    const err = result.unwrapErr()
     expect(err.message).toContain('Session')
   })
 
@@ -69,8 +69,8 @@ describe('validateSession()', () => {
     const pool = makeMockPool([])
     const result = await validateSession('not-a-uuid', pool)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('NOT_FOUND')
-    expect(result._unsafeUnwrapErr().message).toContain('Invalid session ID format')
+    expect(result.unwrapErr().code).toBe('NOT_FOUND')
+    expect(result.unwrapErr().message).toContain('Invalid session ID format')
     expect(pool.sql.unsafe).not.toHaveBeenCalled()
   })
 

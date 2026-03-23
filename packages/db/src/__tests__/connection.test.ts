@@ -28,7 +28,7 @@ describe('validateDbConfig', () => {
   it('returns Ok for valid config', () => {
     const result = validateDbConfig(validConfig)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().host).toBe('localhost')
+    expect(result.unwrap().host).toBe('localhost')
   })
 
   it('returns Ok for port 1', () => {
@@ -45,55 +45,55 @@ describe('validateDbConfig', () => {
     const { host: _, ...noHost } = validConfig
     const result = validateDbConfig(noHost)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for empty host', () => {
     const result = validateDbConfig({ ...validConfig, host: '' })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for port 0', () => {
     const result = validateDbConfig({ ...validConfig, port: 0 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for port 65536', () => {
     const result = validateDbConfig({ ...validConfig, port: 65536 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for empty database', () => {
     const result = validateDbConfig({ ...validConfig, database: '' })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for non-positive max', () => {
     const result = validateDbConfig({ ...validConfig, max: 0 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for negative idle_timeout', () => {
     const result = validateDbConfig({ ...validConfig, idle_timeout: -1 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for negative connect_timeout', () => {
     const result = validateDbConfig({ ...validConfig, connect_timeout: -1 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('error message describes validation issues', () => {
     const result = validateDbConfig({ ...validConfig, port: -5 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message.length).toBeGreaterThan(0)
+    expect(result.unwrapErr().message.length).toBeGreaterThan(0)
   })
 })
 
@@ -123,30 +123,31 @@ describe('validateDbConfig extended validation', () => {
   it('returns Err for empty username', () => {
     const result = validateDbConfig({ ...validConfig, username: '' })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
-  it('accepts empty password for local development', () => {
+  it('returns Err for empty password', () => {
     const result = validateDbConfig({ ...validConfig, password: '' })
-    expect(result.isOk()).toBe(true)
+    expect(result.isErr()).toBe(true)
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for max > 100', () => {
     const result = validateDbConfig({ ...validConfig, max: 101 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for idle_timeout > 3600000', () => {
     const result = validateDbConfig({ ...validConfig, idle_timeout: 3_600_001 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('returns Err for connect_timeout > 60000', () => {
     const result = validateDbConfig({ ...validConfig, connect_timeout: 60_001 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('accepts valid query_timeout', () => {
@@ -157,7 +158,7 @@ describe('validateDbConfig extended validation', () => {
   it('returns Err for query_timeout > 600000', () => {
     const result = validateDbConfig({ ...validConfig, query_timeout: 600_001 })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_CONFIG')
+    expect(result.unwrapErr().code).toBe('INVALID_CONFIG')
   })
 
   it('accepts config without query_timeout', () => {

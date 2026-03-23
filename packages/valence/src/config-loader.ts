@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { ResultAsync, fromThrowable } from 'neverthrow'
+import { ResultAsync, fromThrowable } from '@valencets/resultkit'
 import { existsSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import type { DbConfig } from '@valencets/db'

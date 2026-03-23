@@ -71,7 +71,7 @@ describe('beforeValidate hooks', () => {
     const { api } = setupWithHooks({ beforeValidate: [hook] })
     const result = await api.create({ collection: 'posts', data: { title: 'New', slug: 'new' } })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('validation blocked')
+    expect(result.unwrapErr().message).toContain('validation blocked')
   })
 
   it('aborts update when hook throws', async () => {
@@ -79,7 +79,7 @@ describe('beforeValidate hooks', () => {
     const { api } = setupWithHooks({ beforeValidate: [hook] })
     const result = await api.update({ collection: 'posts', id: '1', data: { title: 'Updated' } })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('validation blocked')
+    expect(result.unwrapErr().message).toContain('validation blocked')
   })
 
   it('does not fire when no hooks configured', async () => {
@@ -107,7 +107,7 @@ describe('beforeDelete hooks', () => {
     const { api } = setupWithHooks({ beforeDelete: [hook] })
     const result = await api.delete({ collection: 'posts', id: '1' })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('delete blocked')
+    expect(result.unwrapErr().message).toContain('delete blocked')
   })
 
   it('does not fire when no hooks configured', async () => {
@@ -177,7 +177,7 @@ describe('beforeRead hooks', () => {
     const { api } = setupWithHooks({ beforeRead: [hook] })
     const result = await api.find({ collection: 'posts' })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('read blocked')
+    expect(result.unwrapErr().message).toContain('read blocked')
   })
 
   it('aborts findByID when hook throws', async () => {
@@ -185,7 +185,7 @@ describe('beforeRead hooks', () => {
     const { api } = setupWithHooks({ beforeRead: [hook] })
     const result = await api.findByID({ collection: 'posts', id: '1' })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('read blocked')
+    expect(result.unwrapErr().message).toContain('read blocked')
   })
 
   it('does not fire when no hooks configured', async () => {

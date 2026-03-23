@@ -1,1 +1,11 @@
-pnpm build && pnpm test:smoke
+#!/usr/bin/env sh
+set -eu
+
+bash scripts/check-tdd-commit-sequence.sh branch
+pnpm validate
+pnpm check:patterns
+pnpm test:smoke
+
+if [ "${VALENCE_PREPUSH_FULL:-0}" = "1" ]; then
+  pnpm test:visual:ci
+fi

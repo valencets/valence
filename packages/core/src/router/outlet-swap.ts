@@ -2,8 +2,8 @@
 // Extracts content from a named val-outlet in incoming HTML and
 // swaps it into the matching live val-outlet in the DOM.
 
-import { ok, err } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import { parseHtml } from './fragment-swap.js'
 import { findOutlet } from './val-outlet.js'
 import { swapContent } from './fragment-swap.js'

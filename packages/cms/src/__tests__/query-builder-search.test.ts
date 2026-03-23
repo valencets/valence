@@ -115,7 +115,7 @@ describe('.search()', () => {
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('posts').search('hello').page(1, 10)
     expect(result.isOk()).toBe(true)
-    const paginated = result._unsafeUnwrap()
+    const paginated = result.unwrap()
     expect(paginated.totalDocs).toBe(5)
     expect(paginated.page).toBe(1)
   })

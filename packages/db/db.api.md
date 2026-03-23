@@ -4,8 +4,8 @@
 
 ```ts
 
-import type { Result } from 'neverthrow';
-import { ResultAsync } from 'neverthrow';
+import type { Result } from '@valencets/resultkit';
+import { ResultAsync } from '@valencets/resultkit';
 import type { Sql } from 'postgres';
 
 // @public (undocumented)

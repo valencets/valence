@@ -1,6 +1,6 @@
 import type { ServerResponse } from 'node:http'
 import type { IncomingMessage } from 'node:http'
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@valencets/resultkit'
 import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
 import type { DocumentData } from '../db/query-builder.js'

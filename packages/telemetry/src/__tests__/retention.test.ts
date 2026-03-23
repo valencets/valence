@@ -15,21 +15,21 @@ describe('cleanupOldEvents', () => {
     const pool = makeCountPool(42)
     const result = await cleanupOldEvents(pool, 90)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(42)
+    expect(result.unwrap()).toBe(42)
   })
 
   it('uses 90-day default when no retention specified', async () => {
     const pool = makeCountPool(0)
     const result = await cleanupOldEvents(pool)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(0)
+    expect(result.unwrap()).toBe(0)
   })
 
   it('passes retention days to the query', async () => {
     const pool = makeCountPool(5)
     const result = await cleanupOldEvents(pool, 30)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(5)
+    expect(result.unwrap()).toBe(5)
     // Verify the sql tagged template was called with the retention days parameter
     expect(pool.sql).toHaveBeenCalledTimes(1)
     const callArgs = (pool.sql as ReturnType<typeof vi.fn>).mock.calls[0] as [TemplateStringsArray, ...ReadonlyArray<number>]
@@ -46,7 +46,7 @@ describe('cleanupOldEvents', () => {
     const pool = makeCountPool(0)
     const result = await cleanupOldEvents(pool, 7)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(0)
+    expect(result.unwrap()).toBe(0)
   })
 })
 
@@ -55,21 +55,21 @@ describe('cleanupOldSessions', () => {
     const pool = makeCountPool(10)
     const result = await cleanupOldSessions(pool, 90)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(10)
+    expect(result.unwrap()).toBe(10)
   })
 
   it('uses 90-day default when no retention specified', async () => {
     const pool = makeCountPool(0)
     const result = await cleanupOldSessions(pool)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(0)
+    expect(result.unwrap()).toBe(0)
   })
 
   it('passes retention days to the query', async () => {
     const pool = makeCountPool(3)
     const result = await cleanupOldSessions(pool, 60)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(3)
+    expect(result.unwrap()).toBe(3)
     expect(pool.sql).toHaveBeenCalledTimes(1)
     const callArgs = (pool.sql as ReturnType<typeof vi.fn>).mock.calls[0] as [TemplateStringsArray, ...ReadonlyArray<number>]
     expect(callArgs[1]).toBe(60)
@@ -85,6 +85,6 @@ describe('cleanupOldSessions', () => {
     const pool = makeCountPool(0)
     const result = await cleanupOldSessions(pool, 365)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(0)
+    expect(result.unwrap()).toBe(0)
   })
 })

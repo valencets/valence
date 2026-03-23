@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { setSecurityHeaders, generateNonce } from './security-headers.js'
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@valencets/resultkit'
 import { ServerErrorCode } from './server-types.js'
 import type { RouteHandler, RouteEntry, ServerRouter, RouteOptions } from './server-types.js'
 import type { Middleware, ErrorHandler, RequestContext } from './middleware-types.js'

@@ -1,7 +1,7 @@
 import { writeFile, mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@valencets/resultkit'
 import type { CollectionConfig } from '@valencets/cms'
 import { generateEntityInterface } from './type-generator.js'
 import { generateApiClient } from './api-client-generator.js'
