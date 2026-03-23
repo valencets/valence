@@ -3,7 +3,7 @@ import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry } from '../schema/registry.js'
 import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
-import type { WhereOperator, PaginatedResult, SqlValue } from './query-types.js'
+import type { WhereOperator, PaginatedResult, SqlValue, WhereClause, WhereCondition } from './query-types.js'
 import { isValidIdentifier, getValidFieldNames, isAllowedField } from './sql-sanitize.js'
 import { safeQuery } from './safe-query.js'
 
@@ -39,7 +39,7 @@ interface WhereEntry {
 
 interface QueryState {
   readonly slug: string
-  readonly wheres: readonly WhereEntry[]
+  readonly whereGroups: readonly (readonly WhereEntry[])[]
   readonly orderBys: readonly { field: string, direction: 'asc' | 'desc' }[]
   readonly limitVal: number | null
   readonly offsetVal: number | null
@@ -70,8 +70,10 @@ function invalidField (name: string): CmsError {
 }
 
 function validateFields (state: QueryState, allowedFields: Set<string>): CmsError | null {
-  for (const w of state.wheres) {
-    if (!isAllowedField(w.field, allowedFields)) return invalidField(w.field)
+  for (const group of state.whereGroups) {
+    for (const w of group) {
+      if (!isAllowedField(w.field, allowedFields)) return invalidField(w.field)
+    }
   }
   for (const o of state.orderBys) {
     if (!isAllowedField(o.field, allowedFields)) return invalidField(o.field)
@@ -114,7 +116,7 @@ function buildSelectSql (state: QueryState, table: string): string {
 }
 
 function getWhereParamCount (state: QueryState): number {
-  return state.wheres.filter(w => w.operator !== 'exists').length
+  return state.whereGroups.flatMap(group => group).filter(w => w.operator !== 'exists').length
 }
 
 function buildWhereSql (state: QueryState): string {
@@ -129,17 +131,24 @@ function buildWhereSql (state: QueryState): string {
     parts.push('"_status" = \'published\'')
   }
 
-  for (const w of state.wheres) {
+  const renderWhere = (w: WhereEntry): string => {
     const col = `"${w.field}"`
     if (w.operator === 'exists') {
-      parts.push(`${col} ${w.value ? 'IS NOT NULL' : 'IS NULL'}`)
-    } else if (w.operator === 'in') {
-      paramIdx++
-      parts.push(`${col} = ANY($${paramIdx})`)
-    } else {
-      paramIdx++
-      parts.push(`${col} ${OPERATOR_SQL[w.operator]} $${paramIdx}`)
+      return `${col} ${w.value ? 'IS NOT NULL' : 'IS NULL'}`
     }
+    if (w.operator === 'in') {
+      paramIdx++
+      return `${col} = ANY($${paramIdx})`
+    }
+    paramIdx++
+    return `${col} ${OPERATOR_SQL[w.operator]} $${paramIdx}`
+  }
+
+  const populatedGroups = state.whereGroups.filter(group => group.length > 0)
+  if (populatedGroups.length === 1) {
+    parts.push(populatedGroups[0]!.map(renderWhere).join(' AND '))
+  } else if (populatedGroups.length > 1) {
+    parts.push(`(${populatedGroups.map(group => `(${group.map(renderWhere).join(' AND ')})`).join(' OR ')})`)
   }
 
   if (state.searchQuery !== null) {
@@ -170,7 +179,8 @@ function buildLimitOffsetSql (state: QueryState): string {
 }
 
 function getWhereValues (state: QueryState): SqlValue[] {
-  const values = state.wheres
+  const values = state.whereGroups
+    .flatMap(group => group)
     .filter(w => w.operator !== 'exists')
     .map(w => w.value)
   if (state.searchQuery !== null) {
@@ -190,6 +200,7 @@ function executeQuery<T> (
 export interface CollectionQueryBuilder {
   where (field: string, value: SqlValue): CollectionQueryBuilder
   where (field: string, operator: WhereOperator, value: SqlValue): CollectionQueryBuilder
+  whereClause (clause: WhereClause): CollectionQueryBuilder
   orderBy (field: string, direction: 'asc' | 'desc'): CollectionQueryBuilder
   limit (n: number): CollectionQueryBuilder
   offset (n: number): CollectionQueryBuilder
@@ -211,6 +222,10 @@ function createBuilder (
   registry: CollectionRegistry,
   state: QueryState
 ): CollectionQueryBuilder {
+  function ensureWhereGroups (): readonly (readonly WhereEntry[])[] {
+    return state.whereGroups.length > 0 ? state.whereGroups : [[]]
+  }
+
   function guard (): { error: CmsError } | { allowedFields: Set<string>; localizedFields: Set<string>; resolved: QueryState } {
     if (!isValidIdentifier(state.slug)) {
       return { error: { code: CmsErrorCode.INVALID_INPUT, message: `Invalid collection slug: ${state.slug}` } }
@@ -230,14 +245,48 @@ function createBuilder (
     const hasOperator = maybeValue !== undefined
     const operator: WhereOperator = hasOperator ? operatorOrValue as WhereOperator : 'equals'
     const value: SqlValue = hasOperator ? maybeValue : operatorOrValue as SqlValue
+    const existingGroups = ensureWhereGroups()
+    const [firstGroup, ...restGroups] = existingGroups
     return createBuilder(pool, registry, {
       ...state,
-      wheres: [...state.wheres, { field: fieldOrName, operator, value }]
+      whereGroups: [[...(firstGroup ?? []), { field: fieldOrName, operator, value }], ...restGroups]
     })
+  }
+
+  function conditionToEntry (condition: WhereCondition): WhereEntry {
+    return {
+      field: condition.field,
+      operator: condition.operator,
+      value: condition.value
+    }
   }
 
   return {
     where: whereImpl as CollectionQueryBuilder['where'],
+
+    whereClause (clause) {
+      let groups = [...ensureWhereGroups()].map(group => [...group])
+
+      if (clause.and !== undefined && clause.and.length > 0) {
+        const andEntries = clause.and.map(conditionToEntry)
+        groups = groups.map(group => [...group, ...andEntries])
+      }
+
+      if (clause.or !== undefined && clause.or.length > 0) {
+        const nextGroups: WhereEntry[][] = []
+        for (const group of groups) {
+          for (const condition of clause.or) {
+            nextGroups.push([...group, conditionToEntry(condition)])
+          }
+        }
+        groups = nextGroups
+      }
+
+      return createBuilder(pool, registry, {
+        ...state,
+        whereGroups: groups
+      })
+    },
 
     orderBy (f, direction) {
       return createBuilder(pool, registry, {
@@ -376,7 +425,7 @@ export function createQueryBuilder (pool: DbPool, registry: CollectionRegistry, 
     query (slug: string): CollectionQueryBuilder {
       return createBuilder(pool, registry, {
         slug,
-        wheres: [],
+        whereGroups: [[]],
         orderBys: [],
         limitVal: null,
         offsetVal: null,

@@ -3,7 +3,7 @@ import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry, GlobalRegistry } from '../schema/registry.js'
 import type { CmsError } from '../schema/types.js'
 import type { DocumentRow, DocumentData } from '../db/query-builder.js'
-import type { PaginatedResult, SqlValue } from '../db/query-types.js'
+import type { PaginatedResult, SqlValue, WhereClause } from '../db/query-types.js'
 import type { HookFunction } from '../hooks/hook-types.js'
 import type { FieldConfig } from '../schema/field-types.js'
 import type { AccessArgs } from '../access/access-types.js'
@@ -17,6 +17,7 @@ import { runFieldHooks } from '../hooks/field-hook-runner.js'
 export interface FindArgs {
   readonly collection: string
   readonly where?: Record<string, string | number | boolean | null> | undefined
+  readonly whereClause?: WhereClause | undefined
   readonly orderBy?: { field: string; direction: 'asc' | 'desc' } | undefined
   readonly page?: number | undefined
   readonly perPage?: number | undefined
@@ -30,6 +31,7 @@ export interface FindArgs {
 interface FindByIDArgs {
   readonly collection: string
   readonly id: string
+  readonly whereClause?: WhereClause | undefined
 }
 
 interface CreateArgs {
@@ -288,6 +290,7 @@ export function createLocalApi (
         let builder = qb.query(args.collection)
         if (args.includeDrafts) builder = builder.includeDrafts()
         if (args.locale) builder = builder.locale(args.locale)
+        if (args.whereClause) builder = builder.whereClause(args.whereClause)
         if (args.where) {
           for (const [k, v] of Object.entries(args.where)) {
             builder = builder.where(k, v)
@@ -334,6 +337,7 @@ export function createLocalApi (
       const executeFindByID = (): ResultAsync<DocumentRow | null, CmsError> =>
         qb.query(args.collection)
           .where('id', args.id)
+          .whereClause(args.whereClause ?? {})
           .first()
           .andThen((row) => {
             if (row === null) return okAsync(null)
