@@ -59,6 +59,10 @@ printf 'green\n' > "$valid_repo/a.txt"
 run_git "$valid_repo" add a.txt
 run_git "$valid_repo" commit -m "fix(tooling): enforce tdd sequence -- GREEN" >/dev/null 2>&1
 assert_valid_range "$valid_repo" "HEAD~2..HEAD"
+printf 'refactor\n' > "$valid_repo/a.txt"
+run_git "$valid_repo" add a.txt
+run_git "$valid_repo" commit -m "refactor(tooling): enforce tdd sequence -- REFACTOR" >/dev/null 2>&1
+assert_valid_range "$valid_repo" "HEAD~1..HEAD"
 
 invalid_repo="$(setup_repo invalid)"
 printf 'green\n' > "$invalid_repo/a.txt"
