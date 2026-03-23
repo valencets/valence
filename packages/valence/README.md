@@ -238,17 +238,17 @@ Valence includes a complete, privacy-respecting analytics pipeline that runs ent
 | Package | What it does | External deps |
 |---------|-------------|---------------|
 | **@valencets/ui** | 23 Web Components. ARIA, i18n, telemetry hooks, hydration directives. OKLCH design tokens. | none |
-| **@valencets/core** | Router + server. `pushState` nav, fragment swaps, prefetch, view transitions, server islands. | [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | [postgres](https://github.com/porsager/postgres), [neverthrow](https://github.com/supermacro/neverthrow), [zod](https://github.com/colinhacks/zod) |
-| **@valencets/cms** | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media, image processing. Rich text via Tiptap (ProseMirror). | [tiptap](https://tiptap.dev), [argon2](https://github.com/ranisalt/node-argon2), [sharp](https://github.com/lovell/sharp), [zod](https://github.com/colinhacks/zod), [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/graphql** | Auto-generated GraphQL schema + resolvers from CMS collections. | [graphql](https://github.com/graphql/graphql-js), [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/telemetry** | Beacon ingestion, event storage, daily summaries, fleet aggregation. | [postgres](https://github.com/porsager/postgres), [neverthrow](https://github.com/supermacro/neverthrow) |
-| **@valencets/valence** | CLI + FSD scaffold + entity codegen + route types. `valence init`, `valence dev`, `valence migrate`, `valence build`. | [tsx](https://github.com/privatenumber/tsx), [zod](https://github.com/colinhacks/zod), [neverthrow](https://github.com/supermacro/neverthrow) |
+| **@valencets/core** | Router + server. `pushState` nav, fragment swaps, prefetch, view transitions, server islands. | [@valencets/resultkit](https://www.npmjs.com/package/@valencets/resultkit) |
+| **@valencets/db** | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | [postgres](https://github.com/porsager/postgres), [@valencets/resultkit](https://www.npmjs.com/package/@valencets/resultkit), [zod](https://github.com/colinhacks/zod) |
+| **@valencets/cms** | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media, image processing. Rich text via Tiptap (ProseMirror). | [tiptap](https://tiptap.dev), [argon2](https://github.com/ranisalt/node-argon2), [sharp](https://github.com/lovell/sharp), [zod](https://github.com/colinhacks/zod), [@valencets/resultkit](https://www.npmjs.com/package/@valencets/resultkit) |
+| **@valencets/graphql** | Auto-generated GraphQL schema + resolvers from CMS collections. | [graphql](https://github.com/graphql/graphql-js), [@valencets/resultkit](https://www.npmjs.com/package/@valencets/resultkit) |
+| **@valencets/telemetry** | Beacon ingestion, event storage, daily summaries, fleet aggregation. | [postgres](https://github.com/porsager/postgres), [@valencets/resultkit](https://www.npmjs.com/package/@valencets/resultkit) |
+| **@valencets/valence** | CLI + FSD scaffold + entity codegen + route types. `valence init`, `valence dev`, `valence migrate`, `valence build`. | [tsx](https://github.com/privatenumber/tsx), [zod](https://github.com/colinhacks/zod), [@valencets/resultkit](https://www.npmjs.com/package/@valencets/resultkit) |
 | **@valencets/plugin-seo** | SEO field injection and auto-title hook. | none (peer dep on cms) |
 | **@valencets/plugin-nested-docs** | Tree structures with breadcrumb computation. | none (peer dep on cms) |
-| **@valencets/plugin-cloud-storage** | S3-compatible media storage adapter. | [@aws-sdk/client-s3](https://github.com/aws/aws-sdk-js-v3), [neverthrow](https://github.com/supermacro/neverthrow) |
+| **@valencets/plugin-cloud-storage** | S3-compatible media storage adapter. | [@aws-sdk/client-s3](https://github.com/aws/aws-sdk-js-v3), [@valencets/resultkit](https://www.npmjs.com/package/@valencets/resultkit) |
 
-**Core external runtime deps:** 8 -- postgres, neverthrow, zod, tiptap, argon2, sharp, graphql, tsx. All MIT-licensed, all audited via [Socket](https://socket.dev/npm/package/@valencets/valence).
+**Core external runtime deps:** 8 -- postgres, @valencets/resultkit, zod, tiptap, argon2, sharp, graphql, tsx. All MIT-licensed, all audited via [Socket](https://socket.dev/npm/package/@valencets/valence).
 
 **Browser JS:** Public-facing pages ship zero third-party JavaScript. The admin panel uses [Tiptap](https://tiptap.dev/) (ProseMirror, MIT) for rich text editing only.
 

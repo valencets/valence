@@ -46,7 +46,7 @@ describe('RouteConfig outlet and layout fields', () => {
       { path: '/page', outlet: 'main' }
     ]
     const result = defineConfig({ ...minimalConfig, routes })
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.routes?.[0]?.outlet).toBe('main')
   })
 
@@ -55,7 +55,7 @@ describe('RouteConfig outlet and layout fields', () => {
       { path: '/page', layout: 'app-shell' }
     ]
     const result = defineConfig({ ...minimalConfig, routes })
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.routes?.[0]?.layout).toBe('app-shell')
   })
 
@@ -64,7 +64,7 @@ describe('RouteConfig outlet and layout fields', () => {
       { path: '/about' }
     ]
     const result = defineConfig({ ...minimalConfig, routes })
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.routes?.[0]?.outlet).toBeUndefined()
   })
 
@@ -73,7 +73,7 @@ describe('RouteConfig outlet and layout fields', () => {
       { path: '/about' }
     ]
     const result = defineConfig({ ...minimalConfig, routes })
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.routes?.[0]?.layout).toBeUndefined()
   })
 })

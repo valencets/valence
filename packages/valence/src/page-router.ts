@@ -1,5 +1,5 @@
 import { join, normalize, resolve } from 'node:path'
-import { fromThrowable } from 'neverthrow'
+import { fromThrowable } from '@valencets/resultkit'
 
 const safeDecodeURIComponent = fromThrowable(
   decodeURIComponent,

@@ -1,4 +1,4 @@
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@valencets/resultkit'
 import type { LoaderContext, LoaderResult, JsonValue } from './define-config.js'
 
 export interface LoaderError {

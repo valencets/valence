@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs'
 import type { Dirent } from 'node:fs'
-import { fromThrowable, ResultAsync } from 'neverthrow'
+import { fromThrowable, ResultAsync } from '@valencets/resultkit'
 import type { LearnCheckDeps, LearnProgress, LearnStepId } from './types.js'
 
 const DEFAULT_SLUGS: ReadonlySet<string> = new Set(['categories', 'posts', 'pages', 'users'])

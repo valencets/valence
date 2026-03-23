@@ -30,7 +30,7 @@ describe('executeLoader', () => {
     })
     const ctx = makeCtx()
     const result = await executeLoader(loader, ctx)
-    expect(result._unsafeUnwrap().data).toEqual({ count: 42 })
+    expect(result.unwrap().data).toEqual({ count: 42 })
   })
 
   it('passes context to the loader function', async () => {
@@ -62,7 +62,7 @@ describe('executeLoader', () => {
     })
     const result = await executeLoader(loader, makeCtx())
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().redirect).toBe('/login')
+    expect(result.unwrap().redirect).toBe('/login')
   })
 
   it('returns Ok with status in LoaderResult', async () => {
@@ -72,7 +72,7 @@ describe('executeLoader', () => {
     })
     const result = await executeLoader(loader, makeCtx())
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().status).toBe(404)
+    expect(result.unwrap().status).toBe(404)
   })
 
   it('returns Err when loader throws', async () => {
@@ -122,8 +122,8 @@ describe('executeLoader', () => {
     }
     const r1 = await executeLoader(loader, makeCtx())
     const r2 = await executeLoader(loader, makeCtx())
-    expect(r1._unsafeUnwrap().data?.['call']).toBe(1)
-    expect(r2._unsafeUnwrap().data?.['call']).toBe(2)
+    expect(r1.unwrap().data?.['call']).toBe(1)
+    expect(r2.unwrap().data?.['call']).toBe(2)
   })
 })
 
@@ -195,6 +195,6 @@ describe('vi mock helpers for loader ctx', () => {
     }))
     const ctx = makeCtx({ params: { slug: 'world' } })
     const result = await executeLoader(spy, ctx)
-    expect(result._unsafeUnwrap().data?.['slug']).toBe('world')
+    expect(result.unwrap().data?.['slug']).toBe('world')
   })
 })
