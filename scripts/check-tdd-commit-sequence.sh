@@ -74,14 +74,23 @@ validate_transition() {
 
 validate_branch_range() {
   local range="$1"
-  local log_output
-  log_output="$(git log --reverse --format='%s' "$range")"
-  if [[ -z "$log_output" ]]; then
+  local commits_output
+  commits_output="$(git rev-list --reverse "$range")"
+  if [[ -z "$commits_output" ]]; then
     exit 0
   fi
 
+  local first_commit
+  first_commit="$(printf '%s\n' "$commits_output" | head -n1)"
+
   local previous_line=""
-  while IFS= read -r line; do
+  if git rev-parse --verify "${first_commit}^" >/dev/null 2>&1; then
+    previous_line="$(git log -1 --format='%s' "${first_commit}^")"
+  fi
+
+  while IFS= read -r commit; do
+    local line
+    line="$(git log -1 --format='%s' "$commit")"
     local suffix
     suffix="$(extract_suffix "$line")"
 
@@ -92,7 +101,7 @@ validate_branch_range() {
     fi
 
     previous_line="$line"
-  done <<< "$log_output"
+  done <<< "$commits_output"
 }
 
 validate_current_commit() {

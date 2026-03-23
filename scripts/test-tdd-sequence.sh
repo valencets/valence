@@ -68,6 +68,6 @@ invalid_repo="$(setup_repo invalid)"
 printf 'green\n' > "$invalid_repo/a.txt"
 run_git "$invalid_repo" add a.txt
 run_git "$invalid_repo" commit -m "fix(tooling): enforce tdd sequence -- GREEN" >/dev/null 2>&1
-assert_invalid_range "$invalid_repo" "HEAD^..HEAD" "GREEN commit has no previous commit to pair with"
+assert_invalid_range "$invalid_repo" "HEAD^..HEAD" "scope mismatch for GREEN commit"
 
 echo "TDD sequence checks passed."
