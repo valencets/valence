@@ -1,6 +1,6 @@
 // Raw event queries — migrated from stale @valencets/db dist (VAL-77)
 
-import { okAsync, errAsync, ResultAsync } from 'neverthrow'
+import { okAsync, errAsync, ResultAsync } from '@valencets/resultkit'
 import { DbErrorCode, mapPostgresError } from '@valencets/db'
 import type { DbError, DbPool } from '@valencets/db'
 import type { SessionRow, EventRow, InsertableSession, InsertableEvent } from './event-types.js'

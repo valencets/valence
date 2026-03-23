@@ -1,4 +1,4 @@
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@valencets/resultkit'
 import type { DbError, DbPool } from '@valencets/db'
 import { createSession, insertEvent } from './event-queries.js'
 import type { EventRow } from './event-types.js'

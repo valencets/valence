@@ -24,7 +24,7 @@ describe('getSessionSummaries', () => {
     const pool = makeMockPool([])
     const result = await getSessionSummaries(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual([])
+    expect(result.unwrap()).toEqual([])
   })
 
   it('returns error on database failure', async () => {
@@ -43,7 +43,7 @@ describe('getEventSummaries', () => {
     const pool = makeMockPool([])
     const result = await getEventSummaries(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual([])
+    expect(result.unwrap()).toEqual([])
   })
 })
 
@@ -56,7 +56,7 @@ describe('getConversionSummaries', () => {
     const pool = makeMockPool([])
     const result = await getConversionSummaries(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual([])
+    expect(result.unwrap()).toEqual([])
   })
 })
 
@@ -69,7 +69,7 @@ describe('getIngestionHealth', () => {
     const pool = makeMockPool([])
     const result = await getIngestionHealth(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual([])
+    expect(result.unwrap()).toEqual([])
   })
 })
 
@@ -88,7 +88,7 @@ describe('insertIngestionHealth', () => {
       buffer_saturation_pct: 0.3
     })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(DbErrorCode.NO_ROWS)
+    expect(result.unwrapErr().code).toBe(DbErrorCode.NO_ROWS)
   })
 
   it('returns error on database failure', async () => {

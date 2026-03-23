@@ -25,7 +25,7 @@ describe('validateBeaconPayload', () => {
       const payload = JSON.stringify([makeValidEvent()])
       const result = validateBeaconPayload(payload)
       expect(result.isOk()).toBe(true)
-      const events = result._unsafeUnwrap()
+      const events = result.unwrap()
       expect(events).toHaveLength(1)
       expect(events[0]!.type).toBe('CLICK')
       expect(events[0]!.site_id).toBe('site-abc')
@@ -39,7 +39,7 @@ describe('validateBeaconPayload', () => {
       ])
       const result = validateBeaconPayload(payload)
       expect(result.isOk()).toBe(true)
-      expect(result._unsafeUnwrap()).toHaveLength(3)
+      expect(result.unwrap()).toHaveLength(3)
     })
 
     it('accepts all valid intent types', () => {
@@ -59,7 +59,7 @@ describe('validateBeaconPayload', () => {
       const payload = JSON.stringify([makeValidEvent({ isDirty: true })])
       const result = validateBeaconPayload(payload)
       expect(result.isOk()).toBe(true)
-      const event = result._unsafeUnwrap()[0]!
+      const event = result.unwrap()[0]!
       expect('isDirty' in event).toBe(false)
     })
   })
@@ -68,7 +68,7 @@ describe('validateBeaconPayload', () => {
     it('rejects non-JSON string', () => {
       const result = validateBeaconPayload('not json')
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_JSON)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_JSON)
     })
   })
 
@@ -76,7 +76,7 @@ describe('validateBeaconPayload', () => {
     it('rejects empty array', () => {
       const result = validateBeaconPayload('[]')
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.EMPTY_PAYLOAD)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.EMPTY_PAYLOAD)
     })
   })
 
@@ -84,13 +84,13 @@ describe('validateBeaconPayload', () => {
     it('rejects object payload', () => {
       const result = validateBeaconPayload(JSON.stringify({ type: 'CLICK' }))
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.NOT_AN_ARRAY)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.NOT_AN_ARRAY)
     })
 
     it('rejects string payload', () => {
       const result = validateBeaconPayload('"hello"')
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.NOT_AN_ARRAY)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.NOT_AN_ARRAY)
     })
   })
 
@@ -101,7 +101,7 @@ describe('validateBeaconPayload', () => {
       )
       const result = validateBeaconPayload(JSON.stringify(events))
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.PAYLOAD_TOO_LARGE)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.PAYLOAD_TOO_LARGE)
     })
 
     it('accepts exactly max events', () => {
@@ -110,7 +110,7 @@ describe('validateBeaconPayload', () => {
       )
       const result = validateBeaconPayload(JSON.stringify(events))
       expect(result.isOk()).toBe(true)
-      expect(result._unsafeUnwrap()).toHaveLength(MAX_BEACON_EVENTS)
+      expect(result.unwrap()).toHaveLength(MAX_BEACON_EVENTS)
     })
   })
 
@@ -119,7 +119,7 @@ describe('validateBeaconPayload', () => {
       const payload = JSON.stringify([makeValidEvent({ type: 'UNKNOWN_TYPE' })])
       const result = validateBeaconPayload(payload)
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_INTENT_TYPE)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_INTENT_TYPE)
     })
   })
 
@@ -128,7 +128,7 @@ describe('validateBeaconPayload', () => {
       const payload = JSON.stringify([makeValidEvent({ site_id: '' })])
       const result = validateBeaconPayload(payload)
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_SITE_ID)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_SITE_ID)
     })
 
     it('rejects non-string site_id', () => {
@@ -143,21 +143,21 @@ describe('validateBeaconPayload', () => {
       const payload = JSON.stringify([makeValidEvent({ schema_version: 0 })])
       const result = validateBeaconPayload(payload)
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_SCHEMA_VERSION)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_SCHEMA_VERSION)
     })
 
     it('rejects negative schema_version', () => {
       const payload = JSON.stringify([makeValidEvent({ schema_version: -1 })])
       const result = validateBeaconPayload(payload)
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_SCHEMA_VERSION)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_SCHEMA_VERSION)
     })
 
     it('rejects non-integer schema_version', () => {
       const payload = JSON.stringify([makeValidEvent({ schema_version: 1.5 })])
       const result = validateBeaconPayload(payload)
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_SCHEMA_VERSION)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_SCHEMA_VERSION)
     })
   })
 
@@ -167,7 +167,7 @@ describe('validateBeaconPayload', () => {
       delete event.id
       const result = validateBeaconPayload(JSON.stringify([event]))
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.MISSING_FIELD)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.MISSING_FIELD)
     })
 
     it('rejects event missing timestamp', () => {
@@ -175,7 +175,7 @@ describe('validateBeaconPayload', () => {
       delete event.timestamp
       const result = validateBeaconPayload(JSON.stringify([event]))
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.MISSING_FIELD)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.MISSING_FIELD)
     })
 
     it('rejects event missing type', () => {
@@ -183,7 +183,7 @@ describe('validateBeaconPayload', () => {
       delete event.type
       const result = validateBeaconPayload(JSON.stringify([event]))
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.MISSING_FIELD)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.MISSING_FIELD)
     })
   })
 
@@ -192,14 +192,14 @@ describe('validateBeaconPayload', () => {
       const payload = JSON.stringify([makeValidEvent({ timestamp: 'not-a-number' })])
       const result = validateBeaconPayload(payload)
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_FIELD_TYPE)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_FIELD_TYPE)
     })
 
     it('rejects negative timestamp', () => {
       const payload = JSON.stringify([makeValidEvent({ timestamp: -1 })])
       const result = validateBeaconPayload(payload)
       expect(result.isErr()).toBe(true)
-      expect(result._unsafeUnwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_FIELD_TYPE)
+      expect(result.unwrapErr().code).toBe(BeaconValidationErrorCode.INVALID_FIELD_TYPE)
     })
   })
 })

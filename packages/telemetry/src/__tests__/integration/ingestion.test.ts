@@ -48,7 +48,7 @@ describe('ingestBeacon (integration)', () => {
     const result = await ingestBeacon(pool, events)
     expect(result.isOk()).toBe(true)
 
-    const value = result._unsafeUnwrap()
+    const value = result.unwrap()
     expect(value.eventsInserted).toBe(3)
     expect(value.sessionId).toBeTruthy()
 
@@ -74,7 +74,7 @@ describe('ingestBeacon (integration)', () => {
     const result = await ingestBeacon(pool, events)
     expect(result.isOk()).toBe(true)
 
-    const stored = await pool.sql`SELECT * FROM events WHERE session_id = ${result._unsafeUnwrap().sessionId}::uuid`
+    const stored = await pool.sql`SELECT * FROM events WHERE session_id = ${result.unwrap().sessionId}::uuid`
     expect(stored).toHaveLength(1)
 
     const payload = stored[0]!.payload as { path: string; x_coord: number; y_coord: number }
@@ -93,7 +93,7 @@ describe('ingestBeacon (integration)', () => {
 
     expect(r1.isOk()).toBe(true)
     expect(r2.isOk()).toBe(true)
-    expect(r1._unsafeUnwrap().sessionId).not.toBe(r2._unsafeUnwrap().sessionId)
+    expect(r1.unwrap().sessionId).not.toBe(r2.unwrap().sessionId)
 
     const sessions = await pool.sql`SELECT * FROM sessions`
     expect(sessions).toHaveLength(2)

@@ -36,7 +36,7 @@ describe('getDailySummary', () => {
     const pool = makeMockPool([])
     const result = await getDailySummary(pool, 'site_acme', new Date('2026-03-10'))
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBeNull()
+    expect(result.unwrap()).toBeNull()
   })
 
   it('returns error on database failure', async () => {
@@ -55,7 +55,7 @@ describe('getUnsyncedDailySummaries', () => {
     const pool = makeMockPool([])
     const result = await getUnsyncedDailySummaries(pool, 'site_acme')
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual([])
+    expect(result.unwrap()).toEqual([])
   })
 
   it('returns error on database failure', async () => {
@@ -136,7 +136,7 @@ describe('getDailyBreakdowns', () => {
     const pool = makeMockPool([mockRow])
     const result = await getDailyBreakdowns(pool, 'site_acme', new Date('2026-03-10'), new Date('2026-03-11'))
     expect(result.isOk()).toBe(true)
-    const data = result._unsafeUnwrap()
+    const data = result.unwrap()
     expect(data.top_pages).toBeDefined()
     expect(data.top_referrers).toBeDefined()
     expect(data.intent_counts).toBeDefined()
@@ -146,7 +146,7 @@ describe('getDailyBreakdowns', () => {
     const pool = makeMockPool([])
     const result = await getDailyBreakdowns(pool, 'site_acme', new Date('2026-03-10'), new Date('2026-03-11'))
     expect(result.isOk()).toBe(true)
-    const data = result._unsafeUnwrap()
+    const data = result.unwrap()
     expect(data.top_pages).toEqual([])
     expect(data.top_referrers).toEqual([])
     expect(data.intent_counts).toEqual({})
@@ -184,7 +184,7 @@ describe('getDailyTrend', () => {
     const pool = makeMockPool([])
     const result = await getDailyTrend(pool, 'site_acme', new Date('2026-03-01'), new Date('2026-03-07'))
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual([])
+    expect(result.unwrap()).toEqual([])
   })
 
   it('returns rows ordered by date ASC', async () => {
@@ -195,7 +195,7 @@ describe('getDailyTrend', () => {
     const pool = makeMockPool(rows)
     const result = await getDailyTrend(pool, 'site_acme', new Date('2026-03-01'), new Date('2026-03-02'))
     expect(result.isOk()).toBe(true)
-    const data = result._unsafeUnwrap()
+    const data = result.unwrap()
     expect(data).toHaveLength(2)
   })
 
@@ -203,7 +203,7 @@ describe('getDailyTrend', () => {
     const pool = makeMockPool([mockRow])
     const result = await getDailyTrend(pool, 'site_acme', new Date('2026-03-10'), new Date('2026-03-10'))
     expect(result.isOk()).toBe(true)
-    const data = result._unsafeUnwrap()
+    const data = result.unwrap()
     expect(data[0].session_count).toBe(247)
     expect(data[0].pageview_count).toBe(1200)
     expect(data[0].conversion_count).toBe(45)

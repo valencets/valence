@@ -36,7 +36,7 @@ describe('createSession', () => {
       operating_system: 'Linux'
     })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().session_id).toBe(mockSession.session_id)
+    expect(result.unwrap().session_id).toBe(mockSession.session_id)
   })
 
   it('returns error when no rows returned', async () => {
@@ -65,7 +65,7 @@ describe('getSessionById', () => {
     const pool = makeMockPool([mockSession])
     const result = await getSessionById(pool, mockSession.session_id)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().device_type).toBe('desktop')
+    expect(result.unwrap().device_type).toBe('desktop')
   })
 
   it('returns error when not found', async () => {
@@ -85,7 +85,7 @@ describe('insertEvent', () => {
       payload: { path: '/home' }
     })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().event_id).toBe(1)
+    expect(result.unwrap().event_id).toBe(1)
   })
 
   it('returns error when no rows returned', async () => {
@@ -123,14 +123,14 @@ describe('insertEvents', () => {
     ]
     const result = await insertEvents(pool, events)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(3)
+    expect(result.unwrap()).toBe(3)
   })
 
   it('returns 0 for empty array without calling pool', async () => {
     const pool = makeMockPool()
     const result = await insertEvents(pool, [])
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(0)
+    expect(result.unwrap()).toBe(0)
   })
 })
 
@@ -139,14 +139,14 @@ describe('getEventsBySession', () => {
     const pool = makeMockPool([mockEvent, { ...mockEvent, event_id: 2 }])
     const result = await getEventsBySession(pool, mockSession.session_id)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(2)
+    expect(result.unwrap()).toHaveLength(2)
   })
 
   it('returns empty array when no events', async () => {
     const pool = makeMockPool([])
     const result = await getEventsBySession(pool, 'no-events')
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 })
 
@@ -159,7 +159,7 @@ describe('getEventsByTimeRange', () => {
       new Date('2026-03-02')
     )
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(1)
+    expect(result.unwrap()).toHaveLength(1)
   })
 
   it('returns empty array when no events in range', async () => {
@@ -170,6 +170,6 @@ describe('getEventsByTimeRange', () => {
       new Date('2026-01-02')
     )
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 })

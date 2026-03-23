@@ -18,7 +18,7 @@ describe('getEventCategorySummaries', () => {
     ])
     const result = await getEventCategorySummaries(pool, start, end)
     expect(result.isOk()).toBe(true)
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     expect(rows).toHaveLength(2)
     expect(rows[0]!.event_category).toBe('CLICK')
     expect(rows[0]!.count).toBe(42)
@@ -28,7 +28,7 @@ describe('getEventCategorySummaries', () => {
     const pool = makeMockPool([])
     const result = await getEventCategorySummaries(pool, start, end)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 
   it('returns error on db failure', async () => {
@@ -46,14 +46,14 @@ describe('getEventCountsByCategory', () => {
     ])
     const result = await getEventCountsByCategory(pool, 'CLICK', start, end)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(2)
+    expect(result.unwrap()).toHaveLength(2)
   })
 
   it('accepts array of categories', async () => {
     const pool = makeMockPool([{ dom_target: 'form.lead', count: 3 }])
     const result = await getEventCountsByCategory(pool, ['LEAD_FORM', 'LEAD_EMAIL'], start, end)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(1)
+    expect(result.unwrap()).toHaveLength(1)
   })
 })
 
@@ -65,7 +65,7 @@ describe('getPageviewsByPath', () => {
     ])
     const result = await getPageviewsByPath(pool, start, end)
     expect(result.isOk()).toBe(true)
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     expect(rows).toHaveLength(2)
     expect(rows[0]!.path).toBe('/home')
     expect(rows[0]!.views).toBe(100)
@@ -79,7 +79,7 @@ describe('getDailyEventCounts', () => {
     ])
     const result = await getDailyEventCounts(pool, start, end)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(1)
+    expect(result.unwrap()).toHaveLength(1)
   })
 
   it('filters by categories when provided', async () => {
@@ -88,7 +88,7 @@ describe('getDailyEventCounts', () => {
     ])
     const result = await getDailyEventCounts(pool, start, end, ['CLICK'])
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(1)
+    expect(result.unwrap()).toHaveLength(1)
   })
 
   it('returns empty for empty categories array', async () => {
