@@ -192,6 +192,27 @@ describe('.where()', () => {
     await builder.all()
     expect(pool.sql.unsafe).toHaveBeenCalled()
   })
+
+  it('supports WhereClause or conditions', async () => {
+    const pool = makeMockPool([])
+    const registry = setupRegistry()
+    const qb = createQueryBuilder(pool, registry)
+    await qb.query('posts')
+      .whereClause({
+        or: [
+          { field: 'title', operator: 'equals', value: 'Hello' },
+          { field: 'slug', operator: 'equals', value: 'hello' }
+        ]
+      })
+      .all()
+
+    const call = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls[0]
+    const sql = call?.[0] as string
+    const params = call?.[1] as unknown[]
+
+    expect(sql).toContain('(("title" = $1) OR ("slug" = $2))')
+    expect(params).toEqual(['Hello', 'hello'])
+  })
 })
 
 describe('.withDeleted()', () => {

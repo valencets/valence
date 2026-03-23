@@ -6,6 +6,7 @@ import { global } from '../schema/global.js'
 import { field } from '../schema/fields.js'
 import { CmsErrorCode } from '../schema/types.js'
 import { makeMockPool, makeSequentialPool } from './test-helpers.js'
+import { vi } from 'vitest'
 
 function setup (poolReturn: readonly Record<string, string | number | null>[] = []) {
   const pool = makeMockPool(poolReturn)
@@ -123,6 +124,22 @@ describe('api.find()', () => {
     expect(result.isOk()).toBe(true)
     expect(result.unwrap()).toEqual(rows)
   })
+
+  it('applies collection read where clauses during find()', async () => {
+    const rows = [{ id: '1', title: 'Hello', slug: 'hello' }]
+    const { api, pool } = setup(rows)
+    const result = await api.find({
+      collection: 'posts',
+      whereClause: {
+        and: [{ field: 'slug', operator: 'equals', value: 'hello' }]
+      }
+    })
+
+    const call = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(call?.[0]).toContain('"slug" = $1')
+    expect(call?.[1]).toEqual(['hello'])
+    expect(result.isOk()).toBe(true)
+  })
 })
 
 describe('api.findByID()', () => {
@@ -139,6 +156,24 @@ describe('api.findByID()', () => {
     const result = await api.findByID({ collection: 'posts', id: 'missing' })
     expect(result.isOk()).toBe(true)
     expect(result.unwrap()).toBeNull()
+  })
+
+  it('applies collection read where clauses during findByID()', async () => {
+    const row = { id: 'abc', title: 'Found' }
+    const { api, pool } = setup([row])
+    const result = await api.findByID({
+      collection: 'posts',
+      id: 'abc',
+      whereClause: {
+        and: [{ field: 'slug', operator: 'equals', value: 'found' }]
+      }
+    })
+
+    const call = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(call?.[0]).toContain('"id" = $1')
+    expect(call?.[0]).toContain('"slug" = $2')
+    expect(call?.[1]).toEqual(['abc', 'found'])
+    expect(result.isOk()).toBe(true)
   })
 })
 

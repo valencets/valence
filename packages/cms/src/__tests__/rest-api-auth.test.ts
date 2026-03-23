@@ -6,6 +6,7 @@ import { field } from '../schema/fields.js'
 import { makeMockPool, asReq, asRes } from './test-helpers.js'
 import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { WhereClause } from '../db/query-types.js'
 
 vi.mock('../auth/session.js', () => ({
   validateSession: vi.fn()
@@ -21,6 +22,31 @@ function makeMockReq (method: string, url: string, body: string = '', cookie: st
     url,
     headers: {
       'content-type': 'application/json',
+      ...(cookie ? { cookie } : {})
+    },
+    on: vi.fn((event: string, cb: (data?: Buffer) => void) => {
+      if (event === 'data' && body) cb(Buffer.from(body))
+      if (event === 'end') cb()
+      return req
+    }),
+    removeAllListeners: vi.fn(() => req)
+  }
+  return asReq(req)
+}
+
+function makeMockReqWithHeaders (
+  method: string,
+  url: string,
+  headers: Record<string, string>,
+  body: string = '',
+  cookie: string = ''
+): IncomingMessage {
+  const req: MockIncomingMessage = {
+    method,
+    url,
+    headers: {
+      'content-type': 'application/json',
+      ...headers,
       ...(cookie ? { cookie } : {})
     },
     on: vi.fn((event: string, cb: (data?: Buffer) => void) => {
@@ -59,10 +85,10 @@ function setupNoAccess (poolReturn: readonly Record<string, string | number | nu
 
 function setupWithAccess (
   accessConfig: {
-    readonly create?: ((args: { readonly req?: { readonly headers: Record<string, string> } }) => boolean) | undefined
-    readonly read?: ((args: { readonly req?: { readonly headers: Record<string, string> } }) => boolean) | undefined
-    readonly update?: ((args: { readonly req?: { readonly headers: Record<string, string> } }) => boolean) | undefined
-    readonly delete?: ((args: { readonly req?: { readonly headers: Record<string, string> } }) => boolean) | undefined
+    readonly create?: ((args: { readonly req?: { readonly headers: Record<string, string> } }) => boolean | WhereClause) | undefined
+    readonly read?: ((args: { readonly req?: { readonly headers: Record<string, string> } }) => boolean | WhereClause) | undefined
+    readonly update?: ((args: { readonly req?: { readonly headers: Record<string, string> } }) => boolean | WhereClause) | undefined
+    readonly delete?: ((args: { readonly req?: { readonly headers: Record<string, string> } }) => boolean | WhereClause) | undefined
   },
   poolReturn: readonly Record<string, string | number | null>[] = []
 ) {
@@ -253,6 +279,89 @@ describe('REST API Access Control — custom access config', () => {
     const req = makeMockReq('GET', '/api/articles')
     const res = makeMockRes()
     await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
+  })
+
+  it('passes request headers into read access callbacks', async () => {
+    const rows = [{ id: '1', title: 'Admin Visible' }]
+    const { pool, collections, globals } = setupWithAccess(
+      {
+        read: ({ req }) => req?.headers['x-role'] === 'admin'
+      },
+      rows
+    )
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/articles')?.GET
+    expect(handler).toBeDefined()
+
+    const req = makeMockReqWithHeaders('GET', '/api/articles', { 'x-role': 'admin' })
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
+  })
+
+  it('applies read access where clauses to list queries', async () => {
+    const rows = [{ id: '1', title: 'Public', published: true }]
+    const pool = makeMockPool(rows)
+    const collections = createCollectionRegistry()
+    const globals = createGlobalRegistry()
+    collections.register(collection({
+      slug: 'articles',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.boolean({ name: 'published' })
+      ],
+      access: {
+        read: () => ({
+          and: [{ field: 'published', operator: 'equals', value: true }]
+        })
+      }
+    }))
+
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/articles')?.GET
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('GET', '/api/articles')
+    const res = makeMockRes()
+    await handler!(req, res, {})
+
+    const firstCall = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(firstCall?.[0]).toContain('"published" = $1')
+    expect(firstCall?.[1]).toEqual([true])
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
+  })
+
+  it('applies read access where clauses to findByID queries', async () => {
+    const rows = [{ id: 'abc', title: 'Public Doc', published: true }]
+    const pool = makeMockPool(rows)
+    const collections = createCollectionRegistry()
+    const globals = createGlobalRegistry()
+    collections.register(collection({
+      slug: 'articles',
+      fields: [
+        field.text({ name: 'title', required: true }),
+        field.boolean({ name: 'published' })
+      ],
+      access: {
+        read: () => ({
+          and: [{ field: 'published', operator: 'equals', value: true }]
+        })
+      }
+    }))
+
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/articles/:id')?.GET
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('GET', '/api/articles/abc')
+    const res = makeMockRes()
+    await handler!(req, res, { id: 'abc' })
+
+    const firstCall = (pool.sql.unsafe as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(firstCall?.[0]).toContain('"id" = $1')
+    expect(firstCall?.[0]).toContain('"published" = $2')
+    expect(firstCall?.[1]).toEqual(['abc', true])
     expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
   })
 
