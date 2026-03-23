@@ -64,8 +64,8 @@ run_step "Contract tests" npx vitest run tests/contracts/
 run_step "Integration tests" npx vitest run tests/integration/
 run_step "Visual regression (Ubuntu parity)" pnpm test:visual:ci
 run_step "Coverage gate" bash -lc 'cd packages/cms && npx vitest run --coverage --coverage.thresholds.statements=75'
-run_step "E2E shard 1/2" pnpm test:e2e --grep-invert Visual --shard=1/2
-run_step "E2E shard 2/2" pnpm test:e2e --grep-invert Visual --shard=2/2
+run_step "E2E shard 1/2" env PLAYWRIGHT_OUTPUT_DIR=/tmp/valence-e2e-shard-1 PLAYWRIGHT_REPORT_DIR=/tmp/valence-playwright-report-shard-1 pnpm test:e2e --grep-invert Visual --shard=1/2
+run_step "E2E shard 2/2" env PLAYWRIGHT_OUTPUT_DIR=/tmp/valence-e2e-shard-2 PLAYWRIGHT_REPORT_DIR=/tmp/valence-playwright-report-shard-2 pnpm test:e2e --grep-invert Visual --shard=2/2
 
 echo ""
 echo "==> Lighthouse"
