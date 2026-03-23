@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { fromThrowable } from 'neverthrow'
+import { fromThrowable } from '@valencets/resultkit'
 
 const stylesDir = resolve(dirname(fileURLToPath(import.meta.url)), 'styles')
 

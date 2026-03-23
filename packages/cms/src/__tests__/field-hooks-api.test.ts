@@ -78,7 +78,7 @@ describe('Local API field hooks integration', () => {
     const api = createLocalApi(pool, collections, globals)
     const result = await api.find({ collection: 'posts' })
     expect(result.isOk()).toBe(true)
-    const docs = result._unsafeUnwrap()
+    const docs = result.unwrap()
     expect(Array.isArray(docs)).toBe(true)
     if (Array.isArray(docs)) {
       expect(docs[0]?.title).toBe('HELLO')
@@ -106,7 +106,7 @@ describe('Local API field hooks integration', () => {
     const api = createLocalApi(pool, collections, globals)
     const result = await api.findByID({ collection: 'posts', id: 'abc' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()?.title).toBe('FOUND')
+    expect(result.unwrap()?.title).toBe('FOUND')
   })
 
   it('field hooks do not fire for fields without hooks', async () => {

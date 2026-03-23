@@ -1,4 +1,4 @@
-import { fromThrowable } from 'neverthrow'
+import { fromThrowable } from '@valencets/resultkit'
 import type { FieldConfig } from '../schema/field-types.js'
 import { escapeHtml } from './escape.js'
 

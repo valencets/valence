@@ -67,7 +67,7 @@ describe('create transaction', () => {
 
     const result = await api.create({ collection: 'posts', data: { title: 'New', slug: 'new' } })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ id: '1', title: 'New', slug: 'new' })
+    expect(result.unwrap()).toEqual({ id: '1', title: 'New', slug: 'new' })
     expect(calls).toEqual(['begin', 'commit'])
   })
 
@@ -95,7 +95,7 @@ describe('create transaction', () => {
     const result = await api.create({ collection: 'posts', data: { title: 'New', slug: 'new' } })
 
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('afterChange hook failed')
+    expect(result.unwrapErr().message).toContain('afterChange hook failed')
     // Transaction started but never committed (rollback on throw)
     expect(calls).toEqual(['begin'])
   })
@@ -122,7 +122,7 @@ describe('create transaction', () => {
     const result = await api.create({ collection: 'posts', data: { title: 'New', slug: 'new' } })
 
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('beforeChange hook failed')
+    expect(result.unwrapErr().message).toContain('beforeChange hook failed')
     expect(calls).toEqual(['begin'])
   })
 })
@@ -135,7 +135,7 @@ describe('update transaction', () => {
 
     const result = await api.update({ collection: 'posts', id: '1', data: { title: 'Updated' } })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ id: '1', title: 'Updated', slug: 'updated' })
+    expect(result.unwrap()).toEqual({ id: '1', title: 'Updated', slug: 'updated' })
     expect(calls).toEqual(['begin', 'commit'])
   })
 
@@ -161,7 +161,7 @@ describe('update transaction', () => {
     const result = await api.update({ collection: 'posts', id: '1', data: { title: 'Updated' } })
 
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('update afterChange failed')
+    expect(result.unwrapErr().message).toContain('update afterChange failed')
     expect(calls).toEqual(['begin'])
   })
 })
@@ -175,7 +175,7 @@ describe('delete transaction', () => {
 
     const result = await api.delete({ collection: 'posts', id: '1' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(deleted)
+    expect(result.unwrap()).toEqual(deleted)
     expect(calls).toEqual(['begin', 'commit'])
   })
 
@@ -199,7 +199,7 @@ describe('delete transaction', () => {
     const result = await api.delete({ collection: 'posts', id: '1' })
 
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('afterDelete hook failed')
+    expect(result.unwrapErr().message).toContain('afterDelete hook failed')
     expect(calls).toEqual(['begin'])
   })
 
@@ -222,7 +222,7 @@ describe('delete transaction', () => {
     const result = await api.delete({ collection: 'posts', id: '1' })
 
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('beforeDelete blocked')
+    expect(result.unwrapErr().message).toContain('beforeDelete blocked')
     // beforeDelete runs before the transaction, so begin should not be called
     expect(begin).not.toHaveBeenCalled()
   })
@@ -237,6 +237,6 @@ describe('transaction error mapping', () => {
     // Unknown collection triggers NOT_FOUND before transaction
     const result = await api.create({ collection: 'unknown', data: { title: 'x' } })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
   })
 })

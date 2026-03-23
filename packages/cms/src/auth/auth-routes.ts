@@ -1,4 +1,4 @@
-import type { ResultAsync } from 'neverthrow'
+import type { ResultAsync } from '@valencets/resultkit'
 import type { CmsError } from '../schema/types.js'
 import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry } from '../schema/registry.js'

@@ -4,7 +4,7 @@
 import { copyFileSync, mkdirSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { fromThrowable } from 'neverthrow'
+import { fromThrowable } from '@valencets/resultkit'
 
 const safeMkdir = fromThrowable(
   (dir: string) => mkdirSync(dir, { recursive: true }),

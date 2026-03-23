@@ -32,14 +32,14 @@ describe('api.find()', () => {
     const { api } = setup(rows)
     const result = await api.find({ collection: 'posts' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(rows)
+    expect(result.unwrap()).toEqual(rows)
   })
 
   it('returns Err NOT_FOUND for unknown collection', async () => {
     const { api } = setup()
     const result = await api.find({ collection: 'nope' })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
   })
 
   it('returns Ok with rows when orderBy is provided', async () => {
@@ -47,7 +47,7 @@ describe('api.find()', () => {
     const { api } = setup(rows)
     const result = await api.find({ collection: 'posts', orderBy: { field: 'title', direction: 'asc' } })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(rows)
+    expect(result.unwrap()).toEqual(rows)
   })
 
   it('returns PaginatedResult when page and perPage are provided', async () => {
@@ -66,7 +66,7 @@ describe('api.find()', () => {
     const api = createLocalApi(pool, collections, globals)
     const result = await api.find({ collection: 'posts', page: 1, perPage: 2 })
     expect(result.isOk()).toBe(true)
-    const paginated = result._unsafeUnwrap()
+    const paginated = result.unwrap()
     expect('docs' in paginated).toBe(true)
     if ('docs' in paginated) {
       expect(paginated.docs).toEqual(docs)
@@ -83,7 +83,7 @@ describe('api.find()', () => {
     const { api } = setup(rows)
     const result = await api.find({ collection: 'posts', search: 'hello' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(rows)
+    expect(result.unwrap()).toEqual(rows)
   })
 
   it('combines search + where + pagination', async () => {
@@ -108,7 +108,7 @@ describe('api.find()', () => {
       perPage: 1
     })
     expect(result.isOk()).toBe(true)
-    const paginated = result._unsafeUnwrap()
+    const paginated = result.unwrap()
     expect('docs' in paginated).toBe(true)
     if ('docs' in paginated) {
       expect(paginated.docs).toEqual(docs)
@@ -121,7 +121,7 @@ describe('api.find()', () => {
     const { api } = setup(rows)
     const result = await api.find({ collection: 'posts', limit: 5 })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(rows)
+    expect(result.unwrap()).toEqual(rows)
   })
 })
 
@@ -131,14 +131,14 @@ describe('api.findByID()', () => {
     const { api } = setup([row])
     const result = await api.findByID({ collection: 'posts', id: 'abc' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(row)
+    expect(result.unwrap()).toEqual(row)
   })
 
   it('returns Ok(null) when not found', async () => {
     const { api } = setup([])
     const result = await api.findByID({ collection: 'posts', id: 'missing' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBeNull()
+    expect(result.unwrap()).toBeNull()
   })
 })
 
@@ -148,7 +148,7 @@ describe('api.create()', () => {
     const { api } = setup([inserted])
     const result = await api.create({ collection: 'posts', data: { title: 'New', slug: 'new' } })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(inserted)
+    expect(result.unwrap()).toEqual(inserted)
   })
 })
 
@@ -158,7 +158,7 @@ describe('api.update()', () => {
     const { api } = setup([updated])
     const result = await api.update({ collection: 'posts', id: 'abc', data: { title: 'Updated' } })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(updated)
+    expect(result.unwrap()).toEqual(updated)
   })
 })
 
@@ -168,7 +168,7 @@ describe('api.delete()', () => {
     const { api } = setup([deleted])
     const result = await api.delete({ collection: 'posts', id: 'abc' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(deleted)
+    expect(result.unwrap()).toEqual(deleted)
   })
 })
 
@@ -177,7 +177,7 @@ describe('api.count()', () => {
     const { api } = setup([{ count: '42' }])
     const result = await api.count({ collection: 'posts' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(42)
+    expect(result.unwrap()).toBe(42)
   })
 })
 
@@ -187,14 +187,14 @@ describe('api.findGlobal()', () => {
     const { api } = setup([row])
     const result = await api.findGlobal({ slug: 'site-settings' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(row)
+    expect(result.unwrap()).toEqual(row)
   })
 
   it('returns Err NOT_FOUND for unknown global', async () => {
     const { api } = setup()
     const result = await api.findGlobal({ slug: 'nope' })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
   })
 })
 
@@ -204,6 +204,6 @@ describe('api.updateGlobal()', () => {
     const { api } = setup([updated])
     const result = await api.updateGlobal({ slug: 'site-settings', data: { siteName: 'Updated Site' } })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(updated)
+    expect(result.unwrap()).toEqual(updated)
   })
 })

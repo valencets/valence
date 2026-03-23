@@ -6,7 +6,7 @@ import { field } from '../schema/fields.js'
 import { makeMockPool, makeErrorPool, makeSequentialPool, asReq, asRes } from './test-helpers.js'
 import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { okAsync } from 'neverthrow'
+import { okAsync } from '@valencets/resultkit'
 
 vi.mock('../auth/session.js', () => ({
   validateSession: vi.fn()

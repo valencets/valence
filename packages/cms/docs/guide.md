@@ -303,7 +303,7 @@ server.listen(3000)
 The local API is for server-side code that needs direct database access without going through HTTP:
 
 ```typescript
-const cms = buildCms(config)._unsafeUnwrap()
+const cms = buildCms(config).unwrap()
 
 // Create a post
 const createResult = await cms.api.create({

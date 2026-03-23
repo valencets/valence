@@ -5,7 +5,7 @@ import { collection } from '../schema/collection.js'
 import { field } from '../schema/fields.js'
 import { makeMockPool } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { okAsync } from 'neverthrow'
+import { okAsync } from '@valencets/resultkit'
 
 vi.mock('../auth/session.js', () => ({
   validateSession: vi.fn()

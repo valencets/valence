@@ -42,8 +42,8 @@ describe('localization config', () => {
     }
     const result = buildCms(config)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_INPUT')
-    expect(result._unsafeUnwrapErr().message).toContain('defaultLocale')
+    expect(result.unwrapErr().code).toBe('INVALID_INPUT')
+    expect(result.unwrapErr().message).toContain('defaultLocale')
   })
 
   it('rejects when locales array is empty', () => {
@@ -60,7 +60,7 @@ describe('localization config', () => {
     }
     const result = buildCms(config)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INVALID_INPUT')
+    expect(result.unwrapErr().code).toBe('INVALID_INPUT')
   })
 
   it('works without localization config (optional)', () => {

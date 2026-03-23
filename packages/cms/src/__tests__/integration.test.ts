@@ -70,7 +70,7 @@ describe('CMS integration: schema → migration → validation → query → adm
       globals: [global({ slug: 'site-settings', fields: [field.text({ name: 'siteName' })] })]
     })
     expect(result.isOk()).toBe(true)
-    const cms = result._unsafeUnwrap()
+    const cms = result.unwrap()
 
     expect(cms.collections.has('pages')).toBe(true)
     expect(cms.globals.has('site-settings')).toBe(true)
@@ -85,11 +85,11 @@ describe('CMS integration: schema → migration → validation → query → adm
     const insertedRow = { id: 'page-1', title: 'Home', slug: 'home', published: 'true' }
     const pool = makeMockPool([insertedRow])
     const result = buildCms({ db: pool, secret: 'test', collections: [pages] })
-    const cms = result._unsafeUnwrap()
+    const cms = result.unwrap()
 
     const createResult = await cms.api.create({ collection: 'pages', data: { title: 'Home', slug: 'home' } })
     expect(createResult.isOk()).toBe(true)
-    expect(createResult._unsafeUnwrap()).toEqual(insertedRow)
+    expect(createResult.unwrap()).toEqual(insertedRow)
 
     const findResult = await cms.api.findByID({ collection: 'pages', id: 'page-1' })
     expect(findResult.isOk()).toBe(true)
@@ -127,8 +127,8 @@ describe('CMS integration: schema → migration → validation → query → adm
     const pool = makeMockPool()
     const result = buildCms({ db: pool, secret: 'test', collections: [users] })
     expect(result.isOk()).toBe(true)
-    const cms = result._unsafeUnwrap()
-    const userConfig = cms.collections.get('users')._unsafeUnwrap()
+    const cms = result.unwrap()
+    const userConfig = cms.collections.get('users').unwrap()
     const fieldNames = userConfig.fields.map(f => f.name)
     expect(fieldNames).toContain('name')
     expect(fieldNames).toContain('email')

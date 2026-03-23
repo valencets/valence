@@ -1,5 +1,5 @@
-import { errAsync, okAsync } from 'neverthrow'
-import type { ResultAsync } from 'neverthrow'
+import { errAsync, okAsync } from '@valencets/resultkit'
+import type { ResultAsync } from '@valencets/resultkit'
 import type { DbPool } from '@valencets/db'
 import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'

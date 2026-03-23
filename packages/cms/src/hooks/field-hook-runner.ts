@@ -1,5 +1,5 @@
-import { okAsync } from 'neverthrow'
-import type { ResultAsync } from 'neverthrow'
+import { okAsync } from '@valencets/resultkit'
+import type { ResultAsync } from '@valencets/resultkit'
 import type { CmsError } from '../schema/types.js'
 import type { HookData } from './hook-types.js'
 import type { FieldConfig } from '../schema/field-types.js'

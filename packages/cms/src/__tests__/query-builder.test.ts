@@ -79,7 +79,7 @@ describe('.all()', () => {
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('posts').all()
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(rows)
+    expect(result.unwrap()).toEqual(rows)
   })
 
   it('returns Err on db failure', async () => {
@@ -88,7 +88,7 @@ describe('.all()', () => {
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('posts').all()
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.INTERNAL)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.INTERNAL)
   })
 })
 
@@ -100,7 +100,7 @@ describe('.first()', () => {
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('posts').first()
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ id: '1', title: 'Hello' })
+    expect(result.unwrap()).toEqual({ id: '1', title: 'Hello' })
   })
 
   it('returns Ok(null) when no rows', async () => {
@@ -109,7 +109,7 @@ describe('.first()', () => {
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('posts').first()
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBeNull()
+    expect(result.unwrap()).toBeNull()
   })
 })
 
@@ -120,7 +120,7 @@ describe('.count()', () => {
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('posts').count()
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(42)
+    expect(result.unwrap()).toBe(42)
   })
 })
 
@@ -132,7 +132,7 @@ describe('.insert()', () => {
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('posts').insert({ title: 'New Post', slug: 'new-post' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(inserted)
+    expect(result.unwrap()).toEqual(inserted)
   })
 
   it('returns Err on db failure', async () => {
@@ -154,7 +154,7 @@ describe('.update()', () => {
       .where('id', 'equals', 'abc-123')
       .update({ title: 'Updated' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(updated)
+    expect(result.unwrap()).toEqual(updated)
   })
 })
 
@@ -168,7 +168,7 @@ describe('.delete()', () => {
       .where('id', 'equals', 'abc-123')
       .delete()
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(deleted)
+    expect(result.unwrap()).toEqual(deleted)
   })
 })
 
@@ -224,7 +224,7 @@ describe('.page()', () => {
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('posts').page(1, 10)
     expect(result.isOk()).toBe(true)
-    const paginated = result._unsafeUnwrap()
+    const paginated = result.unwrap()
     expect(paginated.page).toBe(1)
     expect(paginated.limit).toBe(10)
     expect(paginated.totalDocs).toBe(25)
@@ -241,6 +241,6 @@ describe('unknown collection', () => {
     const qb = createQueryBuilder(pool, registry)
     const result = await qb.query('nonexistent').all()
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
   })
 })

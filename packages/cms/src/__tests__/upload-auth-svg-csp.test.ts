@@ -64,7 +64,7 @@ describe('upload endpoint auth (API-01)', () => {
       ],
       uploadDir: '/tmp/uploads'
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     const uploadRoute = cms.restRoutes.get('/media/upload')
     expect(uploadRoute).toBeDefined()
     expect(uploadRoute!.POST).toBeDefined()
@@ -97,7 +97,7 @@ describe('upload endpoint auth (API-01)', () => {
       ],
       uploadDir: '/tmp/uploads'
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     const uploadRoute = cms.restRoutes.get('/media/upload')
 
     const req = {
@@ -123,7 +123,7 @@ describe('upload endpoint auth (API-01)', () => {
       ],
       uploadDir: '/tmp/uploads'
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     const serveRoute = cms.restRoutes.get('/media/:filename')
     expect(serveRoute).toBeDefined()
     expect(serveRoute!.GET).toBeDefined()
@@ -262,7 +262,7 @@ describe('logout cookie Secure flag (NEW-08)', () => {
         collection({ slug: 'users', auth: true, fields: [field.text({ name: 'name' })] })
       ]
     }
-    const cms = buildCms(config)._unsafeUnwrap()
+    const cms = buildCms(config).unwrap()
     const logoutRoute = cms.adminRoutes.get('/admin/logout')
     expect(logoutRoute).toBeDefined()
 

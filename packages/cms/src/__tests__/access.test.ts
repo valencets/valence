@@ -48,14 +48,14 @@ describe('resolveAccess()', () => {
     const fn: AccessControlFunction = () => true
     const result = await resolveAccess(fn, {})
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(true)
+    expect(result.unwrap()).toBe(true)
   })
 
   it('returns Ok(false) when access returns false', async () => {
     const fn: AccessControlFunction = () => false
     const result = await resolveAccess(fn, {})
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(false)
+    expect(result.unwrap()).toBe(false)
   })
 
   it('returns Ok(WhereClause) when access returns a where clause', async () => {
@@ -65,7 +65,7 @@ describe('resolveAccess()', () => {
     const fn: AccessControlFunction = () => where
     const result = await resolveAccess(fn, {})
     expect(result.isOk()).toBe(true)
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(typeof resolved).toBe('object')
     expect((resolved as WhereClause).and).toHaveLength(1)
   })
@@ -74,12 +74,12 @@ describe('resolveAccess()', () => {
     const fn: AccessControlFunction = () => { throw new Error('access error') }
     const result = await resolveAccess(fn, {})
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('access error')
+    expect(result.unwrapErr().message).toContain('access error')
   })
 
   it('returns Ok(true) when no access function provided', async () => {
     const result = await resolveAccess(undefined, {})
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(true)
+    expect(result.unwrap()).toBe(true)
   })
 })

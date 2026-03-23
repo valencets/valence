@@ -80,12 +80,12 @@ function setupWithAccess (
 }
 
 function mockValidSession (userId: string = 'user-1'): void {
-  const { okAsync } = require('neverthrow') as typeof import('neverthrow')
+  const { okAsync } = require('@valencets/resultkit') as typeof import('@valencets/resultkit')
   mockedValidateSession.mockReturnValue(okAsync(userId))
 }
 
 function mockInvalidSession (): void {
-  const { errAsync } = require('neverthrow') as typeof import('neverthrow')
+  const { errAsync } = require('@valencets/resultkit') as typeof import('@valencets/resultkit')
   mockedValidateSession.mockReturnValue(errAsync({
     code: 'NOT_FOUND' as const,
     message: 'Session not found or expired'
