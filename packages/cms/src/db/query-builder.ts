@@ -246,10 +246,9 @@ function createBuilder (
     const operator: WhereOperator = hasOperator ? operatorOrValue as WhereOperator : 'equals'
     const value: SqlValue = hasOperator ? maybeValue : operatorOrValue as SqlValue
     const existingGroups = ensureWhereGroups()
-    const [firstGroup, ...restGroups] = existingGroups
     return createBuilder(pool, registry, {
       ...state,
-      whereGroups: [[...(firstGroup ?? []), { field: fieldOrName, operator, value }], ...restGroups]
+      whereGroups: existingGroups.map(group => [...group, { field: fieldOrName, operator, value }])
     })
   }
 
