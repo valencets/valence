@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { DbErrorCode } from '../types.js'
-import type { DbError, DbConfig } from '../types.js'
+import type { DbError, DbConfig, DbSslMode } from '../types.js'
 
 describe('DbErrorCode', () => {
   it('has CONNECTION_FAILED code', () => {
@@ -62,10 +62,35 @@ describe('type construction', () => {
       password: 'secret',
       max: 10,
       idle_timeout: 30,
-      connect_timeout: 5
+      connect_timeout: 5,
+      sslmode: 'disable'
     }
     expect(config.port).toBe(5432)
     expect(config.max).toBe(10)
+  })
+
+  it('DbConfig can express verified SSL settings', () => {
+    const config: DbConfig = {
+      host: 'db.internal',
+      port: 5432,
+      database: 'mydb',
+      username: 'app',
+      password: 'secret',
+      max: 10,
+      idle_timeout: 30,
+      connect_timeout: 5,
+      sslmode: 'verify-full',
+      sslrootcert: '-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----'
+    }
+    expect(config.sslmode).toBe('verify-full')
+    expect(config.sslrootcert).toContain('BEGIN CERTIFICATE')
+  })
+})
+
+describe('DbSslMode', () => {
+  it('supports the audited SSL mode subset', () => {
+    const modes: DbSslMode[] = ['disable', 'require', 'verify-ca', 'verify-full']
+    expect(modes).toEqual(['disable', 'require', 'verify-ca', 'verify-full'])
   })
 })
 

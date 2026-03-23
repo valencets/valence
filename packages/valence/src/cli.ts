@@ -110,7 +110,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
   const projectName = useDefaults ? (nonFlagArgs[0] ?? 'my-valence-app') : await ask(rl!, 'Project name', nonFlagArgs[0] ?? 'my-valence-app')
   const dbName = useDefaults ? projectName.replace(/[^a-z0-9_]/g, '_') : await ask(rl!, 'Database name', projectName.replace(/[^a-z0-9_]/g, '_'))
   const dbUser = useDefaults ? 'postgres' : await ask(rl!, 'Database user', 'postgres')
-  const dbPassword = useDefaults ? '' : await ask(rl!, 'Database password', '')
+  const dbPassword = useDefaults ? 'postgres' : await ask(rl!, 'Database password', 'postgres')
   const serverPort = useDefaults ? '3000' : await ask(rl!, 'Server port', '3000')
 
   if (!useDefaults) {
@@ -204,7 +204,15 @@ PORT=${serverPort}
 CMS_SECRET=${generateSecret()}
 `
   await writeFile(join(dir, '.env'), envContent)
-  await writeFile(join(dir, '.env.example'), envContent.replace(dbPassword, '').replace(/CMS_SECRET=.*/, 'CMS_SECRET=change-me'))
+  const envExampleContent = `DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=${dbName}
+DB_USER=${dbUser}
+DB_PASSWORD=
+PORT=${serverPort}
+CMS_SECRET=change-me
+`
+  await writeFile(join(dir, '.env.example'), envExampleContent)
 
   const gitignoreLines = ['node_modules/', 'dist/', '.env', 'uploads/', '*.log']
   if (learnMode) gitignoreLines.push('.valence/')

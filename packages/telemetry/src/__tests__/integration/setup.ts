@@ -9,6 +9,10 @@ import type { DbPool } from '@valencets/db'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const MIGRATIONS_DIR = join(__dirname, '..', '..', '..', 'migrations')
 const TEST_DB = 'telemetry_test'
+const TEST_PG_HOST = process.env.PGHOST ?? 'localhost'
+const TEST_PG_PORT = Number(process.env.PGPORT ?? '55432')
+const TEST_PG_USER = process.env.PGUSER ?? 'postgres'
+const TEST_PG_PASSWORD = process.env.PGPASSWORD ?? 'postgres'
 
 let appPool: DbPool | undefined
 let superuserPool: DbPool | undefined
@@ -16,7 +20,10 @@ let setupPromise: Promise<void> | undefined
 let refCount = 0
 
 function isPostgresRunning (): boolean {
-  const result = execSync('pg_isready 2>&1 || true', { encoding: 'utf-8' })
+  const result = execSync(
+    `pg_isready -h "${TEST_PG_HOST}" -p "${TEST_PG_PORT}" -U "${TEST_PG_USER}" 2>&1 || true`,
+    { encoding: 'utf-8' }
+  )
   return result.includes('accepting connections')
 }
 
@@ -36,6 +43,10 @@ async function doSetup (): Promise<void> {
   }
 
   const adminSql = postgres({
+    host: TEST_PG_HOST,
+    port: TEST_PG_PORT,
+    username: TEST_PG_USER,
+    password: TEST_PG_PASSWORD,
     database: 'postgres',
     max: 2
   })
@@ -57,11 +68,11 @@ async function doSetup (): Promise<void> {
   await adminSql.end()
 
   superuserPool = createPool({
-    host: 'localhost',
-    port: 5432,
+    host: TEST_PG_HOST,
+    port: TEST_PG_PORT,
     database: TEST_DB,
-    username: '',
-    password: '',
+    username: TEST_PG_USER,
+    password: TEST_PG_PASSWORD,
     max: 5,
     idle_timeout: 10,
     connect_timeout: 5
@@ -102,6 +113,10 @@ export async function teardownTestDatabase (): Promise<void> {
   }
 
   const adminSql = postgres({
+    host: TEST_PG_HOST,
+    port: TEST_PG_PORT,
+    username: TEST_PG_USER,
+    password: TEST_PG_PASSWORD,
     database: 'postgres',
     max: 2
   })

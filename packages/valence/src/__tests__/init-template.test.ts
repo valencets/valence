@@ -52,6 +52,24 @@ describe('init template collections', () => {
     expect(config).toContain('auth: true')
   })
 
+  it('valence.config.ts includes db ssl config hooks', async () => {
+    await run(['init', 'test-app', '-y'])
+    const config = getWrittenFile('valence.config.ts')
+    expect(config).toContain("password: process.env.DB_PASSWORD ?? 'postgres'")
+    expect(config).toContain("process.env.DB_SSLMODE === 'disable'")
+    expect(config).toContain('sslrootcert: process.env.DB_SSLROOTCERT')
+  })
+
+  it('scaffolded valence.config.ts typechecks with defineConfig sslmode literals', async () => {
+    await run(['init', 'test-app', '-y'])
+    const config = getWrittenFile('valence.config.ts')
+
+    expect(config).toContain("process.env.DB_SSLMODE === 'require'")
+    expect(config).toContain("process.env.DB_SSLMODE === 'verify-ca'")
+    expect(config).toContain("process.env.DB_SSLMODE === 'verify-full'")
+    expect(config).not.toContain('sslmode: process.env.DB_SSLMODE,')
+  })
+
   it('valence.config.ts does NOT include categories, pages, or tags', async () => {
     await run(['init', 'test-app', '-y'])
     const config = getWrittenFile('valence.config.ts')
@@ -123,6 +141,16 @@ describe('init migration SQL', () => {
     await run(['init', 'test-app', '-y'])
     const sql = getWrittenFile('001-init.sql')
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS "document_revisions"')
+  })
+
+  it('.env and .env.example handle db password and secrets explicitly', async () => {
+    await run(['init', 'test-app', '-y'])
+    const env = getWrittenFile('.env')
+    const envExample = getWrittenFile('.env.example')
+    expect(env).toContain('DB_PASSWORD=postgres')
+    expect(envExample).toContain('DB_PASSWORD=')
+    expect(envExample).not.toContain('DB_PASSWORD=postgres')
+    expect(envExample).toContain('CMS_SECRET=change-me')
   })
 })
 

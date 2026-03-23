@@ -32,6 +32,12 @@ export interface DbConfig {
     readonly port: number;
     // (undocumented)
     readonly query_timeout?: number | undefined;
+    // Warning: (ae-forgotten-export) The symbol "DbSslMode" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    readonly sslmode?: DbSslMode | undefined;
+    // (undocumented)
+    readonly sslrootcert?: string | undefined;
     // (undocumented)
     readonly username: string;
 }

@@ -1,10 +1,11 @@
 import postgres from 'postgres'
 import type { Sql } from 'postgres'
+import { checkServerIdentity } from 'node:tls'
 import { ok, err, ResultAsync } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 import { z } from 'zod'
 import { DbErrorCode } from './types.js'
-import type { DbConfig, DbError } from './types.js'
+import type { DbConfig, DbError, DbSslMode } from './types.js'
 
 export interface DbPool {
   readonly sql: Sql
@@ -19,7 +20,17 @@ const dbConfigSchema = z.object({
   max: z.number().int().min(1).max(100),
   idle_timeout: z.number().min(0).max(3_600_000),
   connect_timeout: z.number().min(0).max(60_000),
-  query_timeout: z.number().min(0).max(600_000).optional()
+  query_timeout: z.number().min(0).max(600_000).optional(),
+  sslmode: z.enum(['disable', 'require', 'verify-ca', 'verify-full']).optional(),
+  sslrootcert: z.string().min(1).optional()
+}).superRefine((config, ctx) => {
+  if ((config.sslmode === 'verify-ca' || config.sslmode === 'verify-full') && config.sslrootcert === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['sslrootcert'],
+      message: `sslrootcert is required when sslmode is ${config.sslmode}`
+    })
+  }
 })
 
 export function validateDbConfig (config: unknown): Result<DbConfig, DbError> {
@@ -40,6 +51,7 @@ export function validateDbConfig (config: unknown): Result<DbConfig, DbError> {
 }
 
 export function createPool (config: DbConfig): DbPool {
+  const sslmode = config.sslmode ?? 'disable'
   const base = {
     host: config.host,
     port: config.port,
@@ -52,9 +64,11 @@ export function createPool (config: DbConfig): DbPool {
     onnotice: () => {}
   }
 
+  const ssl = createSslConfig(sslmode, config.sslrootcert)
+
   const sql = config.query_timeout !== undefined
-    ? postgres({ ...base, connection: { statement_timeout: config.query_timeout } })
-    : postgres(base)
+    ? postgres({ ...base, ssl, connection: { statement_timeout: config.query_timeout } })
+    : postgres({ ...base, ssl })
 
   return { sql }
 }
@@ -99,4 +113,32 @@ export function mapPostgresError (e: unknown): DbError {
     code: DbErrorCode.QUERY_FAILED,
     message: e instanceof Error ? e.message : 'Unknown database error'
   }
+}
+
+const VERIFY_CA_CHECK_SERVER_IDENTITY = () => undefined
+
+function createSslConfig (sslmode: DbSslMode, sslrootcert?: string): false | 'require' | {
+  readonly ca: string
+  readonly rejectUnauthorized: true
+  readonly checkServerIdentity?: typeof checkServerIdentity | (() => undefined)
+} {
+  const sslConfigByMode = {
+    disable: false,
+    require: 'require',
+    'verify-ca': {
+      ca: sslrootcert ?? '',
+      rejectUnauthorized: true as const,
+      checkServerIdentity: VERIFY_CA_CHECK_SERVER_IDENTITY
+    },
+    'verify-full': {
+      ca: sslrootcert ?? '',
+      rejectUnauthorized: true as const
+    }
+  } satisfies Record<DbSslMode, false | 'require' | {
+    readonly ca: string
+    readonly rejectUnauthorized: true
+    readonly checkServerIdentity?: typeof checkServerIdentity | (() => undefined)
+  }>
+
+  return sslConfigByMode[sslmode]
 }

@@ -1,8 +1,7 @@
-import { execSync } from 'node:child_process'
-import postgres from 'postgres'
 import { createPool, closePool, loadMigrations, runMigrations } from '@valencets/db'
 import type { DbPool } from '@valencets/db'
 import { beforeAll, afterAll } from 'vitest'
+import { createAdminSql, getTestDbConfig, isTestPostgresRunning } from './db-helpers.js'
 
 const TEST_DB = 'valence_integration_test'
 const CMS_MIGRATIONS_DIR = new URL('../../packages/cms/migrations', import.meta.url).pathname
@@ -12,8 +11,7 @@ let pool: DbPool | undefined
 let setupDone = false
 
 function isPostgresRunning (): boolean {
-  const result = execSync('pg_isready 2>&1 || true', { encoding: 'utf-8' })
-  return result.includes('accepting connections')
+  return isTestPostgresRunning()
 }
 
 async function createTestDatabase (): Promise<void> {
@@ -24,7 +22,7 @@ async function createTestDatabase (): Promise<void> {
     )
   }
 
-  const adminSql = postgres({ database: 'postgres', max: 2 })
+  const adminSql = createAdminSql()
 
   const existing = await adminSql`
     SELECT 1 FROM pg_database WHERE datname = ${TEST_DB}
@@ -45,14 +43,8 @@ async function createTestDatabase (): Promise<void> {
 
 async function migrateTestDatabase (): Promise<void> {
   pool = createPool({
-    host: 'localhost',
-    port: 5432,
-    database: TEST_DB,
-    username: '',
-    password: '',
-    max: 10,
-    idle_timeout: 10,
-    connect_timeout: 5
+    ...getTestDbConfig(TEST_DB),
+    max: 10
   })
 
   // Run CMS migrations
@@ -85,7 +77,7 @@ async function teardownTestDatabase (): Promise<void> {
     pool = undefined
   }
 
-  const adminSql = postgres({ database: 'postgres', max: 2 })
+  const adminSql = createAdminSql()
   await adminSql`
     SELECT pg_terminate_backend(pid)
     FROM pg_stat_activity

@@ -10,6 +10,12 @@ export function generateConfigTemplate (opts: ConfigTemplateOptions): string {
   const { dbName, dbUser, dbPassword, serverPort, learnMode } = opts
 
   const learnComment = (text: string) => learnMode ? `// ${text}\n    ` : ''
+  const dbSslModeExpression = `process.env.DB_SSLMODE === 'disable' ||
+    process.env.DB_SSLMODE === 'require' ||
+    process.env.DB_SSLMODE === 'verify-ca' ||
+    process.env.DB_SSLMODE === 'verify-full'
+      ? process.env.DB_SSLMODE
+      : undefined`
 
   const tagsCollection = learnMode
     ? `,
@@ -36,7 +42,9 @@ export default defineConfig({
     port: Number(process.env.DB_PORT ?? 5432),
     database: process.env.DB_NAME ?? '${dbName}',
     username: process.env.DB_USER ?? '${dbUser}',
-    password: process.env.DB_PASSWORD ?? '${dbPassword}'
+    password: process.env.DB_PASSWORD ?? '${dbPassword}',
+    sslmode: ${dbSslModeExpression},
+    sslrootcert: process.env.DB_SSLROOTCERT
   },
   server: {
     port: Number(process.env.PORT ?? ${serverPort})

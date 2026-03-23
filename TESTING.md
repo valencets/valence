@@ -175,7 +175,7 @@ Local prerequisites:
 
 - PostgreSQL must be running. `pnpm db:up` is the standard local setup path.
 - Playwright browsers must already be installed
-- `pnpm install` must have been run against the current lockfile
+- `pnpm install` must have been run against the current lockfile so local tools such as `@lhci/cli` are available
 
 This mirrors the main CI workflow locally in CI order:
 
@@ -189,6 +189,8 @@ This mirrors the main CI workflow locally in CI order:
 
 It assumes local PostgreSQL is reachable via `PGHOST`, `PGPORT`, and `PGUSER`. Defaults are `localhost`, `55432`, and `postgres`.
 Treat `pnpm ci:local` as the last gate before `git push` or `gh pr create`. GitHub CI should confirm a local pass, not discover missing manifest or typecheck drift first.
+
+For the two non-visual Playwright shard runs inside `pnpm ci:local`, Playwright output is redirected into `/tmp`. That keeps stale repo-owned `test-results/` and `playwright-report/` directories from breaking the local gate after containerized or root-owned runs.
 
 For repo-standard local database setup:
 
@@ -220,6 +222,8 @@ What `pnpm test:visual:ci` does:
 - runs `pnpm build`
 - runs Playwright inside the matching Ubuntu Playwright container
 - copies refreshed snapshot files back into the main workspace when `--update-snapshots` is used
+
+It also depends on local Docker availability and the repo-installed Lighthouse/Playwright toolchain from `pnpm install`.
 
 This is intentionally not part of `pre-commit`. It is too slow and too dependent on the runner environment. It is part of the pre-PR gate instead.
 

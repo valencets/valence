@@ -28,6 +28,7 @@ describe('defineConfig', () => {
     expect(resolved.db.max).toBe(10)
     expect(resolved.db.idle_timeout).toBe(30)
     expect(resolved.db.connect_timeout).toBe(10)
+    expect(resolved.db.sslmode).toBe('disable')
   })
 
   it('resolved config has server host defaulting to 0.0.0.0', () => {
@@ -101,6 +102,63 @@ describe('defineConfig', () => {
   it('defaults telemetry to undefined when not provided', () => {
     const result = defineConfig(minimalConfig)
     expect(result.unwrap().telemetry).toBeUndefined()
+  })
+
+  it('preserves verified SSL config in resolved db settings', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      db: {
+        ...minimalConfig.db,
+        sslmode: 'verify-full',
+        sslrootcert: '-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----'
+      }
+    })
+    expect(result.isOk()).toBe(true)
+    const resolved = result.unwrap()
+    expect(resolved.db.sslmode).toBe('verify-full')
+    expect(resolved.db.sslrootcert).toContain('BEGIN CERTIFICATE')
+  })
+
+  it('rejects verify-ca without sslrootcert', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      db: {
+        ...minimalConfig.db,
+        sslmode: 'verify-ca'
+      }
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('INVALID_CONFIG')
+    }
+  })
+
+  it('rejects verify-full without sslrootcert', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      db: {
+        ...minimalConfig.db,
+        sslmode: 'verify-full'
+      }
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('INVALID_CONFIG')
+    }
+  })
+
+  it('rejects empty db password', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      db: {
+        ...minimalConfig.db,
+        password: ''
+      }
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('INVALID_CONFIG')
+    }
   })
 })
 

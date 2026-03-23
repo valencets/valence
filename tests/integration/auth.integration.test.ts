@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import supertest from 'supertest'
-import postgres from 'postgres'
 import { createPool, closePool } from '@valencets/db'
 import type { DbPool } from '@valencets/db'
 import { collection, field, hashPassword } from '@valencets/cms'
 import { startTestApp } from './test-app.js'
 import type { TestApp } from './test-app.js'
+import { createAdminSql, getTestDbConfig } from './db-helpers.js'
 
 const TEST_DB = 'valence_auth_integration_test'
 
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS "cms_sessions" (
 `
 
 beforeAll(async () => {
-  const adminSql = postgres({ database: 'postgres', max: 2 })
+  const adminSql = createAdminSql()
 
   const existing = await adminSql`SELECT 1 FROM pg_database WHERE datname = ${TEST_DB}`
   if (existing.length > 0) {
@@ -61,16 +61,7 @@ beforeAll(async () => {
   await adminSql.unsafe(`CREATE DATABASE ${TEST_DB}`)
   await adminSql.end()
 
-  pool = createPool({
-    host: 'localhost',
-    port: 5432,
-    database: TEST_DB,
-    username: '',
-    password: '',
-    max: 5,
-    idle_timeout: 10,
-    connect_timeout: 5
-  })
+  pool = createPool(getTestDbConfig(TEST_DB))
 
   await pool.sql.unsafe(INIT_SQL)
 
@@ -87,7 +78,7 @@ afterAll(async () => {
   await app.close()
   await closePool(pool)
 
-  const adminSql = postgres({ database: 'postgres', max: 2 })
+  const adminSql = createAdminSql()
   await adminSql`
     SELECT pg_terminate_backend(pid)
     FROM pg_stat_activity
