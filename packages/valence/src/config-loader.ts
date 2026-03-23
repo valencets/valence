@@ -65,19 +65,37 @@ export function loadEnvConfig (): DbConfig | null {
     ? (process.env.DB_NAME_DEV ?? (process.env.DB_NAME ? process.env.DB_NAME + '_dev' : undefined))
     : process.env.DB_NAME
   const username = process.env.DB_USER
+  const password = process.env.DB_PASSWORD
+  const sslmode = process.env.DB_SSLMODE
+  const sslrootcert = readSslRootCert()
 
-  if (!host || !database || !username) return null
+  if (!host || !database || !username || !password) return null
 
   return {
     host,
     port: Number(process.env.DB_PORT ?? 5432),
     database,
     username,
-    password: process.env.DB_PASSWORD ?? '',
+    password,
     max: 5,
     idle_timeout: 10,
-    connect_timeout: 10
+    connect_timeout: 10,
+    sslmode: isDbSslMode(sslmode) ? sslmode : undefined,
+    sslrootcert
   }
+}
+
+function isDbSslMode (value: string | undefined): value is DbConfig['sslmode'] {
+  return value === 'disable' || value === 'require' || value === 'verify-ca' || value === 'verify-full'
+}
+
+function readSslRootCert (): string | undefined {
+  const certFile = process.env.DB_SSLROOTCERT_FILE
+  if (certFile) {
+    return readFileSync(certFile, 'utf-8')
+  }
+
+  return process.env.DB_SSLROOTCERT
 }
 
 export async function loadUserConfig (): Promise<UserConfig | null> {
