@@ -230,7 +230,8 @@ export function buildUserRouteMap (
     }
 
     if (route.action !== undefined) {
-      methodMap.set('POST', makeActionHandler(route, projectDir, pool, cms))
+      const actionMethod = (route.method ?? 'POST').toUpperCase()
+      methodMap.set(actionMethod, makeActionHandler(route, projectDir, pool, cms))
     }
   }
 
