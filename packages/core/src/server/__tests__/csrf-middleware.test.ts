@@ -272,4 +272,19 @@ describe('createCsrfMiddleware', () => {
     expect((res as unknown as MockRes).statusCode).toBe(403)
     expect(next).not.toHaveBeenCalled()
   })
+
+  it('fails closed on malformed form-encoded csrf bodies', async () => {
+    const token = 'f'.repeat(64)
+    const req = mockStreamingReq('POST', {
+      cookie: '__val_csrf=' + token,
+      'content-type': 'application/x-www-form-urlencoded'
+    }, ['_csrf=%'])
+    const res = mockRes()
+    const next = vi.fn(async () => {})
+
+    await expect(middleware(req, res, stubCtx(), next)).resolves.toBeUndefined()
+
+    expect((res as unknown as MockRes).statusCode).toBe(403)
+    expect(next).not.toHaveBeenCalled()
+  })
 })
