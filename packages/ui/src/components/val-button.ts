@@ -55,6 +55,8 @@ template.innerHTML = `
     padding: var(--val-space-3) var(--val-space-6);
     font-size: var(--val-text-base);
   }
+  :host([block]) { display: block; width: 100%; }
+  :host([block]) button { width: 100%; display: flex; }
 </style>
 <button type="button" part="button"><slot></slot></button>
 `

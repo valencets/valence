@@ -34,14 +34,14 @@ describe('aggregateSessionSummary', () => {
     const pool = makeMockPool([])
     const result = await aggregateSessionSummary(pool, period)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(DbErrorCode.NO_ROWS)
+    expect(result.unwrapErr().code).toBe(DbErrorCode.NO_ROWS)
   })
 
   it('returns error on database failure', async () => {
     const pool = makeErrorPool(new Error('connection refused'))
     const result = await aggregateSessionSummary(pool, period)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('QUERY_FAILED')
+    expect(result.unwrapErr().code).toBe('QUERY_FAILED')
   })
 })
 

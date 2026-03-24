@@ -1,7 +1,8 @@
 import { readdir, readFile } from 'node:fs/promises'
+import type { Dirent } from 'node:fs'
 import { join } from 'node:path'
-import { ok, err, ResultAsync } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err, ResultAsync } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import { DbErrorCode } from './types.js'
 import type { DbError } from './types.js'
 import type { DbPool } from './connection.js'
@@ -50,31 +51,45 @@ export function validateMigrations (migrations: ReadonlyArray<MigrationFile>): R
 
 export function loadMigrations (directory: string): ResultAsync<ReadonlyArray<MigrationFile>, DbError> {
   return ResultAsync.fromPromise(
-    readdir(directory),
+    readdir(directory, { withFileTypes: true }),
     (e: unknown): DbError => ({
       code: DbErrorCode.MIGRATION_FAILED,
       message: e instanceof Error ? e.message : 'Failed to read migrations directory'
     })
-  ).andThen((filenames: string[]) => {
-    const sqlFiles = filenames.filter((f) => f.endsWith('.sql'))
-    const parsed: MigrationFile[] = []
+  ).andThen((entries: Dirent[]) => {
+    const sqlEntries = entries.filter((entry) => entry.name.endsWith('.sql'))
+    const parsed: Array<{ version: number; name: string; filename: string }> = []
 
-    for (const filename of sqlFiles) {
+    for (const entry of sqlEntries) {
+      if (!entry.isFile()) {
+        return err({
+          code: DbErrorCode.MIGRATION_FAILED,
+          message: `Invalid migration entry: ${entry.name}. Migrations must be regular files.`
+        })
+      }
+
+      const filename = entry.name
       const result = parseMigrationFilename(filename)
       if (result.isErr()) {
-        return ResultAsync.fromSafePromise<never, DbError>(
-          Promise.reject(result.error)
-        ).orElse((e) => err(e))
+        return err(result.error)
       }
       const { version, name } = result.value
-      parsed.push({ version, name, sql: '' })
+      parsed.push({ version, name, filename })
     }
 
     return ResultAsync.fromPromise(
-      Promise.all(parsed.map(async (m, i) => {
-        const content = await readFile(join(directory, sqlFiles[i]!), 'utf-8')
-        return { ...m, sql: content }
-      })),
+      (async () => {
+        const migrations: MigrationFile[] = []
+        for (const migration of parsed) {
+          const content = await readFile(join(directory, migration.filename), 'utf-8')
+          migrations.push({
+            version: migration.version,
+            name: migration.name,
+            sql: content
+          })
+        }
+        return migrations
+      })(),
       (e: unknown): DbError => ({
         code: DbErrorCode.MIGRATION_FAILED,
         message: e instanceof Error ? e.message : 'Failed to read migration file'
@@ -88,69 +103,123 @@ export function loadMigrations (directory: string): ResultAsync<ReadonlyArray<Mi
 
 const MIGRATION_LOCK_ID = 839274628
 
-async function runMigrationsWithLock (pool: DbPool, migrations: ReadonlyArray<MigrationFile>): Promise<number> {
-  await pool.sql.unsafe('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID])
+function runMigrationsWithLock (pool: DbPool, migrations: ReadonlyArray<MigrationFile>): ResultAsync<number, DbError> {
+  const mergeCleanupErrors = (primary: DbError | null, secondary: DbError | null): DbError | null => {
+    if (!primary) {
+      return secondary
+    }
 
-  const innerResult = await ResultAsync.fromPromise(
-    (async () => {
-      await pool.sql`
-        CREATE TABLE IF NOT EXISTS _migrations (
-          version INTEGER PRIMARY KEY,
-          name TEXT NOT NULL,
-          applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `
+    if (!secondary) {
+      return primary
+    }
 
-      const applied = await pool.sql<Array<{ version: number }>>`
-        SELECT version FROM _migrations ORDER BY version
-      `
-      const appliedVersions = new Set(applied.map((r) => r.version))
+    return {
+      code: primary.code,
+      message: `${primary.message}; ${secondary.message}`
+    }
+  }
 
-      let count = 0
-      for (const migration of migrations) {
-        if (appliedVersions.has(migration.version)) {
-          continue
+  const releaseReservedSql = (reservedSql: Awaited<ReturnType<DbPool['sql']['reserve']>>): ResultAsync<DbError | null, DbError> =>
+    ResultAsync.fromPromise(
+      Promise.resolve(reservedSql.release()),
+      mapPostgresError
+    ).map(() => null).orElse((releaseError) => ok(releaseError))
+
+  const unlockAndReleaseReservedSql = (reservedSql: Awaited<ReturnType<DbPool['sql']['reserve']>>): ResultAsync<DbError | null, DbError> =>
+    ResultAsync.fromPromise(
+      reservedSql.unsafe('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]),
+      mapPostgresError
+    ).map(() => null).orElse((unlockError) => ok(unlockError)).andThen((unlockError) =>
+      releaseReservedSql(reservedSql).map((releaseError) => mergeCleanupErrors(unlockError, releaseError))
+    )
+
+  const runMigrationBody = (reservedSql: Awaited<ReturnType<DbPool['sql']['reserve']>>): ResultAsync<number, DbError> =>
+    ResultAsync.fromPromise(
+      (async () => {
+        await reservedSql`
+          CREATE TABLE IF NOT EXISTS _migrations (
+            version INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `
+
+        const applied = await reservedSql<Array<{ version: number }>>`
+          SELECT version FROM _migrations ORDER BY version
+        `
+        const appliedVersions = new Set(applied.map((r) => r.version))
+
+        let count = 0
+        for (const migration of migrations) {
+          if (appliedVersions.has(migration.version)) {
+            continue
+          }
+
+          await reservedSql.begin(async (tx) => {
+            await tx.unsafe(migration.sql)
+            await tx.unsafe(
+              'INSERT INTO _migrations (version, name) VALUES ($1, $2)',
+              [migration.version, migration.name]
+            )
+          })
+          count++
         }
 
-        await pool.sql.begin(async (tx) => {
-          await tx.unsafe(migration.sql)
-          await tx.unsafe(
-            'INSERT INTO _migrations (version, name) VALUES ($1, $2)',
-            [migration.version, migration.name]
-          )
-        })
-        count++
-      }
+        return count
+      })(),
+      mapPostgresError
+    )
 
-      return count
-    })(),
-    (e: unknown): DbError => mapPostgresError(e)
+  return ResultAsync.fromPromise(
+    pool.sql.reserve(),
+    mapPostgresError
+  ).andThen((reservedSql) =>
+    ResultAsync.fromPromise(
+      reservedSql.unsafe('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID]),
+      mapPostgresError
+    ).orElse((lockError) =>
+      releaseReservedSql(reservedSql).andThen(() => err(lockError))
+    ).andThen(() =>
+      runMigrationBody(reservedSql)
+        .map((count) => ok<number, DbError>(count))
+        .orElse((bodyError) => ok(err<number, DbError>(bodyError)))
+        .andThen((bodyResult) =>
+          unlockAndReleaseReservedSql(reservedSql).andThen((cleanupError) => {
+            if (bodyResult.isErr()) {
+              return err(bodyResult.error)
+            }
+
+            if (cleanupError) {
+              return err(cleanupError)
+            }
+
+            return ok(bodyResult.value)
+          })
+        )
+    )
   )
-
-  // Always release the advisory lock, whether migrations succeeded or not
-  await pool.sql.unsafe('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID])
-
-  if (innerResult.isErr()) {
-    return Promise.reject(innerResult.error)
-  }
-  return innerResult.value
 }
 
 export function runMigrations (pool: DbPool, migrations: ReadonlyArray<MigrationFile>): ResultAsync<number, DbError> {
-  return ResultAsync.fromPromise(
-    runMigrationsWithLock(pool, migrations),
-    mapPostgresError
-  )
+  return runMigrationsWithLock(pool, migrations)
 }
 
 export function getMigrationStatus (pool: DbPool): ResultAsync<ReadonlyArray<{ version: number; applied_at: Date }>, DbError> {
   return ResultAsync.fromPromise(
-    (async () => {
-      const rows = await pool.sql<Array<{ version: number; applied_at: Date }>>`
-        SELECT version, applied_at FROM _migrations ORDER BY version
-      `
-      return rows as ReadonlyArray<{ version: number; applied_at: Date }>
-    })(),
-    mapPostgresError
-  )
+    pool.sql<Array<{ version: number; applied_at: Date }>>`
+      SELECT version, applied_at FROM _migrations ORDER BY version
+    `,
+    (error: unknown) => error
+  ).orElse((error) => {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === '42P01'
+    ) {
+      return ok<ReadonlyArray<{ version: number; applied_at: Date }>, DbError>([])
+    }
+
+    return err(mapPostgresError(error))
+  }).map((rows) => rows as ReadonlyArray<{ version: number; applied_at: Date }>)
 }

@@ -71,6 +71,20 @@ describe('ValButton', () => {
     })
   })
 
+  describe('block attribute', () => {
+    it('has block-specific styles in shadow DOM', () => {
+      const el = create({ block: '' })
+      const style = el.shadowRoot!.querySelector('style')!
+      expect(style.textContent).toContain(':host([block])')
+    })
+
+    it('inner button has width 100% when block is set', () => {
+      const el = create({ block: '' })
+      const style = el.shadowRoot!.querySelector('style')!
+      expect(style.textContent).toMatch(/:host\(\[block\]\).*button.*width:\s*100%/s)
+    })
+  })
+
   describe('type reflection', () => {
     it('defaults inner button type to "button" when no type attr set', () => {
       const el = create()

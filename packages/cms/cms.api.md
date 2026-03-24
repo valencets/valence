@@ -9,8 +9,8 @@ import type { DbPool } from '@valencets/db';
 import { generateCsrfToken } from '@valencets/core/server';
 import type { IncomingMessage } from 'node:http';
 import type { Middleware } from '@valencets/core/server';
-import type { Result } from 'neverthrow';
-import { ResultAsync } from 'neverthrow';
+import type { Result } from '@valencets/resultkit';
+import { ResultAsync } from '@valencets/resultkit';
 import type { ServerResponse } from 'node:http';
 import { validateCsrfToken } from '@valencets/core/server';
 import type { ZodObject } from 'zod';
@@ -134,7 +134,6 @@ export interface CmsConfig {
     readonly db: DbPool;
     // (undocumented)
     readonly globals?: readonly GlobalConfig[] | undefined;
-    // (undocumented)
     readonly headTags?: readonly string[] | undefined;
     // (undocumented)
     readonly localization?: LocalizationConfig | undefined;
@@ -186,6 +185,8 @@ export interface CmsInstance {
     readonly collections: CollectionRegistry;
     // (undocumented)
     readonly globals: GlobalRegistry;
+    // (undocumented)
+    readonly pluginHooks: readonly PluginHooks[];
     // (undocumented)
     readonly restRoutes: Map<string, RestRouteEntry>;
 }
@@ -315,6 +316,8 @@ export interface CollectionQueryBuilder {
     where(field: string, value: SqlValue): CollectionQueryBuilder;
     // (undocumented)
     where(field: string, operator: WhereOperator, value: SqlValue): CollectionQueryBuilder;
+    // (undocumented)
+    whereClause(clause: WhereClause): CollectionQueryBuilder;
     // (undocumented)
     withDeleted(): CollectionQueryBuilder;
 }
@@ -574,6 +577,11 @@ export function generateDraftSchema(fields: readonly FieldConfig[]): ZodObject;
 
 // @public (undocumented)
 export function generateLocalizedSchema(fields: readonly FieldConfig[]): ZodObject;
+
+// Warning: (ae-forgotten-export) The symbol "OpenApiSpec" needs to be exported by the entry point index.d.ts
+//
+// @public (undocumented)
+export function generateOpenApiSpec(collections: CollectionRegistry): OpenApiSpec;
 
 // @public (undocumented)
 export function generatePartialSchema(fields: readonly FieldConfig[]): ZodObject;
@@ -855,8 +863,26 @@ export interface PasswordFieldConfig extends FieldBaseConfig {
 }
 
 // @public (undocumented)
-type Plugin_2 = (config: CmsConfig) => CmsConfig;
+type Plugin_2 = ((config: CmsConfig) => CmsConfig) | PluginObject;
 export { Plugin_2 as Plugin }
+
+// @public (undocumented)
+export interface PluginHooks {
+    // (undocumented)
+    readonly onInit?: (cms: CmsInstance) => void | Promise<void>;
+    // (undocumented)
+    readonly onReady?: (cms: CmsInstance) => void | Promise<void>;
+}
+
+// @public (undocumented)
+export interface PluginObject {
+    // (undocumented)
+    readonly hooks?: PluginHooks | undefined;
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly transform: (config: CmsConfig) => CmsConfig;
+}
 
 // @public (undocumented)
 export const PREVIEW_MESSAGE_TYPE: "valence:preview-update";

@@ -51,7 +51,7 @@ describe('parseRangeHeader', () => {
   it('parses a valid byte range', () => {
     const result = parseRangeHeader('bytes=0-499', 1000)
     expect(result.isOk()).toBe(true)
-    const range = result._unsafeUnwrap()
+    const range = result.unwrap()
     expect(range).not.toBeNull()
     expect(range!.start).toBe(0)
     expect(range!.end).toBe(499)
@@ -60,13 +60,13 @@ describe('parseRangeHeader', () => {
   it('returns null for no Range header (undefined)', () => {
     const result = parseRangeHeader(undefined, 1000)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBeNull()
+    expect(result.unwrap()).toBeNull()
   })
 
   it('parses an open-ended range (bytes=100-)', () => {
     const result = parseRangeHeader('bytes=100-', 1000)
     expect(result.isOk()).toBe(true)
-    const range = result._unsafeUnwrap()
+    const range = result.unwrap()
     expect(range!.start).toBe(100)
     expect(range!.end).toBe(999)
   })
@@ -74,7 +74,7 @@ describe('parseRangeHeader', () => {
   it('parses a suffix range (bytes=-100)', () => {
     const result = parseRangeHeader('bytes=-100', 1000)
     expect(result.isOk()).toBe(true)
-    const range = result._unsafeUnwrap()
+    const range = result.unwrap()
     expect(range!.start).toBe(900)
     expect(range!.end).toBe(999)
   })
@@ -97,7 +97,7 @@ describe('parseRangeHeader', () => {
   it('clamps end to fileSize - 1', () => {
     const result = parseRangeHeader('bytes=0-9999', 1000)
     expect(result.isOk()).toBe(true)
-    const range = result._unsafeUnwrap()
+    const range = result.unwrap()
     expect(range!.end).toBe(999)
   })
 })

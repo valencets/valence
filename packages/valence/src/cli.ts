@@ -6,7 +6,7 @@ import { stdin, stdout } from 'node:process'
 import { execSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { ResultAsync, fromThrowable } from 'neverthrow'
+import { ResultAsync, fromThrowable } from '@valencets/resultkit'
 import { createPool, closePool, loadMigrations, runMigrations } from '@valencets/db'
 import type { DbConfig, DbPool } from '@valencets/db'
 import { buildCms } from '@valencets/cms'
@@ -110,7 +110,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
   const projectName = useDefaults ? (nonFlagArgs[0] ?? 'my-valence-app') : await ask(rl!, 'Project name', nonFlagArgs[0] ?? 'my-valence-app')
   const dbName = useDefaults ? projectName.replace(/[^a-z0-9_]/g, '_') : await ask(rl!, 'Database name', projectName.replace(/[^a-z0-9_]/g, '_'))
   const dbUser = useDefaults ? 'postgres' : await ask(rl!, 'Database user', 'postgres')
-  const dbPassword = useDefaults ? '' : await ask(rl!, 'Database password', '')
+  const dbPassword = useDefaults ? 'postgres' : await ask(rl!, 'Database password', 'postgres')
   const serverPort = useDefaults ? '3000' : await ask(rl!, 'Server port', '3000')
 
   if (!useDefaults) {
@@ -204,7 +204,15 @@ PORT=${serverPort}
 CMS_SECRET=${generateSecret()}
 `
   await writeFile(join(dir, '.env'), envContent)
-  await writeFile(join(dir, '.env.example'), envContent.replace(dbPassword, '').replace(/CMS_SECRET=.*/, 'CMS_SECRET=change-me'))
+  const envExampleContent = `DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=${dbName}
+DB_USER=${dbUser}
+DB_PASSWORD=
+PORT=${serverPort}
+CMS_SECRET=change-me
+`
+  await writeFile(join(dir, '.env.example'), envExampleContent)
 
   const gitignoreLines = ['node_modules/', 'dist/', '.env', 'uploads/', '*.log']
   if (learnMode) gitignoreLines.push('.valence/')
@@ -525,6 +533,11 @@ async function runDev (): Promise<void> {
 
   const cms = cmsResult.value
 
+  // Fire plugin onInit hooks
+  for (const hooks of cms.pluginHooks) {
+    if (hooks.onInit) await hooks.onInit(cms)
+  }
+
   // Learn mode setup
   const learnProgress = await readLearnProgress(projectDir)
   const learnActive = learnProgress !== null && learnProgress.enabled
@@ -588,11 +601,20 @@ async function runDev (): Promise<void> {
   // eslint-disable-next-line complexity
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
-    const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
+    const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
 
     // Global security headers — baseline for all responses
     // Admin routes will override CSP with nonce-based policy via sendHtml()
     setSecurityHeaders(res)
+
+    // Health check — before all other processing
+    if (url.pathname === '/health' && (method === 'GET' || method === 'HEAD')) {
+      res.setHeader('Cache-Control', 'no-store')
+      const body = JSON.stringify({ status: 'ok', uptime: process.uptime() })
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
+      res.end(method === 'HEAD' ? undefined : body)
+      return
+    }
 
     // Body-limit check for requests with Content-Length header
     if (method === 'POST' || method === 'PATCH') {
@@ -757,7 +779,12 @@ async function runDev (): Promise<void> {
   // User-defined routes with loaders/actions
   const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
 
-  server.listen(port, () => {
+  server.listen(port, async () => {
+    // Fire plugin onReady hooks
+    for (const hooks of cms.pluginHooks) {
+      if (hooks.onReady) await hooks.onReady(cms)
+    }
+
     console.log(`
   Valence dev server running.
 
@@ -839,14 +866,28 @@ export async function runStart (): Promise<void> {
 
   const cms = cmsResult.value
 
+  // Fire plugin onInit hooks
+  for (const hooks of cms.pluginHooks) {
+    if (hooks.onInit) await hooks.onInit(cms)
+  }
+
   // eslint-disable-next-line complexity
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
-    const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE'
+    const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
 
     // Global security headers — baseline for all responses
     // Admin routes will override CSP with nonce-based policy via sendHtml()
     setSecurityHeaders(res)
+
+    // Health check — before all other processing
+    if (url.pathname === '/health' && (method === 'GET' || method === 'HEAD')) {
+      res.setHeader('Cache-Control', 'no-store')
+      const body = JSON.stringify({ status: 'ok', uptime: process.uptime() })
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
+      res.end(method === 'HEAD' ? undefined : body)
+      return
+    }
 
     // Body-limit check for requests with Content-Length header
     if (method === 'POST' || method === 'PATCH') {
@@ -963,7 +1004,12 @@ export async function runStart (): Promise<void> {
   // User-defined routes with loaders/actions
   const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
 
-  server.listen(port, () => {
+  server.listen(port, async () => {
+    // Fire plugin onReady hooks
+    for (const hooks of cms.pluginHooks) {
+      if (hooks.onReady) await hooks.onReady(cms)
+    }
+
     console.log(`
   Valence server running.
 

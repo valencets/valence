@@ -1,4 +1,4 @@
-import { fromThrowable } from 'neverthrow'
+import { fromThrowable } from '@valencets/resultkit'
 import { getCsrfToken } from './fragment-swap.js'
 
 export interface FormEnhanceConfig {

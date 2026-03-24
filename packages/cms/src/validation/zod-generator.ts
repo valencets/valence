@@ -1,4 +1,4 @@
-import { fromThrowable } from 'neverthrow'
+import { fromThrowable } from '@valencets/resultkit'
 import { z } from 'zod'
 import type { ZodObject, ZodTypeAny } from 'zod'
 import type { FieldConfig } from '../schema/field-types.js'

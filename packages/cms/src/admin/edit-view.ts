@@ -1,4 +1,4 @@
-import { fromThrowable } from 'neverthrow'
+import { fromThrowable } from '@valencets/resultkit'
 import type { CollectionConfig } from '../schema/collection.js'
 import type { FieldConfig } from '../schema/field-types.js'
 import { CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'

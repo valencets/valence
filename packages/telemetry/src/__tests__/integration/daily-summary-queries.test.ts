@@ -64,7 +64,7 @@ describe('getDailySummary', () => {
   it('returns null for nonexistent site+date', async () => {
     const result = await getDailySummary(pool, 'no-site', new Date('2026-01-01'))
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBeNull()
+    expect(result.unwrap()).toBeNull()
   })
 
   it('returns the row when it exists', async () => {
@@ -74,7 +74,7 @@ describe('getDailySummary', () => {
     const result = await getDailySummary(pool, siteId, date)
     expect(result.isOk()).toBe(true)
 
-    const row = result._unsafeUnwrap()
+    const row = result.unwrap()
     expect(row).not.toBeNull()
     expect(row!.session_count).toBe(42)
     expect(row!.site_id).toBe(siteId)
@@ -90,7 +90,7 @@ describe('getUnsyncedDailySummaries', () => {
     const result = await getUnsyncedDailySummaries(pool, siteId)
     expect(result.isOk()).toBe(true)
 
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     expect(rows).toHaveLength(2)
     for (const row of rows) {
       expect(row.synced_at).toBeNull()
@@ -103,7 +103,7 @@ describe('getUnsyncedDailySummaries', () => {
     await insertSummary({ date: new Date('2026-03-12'), syncedAt: null })
 
     const result = await getUnsyncedDailySummaries(pool, siteId)
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     const dates = rows.map((r) => new Date(r.date).getTime())
     expect(dates).toEqual([...dates].sort((a, b) => a - b))
   })
@@ -118,7 +118,7 @@ describe('markSynced', () => {
     expect(markResult.isOk()).toBe(true)
 
     const checkResult = await getDailySummary(pool, siteId, date)
-    const row = checkResult._unsafeUnwrap()
+    const row = checkResult.unwrap()
     expect(row!.synced_at).not.toBeNull()
   })
 })
@@ -143,7 +143,7 @@ describe('insertDailySummaryFromRemote', () => {
     const result = await insertDailySummaryFromRemote(pool, payload)
     expect(result.isOk()).toBe(true)
 
-    const row = result._unsafeUnwrap()
+    const row = result.unwrap()
     expect(row.site_id).toBe('remote-site')
     expect(row.session_count).toBe(100)
     expect(row.pageview_count).toBe(500)
@@ -171,7 +171,7 @@ describe('insertDailySummaryFromRemote', () => {
     await insertDailySummaryFromRemote(pool, payload)
     const updated = { ...payload, session_count: 20 }
     const result = await insertDailySummaryFromRemote(pool, updated)
-    expect(result._unsafeUnwrap().session_count).toBe(20)
+    expect(result.unwrap().session_count).toBe(20)
 
     const rows = await pool.sql`
       SELECT * FROM daily_summaries WHERE site_id = 'upsert-site'
@@ -190,7 +190,7 @@ describe('getDailyTrend', () => {
     const result = await getDailyTrend(pool, siteId, new Date('2026-03-10'), new Date('2026-03-12'))
     expect(result.isOk()).toBe(true)
 
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     expect(rows).toHaveLength(3)
     expect(rows[0]!.session_count).toBe(10)
     expect(rows[1]!.session_count).toBe(20)
@@ -199,7 +199,7 @@ describe('getDailyTrend', () => {
 
   it('returns empty for range with no data', async () => {
     const result = await getDailyTrend(pool, siteId, new Date('2026-01-01'), new Date('2026-01-31'))
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 })
 
@@ -221,7 +221,7 @@ describe('getDailyBreakdowns', () => {
     const result = await getDailyBreakdowns(pool, siteId, new Date('2026-03-10'), new Date('2026-03-11'))
     expect(result.isOk()).toBe(true)
 
-    const breakdowns = result._unsafeUnwrap()
+    const breakdowns = result.unwrap()
 
     // Pages merged
     const homePage = breakdowns.top_pages.find((p) => p.path === '/home')
@@ -242,7 +242,7 @@ describe('getDailyBreakdowns', () => {
     const result = await getDailyBreakdowns(pool, siteId, new Date('2026-01-01'), new Date('2026-01-31'))
     expect(result.isOk()).toBe(true)
 
-    const breakdowns = result._unsafeUnwrap()
+    const breakdowns = result.unwrap()
     expect(breakdowns.top_pages).toHaveLength(0)
     expect(breakdowns.top_referrers).toHaveLength(0)
     expect(breakdowns.intent_counts).toEqual({})

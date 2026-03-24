@@ -68,7 +68,7 @@ describe('aggregateSessionSummary', () => {
     const result = await aggregateSessionSummary(pool, period)
     expect(result.isOk()).toBe(true)
 
-    const row = result._unsafeUnwrap()
+    const row = result.unwrap()
     expect(row.total_sessions).toBe(4)
     expect(row.unique_referrers).toBe(2) // google.com, bing.com (NULL excluded by COUNT DISTINCT)
     expect(row.device_mobile).toBe(2)
@@ -80,7 +80,7 @@ describe('aggregateSessionSummary', () => {
     const result = await aggregateSessionSummary(pool, period)
     expect(result.isOk()).toBe(true)
 
-    const row = result._unsafeUnwrap()
+    const row = result.unwrap()
     expect(row.total_sessions).toBe(0)
     expect(row.device_mobile).toBe(0)
     expect(row.device_desktop).toBe(0)
@@ -92,12 +92,12 @@ describe('aggregateSessionSummary', () => {
     await seedSession('mobile', null, ts)
 
     const first = await aggregateSessionSummary(pool, period)
-    expect(first._unsafeUnwrap().total_sessions).toBe(1)
+    expect(first.unwrap().total_sessions).toBe(1)
 
     await seedSession('desktop', null, ts)
 
     const second = await aggregateSessionSummary(pool, period)
-    expect(second._unsafeUnwrap().total_sessions).toBe(2)
+    expect(second.unwrap().total_sessions).toBe(2)
 
     const rows = await pool.sql`
       SELECT * FROM session_summaries
@@ -113,7 +113,7 @@ describe('aggregateSessionSummary', () => {
     await seedSession('desktop', null, outside)
 
     const result = await aggregateSessionSummary(pool, period)
-    expect(result._unsafeUnwrap().total_sessions).toBe(1)
+    expect(result.unwrap().total_sessions).toBe(1)
   })
 })
 
@@ -131,7 +131,7 @@ describe('aggregateEventSummary', () => {
     const result = await aggregateEventSummary(pool, period)
     expect(result.isOk()).toBe(true)
 
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     const click = rows.find((r) => r.event_category === 'CLICK')
     const viewport = rows.find((r) => r.event_category === 'VIEWPORT_INTERSECT')
 
@@ -147,7 +147,7 @@ describe('aggregateEventSummary', () => {
   it('returns empty array for period with no events', async () => {
     const result = await aggregateEventSummary(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 
   it('upserts event summaries on same period + category', async () => {
@@ -183,7 +183,7 @@ describe('aggregateConversionSummary', () => {
     const result = await aggregateConversionSummary(pool, period)
     expect(result.isOk()).toBe(true)
 
-    const rows = result._unsafeUnwrap()
+    const rows = result.unwrap()
     const callRow = rows.find((r) => r.intent_type === 'INTENT_CALL')
     expect(callRow).toBeDefined()
     expect(callRow!.total_count).toBe(2)
@@ -197,7 +197,7 @@ describe('aggregateConversionSummary', () => {
 
     const result = await aggregateConversionSummary(pool, period)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 
   it('upserts conversion summaries on same period + intent_type', async () => {

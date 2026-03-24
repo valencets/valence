@@ -129,7 +129,7 @@ export type { AuthConfig, AuthContext, AuthMiddleware, CmsAuthGuardOptions } fro
 export { createRateLimiter, parseCookie } from './auth/index.js'
 export type { RateLimiter } from './auth/index.js'
 
-export { createLocalApi, createRestRoutes, sendApiJson, sendErrorJson, safeReadBody, safeJsonParse } from './api/index.js'
+export { createLocalApi, createRestRoutes, sendApiJson, sendErrorJson, safeReadBody, safeJsonParse, generateOpenApiSpec } from './api/index.js'
 export type { LocalApi, RestRouteHandler, RestRouteEntry } from './api/index.js'
 
 export {
@@ -148,7 +148,7 @@ export { isUploadEnabled, getMediaFields, getMimeType, getUploadConfig, createSe
 export type { ImageSize, UploadConfig, UploadResult, SizeMetadata, StorageAdapter, ProcessedImage, FocalPoint } from './media/index.js'
 
 export { buildCms } from './config/index.js'
-export type { CmsConfig, CmsInstance, Plugin, LocaleConfig, LocalizationConfig } from './config/index.js'
+export type { CmsConfig, CmsInstance, Plugin, PluginObject, PluginHooks, LocaleConfig, LocalizationConfig } from './config/index.js'
 
 export { startPublishScheduler } from './scheduler.js'
 export type { SchedulerHandle } from './scheduler.js'

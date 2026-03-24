@@ -27,7 +27,7 @@ describe('CollectionRegistry', () => {
 
     const getResult = registry.get('pages')
     expect(getResult.isOk()).toBe(true)
-    expect(getResult._unsafeUnwrap().slug).toBe('pages')
+    expect(getResult.unwrap().slug).toBe('pages')
   })
 
   it('returns DUPLICATE_SLUG error when registering the same slug twice', () => {
@@ -41,7 +41,7 @@ describe('CollectionRegistry', () => {
     const result = registry.register(pages)
 
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.DUPLICATE_SLUG)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.DUPLICATE_SLUG)
   })
 
   it('registers a collection with all field types', () => {
@@ -207,7 +207,7 @@ describe('GlobalRegistry', () => {
 
     const getResult = registry.get('site-settings')
     expect(getResult.isOk()).toBe(true)
-    expect(getResult._unsafeUnwrap().slug).toBe('site-settings')
+    expect(getResult.unwrap().slug).toBe('site-settings')
   })
 
   it('returns DUPLICATE_SLUG error for duplicate global slug', () => {
@@ -218,7 +218,7 @@ describe('GlobalRegistry', () => {
     const result = registry.register(nav)
 
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.DUPLICATE_SLUG)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.DUPLICATE_SLUG)
   })
 
   it('getAll returns all registered globals', () => {

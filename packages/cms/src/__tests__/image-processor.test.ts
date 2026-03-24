@@ -24,7 +24,7 @@ describe('processImageSizes()', () => {
     ]
     const result = await processImageSizes(input, sizes)
     expect(result.isOk()).toBe(true)
-    const images = result._unsafeUnwrap()
+    const images = result.unwrap()
     expect(images).toHaveLength(2)
     expect(images[0]?.name).toBe('thumbnail')
     expect(images[0]?.width).toBe(150)
@@ -39,7 +39,7 @@ describe('processImageSizes()', () => {
     ]
     const result = await processImageSizes(input, sizes, ['webp'])
     expect(result.isOk()).toBe(true)
-    const images = result._unsafeUnwrap()
+    const images = result.unwrap()
     expect(images).toHaveLength(2)
     expect(images[0]?.name).toBe('thumb')
     expect(images[1]?.name).toBe('thumb-webp')
@@ -53,7 +53,7 @@ describe('processImageSizes()', () => {
     ]
     const result = await processImageSizes(input, sizes)
     expect(result.isOk()).toBe(true)
-    const images = result._unsafeUnwrap()
+    const images = result.unwrap()
     // 'inside' preserves aspect ratio within bounds
     // 800x400 → fits inside 200x200 → 200x100
     expect(images[0]?.width).toBe(200)
@@ -68,7 +68,7 @@ describe('processImageSizes()', () => {
     const focalPoint: FocalPoint = { x: 0.75, y: 0.25 }
     const result = await processImageSizes(input, sizes, [], focalPoint)
     expect(result.isOk()).toBe(true)
-    const images = result._unsafeUnwrap()
+    const images = result.unwrap()
     expect(images[0]?.width).toBe(200)
     expect(images[0]?.height).toBe(200)
   })
@@ -80,7 +80,7 @@ describe('processImageSizes()', () => {
     ]
     const result = await processImageSizes(input, sizes)
     expect(result.isOk()).toBe(true)
-    const images = result._unsafeUnwrap()
+    const images = result.unwrap()
     expect(images[0]?.filesize).toBeGreaterThan(0)
     expect(images[0]?.mimeType).toMatch(/^image\//)
   })
@@ -92,13 +92,13 @@ describe('processImageSizes()', () => {
     ]
     const result = await processImageSizes(badBuffer, sizes)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe('INTERNAL')
+    expect(result.unwrapErr().code).toBe('INTERNAL')
   })
 
   it('handles empty sizes array', async () => {
     const input = await createTestImage()
     const result = await processImageSizes(input, [])
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 })

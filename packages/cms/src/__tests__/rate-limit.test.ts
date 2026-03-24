@@ -48,3 +48,17 @@ describe('createRateLimiter()', () => {
     expect(limiter.remaining('user@test.com')).toBe(0)
   })
 })
+
+describe('rate limiter map size cap (AUTH-02)', () => {
+  it('evicts oldest entry when exceeding MAX_ENTRIES', () => {
+    const limiter = createRateLimiter({ maxAttempts: 3, windowMs: 60_000 })
+    // Fill with 10,000 unique keys
+    for (let i = 0; i < 10_000; i++) {
+      limiter.check(`key-${i}`)
+    }
+    // The 10,001st key should succeed (evicts oldest)
+    expect(limiter.check('new-key')).toBe(true)
+    // The first key should have been evicted and reset
+    expect(limiter.remaining('key-0')).toBe(3)
+  })
+})

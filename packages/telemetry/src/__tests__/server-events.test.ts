@@ -41,7 +41,7 @@ describe('createServerEventLogger', () => {
     const logger = createServerEventLogger(pool)
     const result = await logger.log('USER_REGISTER', 'api.register', { userId: '123' })
     expect(result.isOk()).toBe(true)
-    const row = result._unsafeUnwrap()
+    const row = result.unwrap()
     expect(row.event_category).toBe('USER_REGISTER')
     expect(row.session_id).toBe('sess-001')
   })

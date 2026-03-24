@@ -129,6 +129,15 @@ describe('ValTextarea', () => {
     })
   })
 
+  describe('autofill styling', () => {
+    it('has autofill override styles in shadow DOM', () => {
+      const el = create()
+      const style = el.shadowRoot!.querySelector('style')!
+      expect(style.textContent).toContain(':autofill')
+      expect(style.textContent).toContain('--val-color-bg-elevated')
+    })
+  })
+
   describe('CMS traceability', () => {
     it('reads data-cms-id', () => {
       const el = create({ 'data-cms-id': 'comment-field' })

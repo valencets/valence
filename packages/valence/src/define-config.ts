@@ -1,5 +1,5 @@
-import { ok, err } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import { z } from 'zod'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { DbPool } from '@valencets/db'
@@ -80,6 +80,8 @@ export interface ValenceConfig {
     readonly idle_timeout?: number | undefined
     readonly connect_timeout?: number | undefined
     readonly query_timeout?: number | undefined
+    readonly sslmode?: 'disable' | 'require' | 'verify-ca' | 'verify-full' | undefined
+    readonly sslrootcert?: string | undefined
   }
   readonly server: {
     readonly port: number
@@ -122,6 +124,8 @@ export interface ResolvedValenceConfig {
     readonly idle_timeout: number
     readonly connect_timeout: number
     readonly query_timeout?: number | undefined
+    readonly sslmode: 'disable' | 'require' | 'verify-ca' | 'verify-full'
+    readonly sslrootcert?: string | undefined
   }
   readonly server: {
     readonly port: number
@@ -162,18 +166,30 @@ const collectionSchema = z.object({
   timestamps: z.boolean()
 }).passthrough()
 
+const dbSchema = z.object({
+  host: z.string().min(1),
+  port: z.number().int().min(1).max(65535),
+  database: z.string().min(1),
+  username: z.string().min(1),
+  password: z.string().min(1),
+  max: z.number().int().min(1).max(100).optional(),
+  idle_timeout: z.number().min(0).optional(),
+  connect_timeout: z.number().min(0).optional(),
+  query_timeout: z.number().min(0).optional(),
+  sslmode: z.enum(['disable', 'require', 'verify-ca', 'verify-full']).optional(),
+  sslrootcert: z.string().min(1).optional()
+}).superRefine((db, ctx) => {
+  if ((db.sslmode === 'verify-ca' || db.sslmode === 'verify-full') && db.sslrootcert === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['sslrootcert'],
+      message: `sslrootcert is required when sslmode is ${db.sslmode}`
+    })
+  }
+})
+
 const configSchema = z.object({
-  db: z.object({
-    host: z.string().min(1),
-    port: z.number().int().min(1).max(65535),
-    database: z.string().min(1),
-    username: z.string().min(1),
-    password: z.string(),
-    max: z.number().int().min(1).max(100).optional(),
-    idle_timeout: z.number().min(0).optional(),
-    connect_timeout: z.number().min(0).optional(),
-    query_timeout: z.number().min(0).optional()
-  }),
+  db: dbSchema,
   server: z.object({
     port: z.number().int().min(1).max(65535),
     host: z.string().min(1).optional()
@@ -239,7 +255,9 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
       max: data.db.max ?? 10,
       idle_timeout: data.db.idle_timeout ?? 30,
       connect_timeout: data.db.connect_timeout ?? 10,
-      query_timeout: data.db.query_timeout
+      query_timeout: data.db.query_timeout,
+      sslmode: data.db.sslmode ?? 'disable',
+      sslrootcert: data.db.sslrootcert
     },
     server: {
       port: data.server.port,

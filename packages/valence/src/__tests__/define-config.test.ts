@@ -24,15 +24,16 @@ describe('defineConfig', () => {
 
   it('resolved config has db pool settings with defaults', () => {
     const result = defineConfig(minimalConfig)
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.db.max).toBe(10)
     expect(resolved.db.idle_timeout).toBe(30)
     expect(resolved.db.connect_timeout).toBe(10)
+    expect(resolved.db.sslmode).toBe('disable')
   })
 
   it('resolved config has server host defaulting to 0.0.0.0', () => {
     const result = defineConfig(minimalConfig)
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.server.host).toBe('0.0.0.0')
   })
 
@@ -59,7 +60,7 @@ describe('defineConfig', () => {
       }
     })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().telemetry?.enabled).toBe(true)
+    expect(result.unwrap().telemetry?.enabled).toBe(true)
   })
 
   it('accepts optional admin config', () => {
@@ -71,7 +72,7 @@ describe('defineConfig', () => {
       }
     })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().admin?.pathPrefix).toBe('/admin')
+    expect(result.unwrap().admin?.pathPrefix).toBe('/admin')
   })
 
   it('accepts optional media config', () => {
@@ -95,12 +96,69 @@ describe('defineConfig', () => {
 
   it('passes through collections array', () => {
     const result = defineConfig(minimalConfig)
-    expect(result._unsafeUnwrap().collections).toEqual([])
+    expect(result.unwrap().collections).toEqual([])
   })
 
   it('defaults telemetry to undefined when not provided', () => {
     const result = defineConfig(minimalConfig)
-    expect(result._unsafeUnwrap().telemetry).toBeUndefined()
+    expect(result.unwrap().telemetry).toBeUndefined()
+  })
+
+  it('preserves verified SSL config in resolved db settings', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      db: {
+        ...minimalConfig.db,
+        sslmode: 'verify-full',
+        sslrootcert: '-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----'
+      }
+    })
+    expect(result.isOk()).toBe(true)
+    const resolved = result.unwrap()
+    expect(resolved.db.sslmode).toBe('verify-full')
+    expect(resolved.db.sslrootcert).toContain('BEGIN CERTIFICATE')
+  })
+
+  it('rejects verify-ca without sslrootcert', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      db: {
+        ...minimalConfig.db,
+        sslmode: 'verify-ca'
+      }
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('INVALID_CONFIG')
+    }
+  })
+
+  it('rejects verify-full without sslrootcert', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      db: {
+        ...minimalConfig.db,
+        sslmode: 'verify-full'
+      }
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('INVALID_CONFIG')
+    }
+  })
+
+  it('rejects empty db password', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      db: {
+        ...minimalConfig.db,
+        password: ''
+      }
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('INVALID_CONFIG')
+    }
   })
 })
 
@@ -184,13 +242,13 @@ describe('defineConfig routes', () => {
       { path: '/blog/:slug', collection: 'posts', type: 'detail' }
     ]
     const result = defineConfig({ ...minimalConfig, routes })
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.routes).toEqual(routes)
   })
 
   it('routes defaults to undefined when not provided', () => {
     const result = defineConfig(minimalConfig)
-    expect(result._unsafeUnwrap().routes).toBeUndefined()
+    expect(result.unwrap().routes).toBeUndefined()
   })
 
   it('preserves handler function through defineConfig', () => {
@@ -200,7 +258,7 @@ describe('defineConfig routes', () => {
     ]
     const result = defineConfig({ ...minimalConfig, routes })
     expect(result.isOk()).toBe(true)
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.routes?.[0]?.handler).toBe(handler)
   })
 
@@ -235,7 +293,7 @@ describe('defineConfig graphql option', () => {
       ...minimalConfig,
       graphql: true
     })
-    expect(result._unsafeUnwrap().graphql).toBe(true)
+    expect(result.unwrap().graphql).toBe(true)
   })
 
   it('accepts graphql: false', () => {
@@ -248,7 +306,7 @@ describe('defineConfig graphql option', () => {
 
   it('graphql defaults to undefined when not provided', () => {
     const result = defineConfig(minimalConfig)
-    expect(result._unsafeUnwrap().graphql).toBeUndefined()
+    expect(result.unwrap().graphql).toBeUndefined()
   })
 
   it('backward compat: defineConfig without graphql still works', () => {

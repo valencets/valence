@@ -1,7 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const playwrightOutputDir = process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results'
+const playwrightReportDir = process.env.PLAYWRIGHT_REPORT_DIR ?? 'playwright-report'
+
 export default defineConfig({
   testDir: 'tests/e2e',
+  outputDir: playwrightOutputDir,
   timeout: 30_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -9,7 +13,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI
     ? [['blob'], ['github']]
-    : [['html', { open: 'on-failure' }]],
+    : [['html', { open: 'on-failure', outputFolder: playwrightReportDir }]],
 
   snapshotPathTemplate: '{testDir}/__snapshots__/{testFilePath}/{arg}-{projectName}{ext}',
 

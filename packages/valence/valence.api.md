@@ -11,8 +11,8 @@ import type { DbPool } from '@valencets/db';
 import { field } from '@valencets/cms';
 import { global as global_2 } from '@valencets/cms';
 import { IncomingMessage } from 'node:http';
-import type { Result } from 'neverthrow';
-import { ResultAsync } from 'neverthrow';
+import type { Result } from '@valencets/resultkit';
+import { ResultAsync } from '@valencets/resultkit';
 import type { Server } from 'node:http';
 import type { ServerResponse } from 'node:http';
 
@@ -189,6 +189,8 @@ export interface ResolvedValenceConfig {
         readonly idle_timeout: number;
         readonly connect_timeout: number;
         readonly query_timeout?: number | undefined;
+        readonly sslmode: 'disable' | 'require' | 'verify-ca' | 'verify-full';
+        readonly sslrootcert?: string | undefined;
     };
     // (undocumented)
     readonly graphql?: boolean | undefined;
@@ -267,6 +269,8 @@ export interface ValenceConfig {
         readonly idle_timeout?: number | undefined;
         readonly connect_timeout?: number | undefined;
         readonly query_timeout?: number | undefined;
+        readonly sslmode?: 'disable' | 'require' | 'verify-ca' | 'verify-full' | undefined;
+        readonly sslrootcert?: string | undefined;
     };
     // (undocumented)
     readonly graphql?: boolean | undefined;

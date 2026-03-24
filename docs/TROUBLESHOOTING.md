@@ -37,6 +37,16 @@ Build order (topological): core, db, ui (parallel) -> telemetry -> cms
 2. Fix the lint violation
 3. Stage the fix and commit again
 
+You can run the same checks directly:
+
+```bash
+pnpm exec eslint path/to/file.ts --fix
+bash scripts/check-banned-patterns.sh
+bash -n .husky/pre-commit .husky/pre-push .husky/commit-msg scripts/*.sh
+```
+
+`git push` runs the heavier `pre-push` gate: `pnpm validate && pnpm test:smoke`.
+
 ### Common lint violations
 
 | You wrote | Fix |

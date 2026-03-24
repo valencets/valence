@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { setSecurityHeaders, generateNonce } from './security-headers.js'
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@valencets/resultkit'
 import { ServerErrorCode } from './server-types.js'
 import type { RouteHandler, RouteEntry, ServerRouter, RouteOptions } from './server-types.js'
 import type { Middleware, ErrorHandler, RequestContext } from './middleware-types.js'
@@ -58,7 +58,24 @@ export function createServerRouter (): ServerRouter {
     }
 
     const stored = routes.get(match.pattern)!
-    const handler: RouteHandler | undefined = stored.entry[method as keyof RouteEntry]
+    let handler: RouteHandler | undefined = stored.entry[method as keyof RouteEntry]
+
+    // OPTIONS auto-response runs before middleware intentionally —
+    // CORS preflight requests are sent without credentials per spec
+    if (method === 'OPTIONS' && !handler) {
+      const methodKeys: ReadonlyArray<keyof RouteEntry> = ['GET', 'POST', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
+      const defined = methodKeys.filter(m => stored.entry[m] !== undefined)
+      if (!defined.includes('HEAD') && stored.entry.GET) defined.push('HEAD')
+      if (!defined.includes('OPTIONS')) defined.push('OPTIONS')
+      res.writeHead(204, { Allow: defined.join(', ') })
+      res.end()
+      return
+    }
+
+    // HEAD fallback: reuse GET handler (Node.js strips the body automatically for HEAD)
+    if (method === 'HEAD' && !handler && stored.entry.GET) {
+      handler = stored.entry.GET
+    }
 
     if (!handler) {
       sendError(res, { code: ServerErrorCode.METHOD_NOT_ALLOWED, message: `Method ${method} not allowed on ${pathname}`, statusCode: 405 })

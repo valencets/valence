@@ -1,6 +1,6 @@
 import sharp from 'sharp'
-import { ok, err, ResultAsync } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err, ResultAsync } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import type { CmsError } from '../schema/types.js'
 import { CmsErrorCode } from '../schema/types.js'
 import type { ImageSize } from './media-config.js'

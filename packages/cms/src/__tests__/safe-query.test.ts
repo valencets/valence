@@ -9,7 +9,7 @@ describe('safeQuery()', () => {
     const pool = makeMockPool(rows)
     const result = await safeQuery<Array<{ id: string, title: string }>>(pool, 'SELECT * FROM "posts" WHERE id = $1', ['abc'])
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(rows)
+    expect(result.unwrap()).toEqual(rows)
     expect(pool.sql.unsafe).toHaveBeenCalledWith('SELECT * FROM "posts" WHERE id = $1', ['abc'])
   })
 
@@ -17,7 +17,7 @@ describe('safeQuery()', () => {
     const pool = makeErrorPool(new Error('connection refused'))
     const result = await safeQuery(pool, 'SELECT 1', [])
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.INTERNAL)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.INTERNAL)
   })
 
   it('passes empty params array when no params', async () => {

@@ -1,8 +1,9 @@
-import { ok, err } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import { TelemetryErrorCode } from './intent-types.js'
 import type { TelemetryError } from './intent-types.js'
 import type { TelemetryRingBuffer } from './ring-buffer.js'
+import { shouldTrack } from './consent.js'
 
 export interface FlushHandle {
   stop (): void
@@ -13,6 +14,13 @@ export function flushTelemetry (
   buffer: TelemetryRingBuffer,
   endpointUrl: string
 ): Result<number, TelemetryError> {
+  if (!shouldTrack()) {
+    return err({
+      code: TelemetryErrorCode.FLUSH_CONSENT_DENIED,
+      message: 'Telemetry blocked by privacy signal'
+    })
+  }
+
   const dirty = buffer.collectDirty()
 
   if (dirty.length === 0) {

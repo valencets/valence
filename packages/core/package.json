@@ -1,6 +1,6 @@
 {
   "name": "@valencets/core",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,7 +23,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "neverthrow": "^8.2.0"
+    "@valencets/resultkit": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^25.4.0"

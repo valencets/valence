@@ -18,6 +18,12 @@ export interface DbError {
   readonly message: string
 }
 
+export type DbSslMode =
+  | 'disable'
+  | 'require'
+  | 'verify-ca'
+  | 'verify-full'
+
 export interface DbConfig {
   readonly host: string
   readonly port: number
@@ -28,4 +34,6 @@ export interface DbConfig {
   readonly idle_timeout: number
   readonly connect_timeout: number
   readonly query_timeout?: number | undefined
+  readonly sslmode?: DbSslMode | undefined
+  readonly sslrootcert?: string | undefined
 }

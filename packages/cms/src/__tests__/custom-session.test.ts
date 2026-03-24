@@ -15,7 +15,7 @@ describe('createCustomSession()', () => {
     const pool = makeMockPool([{ id: 'sess-abc123', user_id: 'user-1', expires_at: expiresAt }])
     const result = await createCustomSession(pool, TABLE, 'user-1')
     expect(result.isOk()).toBe(true)
-    const val = result._unsafeUnwrap()
+    const val = result.unwrap()
     expect(val.sessionId).toBe('sess-abc123')
     expect(val.expiresAt).toBeInstanceOf(Date)
   })
@@ -61,22 +61,39 @@ describe('createCustomSession()', () => {
     const pool = makeMockPool([])
     const result = await createCustomSession(pool, TABLE, 'u1')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
   })
 
   it('returns Err INTERNAL on db failure', async () => {
     const pool = makeErrorPool(new Error('db down'))
     const result = await createCustomSession(pool, TABLE, 'u1')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
   })
 
   it('returns Err INTERNAL when tableName contains SQL injection', async () => {
     const pool = makeMockPool([{ id: 'sess-1', user_id: 'u1', expires_at: '2099-01-01T00:00:00.000Z' }])
     const result = await createCustomSession(pool, "'; DROP TABLE users; --", 'u1')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(SessionErrorCode.INTERNAL)
-    expect(result._unsafeUnwrapErr().message).toBe('Invalid table name')
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().message).toBe('Invalid table name')
+    // Must not have called the database at all
+    expect((pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls).toHaveLength(0)
+  })
+
+  it('uses sanitized (double-quoted) table name in SQL', async () => {
+    const pool = makeMockPool([{ id: 'sess-1', user_id: 'u1', expires_at: '2099-01-01T00:00:00.000Z' }])
+    await createCustomSession(pool, TABLE, 'u1')
+    const call = (pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls[0]
+    expect(call?.[0]).toContain('"user_sessions"')
+  })
+
+  it('returns Err INTERNAL when tableName contains SQL injection', async () => {
+    const pool = makeMockPool([{ id: 'sess-1', user_id: 'u1', expires_at: '2099-01-01T00:00:00.000Z' }])
+    const result = await createCustomSession(pool, "'; DROP TABLE users; --", 'u1')
+    expect(result.isErr()).toBe(true)
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().message).toBe('Invalid table name')
     // Must not have called the database at all
     expect((pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls).toHaveLength(0)
   })
@@ -94,7 +111,7 @@ describe('validateCustomSession()', () => {
     const pool = makeMockPool([{ id: 'sess-abc', user_id: 'user-7', expires_at: '2099-01-01T00:00:00.000Z' }])
     const result = await validateCustomSession(pool, TABLE, 'sess-abc')
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().userId).toBe('user-7')
+    expect(result.unwrap().userId).toBe('user-7')
   })
 
   it('queries the provided table name', async () => {
@@ -123,13 +140,13 @@ describe('validateCustomSession()', () => {
     const pool = makeMockPool([])
     const result = await validateCustomSession(pool, TABLE, 'nonexistent')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(SessionErrorCode.SESSION_NOT_FOUND)
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.SESSION_NOT_FOUND)
   })
 
   it('returns Err SESSION_EXPIRED with appropriate message for empty result', async () => {
     const pool = makeMockPool([])
     const result = await validateCustomSession(pool, TABLE, 'expired-id')
-    const err = result._unsafeUnwrapErr()
+    const err = result.unwrapErr()
     expect(err.message).toMatch(/session/i)
   })
 
@@ -137,15 +154,31 @@ describe('validateCustomSession()', () => {
     const pool = makeErrorPool(new Error('connection refused'))
     const result = await validateCustomSession(pool, TABLE, 's1')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
   })
 
   it('returns Err INTERNAL when tableName contains SQL injection', async () => {
     const pool = makeMockPool([{ id: 's1', user_id: 'u1', expires_at: '2099-01-01T00:00:00.000Z' }])
     const result = await validateCustomSession(pool, "'; DROP TABLE users; --", 's1')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(SessionErrorCode.INTERNAL)
-    expect(result._unsafeUnwrapErr().message).toBe('Invalid table name')
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().message).toBe('Invalid table name')
+    expect((pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls).toHaveLength(0)
+  })
+
+  it('uses sanitized (double-quoted) table name in SQL', async () => {
+    const pool = makeMockPool([{ id: 's1', user_id: 'u1', expires_at: '2099-01-01T00:00:00.000Z' }])
+    await validateCustomSession(pool, TABLE, 's1')
+    const call = (pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls[0]
+    expect(call?.[0]).toContain('"user_sessions"')
+  })
+
+  it('returns Err INTERNAL when tableName contains SQL injection', async () => {
+    const pool = makeMockPool([{ id: 's1', user_id: 'u1', expires_at: '2099-01-01T00:00:00.000Z' }])
+    const result = await validateCustomSession(pool, "'; DROP TABLE users; --", 's1')
+    expect(result.isErr()).toBe(true)
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().message).toBe('Invalid table name')
     expect((pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls).toHaveLength(0)
   })
 
@@ -162,7 +195,7 @@ describe('destroyCustomSession()', () => {
     const pool = makeMockPool([{ id: 'sess-abc' }])
     const result = await destroyCustomSession(pool, TABLE, 'sess-abc')
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBeUndefined()
+    expect(result.unwrap()).toBeUndefined()
   })
 
   it('deletes from the provided table name', async () => {
@@ -184,15 +217,31 @@ describe('destroyCustomSession()', () => {
     const pool = makeErrorPool(new Error('disk full'))
     const result = await destroyCustomSession(pool, TABLE, 'sess-1')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
   })
 
   it('returns Err INTERNAL when tableName contains SQL injection', async () => {
     const pool = makeMockPool([])
     const result = await destroyCustomSession(pool, "'; DROP TABLE users; --", 'sess-1')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(SessionErrorCode.INTERNAL)
-    expect(result._unsafeUnwrapErr().message).toBe('Invalid table name')
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().message).toBe('Invalid table name')
+    expect((pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls).toHaveLength(0)
+  })
+
+  it('uses sanitized (double-quoted) table name in SQL', async () => {
+    const pool = makeMockPool([])
+    await destroyCustomSession(pool, TABLE, 'sess-1')
+    const call = (pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls[0]
+    expect(call?.[0]).toContain('"user_sessions"')
+  })
+
+  it('returns Err INTERNAL when tableName contains SQL injection', async () => {
+    const pool = makeMockPool([])
+    const result = await destroyCustomSession(pool, "'; DROP TABLE users; --", 'sess-1')
+    expect(result.isErr()).toBe(true)
+    expect(result.unwrapErr().code).toBe(SessionErrorCode.INTERNAL)
+    expect(result.unwrapErr().message).toBe('Invalid table name')
     expect((pool.sql.unsafe as ReturnType<typeof import('vitest').vi.fn>).mock.calls).toHaveLength(0)
   })
 

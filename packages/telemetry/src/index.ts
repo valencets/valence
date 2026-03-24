@@ -51,6 +51,8 @@ export {
   BeaconIntentType,
   BeaconValidationErrorCode,
   MAX_BEACON_EVENTS,
+  PAGEVIEW_CATEGORIES,
+  CONVERSION_CATEGORIES,
   isValidIntentType
 } from './beacon-types.js'
 export type { BeaconEvent, BeaconValidationError } from './beacon-types.js'
@@ -89,3 +91,6 @@ export type { CategoryCount, PageviewCount, EventCategorySummary, DailyEventCoun
 // Server-side event logger
 export { createServerEventLogger } from './server-events.js'
 export type { ServerEventLogger } from './server-events.js'
+
+// Data retention
+export { cleanupOldEvents, cleanupOldSessions } from './retention.js'

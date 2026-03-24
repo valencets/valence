@@ -1,5 +1,5 @@
-import { ok, err } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import { createEmptyIntent, resetIntent, TelemetryErrorCode } from './intent-types.js'
 import type { GlobalTelemetryIntent, TelemetryError } from './intent-types.js'
 

@@ -6,7 +6,7 @@ import { field } from '../schema/fields.js'
 import { makeMockPool, makeErrorPool, makeSequentialPool, asReq, asRes } from './test-helpers.js'
 import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { okAsync } from 'neverthrow'
+import { okAsync } from '@valencets/resultkit'
 
 vi.mock('../auth/session.js', () => ({
   validateSession: vi.fn()
@@ -299,5 +299,65 @@ describe('POST /api/:collection/bulk — result shape', () => {
     const result = body.results[0]
     expect(result.success).toBe(true)
     expect(result.doc).toBeDefined()
+  })
+})
+
+describe('POST /api/:collection/bulk — ID validation (API-02)', () => {
+  it('returns 400 when ids exceed maximum of 100', async () => {
+    const { pool, collections, globals } = setup()
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/bulk')?.POST
+    expect(handler).toBeDefined()
+
+    const ids = Array.from({ length: 101 }, (_, i) => `id-${i}`)
+    const req = makeMockReq('POST', '/api/posts/bulk', JSON.stringify({ action: 'delete', ids }))
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object))
+    const body = JSON.parse(res.body)
+    expect(body.error).toContain('Maximum 100')
+  })
+
+  it('allows exactly 100 ids', async () => {
+    const doc = { id: 'id1', title: 'Post 1', slug: 'post-1', deleted_at: '2026-03-20' }
+    const { pool, collections, globals } = setup([doc])
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/bulk')?.POST
+    expect(handler).toBeDefined()
+
+    const ids = Array.from({ length: 100 }, (_, i) => `id-${i}`)
+    const req = makeMockReq('POST', '/api/posts/bulk', JSON.stringify({ action: 'delete', ids }))
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object))
+  })
+
+  it('returns 400 when an id exceeds 36 characters', async () => {
+    const { pool, collections, globals } = setup()
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/bulk')?.POST
+    expect(handler).toBeDefined()
+
+    const longId = 'a'.repeat(37)
+    const req = makeMockReq('POST', '/api/posts/bulk', JSON.stringify({ action: 'delete', ids: [longId] }))
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object))
+    const body = JSON.parse(res.body)
+    expect(body.error).toContain('Invalid ID format')
+  })
+
+  it('returns 400 when an id is not a string', async () => {
+    const { pool, collections, globals } = setup()
+    const routes = createRestRoutes(pool, collections, globals)
+    const handler = routes.get('/api/posts/bulk')?.POST
+    expect(handler).toBeDefined()
+
+    const req = makeMockReq('POST', '/api/posts/bulk', JSON.stringify({ action: 'delete', ids: [123, 'valid-id'] }))
+    const res = makeMockRes()
+    await handler!(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object))
+    const body = JSON.parse(res.body)
+    expect(body.error).toContain('Invalid ID format')
   })
 })

@@ -29,6 +29,8 @@ export interface RouteEntry {
   readonly POST?: RouteHandler
   readonly PATCH?: RouteHandler
   readonly DELETE?: RouteHandler
+  readonly HEAD?: RouteHandler
+  readonly OPTIONS?: RouteHandler
 }
 
 export interface RouteOptions {

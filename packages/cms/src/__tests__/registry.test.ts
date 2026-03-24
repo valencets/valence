@@ -17,7 +17,7 @@ describe('CollectionRegistry', () => {
 
     const found = registry.get('pages')
     expect(found.isOk()).toBe(true)
-    expect(found._unsafeUnwrap().slug).toBe('pages')
+    expect(found.unwrap().slug).toBe('pages')
   })
 
   it('returns DUPLICATE_SLUG when registering the same slug twice', () => {
@@ -29,14 +29,14 @@ describe('CollectionRegistry', () => {
     registry.register(pages)
     const result = registry.register(pages)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.DUPLICATE_SLUG)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.DUPLICATE_SLUG)
   })
 
   it('returns NOT_FOUND for unknown slug', () => {
     const registry = createCollectionRegistry()
     const result = registry.get('nonexistent')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
   })
 
   it('returns all registered collections', () => {
@@ -70,7 +70,7 @@ describe('GlobalRegistry', () => {
 
     const found = registry.get('site-settings')
     expect(found.isOk()).toBe(true)
-    expect(found._unsafeUnwrap().slug).toBe('site-settings')
+    expect(found.unwrap().slug).toBe('site-settings')
   })
 
   it('returns DUPLICATE_SLUG for duplicate global slug', () => {
@@ -79,14 +79,14 @@ describe('GlobalRegistry', () => {
     registry.register(settings)
     const result = registry.register(settings)
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.DUPLICATE_SLUG)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.DUPLICATE_SLUG)
   })
 
   it('returns NOT_FOUND for unknown slug', () => {
     const registry = createGlobalRegistry()
     const result = registry.get('nope')
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
+    expect(result.unwrapErr().code).toBe(CmsErrorCode.NOT_FOUND)
   })
 
   it('getAll returns all registered globals', () => {

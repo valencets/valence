@@ -1,6 +1,6 @@
 {
   "name": "@valencets/telemetry",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -31,7 +31,7 @@
   "dependencies": {
     "@valencets/core": "workspace:*",
     "@valencets/db": "workspace:*",
-    "neverthrow": "^8.2.0",
+    "@valencets/resultkit": "^0.2.0",
     "postgres": "^3.4.8"
   },
   "devDependencies": {

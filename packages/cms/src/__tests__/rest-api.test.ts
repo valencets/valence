@@ -8,7 +8,7 @@ import type { MockIncomingMessage, MockServerResponse } from './test-helpers.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { PaginatedResult } from '../db/query-types.js'
 import type { DocumentRow } from '../db/query-builder.js'
-import { okAsync } from 'neverthrow'
+import { okAsync } from '@valencets/resultkit'
 
 vi.mock('../auth/session.js', () => ({
   validateSession: vi.fn()

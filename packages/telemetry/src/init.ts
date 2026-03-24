@@ -1,10 +1,11 @@
-import { ok, err } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import {
   TelemetryRingBuffer,
   initEventDelegation,
   scheduleAutoFlush,
-  IntentType
+  IntentType,
+  shouldTrack
 } from '@valencets/core/client'
 import type { TelemetryError } from '@valencets/core/client'
 
@@ -44,7 +45,7 @@ export function initTelemetry (config: TelemetryConfig): Result<TelemetryHandle,
   const flush = scheduleAutoFlush(buffer, config.endpoint, flushIntervalMs)
 
   const autoPageview = config.autoPageview ?? true
-  if (autoPageview) {
+  if (autoPageview && shouldTrack()) {
     const writeResult = buffer.write(
       IntentType.PAGEVIEW,
       'document',

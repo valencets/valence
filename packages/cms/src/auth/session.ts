@@ -1,5 +1,5 @@
-import { errAsync, okAsync } from 'neverthrow'
-import type { ResultAsync } from 'neverthrow'
+import { errAsync, okAsync } from '@valencets/resultkit'
+import type { ResultAsync } from '@valencets/resultkit'
 import type { DbPool } from '@valencets/db'
 import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
@@ -33,7 +33,12 @@ export function createSession (userId: string, pool: DbPool, maxAgeSeconds = DEF
   })
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export function validateSession (sessionId: string, pool: DbPool): ResultAsync<string, CmsError> {
+  if (!UUID_RE.test(sessionId)) {
+    return errAsync({ code: CmsErrorCode.NOT_FOUND, message: 'Invalid session ID format' })
+  }
   return safeQuery<SessionRow[]>(
     pool,
     'SELECT id, user_id, expires_at FROM cms_sessions WHERE id = $1 AND expires_at > NOW() AND deleted_at IS NULL',

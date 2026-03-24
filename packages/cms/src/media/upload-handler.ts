@@ -1,4 +1,4 @@
-import { ResultAsync, okAsync } from 'neverthrow'
+import { ResultAsync, okAsync } from '@valencets/resultkit'
 import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -38,7 +38,8 @@ const DEFAULT_ALLOWED_MIMES = new Set([
   'image/gif',
   'image/webp',
   'image/avif',
-  'image/svg+xml',
+  // SVG is intentionally excluded — SVGs can contain embedded scripts and
+  // must not be uploaded by default to prevent stored XSS attacks.
   'application/pdf',
   'video/mp4',
   'video/webm',

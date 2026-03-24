@@ -327,7 +327,7 @@ describe('runFieldHooks() with layout fields', () => {
     ]
     const result = await runFieldHooks('beforeChange', fields, { title: 'original' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ title: 'hooked' })
+    expect(result.unwrap()).toEqual({ title: 'hooked' })
   })
 
   it('runs hooks on fields nested inside row', async () => {
@@ -362,7 +362,7 @@ describe('runFieldHooks() with layout fields', () => {
     const result = await runFieldHooks('beforeChange', fields, { firstName: 'John', lastName: 'Doe' })
     expect(result.isOk()).toBe(true)
     expect(calls).toEqual(['firstName', 'lastName'])
-    expect(result._unsafeUnwrap()).toEqual({ firstName: 'transformed', lastName: 'transformed' })
+    expect(result.unwrap()).toEqual({ firstName: 'transformed', lastName: 'transformed' })
   })
 
   it('runs hooks on fields nested inside collapsible', async () => {
@@ -386,7 +386,7 @@ describe('runFieldHooks() with layout fields', () => {
     ]
     const result = await runFieldHooks('beforeChange', fields, { slug: 'My Article Title' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ slug: 'my-article-title' })
+    expect(result.unwrap()).toEqual({ slug: 'my-article-title' })
   })
 
   it('runs hooks on deeply nested layout fields', async () => {
@@ -421,7 +421,7 @@ describe('runFieldHooks() with layout fields', () => {
     const result = await runFieldHooks('beforeChange', fields, { deepField: 'original' })
     expect(result.isOk()).toBe(true)
     expect(calls).toEqual(['deepField'])
-    expect(result._unsafeUnwrap()).toEqual({ deepField: 'deep-hooked' })
+    expect(result.unwrap()).toEqual({ deepField: 'deep-hooked' })
   })
 })
 
@@ -454,7 +454,7 @@ describe('generateSearchMigration() with layout fields', () => {
     })
     const result = generateSearchMigration(col)
     expect(result.isOk()).toBe(true)
-    const sql = result._unsafeUnwrap()
+    const sql = result.unwrap()
     expect(sql).toContain('"title"')
     expect(sql).toContain('"body"')
     expect(sql).toContain('"metaTitle"')
@@ -475,7 +475,7 @@ describe('generateSearchMigration() with layout fields', () => {
     })
     const result = generateSearchMigration(col)
     expect(result.isOk()).toBe(true)
-    const sql = result._unsafeUnwrap()
+    const sql = result.unwrap()
     expect(sql).toContain('"firstName"')
     expect(sql).toContain('"lastName"')
   })
@@ -495,7 +495,7 @@ describe('generateSearchMigration() with layout fields', () => {
     })
     const result = generateSearchMigration(col)
     expect(result.isOk()).toBe(true)
-    const sql = result._unsafeUnwrap()
+    const sql = result.unwrap()
     expect(sql).toContain('"metaDescription"')
   })
 })

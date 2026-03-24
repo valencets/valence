@@ -52,7 +52,7 @@ describe('ingestBeacon', () => {
     const result = await ingestBeacon(pool, events)
     expect(result.isOk()).toBe(true)
 
-    const value = result._unsafeUnwrap()
+    const value = result.unwrap()
     expect(value.eventsInserted).toBe(2)
     expect(value.sessionId).toBe('123e4567-e89b-12d3-a456-426614174000')
   })

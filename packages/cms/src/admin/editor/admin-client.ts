@@ -1,11 +1,14 @@
-import { ValAutosave, ValBulkBar, ValPreviewPane, ValDialog } from '@valencets/ui'
+import { themeManager, ThemeMode, createTokenSheet } from '@valencets/ui'
+import overrideCss from '../styles/km-overrides.css'
 import { initBlocksFields } from './blocks-client.js'
 
-// Register only the Web Components used in admin HTML
-customElements.define('val-autosave', ValAutosave)
-customElements.define('val-bulk-bar', ValBulkBar)
-customElements.define('val-preview-pane', ValPreviewPane)
-customElements.define('val-dialog', ValDialog)
+// Kinetic Monolith: set dark theme + overrides BEFORE registering components
+// so elements adopt the correct sheet on first connect
+themeManager.setTheme(ThemeMode.Dark)
+themeManager.applyOverrides(createTokenSheet(overrideCss))
+
+// Lazy-load component registration — FOUC CSS hides :not(:defined) until upgrade
+import('@valencets/ui').then(({ registerAll }) => { registerAll() }).catch(() => { /* dynamic import failed */ })
 
 // Lazy-load Tiptap only when richtext editors exist on the page
 async function loadAndInitEditors (): Promise<void> {
@@ -18,6 +21,12 @@ if (document.querySelector('.richtext-editor')) {
   loadAndInitEditors().catch(() => { /* dynamic import failed */ })
 }
 initBlocksFields()
+
+// Login form reactive bindings — lazy-load to keep first-flight bundle small
+const loginForm = document.querySelector<HTMLFormElement>('form[action="/admin/login"]')
+if (loginForm) {
+  import('./login-reactive.js').then(({ initLoginForm }) => { initLoginForm(loginForm) }).catch(() => { /* dynamic import failed */ })
+}
 
 // Wire up conditional field partial re-render (htmx-compatible data attributes)
 const conditionalForm = document.querySelector<HTMLFormElement>('form[hx-post][hx-trigger][hx-target]')

@@ -38,7 +38,7 @@ describe('createSession + getSessionById', () => {
     const createResult = await createSession(pool, testSession)
     expect(createResult.isOk()).toBe(true)
 
-    const created = createResult._unsafeUnwrap()
+    const created = createResult.unwrap()
     expect(created.referrer).toBe('google.com')
     expect(created.device_type).toBe('desktop')
     expect(created.operating_system).toBe('Linux')
@@ -48,7 +48,7 @@ describe('createSession + getSessionById', () => {
     const getResult = await getSessionById(pool, created.session_id)
     expect(getResult.isOk()).toBe(true)
 
-    const fetched = getResult._unsafeUnwrap()
+    const fetched = getResult.unwrap()
     expect(fetched.session_id).toBe(created.session_id)
     expect(fetched.referrer).toBe('google.com')
   })
@@ -61,7 +61,7 @@ describe('createSession + getSessionById', () => {
     })
     expect(result.isOk()).toBe(true)
 
-    const row = result._unsafeUnwrap()
+    const row = result.unwrap()
     expect(row.referrer).toBeNull()
     expect(row.operating_system).toBeNull()
   })
@@ -74,7 +74,7 @@ describe('createSession + getSessionById', () => {
 
 describe('insertEvent + getEventsBySession', () => {
   it('round-trips a single event', async () => {
-    const session = (await createSession(pool, testSession))._unsafeUnwrap()
+    const session = (await createSession(pool, testSession)).unwrap()
 
     const event: InsertableEvent = {
       session_id: session.session_id,
@@ -86,7 +86,7 @@ describe('insertEvent + getEventsBySession', () => {
     const insertResult = await insertEvent(pool, event)
     expect(insertResult.isOk()).toBe(true)
 
-    const inserted = insertResult._unsafeUnwrap()
+    const inserted = insertResult.unwrap()
     expect(inserted.event_category).toBe('CLICK')
     expect(inserted.dom_target).toBe('button.cta')
     expect(inserted.payload).toEqual({ path: '/home', x_coord: 100 })
@@ -94,11 +94,11 @@ describe('insertEvent + getEventsBySession', () => {
 
     const eventsResult = await getEventsBySession(pool, session.session_id)
     expect(eventsResult.isOk()).toBe(true)
-    expect(eventsResult._unsafeUnwrap()).toHaveLength(1)
+    expect(eventsResult.unwrap()).toHaveLength(1)
   })
 
   it('returns events ordered by created_at ASC', async () => {
-    const session = (await createSession(pool, testSession))._unsafeUnwrap()
+    const session = (await createSession(pool, testSession)).unwrap()
 
     await insertEvent(pool, {
       session_id: session.session_id,
@@ -114,22 +114,22 @@ describe('insertEvent + getEventsBySession', () => {
     })
 
     const result = await getEventsBySession(pool, session.session_id)
-    const events = result._unsafeUnwrap()
+    const events = result.unwrap()
     expect(events).toHaveLength(2)
     expect(events[0]!.event_category).toBe('CLICK')
     expect(events[1]!.event_category).toBe('SCROLL')
   })
 
   it('returns empty for session with no events', async () => {
-    const session = (await createSession(pool, testSession))._unsafeUnwrap()
+    const session = (await createSession(pool, testSession)).unwrap()
     const result = await getEventsBySession(pool, session.session_id)
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 })
 
 describe('insertEvents (batch)', () => {
   it('batch-inserts multiple events', async () => {
-    const session = (await createSession(pool, testSession))._unsafeUnwrap()
+    const session = (await createSession(pool, testSession)).unwrap()
 
     const events: ReadonlyArray<InsertableEvent> = [
       { session_id: session.session_id, event_category: 'CLICK', dom_target: 'a.link', payload: {} },
@@ -139,22 +139,22 @@ describe('insertEvents (batch)', () => {
 
     const result = await insertEvents(pool, events)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(3)
+    expect(result.unwrap()).toBe(3)
 
     const stored = await getEventsBySession(pool, session.session_id)
-    expect(stored._unsafeUnwrap()).toHaveLength(3)
+    expect(stored.unwrap()).toHaveLength(3)
   })
 
   it('returns 0 for empty array', async () => {
     const result = await insertEvents(pool, [])
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toBe(0)
+    expect(result.unwrap()).toBe(0)
   })
 })
 
 describe('getEventsByTimeRange', () => {
   it('returns events within the time range', async () => {
-    const session = (await createSession(pool, testSession))._unsafeUnwrap()
+    const session = (await createSession(pool, testSession)).unwrap()
 
     // Insert events at known times
     await pool.sql`
@@ -172,7 +172,7 @@ describe('getEventsByTimeRange', () => {
     )
     expect(result.isOk()).toBe(true)
 
-    const events = result._unsafeUnwrap()
+    const events = result.unwrap()
     expect(events).toHaveLength(2)
     expect(events[0]!.event_category).toBe('CLICK')
     expect(events[1]!.event_category).toBe('SCROLL')
@@ -184,6 +184,6 @@ describe('getEventsByTimeRange', () => {
       new Date('2025-01-01'),
       new Date('2025-01-02')
     )
-    expect(result._unsafeUnwrap()).toHaveLength(0)
+    expect(result.unwrap()).toHaveLength(0)
   })
 })

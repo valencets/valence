@@ -15,12 +15,15 @@ describe('flushTelemetry', () => {
     buffer = result.value
 
     vi.stubGlobal('navigator', {
-      sendBeacon: vi.fn().mockReturnValue(true)
+      sendBeacon: vi.fn().mockReturnValue(true),
+      doNotTrack: null
     })
+    delete (globalThis as Record<string, unknown>).__valence_telemetry_consent
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    delete (globalThis as Record<string, unknown>).__valence_telemetry_consent
   })
 
   it('returns Err(FLUSH_EMPTY) when buffer is empty', () => {
@@ -113,6 +116,61 @@ describe('flushTelemetry', () => {
     const parsed = JSON.parse(payload) as unknown[]
     expect(parsed).toHaveLength(1024)
   })
+
+  it('returns Err(FLUSH_CONSENT_DENIED) when Do Not Track is set', () => {
+    vi.stubGlobal('navigator', {
+      sendBeacon: vi.fn().mockReturnValue(true),
+      doNotTrack: '1'
+    })
+
+    buffer.write(IntentType.CLICK, 'a', 0, 0, 1)
+    const result = flushTelemetry(buffer, '/api/t')
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('FLUSH_CONSENT_DENIED')
+    }
+    expect(navigator.sendBeacon).not.toHaveBeenCalled()
+  })
+
+  it('returns Err(FLUSH_CONSENT_DENIED) when GPC is set', () => {
+    vi.stubGlobal('navigator', {
+      sendBeacon: vi.fn().mockReturnValue(true),
+      doNotTrack: null,
+      globalPrivacyControl: true
+    })
+
+    buffer.write(IntentType.CLICK, 'a', 0, 0, 1)
+    const result = flushTelemetry(buffer, '/api/t')
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('FLUSH_CONSENT_DENIED')
+    }
+    expect(navigator.sendBeacon).not.toHaveBeenCalled()
+  })
+
+  it('returns Err(FLUSH_CONSENT_DENIED) when consent flag is false', () => {
+    (globalThis as Record<string, unknown>).__valence_telemetry_consent = false
+
+    buffer.write(IntentType.CLICK, 'a', 0, 0, 1)
+    const result = flushTelemetry(buffer, '/api/t')
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe('FLUSH_CONSENT_DENIED')
+    }
+    expect(navigator.sendBeacon).not.toHaveBeenCalled()
+  })
+
+  it('does not consume buffer entries when consent is denied', () => {
+    vi.stubGlobal('navigator', {
+      sendBeacon: vi.fn().mockReturnValue(true),
+      doNotTrack: '1'
+    })
+
+    buffer.write(IntentType.CLICK, 'a', 0, 0, 1)
+    flushTelemetry(buffer, '/api/t')
+    // Buffer entries should still be dirty since we never attempted to send
+    expect(buffer.count).toBe(1)
+  })
 })
 
 describe('scheduleAutoFlush', () => {
@@ -127,14 +185,17 @@ describe('scheduleAutoFlush', () => {
 
     vi.useFakeTimers()
     vi.stubGlobal('navigator', {
-      sendBeacon: vi.fn().mockReturnValue(true)
+      sendBeacon: vi.fn().mockReturnValue(true),
+      doNotTrack: null
     })
+    delete (globalThis as Record<string, unknown>).__valence_telemetry_consent
   })
 
   afterEach(() => {
     if (flushHandle) flushHandle.stop()
     vi.useRealTimers()
     vi.unstubAllGlobals()
+    delete (globalThis as Record<string, unknown>).__valence_telemetry_consent
   })
 
   it('sets interval and flushes at specified interval', () => {

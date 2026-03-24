@@ -1,11 +1,11 @@
-import { ok, err } from 'neverthrow'
-import type { Result } from 'neverthrow'
+import { ok, err } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import type { DbPool } from '@valencets/db'
 import type { CollectionConfig } from '../schema/collection.js'
 import type { GlobalConfig } from '../schema/global.js'
 import type { CollectionRegistry, GlobalRegistry } from '../schema/registry.js'
 import type { LocalApi } from '../api/local-api.js'
-import type { Plugin } from './plugin.js'
+import type { Plugin, PluginHooks } from './plugin.js'
 import type { CmsError } from '../schema/types.js'
 import { CmsErrorCode } from '../schema/types.js'
 import type { RestRouteEntry } from '../api/rest-api.js'
@@ -18,6 +18,9 @@ import { createAuthRoutes } from '../auth/auth-routes.js'
 import { isUploadEnabled } from '../media/media-config.js'
 import { createServeHandler } from '../media/serve-handler.js'
 import { createUploadHandler } from '../media/upload-handler.js'
+import { parseCookie } from '../auth/cookie.js'
+import { validateSession } from '../auth/session.js'
+import { generateOpenApiSpec } from '../api/openapi.js'
 
 export interface LocaleConfig {
   readonly code: string
@@ -41,6 +44,7 @@ export interface CmsConfig {
   readonly telemetryPool?: DbPool | undefined
   readonly telemetrySiteId?: string | undefined
   readonly sessionMaxAge?: number | undefined
+  /** Raw HTML strings injected into admin &lt;head&gt;. Trusted developer config — MUST NOT contain user input. */
   readonly headTags?: readonly string[] | undefined
   readonly localization?: LocalizationConfig | undefined
 }
@@ -51,12 +55,18 @@ export interface CmsInstance {
   readonly globals: GlobalRegistry
   readonly restRoutes: Map<string, RestRouteEntry>
   readonly adminRoutes: Map<string, RestRouteEntry>
+  readonly pluginHooks: readonly PluginHooks[]
 }
 
 export function buildCms (inputConfig: CmsConfig): Result<CmsInstance, CmsError> {
-  const config = inputConfig.plugins
-    ? inputConfig.plugins.reduce<CmsConfig>((cfg, plugin) => plugin(cfg), inputConfig)
-    : inputConfig
+  const plugins = inputConfig.plugins ?? []
+  const pluginHooks: PluginHooks[] = []
+
+  const config = plugins.reduce<CmsConfig>((cfg, plugin) => {
+    if (typeof plugin === 'function') return plugin(cfg)
+    if (plugin.hooks) pluginHooks.push(plugin.hooks)
+    return plugin.transform(cfg)
+  }, inputConfig)
 
   if (config.localization) {
     if (config.localization.locales.length === 0) {
@@ -101,20 +111,50 @@ export function buildCms (inputConfig: CmsConfig): Result<CmsInstance, CmsError>
     if (hasUploadCollection) {
       const uploadHandler = createUploadHandler(config.uploadDir)
       const serveHandler = createServeHandler(config.uploadDir)
+
+      // Upload requires a valid session — only authenticated users may upload files
       restRoutes.set('/media/upload', {
-        POST: async (req, res) => { await uploadHandler(req, res) }
+        POST: async (req, res) => {
+          const cookieHeader = req.headers.cookie ?? ''
+          const sessionId = parseCookie(cookieHeader, 'cms_session')
+          if (!sessionId) {
+            res.writeHead(401, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Unauthorized' }))
+            return
+          }
+          const sessionResult = await validateSession(sessionId, config.db)
+          if (sessionResult.isErr()) {
+            res.writeHead(401, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Unauthorized' }))
+            return
+          }
+          await uploadHandler(req, res)
+        }
       })
+
+      // Serve is public — media files are embedded in public-facing pages and must be
+      // accessible without authentication (e.g. <img> tags, og:image meta, PDF downloads).
       restRoutes.set('/media/:filename', {
         GET: async (req, res) => { await serveHandler(req, res) }
       })
     }
   }
 
+  restRoutes.set('/api/docs', {
+    GET: async (_req, res) => {
+      const spec = generateOpenApiSpec(collections)
+      const body = JSON.stringify(spec, null, 2)
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) })
+      res.end(body)
+    }
+  })
+
   return ok({
     api,
     collections,
     globals,
     restRoutes,
-    adminRoutes
+    adminRoutes,
+    pluginHooks
   })
 }

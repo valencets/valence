@@ -1,4 +1,4 @@
-import { fromThrowable } from 'neverthrow'
+import { fromThrowable } from '@valencets/resultkit'
 import { graphql } from 'graphql'
 import type { GraphQLSchema, ExecutionResult } from 'graphql'
 import type { IncomingMessage, ServerResponse } from 'node:http'

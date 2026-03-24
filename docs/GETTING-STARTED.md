@@ -42,7 +42,7 @@ Tests use Vitest with happy-dom. No database or network required. 315 tests acro
 pnpm lint
 ```
 
-Neostandard via ESLint 9. This is also what the pre-commit hook runs.
+Neostandard via ESLint 9. The pre-commit hook runs `lint-staged`, which applies ESLint to staged code files instead of linting the entire repo.
 
 ## Validate
 

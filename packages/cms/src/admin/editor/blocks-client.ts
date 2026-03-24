@@ -1,4 +1,4 @@
-import { fromThrowable } from 'neverthrow'
+import { fromThrowable } from '@valencets/resultkit'
 interface BlockFieldDef {
   readonly type: string
   readonly name: string

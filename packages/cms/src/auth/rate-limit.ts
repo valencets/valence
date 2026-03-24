@@ -15,6 +15,8 @@ export interface RateLimiter {
   remaining (key: string): number
 }
 
+const MAX_ENTRIES = 10_000
+
 export function createRateLimiter (config: RateLimitConfig): RateLimiter {
   const entries = new Map<string, RateLimitEntry>()
 
@@ -22,6 +24,11 @@ export function createRateLimiter (config: RateLimitConfig): RateLimiter {
     const now = Date.now()
     const existing = entries.get(key)
     if (!existing || (now - existing.firstAttempt) > config.windowMs) {
+      // Evict oldest entry if over cap to prevent memory exhaustion (AUTH-02)
+      if (entries.size >= MAX_ENTRIES) {
+        const oldest = entries.keys().next().value
+        if (oldest !== undefined) entries.delete(oldest)
+      }
       const entry: RateLimitEntry = { count: 0, firstAttempt: now }
       entries.set(key, entry)
       return entry

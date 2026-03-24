@@ -56,7 +56,7 @@ describe('RouteConfig loader/action fields', () => {
       ...minimalConfig,
       routes: [{ path: '/blog', loader }]
     })
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.routes?.[0]?.loader).toBe(loader)
   })
 
@@ -66,7 +66,7 @@ describe('RouteConfig loader/action fields', () => {
       ...minimalConfig,
       routes: [{ path: '/blog', action }]
     })
-    const resolved = result._unsafeUnwrap()
+    const resolved = result.unwrap()
     expect(resolved.routes?.[0]?.action).toBe(action)
   })
 

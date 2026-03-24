@@ -41,12 +41,12 @@ describe('onServer callback in defineConfig', () => {
     const callback = vi.fn((_ctx: OnServerContext) => undefined)
     const result = defineConfig({ ...minimalConfig, onServer: callback })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap().onServer).toBe(callback)
+    expect(result.unwrap().onServer).toBe(callback)
   })
 
   it('resolved config has onServer as undefined when not provided', () => {
     const result = defineConfig(minimalConfig)
-    expect(result._unsafeUnwrap().onServer).toBeUndefined()
+    expect(result.unwrap().onServer).toBeUndefined()
   })
 
   it('onServer callback receives the expected context shape when called', () => {
@@ -78,7 +78,7 @@ describe('onServer callback in defineConfig', () => {
     }
 
     const result = defineConfig({ ...minimalConfig, onServer: callback })
-    const resolvedConfig = result._unsafeUnwrap()
+    const resolvedConfig = result.unwrap()
 
     const mockServer = {} as Server
     const mockPool = {} as OnServerContext['pool']

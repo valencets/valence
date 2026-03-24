@@ -16,7 +16,7 @@ describe('runFieldHooks()', () => {
     ]
     const result = await runFieldHooks('beforeChange', fields, { title: 'original' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ title: 'transformed' })
+    expect(result.unwrap()).toEqual({ title: 'transformed' })
   })
 
   it('multiple field hooks run in sequence', async () => {
@@ -40,7 +40,7 @@ describe('runFieldHooks()', () => {
     const result = await runFieldHooks('beforeChange', fields, { title: 'a', slug: 'b' })
     expect(result.isOk()).toBe(true)
     expect(calls).toEqual(['title', 'slug'])
-    expect(result._unsafeUnwrap()).toEqual({ title: 'changed', slug: 'changed' })
+    expect(result.unwrap()).toEqual({ title: 'changed', slug: 'changed' })
   })
 
   it('fields without hooks pass through unchanged', async () => {
@@ -51,7 +51,7 @@ describe('runFieldHooks()', () => {
     const data = { title: 'hello', count: 5 }
     const result = await runFieldHooks('beforeChange', fields, data)
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual(data)
+    expect(result.unwrap()).toEqual(data)
   })
 
   it('hook receives the correct data including id and collection', async () => {
@@ -87,7 +87,7 @@ describe('runFieldHooks()', () => {
     ]
     const result = await runFieldHooks('afterChange', fields, { title: 'before' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ title: 'async-result' })
+    expect(result.unwrap()).toEqual({ title: 'async-result' })
   })
 
   it('returns Err when a field hook throws', async () => {
@@ -102,7 +102,7 @@ describe('runFieldHooks()', () => {
     ]
     const result = await runFieldHooks('beforeValidate', fields, { title: 'test' })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('validation failed')
+    expect(result.unwrapErr().message).toContain('validation failed')
   })
 
   it('only runs hooks for the specified hookName', async () => {
@@ -136,6 +136,6 @@ describe('runFieldHooks()', () => {
     ]
     const result = await runFieldHooks('beforeChange', fields, { title: 'test' })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ title: 'test', step1: true, step2: true })
+    expect(result.unwrap()).toEqual({ title: 'test', step1: true, step2: true })
   })
 })

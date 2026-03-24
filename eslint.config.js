@@ -41,6 +41,7 @@ export default [
     files: [
       '**/vitest.config.ts',
       '**/vitest.integration.config.ts',
+      'vitest.contracts.config.ts',
       '**/vite.config.ts',
       '**/playwright.config.ts',
       'stryker.config.mjs',

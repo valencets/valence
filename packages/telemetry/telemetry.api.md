@@ -7,8 +7,8 @@
 import type { DbError } from '@valencets/db';
 import type { DbPool } from '@valencets/db';
 import type { IncomingMessage } from 'node:http';
-import type { Result } from 'neverthrow';
-import { ResultAsync } from 'neverthrow';
+import type { Result } from '@valencets/resultkit';
+import { ResultAsync } from '@valencets/resultkit';
 import type { ServerResponse } from 'node:http';
 import type { TelemetryError } from '@valencets/core/client';
 
@@ -97,6 +97,15 @@ export interface CategoryCount {
     // (undocumented)
     readonly dom_target: string;
 }
+
+// @public (undocumented)
+export function cleanupOldEvents(pool: DbPool, retentionDays?: number): ResultAsync<number, DbError>;
+
+// @public (undocumented)
+export function cleanupOldSessions(pool: DbPool, retentionDays?: number): ResultAsync<number, DbError>;
+
+// @public
+export const CONVERSION_CATEGORIES: readonly ["INTENT_LEAD", "INTENT_CALL", "INTENT_BOOK", "LEAD_PHONE", "LEAD_EMAIL", "LEAD_FORM"];
 
 // @public (undocumented)
 export interface ConversionSummaryRow {
@@ -418,6 +427,9 @@ export function markSynced(pool: DbPool, id: number): ResultAsync<void, DbError>
 
 // @public (undocumented)
 export const MAX_BEACON_EVENTS = 256;
+
+// @public
+export const PAGEVIEW_CATEGORIES: readonly ["CLICK", "VIEWPORT_INTERSECT"];
 
 // @public (undocumented)
 export interface PageviewCount {

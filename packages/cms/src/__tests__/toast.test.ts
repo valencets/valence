@@ -77,15 +77,12 @@ describe('renderAdminLayout() with toast', () => {
     expect(scriptTags.length).toBe(1)
   })
 
-  it('includes toast CSS', () => {
+  it('links to external admin.css for component styles', () => {
     const html = renderAdminLayout({
       title: 'Test',
       content: '',
       collections: [col]
     })
-    expect(html).toContain('.toast {')
-    expect(html).toContain('.toast-error')
-    expect(html).toContain('.toast-success')
-    expect(html).toContain('.toast-dismiss')
+    expect(html).toContain('href="/admin/_assets/admin.css"')
   })
 })

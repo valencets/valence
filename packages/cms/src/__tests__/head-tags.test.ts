@@ -45,7 +45,7 @@ describe('headTags injection in admin layout', () => {
     })
     const titleEnd = html.indexOf('</title>')
     const tagPos = html.indexOf('<link rel="icon" href="/favicon.ico">')
-    const stylePos = html.indexOf('<style>')
+    const stylePos = html.indexOf('<style')
     expect(tagPos).toBeGreaterThan(titleEnd)
     expect(tagPos).toBeLessThan(stylePos)
   })

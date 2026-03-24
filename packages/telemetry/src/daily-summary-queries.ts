@@ -1,4 +1,4 @@
-import { okAsync, errAsync, ResultAsync } from 'neverthrow'
+import { okAsync, errAsync, ResultAsync } from '@valencets/resultkit'
 import type { JSONValue } from 'postgres'
 import { DbErrorCode, mapPostgresError } from '@valencets/db'
 import type { DbError, DbPool } from '@valencets/db'

@@ -86,7 +86,7 @@ describe('runHooks()', () => {
     ]
     const result = await runHooks(hooks, { data: { title: 'Test' } })
     expect(result.isOk()).toBe(true)
-    const final = result._unsafeUnwrap()
+    const final = result.unwrap()
     expect(final).toEqual({ title: 'Test', step1: true, step2: true })
   })
 
@@ -96,13 +96,13 @@ describe('runHooks()', () => {
     ]
     const result = await runHooks(hooks, { data: { title: 'Test' } })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr().message).toContain('hook failed')
+    expect(result.unwrapErr().message).toContain('hook failed')
   })
 
   it('returns Ok with original data when hooks array is empty', async () => {
     const result = await runHooks([], { data: { title: 'Test' } })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ title: 'Test' })
+    expect(result.unwrap()).toEqual({ title: 'Test' })
   })
 
   it('handles hooks that return undefined (fire-and-forget)', async () => {
@@ -115,7 +115,7 @@ describe('runHooks()', () => {
     expect(result.isOk()).toBe(true)
     expect(sideEffect).toEqual(['logged'])
     // data passes through unchanged when hook returns undefined
-    expect(result._unsafeUnwrap()).toEqual({ title: 'Test' })
+    expect(result.unwrap()).toEqual({ title: 'Test' })
   })
 
   it('handles async hooks', async () => {
@@ -127,6 +127,6 @@ describe('runHooks()', () => {
     ]
     const result = await runHooks(hooks, { data: { title: 'Test' } })
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ title: 'Test', async: true })
+    expect(result.unwrap()).toEqual({ title: 'Test', async: true })
   })
 })

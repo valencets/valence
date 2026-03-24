@@ -1,5 +1,5 @@
 import type { DbError, DbPool } from '@valencets/db'
-import type { ResultAsync } from 'neverthrow'
+import type { ResultAsync } from '@valencets/resultkit'
 import type { BeaconEvent } from './beacon-types.js'
 import { createSession } from './event-queries.js'
 import { insertEvents } from './event-queries.js'

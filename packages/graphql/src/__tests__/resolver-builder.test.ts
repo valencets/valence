@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { GraphQLError, graphql } from 'graphql'
-import { okAsync, errAsync } from 'neverthrow'
+import { okAsync, errAsync } from '@valencets/resultkit'
 import { buildCollectionResolvers } from '../resolver-builder.js'
 import { generateGraphQLSchema } from '../schema-generator.js'
 import type { CollectionConfig } from '@valencets/cms'

@@ -17,7 +17,7 @@ test.describe('Visual: Login page', () => {
     await page.getByLabel('Password').fill('wrongpassword')
     await page.getByRole('button', { name: /sign\s*in/i }).click()
 
-    await page.locator('.login-error').waitFor({ state: 'visible' })
+    await page.locator('.km-error').waitFor({ state: 'visible' })
     await expect(page).toHaveScreenshot('login-page-error.png')
   })
 })

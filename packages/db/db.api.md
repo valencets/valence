@@ -4,8 +4,8 @@
 
 ```ts
 
-import type { Result } from 'neverthrow';
-import { ResultAsync } from 'neverthrow';
+import type { Result } from '@valencets/resultkit';
+import { ResultAsync } from '@valencets/resultkit';
 import type { Sql } from 'postgres';
 
 // @public (undocumented)
@@ -32,6 +32,10 @@ export interface DbConfig {
     readonly port: number;
     // (undocumented)
     readonly query_timeout?: number | undefined;
+    // (undocumented)
+    readonly sslmode?: DbSslMode | undefined;
+    // (undocumented)
+    readonly sslrootcert?: string | undefined;
     // (undocumented)
     readonly username: string;
 }
@@ -66,6 +70,9 @@ export interface DbPool {
     // (undocumented)
     readonly sql: Sql;
 }
+
+// @public (undocumented)
+export type DbSslMode = 'disable' | 'require' | 'verify-ca' | 'verify-full';
 
 // @public (undocumented)
 export function getMigrationStatus(pool: DbPool): ResultAsync<ReadonlyArray<{

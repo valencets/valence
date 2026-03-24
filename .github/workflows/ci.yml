@@ -19,6 +19,29 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  tdd-history:
+    name: TDD History
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate TDD commit sequence
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            BASE="$(git merge-base HEAD "origin/${{ github.base_ref }}")"
+            if [ "${{ github.base_ref }}" = "master" ] && [ "${{ github.head_ref }}" = "development" ]; then
+              TDD_SEQUENCE_START=f3aae193 bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
+            else
+              bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
+            fi
+          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            bash scripts/check-tdd-commit-sequence.sh range "${{ github.event.before }}..${{ github.sha }}"
+          elif git rev-parse HEAD^ >/dev/null 2>&1; then
+            bash scripts/check-tdd-commit-sequence.sh range "HEAD^..HEAD"
+          fi
+
   lint:
     name: Lint
     runs-on: ubuntu-24.04
@@ -133,7 +156,7 @@ jobs:
           install-playwright: 'true'
           playwright-browser: chromium
       - run: pnpm build
-      - run: npx playwright test --grep-invert Visual --shard=${{ matrix.shard }}/2
+      - run: pnpm test:e2e --grep-invert Visual --shard=${{ matrix.shard }}/2
         env:
           PGHOST: localhost
           PGPORT: 5432
@@ -155,7 +178,7 @@ jobs:
     name: E2E - Merge Reports
     needs: [e2e]
     runs-on: ubuntu-24.04
-    if: always()
+    if: always() && needs.e2e.result == 'success'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
@@ -224,8 +247,8 @@ jobs:
           results=("$UNIT" "$INTEGRATION" "$E2E_MERGE" "$CONTRACTS" "$COVERAGE" "$SECURITY")
           failed=false
           for result in "${results[@]}"; do
-            if [ "$result" != "success" ]; then
-              echo "Job failed or was skipped: $result"
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Job failed: $result"
               failed=true
             fi
           done
@@ -239,7 +262,6 @@ jobs:
     name: Visual Regression
     needs: [unit]
     runs-on: ubuntu-24.04
-    continue-on-error: true
     services:
       postgres:
         image: postgres:16
@@ -263,6 +285,7 @@ jobs:
           PGHOST: localhost
           PGPORT: 5432
           PGUSER: postgres
+
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -293,7 +316,15 @@ jobs:
       - uses: ./.github/actions/setup-project
       - run: pnpm build
       - name: Start test server
-        run: nohup npx tsx tests/e2e/server-start.mjs > /tmp/lhci-server.log 2>&1 &
+        run: |
+          nohup node --import tsx tests/e2e/server-start.mjs > /tmp/lhci-server.log 2>&1 &
+          SERVER_PID=$!
+          sleep 5
+          if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo "Server crashed on startup"
+            cat /tmp/lhci-server.log || true
+            exit 1
+          fi
         env:
           PGHOST: localhost
           PGPORT: 5432
@@ -425,6 +456,9 @@ jobs:
         with:
           install-playwright: 'true'
           playwright-browser: ${{ matrix.browser }}
+      - name: Install chromium for auth setup
+        if: matrix.browser != 'chromium'
+        run: npx playwright install --with-deps chromium
       - run: pnpm build
       - run: npx playwright test --grep-invert Visual --shard=${{ matrix.shard }}/4
         env:
@@ -453,6 +487,7 @@ jobs:
           path: .stryker-tmp/
           key: stryker-${{ runner.os }}-${{ github.sha }}
           restore-keys: stryker-${{ runner.os }}-
+      - run: pnpm build
       - run: pnpm test:mutate
 
   publish:
@@ -468,7 +503,7 @@ jobs:
       - run: pnpm build
       - name: Publish packages
         run: |
-          for pkg in packages/ui packages/core packages/db packages/telemetry packages/cms packages/valence; do
+          for pkg in packages/ui packages/core packages/db packages/reactive packages/telemetry packages/cms packages/graphql packages/plugin-cloud-storage packages/valence; do
             cd "$GITHUB_WORKSPACE/$pkg"
             VERSION=$(node -p "require('./package.json').version")
             NAME=$(node -p "require('./package.json').name")
@@ -499,7 +534,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for pkg in packages/ui packages/core packages/db packages/telemetry packages/cms packages/valence; do
+          for pkg in packages/ui packages/core packages/db packages/reactive packages/telemetry packages/cms packages/graphql packages/plugin-cloud-storage packages/valence; do
             VERSION=$(node -p "require('./$pkg/package.json').version")
             NAME=$(node -p "require('./$pkg/package.json').name")
             SHORT=$(echo "$NAME" | sed 's/@valencets\///')

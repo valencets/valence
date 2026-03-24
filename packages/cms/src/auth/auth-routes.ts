@@ -1,4 +1,4 @@
-import type { ResultAsync } from 'neverthrow'
+import type { ResultAsync } from '@valencets/resultkit'
 import type { CmsError } from '../schema/types.js'
 import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry } from '../schema/registry.js'
@@ -83,7 +83,12 @@ export function createAuthRoutes (
       const userResult = await queryUser(pool, email, safeDisplayCol)
       if (userResult.isErr()) { sendErrorJson(res, 'Login failed', 401); return }
       const user = userResult.value
-      if (!user) { sendErrorJson(res, 'Invalid credentials', 401); return }
+      if (!user) {
+        // Prevent timing-based user enumeration (NEW-06)
+        await verifyPassword(password, '$argon2id$v=19$m=65536,t=3,p=4$dummysalt$dummyhash')
+        sendErrorJson(res, 'Invalid credentials', 401)
+        return
+      }
 
       const verifyResult = await verifyPassword(password, user.password_hash)
       if (verifyResult.isErr() || !verifyResult.value) {
@@ -109,6 +114,10 @@ export function createAuthRoutes (
     }
   })
 
+  // Logout CSRF: SameSite=Lax on the session cookie prevents cross-site POST
+  // from sending the cookie, so an attacker's form submission arrives without
+  // a session — destroySession is a no-op and the response is harmless.
+  // No additional CSRF token is needed for this endpoint.
   routes.set('/api/users/logout', {
     POST: async (req, res) => {
       const cookieHeader = req.headers.cookie ?? ''

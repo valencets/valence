@@ -1,5 +1,5 @@
 import type { DbConfig, DbError, DbPool } from '@valencets/db'
-import type { ResultAsync } from 'neverthrow'
+import type { ResultAsync } from '@valencets/resultkit'
 import { log } from './cli-utils.js'
 
 interface PoolFactory {

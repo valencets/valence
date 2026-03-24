@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { join, resolve, basename } from 'node:path'
-import { ResultAsync } from 'neverthrow'
+import { ResultAsync } from '@valencets/resultkit'
 import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
 import { getMimeType } from './media-config.js'
@@ -14,8 +14,9 @@ const INLINE_MIMES = new Set([
   'image/png',
   'image/webp',
   'image/avif',
-  'image/gif',
-  'image/svg+xml'
+  'image/gif'
+  // SVG is intentionally excluded — SVGs can contain embedded scripts and must
+  // always be served as attachment to prevent XSS via inline rendering.
 ])
 
 function sendFile (res: ServerResponse, filename: string, data: Buffer): void {
@@ -23,7 +24,12 @@ function sendFile (res: ServerResponse, filename: string, data: Buffer): void {
   const headers: Record<string, string | number> = {
     'Content-Type': mimeType,
     'Content-Length': data.length,
-    'Cache-Control': 'public, max-age=31536000, immutable'
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    // Security: prevent MIME-type sniffing attacks (e.g. a PDF rendered as HTML)
+    'X-Content-Type-Options': 'nosniff',
+    // Security: allow embedding in same-site pages (images in <img> tags)
+    // while blocking cross-origin embedding that could leak data
+    'Cross-Origin-Resource-Policy': 'same-site'
   }
   if (!INLINE_MIMES.has(mimeType)) {
     headers['Content-Disposition'] = 'attachment'

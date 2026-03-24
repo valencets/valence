@@ -41,20 +41,20 @@ TCP slow start gives you ~10 packets on the initial congestion window. At 1460 b
 
 ## Package Dependency Graph
 
-Five packages under `packages/`, connected by workspace dependencies. `neverthrow` is an npm dependency (not vendored):
+Five packages under `packages/`, connected by workspace dependencies. `@valencets/resultkit` is an npm dependency (not vendored):
 
 ```
-@valencets/core                (depends on neverthrow)
+@valencets/core                (depends on @valencets/resultkit)
        |
        v
-@valencets/db                  (depends on neverthrow, postgres, zod)
+@valencets/db                  (depends on @valencets/resultkit, postgres, zod)
        |
        v
-@valencets/telemetry           (depends on db, neverthrow, postgres)
+@valencets/telemetry           (depends on db, @valencets/resultkit, postgres)
 
 @valencets/ui                  (zero deps)
 
-@valencets/cms                 (v0.1 complete, depends on db, neverthrow, zod, argon2)
+@valencets/cms                 (v0.1 complete, depends on db, @valencets/resultkit, zod, argon2)
 ```
 
 ### Package Status
@@ -108,7 +108,7 @@ This pattern repeats across packages:
 
 ### Result Monad Usage
 
-All fallible functions return `Result<Ok, Err>` (synchronous) or `ResultAsync<Ok, Err>` (asynchronous) from `neverthrow`. The caller must explicitly handle both branches. No `.parse()` -- only `.safeParse()` for Zod schemas.
+All fallible functions return `Result<Ok, Err>` (synchronous) or `ResultAsync<Ok, Err>` (asynchronous) from `@valencets/resultkit`. The caller must explicitly handle both branches. No `.parse()` -- only `.safeParse()` for Zod schemas.
 
 ```typescript
 // Synchronous: factory functions, validation, parsing
@@ -251,7 +251,7 @@ Status: Design reference. The original `packages/ingestion/` has been removed. T
 1. Receive raw request body as string
 2. `safeJsonParse(raw)` -- `Result<unknown, ParseFailure>` (the one permitted try/catch)
 3. Zod `.safeParse()` against version-discriminated schema -- `Result<T, ValidationFailure>`
-4. Chain via neverthrow `.map()` / `.andThen()`
+4. Chain via @valencets/resultkit `.map()` / `.andThen()`
 5. Final `.match()`:
    - `Ok`: append to PostgreSQL immutable ledger
    - `Err`: log to internal audit stream, return HTTP 200 OK
