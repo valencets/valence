@@ -150,12 +150,12 @@ describe('createTokenBucket', () => {
     const bucket = createTokenBucket({ maxRequests: 5, windowMs: 60_000 })
 
     const result = bucket.consume('ip1')
-    expect(result.resetMs).toBe(60_000)
+    expect(result.resetMs).toBe(12_000)
 
     vi.advanceTimersByTime(10_000)
 
     const result2 = bucket.consume('ip1')
-    expect(result2.resetMs).toBe(50_000)
+    expect(result2.resetMs).toBe(2_000)
 
     bucket.destroy()
   })
@@ -245,7 +245,30 @@ describe('createRateLimitMiddleware', () => {
     const res2 = stubRes()
     await middleware(stubReq(), res2, stubCtx(), vi.fn(async () => {}))
     expect(res2.headers['retry-after']).toBeDefined()
-    expect(Number(res2.headers['retry-after'])).toBeGreaterThan(0)
+    expect(Number(res2.headers['retry-after'])).toBe(60)
+
+    destroy()
+  })
+
+  it('unblocks before full window expiry as tokens refill', async () => {
+    const { middleware, destroy } = createRateLimitMiddleware({ maxRequests: 5, windowMs: 60_000 })
+
+    for (let i = 0; i < 5; i++) {
+      await middleware(stubReq(), stubRes(), stubCtx(), vi.fn(async () => {}))
+    }
+
+    const blockedRes = stubRes()
+    const blockedNext = vi.fn(async () => {})
+    await middleware(stubReq(), blockedRes, stubCtx(), blockedNext)
+    expect(blockedRes.statusCode).toBe(429)
+    expect(blockedRes.headers['retry-after']).toBe('12')
+
+    vi.advanceTimersByTime(12_000)
+
+    const recoveredRes = stubRes()
+    const recoveredNext = vi.fn(async () => {})
+    await middleware(stubReq(), recoveredRes, stubCtx(), recoveredNext)
+    expect(recoveredNext).toHaveBeenCalledOnce()
 
     destroy()
   })
