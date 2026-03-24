@@ -202,7 +202,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
       - run: pnpm build
-      - run: npx vitest run tests/contracts/
+      - run: pnpm exec vitest run --config vitest.contracts.config.ts
 
   coverage:
     name: Coverage (80% gate)
@@ -231,7 +231,7 @@ jobs:
 
   ci-gate:
     name: CI Gate
-    needs: [unit, integration, e2e-merge-report, contracts, coverage, security]
+    needs: [unit, integration, e2e, e2e-merge-report, contracts, coverage, security]
     runs-on: ubuntu-24.04
     if: always()
     steps:
@@ -239,12 +239,13 @@ jobs:
         env:
           UNIT: ${{ needs.unit.result }}
           INTEGRATION: ${{ needs.integration.result }}
+          E2E: ${{ needs.e2e.result }}
           E2E_MERGE: ${{ needs.e2e-merge-report.result }}
           CONTRACTS: ${{ needs.contracts.result }}
           COVERAGE: ${{ needs.coverage.result }}
           SECURITY: ${{ needs.security.result }}
         run: |
-          results=("$UNIT" "$INTEGRATION" "$E2E_MERGE" "$CONTRACTS" "$COVERAGE" "$SECURITY")
+          results=("$UNIT" "$INTEGRATION" "$E2E" "$E2E_MERGE" "$CONTRACTS" "$COVERAGE" "$SECURITY")
           failed=false
           for result in "${results[@]}"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
