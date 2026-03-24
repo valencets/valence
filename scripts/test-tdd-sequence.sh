@@ -61,6 +61,13 @@ assert_valid_branch() {
   (cd "$repo_dir" && bash "$CHECK_SCRIPT" branch >/dev/null)
 }
 
+assert_valid_range_with_start() {
+  local repo_dir="$1"
+  local start_commit="$2"
+  local range="$3"
+  (cd "$repo_dir" && TDD_SEQUENCE_START="$start_commit" bash "$CHECK_SCRIPT" range "$range" >/dev/null)
+}
+
 assert_invalid_branch() {
   local repo_dir="$1"
   local expected="$2"
@@ -128,5 +135,21 @@ printf 'green-branch\n' > "$orphan_branch_repo/a.txt"
 run_git "$orphan_branch_repo" add a.txt
 run_git "$orphan_branch_repo" commit -m "fix(tooling): orphan branch green -- GREEN" >/dev/null 2>&1
 assert_invalid_branch "$orphan_branch_repo" "GREEN commit must immediately follow a RED commit in the same scope"
+
+history_cutoff_repo="$(setup_repo history-cutoff)"
+printf 'old-green\n' > "$history_cutoff_repo/a.txt"
+run_git "$history_cutoff_repo" add a.txt
+run_git "$history_cutoff_repo" commit -m "fix(tooling): old invalid green -- GREEN" >/dev/null 2>&1
+printf 'boundary\n' > "$history_cutoff_repo/b.txt"
+run_git "$history_cutoff_repo" add b.txt
+run_git "$history_cutoff_repo" commit -m "chore(tooling): tdd policy boundary" >/dev/null 2>&1
+history_start_commit="$(run_git "$history_cutoff_repo" rev-parse HEAD)"
+printf 'red-cutoff\n' > "$history_cutoff_repo/c.txt"
+run_git "$history_cutoff_repo" add c.txt
+run_git "$history_cutoff_repo" commit -m "test(tooling): post-boundary sequence -- RED" >/dev/null 2>&1
+printf 'green-cutoff\n' > "$history_cutoff_repo/c.txt"
+run_git "$history_cutoff_repo" add c.txt
+run_git "$history_cutoff_repo" commit -m "fix(tooling): post-boundary sequence -- GREEN" >/dev/null 2>&1
+assert_valid_range_with_start "$history_cutoff_repo" "$history_start_commit" "HEAD~4..HEAD"
 
 echo "TDD sequence checks passed."
