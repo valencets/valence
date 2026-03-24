@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { parseRangeHeader, serveStaticFile } from '../static-files.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { Writable } from 'node:stream'
 import type { ServerResponse } from 'node:http'
 
@@ -177,5 +177,16 @@ describe('serveStaticFile', () => {
     await serveStaticFile(filePath, 'audio/mpeg', 'invalid-range', res)
 
     expect(res._status).toBe(416)
+  })
+
+  it('fails closed with 404 when the file disappears before stat/read', async () => {
+    const content = Buffer.from('ABCDEFGHIJ')
+    const filePath = makeTmpFile(content)
+    const res = mockRes()
+    rmSync(filePath)
+
+    await expect(serveStaticFile(filePath, 'audio/mpeg', undefined, res)).resolves.toBeUndefined()
+
+    expect(res._status).toBe(404)
   })
 })
