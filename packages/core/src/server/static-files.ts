@@ -176,15 +176,15 @@ export function serveStaticFile (
   return new Promise((resolve: () => void) => {
     const safeStat = fromThrowable(statSync, () => null)
     const statResult = safeStat(filePath)
-    if (statResult.isErr()) {
+    if (statResult.isErr() || statResult.value === null) {
       res.writeHead(404, { 'Content-Length': 0 })
       res.end()
       resolve()
       return
     }
 
-    const stat = statResult.value
-    const fileSize = stat.size
+    const stat = statResult.value!
+    const fileSize = Number(stat.size)
 
     const rangeResult = parseRangeHeader(rangeHeader, fileSize)
 
