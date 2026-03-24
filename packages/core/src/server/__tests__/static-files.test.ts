@@ -81,4 +81,16 @@ describe('resolveStaticPath', () => {
     const result = resolveStaticPath('/foo\x01bar', '/srv/public')
     expect(result.isErr()).toBe(true)
   })
+
+  it('returns Err for malformed percent-encoding instead of throwing', () => {
+    expect(() => resolveStaticPath('/%C0', '/srv/public')).not.toThrow()
+    const result = resolveStaticPath('/%C0', '/srv/public')
+    expect(result.isErr()).toBe(true)
+  })
+
+  it('returns Err for incomplete percent-encoding instead of throwing', () => {
+    expect(() => resolveStaticPath('/%', '/srv/public')).not.toThrow()
+    const result = resolveStaticPath('/%', '/srv/public')
+    expect(result.isErr()).toBe(true)
+  })
 })
