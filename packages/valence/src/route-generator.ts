@@ -15,16 +15,20 @@ export interface GeneratedRoute {
   readonly type: 'list' | 'detail'
 }
 
-const customPathSet = (customRoutes: readonly RouteConfig[] | undefined): ReadonlySet<string> => {
+const generatedGetOverridePathSet = (customRoutes: readonly RouteConfig[] | undefined): ReadonlySet<string> => {
   if (customRoutes === undefined) return new Set()
-  return new Set(customRoutes.map((r) => r.path))
+  return new Set(
+    customRoutes
+      .filter((r) => (r.method ?? 'GET').toUpperCase() === 'GET')
+      .map((r) => r.path)
+  )
 }
 
 export function generateCollectionRoutes (
   collections: readonly CollectionConfig[],
   customRoutes?: readonly RouteConfig[] | undefined
 ): readonly GeneratedRoute[] {
-  const overriddenPaths = customPathSet(customRoutes)
+  const overriddenPaths = generatedGetOverridePathSet(customRoutes)
   const routes: GeneratedRoute[] = []
 
   for (const col of collections) {
