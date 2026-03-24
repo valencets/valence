@@ -48,6 +48,31 @@ describe('resolvePageRoute', () => {
     expect(result).toBeNull()
   })
 
+  it('rejects encoded slash at the root', () => {
+    const result = resolvePageRoute('/%2F', '/tmp/project/src')
+    expect(result).toBeNull()
+  })
+
+  it('rejects encoded slash in detail param position', () => {
+    const result = resolvePageRoute('/posts/%2F', '/tmp/project/src')
+    expect(result).toBeNull()
+  })
+
+  it('rejects encoded slash that would change route shape after decode', () => {
+    const result = resolvePageRoute('/about%2Fmore', '/tmp/project/src')
+    expect(result).toBeNull()
+  })
+
+  it('rejects encoded control characters in detail params', () => {
+    const result = resolvePageRouteWithParam('/posts/%0A', '/tmp/project/src')
+    expect(result).toBeNull()
+  })
+
+  it('rejects encoded backslashes in detail params', () => {
+    const result = resolvePageRouteWithParam('/posts/%5C', '/tmp/project/src')
+    expect(result).toBeNull()
+  })
+
   it('returns null param for single-segment paths', () => {
     const result = resolvePageRouteWithParam('/about', '/tmp/project/src')
     expect(result).not.toBeNull()
