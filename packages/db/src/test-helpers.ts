@@ -3,6 +3,9 @@ import type { DbError } from './types.js'
 
 type MockRow = Record<string, string | number | boolean | null>
 
+// Shared DB helpers intentionally cover stateless query-path tests only.
+// Session-affine behaviors such as reserve()/release() should use local inline mocks.
+
 export function makeMockPool (rows: ReadonlyArray<MockRow> = []): DbPool {
   const unsafe = (): Promise<ReadonlyArray<MockRow>> => Promise.resolve(rows)
   const sql = Object.assign(
@@ -12,7 +15,7 @@ export function makeMockPool (rows: ReadonlyArray<MockRow> = []): DbPool {
   return { sql }
 }
 
-export function makeErrorPool (error: DbError): DbPool {
+export function makeRejectingPool (error: DbError): DbPool {
   const unsafe = (): Promise<never> => Promise.reject(error)
   const sql = Object.assign(
     (): Promise<never> => Promise.reject(error),
