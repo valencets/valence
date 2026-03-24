@@ -67,11 +67,17 @@ export function resolveStaticPath (requestPath: string, rootDir: string): Result
   if (decoded === null) {
     return err({ code: ServerErrorCode.NOT_FOUND, message: 'Invalid path', statusCode: 404 })
   }
+
+  if (decoded.includes('..')) {
+    return err({ code: ServerErrorCode.NOT_FOUND, message: 'Path traversal rejected', statusCode: 404 })
+  }
+
   const normalized = normalize(decoded)
   const fullPath = resolvePath(rootDir, '.' + normalized)
+  const resolvedRoot = resolvePath(rootDir)
 
   // Path traversal check: resolved path must start with root
-  if (!fullPath.startsWith(resolvePath(rootDir))) {
+  if (fullPath !== resolvedRoot && !fullPath.startsWith(resolvedRoot + '/')) {
     return err({ code: ServerErrorCode.NOT_FOUND, message: 'Path traversal rejected', statusCode: 404 })
   }
 
