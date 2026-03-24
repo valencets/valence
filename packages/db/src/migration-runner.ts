@@ -57,24 +57,30 @@ export function loadMigrations (directory: string): ResultAsync<ReadonlyArray<Mi
     })
   ).andThen((filenames: string[]) => {
     const sqlFiles = filenames.filter((f) => f.endsWith('.sql'))
-    const parsed: MigrationFile[] = []
+    const parsed: Array<{ version: number; name: string; filename: string }> = []
 
     for (const filename of sqlFiles) {
       const result = parseMigrationFilename(filename)
       if (result.isErr()) {
-        return ResultAsync.fromSafePromise<never, DbError>(
-          Promise.reject(result.error)
-        ).orElse((e) => err(e))
+        return err(result.error)
       }
       const { version, name } = result.value
-      parsed.push({ version, name, sql: '' })
+      parsed.push({ version, name, filename })
     }
 
     return ResultAsync.fromPromise(
-      Promise.all(parsed.map(async (m, i) => {
-        const content = await readFile(join(directory, sqlFiles[i]!), 'utf-8')
-        return { ...m, sql: content }
-      })),
+      (async () => {
+        const migrations: MigrationFile[] = []
+        for (const migration of parsed) {
+          const content = await readFile(join(directory, migration.filename), 'utf-8')
+          migrations.push({
+            version: migration.version,
+            name: migration.name,
+            sql: content
+          })
+        }
+        return migrations
+      })(),
       (e: unknown): DbError => ({
         code: DbErrorCode.MIGRATION_FAILED,
         message: e instanceof Error ? e.message : 'Failed to read migration file'
