@@ -104,6 +104,21 @@ export function loadMigrations (directory: string): ResultAsync<ReadonlyArray<Mi
 const MIGRATION_LOCK_ID = 839274628
 
 function runMigrationsWithLock (pool: DbPool, migrations: ReadonlyArray<MigrationFile>): ResultAsync<number, DbError> {
+  const mergeCleanupErrors = (primary: DbError | null, secondary: DbError | null): DbError | null => {
+    if (!primary) {
+      return secondary
+    }
+
+    if (!secondary) {
+      return primary
+    }
+
+    return {
+      code: primary.code,
+      message: `${primary.message}; ${secondary.message}`
+    }
+  }
+
   const releaseReservedSql = (reservedSql: Awaited<ReturnType<DbPool['sql']['reserve']>>): ResultAsync<DbError | null, DbError> =>
     ResultAsync.fromPromise(
       Promise.resolve(reservedSql.release()),
@@ -115,7 +130,7 @@ function runMigrationsWithLock (pool: DbPool, migrations: ReadonlyArray<Migratio
       reservedSql.unsafe('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]),
       mapPostgresError
     ).map(() => null).orElse((unlockError) => ok(unlockError)).andThen((unlockError) =>
-      releaseReservedSql(reservedSql).map((releaseError) => unlockError ?? releaseError)
+      releaseReservedSql(reservedSql).map((releaseError) => mergeCleanupErrors(unlockError, releaseError))
     )
 
   const runMigrationBody = (reservedSql: Awaited<ReturnType<DbPool['sql']['reserve']>>): ResultAsync<number, DbError> =>
