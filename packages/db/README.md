@@ -28,6 +28,16 @@ Verified TLS modes require `sslrootcert`. The package boundary expects certifica
 
 `getMigrationStatus()` returns the applied migration list, and treats a fresh database with no `_migrations` table as zero applied migrations.
 
+## Testing
+
+The package also publishes query-path test helpers at `@valencets/db/test`:
+
+- `makeMockPool()` for fixed successful query results
+- `makeRejectingPool()` for raw rejected SQL-boundary failures
+- `makeSequentialPool()` for deterministic per-call result sequences
+
+These shared helpers are intentionally limited to stateless query-path tests. Tests that need session-affine behavior such as `reserve()` and `release()` should use local inline mocks instead of the shared helper surface.
+
 ## Quick Start
 
 ```bash
