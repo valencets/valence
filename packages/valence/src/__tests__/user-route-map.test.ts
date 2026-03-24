@@ -183,6 +183,25 @@ describe('buildUserRouteMap', () => {
     expect(map.get('/contact')?.has('POST')).toBe(true)
   })
 
+  it('registers action routes with their explicit method', () => {
+    const action = async (_ctx: ActionContext): Promise<ActionResult> => ({ redirect: '/done' })
+    const routes: readonly RouteConfig[] = [
+      { path: '/contact', method: 'PUT', action }
+    ]
+    const map = buildUserRouteMap(routes, '/fake/dir', pool, cms)
+    expect(map.get('/contact')?.has('PUT')).toBe(true)
+    expect(map.get('/contact')?.has('POST')).toBe(false)
+  })
+
+  it('defaults action routes to POST when method is omitted', () => {
+    const action = async (_ctx: ActionContext): Promise<ActionResult> => ({ redirect: '/done' })
+    const routes: readonly RouteConfig[] = [
+      { path: '/contact', action }
+    ]
+    const map = buildUserRouteMap(routes, '/fake/dir', pool, cms)
+    expect(map.get('/contact')?.has('POST')).toBe(true)
+  })
+
   it('registers both GET (loader) and POST (action) for same path', () => {
     const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({ data: {} })
     const action = async (_ctx: ActionContext): Promise<ActionResult> => ({ redirect: '/done' })
