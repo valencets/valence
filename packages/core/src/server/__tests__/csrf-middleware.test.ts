@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { RequestContext } from '../middleware-types.js'
 import { createCsrfMiddleware } from '../csrf-middleware.js'
+import { readBody } from '../http-helpers.js'
+import { EventEmitter } from 'node:events'
 
 function stubCtx (): RequestContext {
   return {
@@ -18,6 +20,27 @@ function mockReq (method: string, headers: Record<string, string | undefined> = 
     headers,
     on: vi.fn()
   } as unknown as IncomingMessage
+}
+
+function mockStreamingReq (
+  method: string,
+  headers: Record<string, string | undefined>,
+  chunks: string[]
+): IncomingMessage {
+  const emitter = new EventEmitter()
+  const req = Object.assign(emitter, {
+    method,
+    headers
+  })
+
+  queueMicrotask(() => {
+    for (const chunk of chunks) {
+      emitter.emit('data', Buffer.from(chunk))
+    }
+    emitter.emit('end')
+  })
+
+  return req as unknown as IncomingMessage
 }
 
 interface MockRes {
@@ -157,6 +180,23 @@ describe('createCsrfMiddleware', () => {
 
     const res = mockRes()
     const next = vi.fn(async () => {})
+
+    await middleware(req, res, stubCtx(), next)
+
+    expect(next).toHaveBeenCalledOnce()
+  })
+
+  it('keeps validated form body readable for downstream handlers', async () => {
+    const token = 'e'.repeat(64)
+    const body = `_csrf=${token}&title=Hello`
+    const req = mockStreamingReq('POST', {
+      cookie: '__val_csrf=' + token,
+      'content-type': 'application/x-www-form-urlencoded'
+    }, [body])
+    const res = mockRes()
+    const next = vi.fn(async () => {
+      await expect(readBody(req)).resolves.toBe(body)
+    })
 
     await middleware(req, res, stubCtx(), next)
 
