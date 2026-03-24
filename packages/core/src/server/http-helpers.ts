@@ -2,6 +2,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ServerError } from './server-types.js'
 import { cacheControl } from './cache-control.js'
 
+const CACHED_RAW_BODY = Symbol('cached-raw-body')
+
+interface CachedBodyRequest extends IncomingMessage {
+  [CACHED_RAW_BODY]?: string
+}
+
 export function sendHtml (
   res: ServerResponse,
   html: string,
@@ -38,6 +44,11 @@ export function isFragmentRequest (req: IncomingMessage): boolean {
 export const MAX_BODY_BYTES = 1_048_576
 
 export function readBody (req: IncomingMessage, maxBytes: number = MAX_BODY_BYTES): Promise<string> {
+  const cachedReq = req as CachedBodyRequest
+  if (cachedReq[CACHED_RAW_BODY] !== undefined) {
+    return Promise.resolve(cachedReq[CACHED_RAW_BODY])
+  }
+
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
     let received = 0
@@ -50,7 +61,11 @@ export function readBody (req: IncomingMessage, maxBytes: number = MAX_BODY_BYTE
       }
       chunks.push(chunk)
     })
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')))
+    req.on('end', () => {
+      const body = Buffer.concat(chunks).toString('utf-8')
+      cachedReq[CACHED_RAW_BODY] = body
+      resolve(body)
+    })
   })
 }
 

@@ -1,7 +1,6 @@
-import type { IncomingMessage } from 'node:http'
 import type { Middleware } from './middleware-types.js'
 import { generateCsrfToken, validateCsrfToken } from './csrf.js'
-import { sendJson } from './http-helpers.js'
+import { sendJson, readBody } from './http-helpers.js'
 
 const COOKIE_NAME = '__val_csrf'
 const HEADER_NAME = 'x-csrf-token'
@@ -24,18 +23,6 @@ function parseCookieValue (cookieHeader: string | undefined, name: string): stri
     }
   }
   return undefined
-}
-
-function readFormBody (req: IncomingMessage): Promise<string> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => {
-      chunks.push(chunk)
-    })
-    req.on('end', () => {
-      resolve(Buffer.concat(chunks).toString('utf-8'))
-    })
-  })
 }
 
 function extractBodyField (body: string, field: string): string | undefined {
@@ -81,7 +68,7 @@ export function createCsrfMiddleware (): Middleware {
 
     const contentType = req.headers['content-type'] ?? ''
     if (contentType.includes('application/x-www-form-urlencoded')) {
-      const body = await readFormBody(req)
+      const body = await readBody(req)
       const bodyToken = extractBodyField(body, BODY_FIELD)
       if (bodyToken !== undefined && validateCsrfToken(bodyToken, cookieToken)) {
         await next()
