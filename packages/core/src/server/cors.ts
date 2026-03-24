@@ -33,6 +33,7 @@ export function createCorsMiddleware (config: CorsConfig): Middleware {
     }
 
     res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Vary', 'Origin')
     res.setHeader('Access-Control-Allow-Methods', methods)
     res.setHeader('Access-Control-Allow-Headers', headers)
     res.setHeader('Access-Control-Max-Age', maxAge)
