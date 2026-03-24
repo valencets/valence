@@ -107,13 +107,25 @@ function extractQueryFromReq (req: IncomingMessage): URLSearchParams {
 }
 
 function resolveTemplatePath (routePath: string, projectDir: string): string {
-  // /slug -> index.html, /slug/:param -> detail.html
+  // Preserve static route shape for template lookup.
+  // Param segments do not become directories; any param selects detail.html.
   const segments = routePath.split('/').filter(s => s.length > 0)
   const hasParam = segments.some(s => s.startsWith(':'))
-  const collection = segments.find(s => !s.startsWith(':')) ?? 'page'
+  const staticSegments = segments.filter(s => !s.startsWith(':'))
+  const pageSegments = staticSegments.length > 0 ? staticSegments : ['page']
   return hasParam
-    ? join(projectDir, 'src', 'pages', collection, 'ui', 'detail.html')
-    : join(projectDir, 'src', 'pages', collection, 'ui', 'index.html')
+    ? join(projectDir, 'src', 'pages', ...pageSegments, 'ui', 'detail.html')
+    : join(projectDir, 'src', 'pages', ...pageSegments, 'ui', 'index.html')
+}
+
+function mergeResponseHeaders (
+  fixedHeaders: Readonly<Record<string, string>>,
+  customHeaders: Record<string, string> | undefined
+): Record<string, string> {
+  return {
+    ...(customHeaders ?? {}),
+    ...fixedHeaders
+  }
 }
 
 function makeLoaderHandler (
@@ -139,7 +151,7 @@ function makeLoaderHandler (
     const result = loaderResult.value
 
     if (result.redirect !== undefined) {
-      res.writeHead(302, { Location: result.redirect })
+      res.writeHead(302, mergeResponseHeaders({ Location: result.redirect }, result.headers))
       res.end()
       return
     }
@@ -150,14 +162,14 @@ function makeLoaderHandler (
     if (existsSync(templatePath)) {
       const templateContent = readFileSync(templatePath, 'utf-8')
       const html = injectLoaderData(templateContent, script)
-      res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' })
+      res.writeHead(status, mergeResponseHeaders({ 'Content-Type': 'text/html; charset=utf-8' }, result.headers))
       res.end(html)
       return
     }
 
     // No template -- return minimal HTML with embedded loader data script
     const html = `<!doctype html><html><body>${script}</body></html>`
-    res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.writeHead(status, mergeResponseHeaders({ 'Content-Type': 'text/html; charset=utf-8' }, result.headers))
     res.end(html)
   }
 }
