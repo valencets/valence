@@ -73,6 +73,13 @@ function enforceStreamingLimit (req: IncomingMessage, limit: number): Promise<bo
   return new Promise((resolve) => {
     let received = 0
     let aborted = false
+    let settled = false
+
+    const finish = (result: boolean): void => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
 
     req.on('data', (chunk: Buffer) => {
       if (aborted) return
@@ -80,22 +87,26 @@ function enforceStreamingLimit (req: IncomingMessage, limit: number): Promise<bo
       if (received > limit) {
         aborted = true
         req.destroy()
-        resolve(false)
+        finish(false)
       }
     })
 
     req.on('end', () => {
-      if (!aborted) resolve(true)
+      if (!aborted) finish(true)
     })
 
     req.on('error', () => {
-      if (!aborted) resolve(false)
+      if (!aborted) finish(false)
     })
 
     req.on('close', () => {
-      if (!aborted) resolve(true)
+      if (!aborted) finish(true)
     })
   })
+}
+
+function canTrackStream (req: IncomingMessage): req is IncomingMessage & { on: (event: string, listener: (...args: unknown[]) => void) => IncomingMessage } {
+  return typeof req.on === 'function'
 }
 
 export function createBodyLimitMiddleware (config?: BodyLimitConfig): Middleware {
@@ -122,6 +133,11 @@ export function createBodyLimitMiddleware (config?: BodyLimitConfig): Middleware
     if (contentLength !== undefined) {
       const length = parseInt(contentLength, 10)
       if (Number.isNaN(length)) {
+        const withinLimit = await enforceStreamingLimit(req, limit)
+        if (!withinLimit) {
+          send413(res)
+          return
+        }
         await next()
         return
       }
@@ -131,11 +147,27 @@ export function createBodyLimitMiddleware (config?: BodyLimitConfig): Middleware
         return
       }
 
+      if (!canTrackStream(req)) {
+        await next()
+        return
+      }
+
+      const withinLimit = await enforceStreamingLimit(req, limit)
+      if (!withinLimit) {
+        send413(res)
+        return
+      }
+
       await next()
       return
     }
 
     // No Content-Length header — enforce limit via streaming byte counter
+    if (!canTrackStream(req)) {
+      await next()
+      return
+    }
+
     const withinLimit = await enforceStreamingLimit(req, limit)
     if (!withinLimit) {
       send413(res)
