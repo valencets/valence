@@ -105,6 +105,20 @@ describe('createServerRouter', () => {
     expect(res._body).toContain('Not found')
   })
 
+  it('fails closed instead of throwing when Host header is malformed', async () => {
+    const router = createServerRouter()
+    const req = {
+      url: '/hello',
+      method: 'GET',
+      headers: { host: 'bad host' }
+    } as unknown as IncomingMessage
+    const res = mockRes()
+
+    await expect(router.handle(req, res)).resolves.toBeUndefined()
+    expect(res._status).toBe(400)
+    expect(res._body).toContain('Invalid request URL')
+  })
+
   it('returns 405 for wrong method', async () => {
     const router = createServerRouter()
     router.register('/only-get', { GET: async (_req, res) => { res.end('ok') } })
