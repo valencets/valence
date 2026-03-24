@@ -33,6 +33,34 @@ export function createServerRouter (): ServerRouter {
     errorHandler = handler
   }
 
+  async function runHandler (
+    stored: StoredRoute,
+    handler: RouteHandler,
+    req: IncomingMessage,
+    res: ServerResponse,
+    ctx: RequestContext,
+    pathname: string
+  ): Promise<void> {
+    const allMiddleware = [...globalMiddleware, ...stored.middleware]
+    const pipeline = composeMiddleware(allMiddleware)
+
+    const result = await ResultAsync.fromPromise(
+      pipeline(req, res, ctx, () => handler(req, res, ctx)),
+      (err) => err instanceof Error ? err : new Error(String(err))
+    )
+
+    if (result.isErr()) {
+      if (errorHandler) {
+        await errorHandler(result.error, req, res, ctx)
+        return
+      }
+      console.error(`[server-router] unhandled error on ${pathname}:`, result.error.message)
+      if (!res.headersSent) {
+        sendError(res, { code: ServerErrorCode.INTERNAL_ERROR, message: 'Internal server error', statusCode: 500 })
+      }
+    }
+  }
+
   async function handle (req: IncomingMessage, res: ServerResponse): Promise<void> {
     const nonce = generateNonce()
     setSecurityHeaders(res, { nonce })
@@ -54,7 +82,7 @@ export function createServerRouter (): ServerRouter {
     if (!match) {
       const notFound = routes.get('/404')
       if (notFound?.entry.GET) {
-        await safeDispatch(notFound.entry.GET, req, res, ctx, pathname)
+        await runHandler(notFound, notFound.entry.GET, req, res, ctx, pathname)
         return
       }
       sendError(res, { code: ServerErrorCode.NOT_FOUND, message: `Not found: ${pathname}`, statusCode: 404 })
@@ -86,43 +114,7 @@ export function createServerRouter (): ServerRouter {
       return
     }
 
-    const allMiddleware = [...globalMiddleware, ...stored.middleware]
-    const pipeline = composeMiddleware(allMiddleware)
-
-    const result = await ResultAsync.fromPromise(
-      pipeline(req, res, ctx, () => handler(req, res, ctx)),
-      (err) => err instanceof Error ? err : new Error(String(err))
-    )
-
-    if (result.isErr()) {
-      if (errorHandler) {
-        await errorHandler(result.error, req, res, ctx)
-        return
-      }
-      console.error(`[server-router] unhandled error on ${pathname}:`, result.error.message)
-      if (!res.headersSent) {
-        sendError(res, { code: ServerErrorCode.INTERNAL_ERROR, message: 'Internal server error', statusCode: 500 })
-      }
-    }
-  }
-
-  async function safeDispatch (
-    handler: RouteHandler,
-    req: IncomingMessage,
-    res: ServerResponse,
-    ctx: RequestContext,
-    pathname: string
-  ): Promise<void> {
-    const result = await ResultAsync.fromPromise(
-      handler(req, res, ctx),
-      (err) => err instanceof Error ? err : new Error(String(err))
-    )
-    if (result.isErr()) {
-      console.error(`[server-router] unhandled error on ${pathname}:`, result.error.message)
-      if (!res.headersSent) {
-        sendError(res, { code: ServerErrorCode.INTERNAL_ERROR, message: 'Internal server error', statusCode: 500 })
-      }
-    }
+    await runHandler(stored, handler, req, res, ctx, pathname)
   }
 
   return { register, use, onError, handle }
