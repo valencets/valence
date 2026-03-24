@@ -20,7 +20,7 @@
 
 ---
 
-> **Status: Pre-1.0.** Valence is in active development. The API surface is stabilizing but breaking changes may occur. Security hardening is in progress. Not recommended for production deployments yet.
+> **Status: Pre-1.0.** Valence is in active development. The API surface is stabilizing but breaking changes may occur. Security hardening and package-by-package audits are ongoing.
 
 Define collections and fields in one TypeScript config. Valence derives database tables, a server-rendered admin panel, REST and GraphQL APIs, typed routes with loaders and actions, entity codegen, database migrations, and a first-party analytics pipeline from that single schema. No runtime framework on public pages. No vendor scripts. Minimal, audited dependencies.
 
@@ -34,7 +34,9 @@ export default defineConfig({
     port: Number(process.env.DB_PORT ?? 5432),
     database: process.env.DB_NAME ?? 'mysite',
     username: process.env.DB_USER ?? 'postgres',
-    password: process.env.DB_PASSWORD ?? ''
+    password: process.env.DB_PASSWORD ?? 'postgres',
+    sslmode: process.env.DB_SSLMODE as 'disable' | 'require' | 'verify-ca' | 'verify-full' | undefined,
+    sslrootcert: process.env.DB_SSLROOTCERT
   },
   server: { port: Number(process.env.PORT ?? 3000) },
   collections: [
@@ -209,10 +211,11 @@ Plugins are config transformers: a function that receives a `CmsConfig` and retu
 |---------|-------------|---------------|
 | `@valencets/ui` | 23 Web Components. ARIA, i18n, telemetry hooks, hydration directives. OKLCH tokens. | none |
 | `@valencets/core` | Router + server. pushState nav, fragment swaps, prefetch, view transitions, server islands. | @valencets/resultkit |
-| `@valencets/db` | PostgreSQL query layer. Tagged template SQL, parameterized queries, `Result<T,E>`, migration runner. | postgres, @valencets/resultkit, zod |
+| `@valencets/db` | PostgreSQL query layer. Tagged template SQL, validated config, explicit SSL modes, Result-based error mapping, migration runner. | postgres, @valencets/resultkit, zod |
 | `@valencets/cms` | Schema engine. `collection()` + `field.*` produces tables, validators, REST API, admin UI, auth, media. Rich text via Tiptap. | tiptap, argon2, sharp, zod, @valencets/resultkit |
 | `@valencets/graphql` | Auto-generated GraphQL schema + resolvers from CMS collections. | graphql, @valencets/resultkit |
-| `@valencets/telemetry` | Beacon ingestion, event storage, daily summaries, fleet aggregation. | postgres, @valencets/resultkit |
+| `@valencets/telemetry` | Beacon ingestion, event storage, daily summaries, consent-aware aggregation, retention cleanup. | postgres, @valencets/resultkit |
+| `@valencets/reactive` | Zero-dependency signals package used by newer admin/login flows and available for app/runtime usage. | none |
 | `@valencets/valence` | CLI + FSD scaffold + entity codegen + route types. | tsx, zod, @valencets/resultkit |
 
 Core external runtime deps: 8. All MIT-licensed, all audited via Socket. Public-facing pages ship zero third-party JavaScript.
@@ -226,11 +229,11 @@ Core external runtime deps: 8. All MIT-licensed, all audited via Socket. Public-
 | 14kB critical shell | First paint in the first TCP round trip. |
 | Pre-allocated ring buffer | Zero allocation in the telemetry hot path. |
 | Zero third-party JS on public pages | Your site ships your code. Tiptap is admin-only. |
-| 3,022 tests | Strict TypeScript, neostandard, CI on every push. |
+| 3k+ tests | Strict TypeScript, neostandard, API review, contract checks, and CI on every push. |
 
 ## Current Status
 
-Valence is pre-1.0 and in active development. The schema engine, admin panel, REST API, GraphQL layer, telemetry pipeline, CLI, and Web Components are functional and tested. Security hardening and API surface cleanup are in progress.
+Valence is pre-1.0 and in active development. The schema engine, admin panel, REST API, GraphQL layer, telemetry pipeline, CLI, and Web Components are functional and tested. Recent work has focused on DB package hardening, stricter config/scaffold alignment, and tighter local-to-CI parity. Security hardening and API surface cleanup are still ongoing.
 
 See the [Architecture](ARCHITECTURE.md) doc for a detailed overview of the framework design.
 
