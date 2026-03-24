@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeMockPool, makeErrorPool, makeSequentialPool } from '../test-helpers.js'
+import { makeMockPool, makeRejectingPool, makeSequentialPool } from '../test-helpers.js'
 import { DbErrorCode } from '../types.js'
 
 describe('makeMockPool', () => {
@@ -16,17 +16,17 @@ describe('makeMockPool', () => {
   })
 })
 
-describe('makeErrorPool', () => {
+describe('makeRejectingPool', () => {
   it('rejects with provided error', async () => {
     const error = { code: DbErrorCode.QUERY_FAILED, message: 'boom' }
-    const pool = makeErrorPool(error)
+    const pool = makeRejectingPool(error)
 
     await expect(pool.sql`SELECT 1`).rejects.toEqual(error)
   })
 
   it('rejects on unsafe() too', async () => {
     const error = { code: DbErrorCode.CONNECTION_FAILED, message: 'gone' }
-    const pool = makeErrorPool(error)
+    const pool = makeRejectingPool(error)
 
     await expect(pool.sql.unsafe('SELECT 1')).rejects.toEqual(error)
   })

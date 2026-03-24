@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeMockPool, makeErrorPool } from '@valencets/db/test'
+import { makeMockPool, makeRejectingPool } from '@valencets/db/test'
 import {
   getEventCategorySummaries,
   getEventCountsByCategory,
@@ -32,7 +32,7 @@ describe('getEventCategorySummaries', () => {
   })
 
   it('returns error on db failure', async () => {
-    const pool = makeErrorPool({ code: 'CONNECTION_FAILED', message: 'db down' })
+    const pool = makeRejectingPool({ code: 'CONNECTION_FAILED', message: 'db down' })
     const result = await getEventCategorySummaries(pool, start, end)
     expect(result.isErr()).toBe(true)
   })

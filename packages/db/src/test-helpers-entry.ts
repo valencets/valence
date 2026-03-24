@@ -1,1 +1,1 @@
-export { makeMockPool, makeErrorPool, makeSequentialPool } from './test-helpers.js'
+export { makeMockPool, makeRejectingPool, makeSequentialPool } from './test-helpers.js'
