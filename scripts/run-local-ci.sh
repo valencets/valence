@@ -60,7 +60,7 @@ run_step "Bundle size" pnpm check:size
 run_step "Security audit" pnpm audit --audit-level=high
 run_step "API review" pnpm api:check
 run_step "Unit tests" pnpm test
-run_step "Contract tests" npx vitest run tests/contracts/
+run_step "Contract tests" npx vitest run --config vitest.contracts.config.ts tests/contracts/
 run_step "Integration tests" npx vitest run tests/integration/
 run_step "Visual regression (Ubuntu parity)" pnpm test:visual:ci
 run_step "Coverage gate" bash -lc 'cd packages/cms && npx vitest run --coverage --coverage.thresholds.statements=75'

@@ -81,6 +81,7 @@ describe('buildCms contract', () => {
     const pool = makeMockPool()
     const result = buildCms({
       db: pool,
+      secret: 'test-secret',
       collections: [
         collection({
           slug: 'posts',
@@ -102,6 +103,7 @@ describe('buildCms contract', () => {
     const col = collection({ slug: 'dupe', fields: [] })
     const result = buildCms({
       db: pool,
+      secret: 'test-secret',
       collections: [col, col]
     })
     expect(result.isErr()).toBe(true)

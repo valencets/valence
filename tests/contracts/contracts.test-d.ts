@@ -26,7 +26,16 @@ import type {
 
 describe('db type contracts', () => {
   it('createPool returns DbPool', () => {
-    const config: DbConfig = { host: 'localhost', port: 5432, database: 'test', max: 1 }
+    const config: DbConfig = {
+      host: 'localhost',
+      port: 5432,
+      database: 'test',
+      username: 'postgres',
+      password: 'postgres',
+      max: 1,
+      idle_timeout: 1_000,
+      connect_timeout: 1_000
+    }
     expectTypeOf(createPool(config)).toEqualTypeOf<DbPool>()
   })
 
@@ -83,7 +92,7 @@ describe('cms schema type contracts', () => {
 describe('buildCms type contracts', () => {
   it('buildCms returns Result<CmsInstance, CmsError>', () => {
     const pool = makeMockPool()
-    const result = buildCms({ db: pool, collections: [] })
+    const result = buildCms({ db: pool, collections: [], secret: 'test-secret' })
     expectTypeOf(result).toEqualTypeOf<Result<CmsInstance, CmsError>>()
   })
 })
