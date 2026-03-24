@@ -257,4 +257,19 @@ describe('createCsrfMiddleware', () => {
     expect((res as unknown as MockRes).statusCode).toBe(403)
     expect(next).not.toHaveBeenCalled()
   })
+
+  it('rejects POST when cookie and header share the same invalid token shape', async () => {
+    const invalidToken = 'g'.repeat(64)
+    const req = mockReq('POST', {
+      cookie: '__val_csrf=' + invalidToken,
+      'x-csrf-token': invalidToken
+    })
+    const res = mockRes()
+    const next = vi.fn(async () => {})
+
+    await middleware(req, res, stubCtx(), next)
+
+    expect((res as unknown as MockRes).statusCode).toBe(403)
+    expect(next).not.toHaveBeenCalled()
+  })
 })

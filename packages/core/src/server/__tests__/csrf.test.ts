@@ -29,4 +29,13 @@ describe('validateCsrfToken', () => {
   it('returns false for empty tokens', () => {
     expect(validateCsrfToken('', '')).toBe(false)
   })
+
+  it('returns false for different-length tokens', () => {
+    expect(validateCsrfToken('a'.repeat(63), 'a'.repeat(64))).toBe(false)
+  })
+
+  it('returns false for same-length non-hex tokens', () => {
+    const token = 'g'.repeat(64)
+    expect(validateCsrfToken(token, token)).toBe(false)
+  })
 })
