@@ -503,7 +503,7 @@ jobs:
       - run: pnpm build
       - name: Publish packages
         run: |
-          for pkg in packages/ui packages/core packages/db packages/telemetry packages/cms packages/valence; do
+          for pkg in packages/ui packages/core packages/db packages/reactive packages/telemetry packages/cms packages/graphql packages/plugin-cloud-storage packages/valence; do
             cd "$GITHUB_WORKSPACE/$pkg"
             VERSION=$(node -p "require('./package.json').version")
             NAME=$(node -p "require('./package.json').name")
@@ -534,7 +534,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for pkg in packages/ui packages/core packages/db packages/telemetry packages/cms packages/valence; do
+          for pkg in packages/ui packages/core packages/db packages/reactive packages/telemetry packages/cms packages/graphql packages/plugin-cloud-storage packages/valence; do
             VERSION=$(node -p "require('./$pkg/package.json').version")
             NAME=$(node -p "require('./$pkg/package.json').name")
             SHORT=$(echo "$NAME" | sed 's/@valencets\///')
