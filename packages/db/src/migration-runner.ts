@@ -95,61 +95,84 @@ export function loadMigrations (directory: string): ResultAsync<ReadonlyArray<Mi
 const MIGRATION_LOCK_ID = 839274628
 
 function runMigrationsWithLock (pool: DbPool, migrations: ReadonlyArray<MigrationFile>): ResultAsync<number, DbError> {
+  const releaseReservedSql = (reservedSql: Awaited<ReturnType<DbPool['sql']['reserve']>>): ResultAsync<DbError | null, DbError> =>
+    ResultAsync.fromPromise(
+      Promise.resolve(reservedSql.release()),
+      mapPostgresError
+    ).map(() => null).orElse((releaseError) => ok(releaseError))
+
+  const unlockAndReleaseReservedSql = (reservedSql: Awaited<ReturnType<DbPool['sql']['reserve']>>): ResultAsync<DbError | null, DbError> =>
+    ResultAsync.fromPromise(
+      reservedSql.unsafe('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID]),
+      mapPostgresError
+    ).map(() => null).orElse((unlockError) => ok(unlockError)).andThen((unlockError) =>
+      releaseReservedSql(reservedSql).map((releaseError) => unlockError ?? releaseError)
+    )
+
+  const runMigrationBody = (reservedSql: Awaited<ReturnType<DbPool['sql']['reserve']>>): ResultAsync<number, DbError> =>
+    ResultAsync.fromPromise(
+      (async () => {
+        await reservedSql`
+          CREATE TABLE IF NOT EXISTS _migrations (
+            version INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `
+
+        const applied = await reservedSql<Array<{ version: number }>>`
+          SELECT version FROM _migrations ORDER BY version
+        `
+        const appliedVersions = new Set(applied.map((r) => r.version))
+
+        let count = 0
+        for (const migration of migrations) {
+          if (appliedVersions.has(migration.version)) {
+            continue
+          }
+
+          await reservedSql.begin(async (tx) => {
+            await tx.unsafe(migration.sql)
+            await tx.unsafe(
+              'INSERT INTO _migrations (version, name) VALUES ($1, $2)',
+              [migration.version, migration.name]
+            )
+          })
+          count++
+        }
+
+        return count
+      })(),
+      mapPostgresError
+    )
+
   return ResultAsync.fromPromise(
     pool.sql.reserve(),
     mapPostgresError
   ).andThen((reservedSql) =>
     ResultAsync.fromPromise(
-      (async () => {
-        await reservedSql.unsafe('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID])
-
-        const innerResult = await ResultAsync.fromPromise(
-          (async () => {
-            await reservedSql`
-              CREATE TABLE IF NOT EXISTS _migrations (
-                version INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-              )
-            `
-
-            const applied = await reservedSql<Array<{ version: number }>>`
-              SELECT version FROM _migrations ORDER BY version
-            `
-            const appliedVersions = new Set(applied.map((r) => r.version))
-
-            let count = 0
-            for (const migration of migrations) {
-              if (appliedVersions.has(migration.version)) {
-                continue
-              }
-
-              await reservedSql.begin(async (tx) => {
-                await tx.unsafe(migration.sql)
-                await tx.unsafe(
-                  'INSERT INTO _migrations (version, name) VALUES ($1, $2)',
-                  [migration.version, migration.name]
-                )
-              })
-              count++
+      reservedSql.unsafe('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_ID]),
+      mapPostgresError
+    ).orElse((lockError) =>
+      releaseReservedSql(reservedSql).andThen(() => err(lockError))
+    ).andThen(() =>
+      runMigrationBody(reservedSql)
+        .map((count) => ok<number, DbError>(count))
+        .orElse((bodyError) => ok(err<number, DbError>(bodyError)))
+        .andThen((bodyResult) =>
+          unlockAndReleaseReservedSql(reservedSql).andThen((cleanupError) => {
+            if (bodyResult.isErr()) {
+              return err(bodyResult.error)
             }
 
-            return count
-          })(),
-          (e: unknown): DbError => mapPostgresError(e)
+            if (cleanupError) {
+              return err(cleanupError)
+            }
+
+            return ok(bodyResult.value)
+          })
         )
-
-        await reservedSql.unsafe('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_ID])
-        await reservedSql.release()
-
-        if (innerResult.isErr()) {
-          return err(innerResult.error)
-        }
-
-        return ok(innerResult.value)
-      })(),
-      mapPostgresError
-    ).andThen((result) => result)
+    )
   )
 }
 
