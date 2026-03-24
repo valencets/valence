@@ -122,7 +122,7 @@ describe('validateMigrations', () => {
 })
 
 import { loadMigrations, runMigrations, getMigrationStatus } from '../migration-runner.js'
-import { makeMockPool, makeErrorPool } from '../test-helpers.js'
+import { makeMockPool, makeRejectingPool } from '../test-helpers.js'
 import { DbErrorCode } from '../types.js'
 import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -200,14 +200,14 @@ describe('getMigrationStatus', () => {
   })
 
   it('returns Ok([]) when migrations table does not exist yet', async () => {
-    const pool = makeErrorPool({ code: '42P01', message: 'relation "_migrations" does not exist' })
+    const pool = makeRejectingPool({ code: '42P01', message: 'relation "_migrations" does not exist' })
     const result = await getMigrationStatus(pool)
     expect(result.isOk()).toBe(true)
     expect(result.unwrap()).toEqual([])
   })
 
   it('returns Err on query failure', async () => {
-    const pool = makeErrorPool({ code: DbErrorCode.QUERY_FAILED, message: 'boom' })
+    const pool = makeRejectingPool({ code: DbErrorCode.QUERY_FAILED, message: 'boom' })
     const result = await getMigrationStatus(pool)
     expect(result.isErr()).toBe(true)
   })
