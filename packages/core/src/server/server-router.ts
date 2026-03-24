@@ -5,7 +5,7 @@ import { ServerErrorCode } from './server-types.js'
 import type { RouteHandler, RouteEntry, ServerRouter, RouteOptions } from './server-types.js'
 import type { Middleware, ErrorHandler, RequestContext } from './middleware-types.js'
 import { sendError } from './http-helpers.js'
-import { createRequestContext } from './request-context.js'
+import { createRequestContext, parseRequestUrl } from './request-context.js'
 import { matchRoute } from './route-matcher.js'
 import { composeMiddleware } from './middleware-pipeline.js'
 
@@ -37,7 +37,11 @@ export function createServerRouter (): ServerRouter {
     const nonce = generateNonce()
     setSecurityHeaders(res, { nonce })
 
-    const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
+    const url = parseRequestUrl(req)
+    if (url === null) {
+      sendError(res, { code: ServerErrorCode.VALIDATION_ERROR, message: 'Invalid request URL', statusCode: 400 })
+      return
+    }
     const pathname = url.pathname
     const method = req.method ?? 'GET'
 
