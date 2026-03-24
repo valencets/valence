@@ -2,7 +2,7 @@ import { describe, it, expectTypeOf } from 'vitest'
 import type { Result, ResultAsync } from '@valencets/resultkit'
 import { createPool, closePool } from '@valencets/db'
 import { makeMockPool } from '@valencets/db/test'
-import type { DbPool, DbConfig, DbError } from '@valencets/db'
+import type { DbPool, DbConfig, DbError, DbSslMode } from '@valencets/db'
 import {
   collection,
   field,
@@ -37,6 +37,10 @@ describe('db type contracts', () => {
 
   it('DbPool has sql property', () => {
     expectTypeOf<DbPool>().toHaveProperty('sql')
+  })
+
+  it('DbSslMode is exported from the db package entrypoint', () => {
+    expectTypeOf<DbConfig['sslmode']>().toEqualTypeOf<DbSslMode | undefined>()
   })
 })
 
