@@ -1,8 +1,32 @@
 # @valencets/db
 
-PostgreSQL query layer. Tagged template SQL that is parameterized by default, `Result<T, E>` returns on every operation, and a migration runner for schema changes. Zero dependencies besides @valencets/resultkit, postgres, and zod.
+PostgreSQL connection, config validation, and migration runner for Valence. The package validates `DbConfig`, creates `postgres` pools with explicit SSL modes, maps database errors into `DbError`, and applies SQL migrations under an advisory lock.
 
-38 tests. [Full documentation on the wiki.](https://github.com/valencets/valence/wiki/Packages:-Db)
+[Full documentation on the wiki.](https://github.com/valencets/valence/wiki/Packages:-Db)
+
+## Config
+
+`DbConfig` includes:
+
+- host, port, database, username, password
+- pool sizing and timeout settings
+- `sslmode?: 'disable' | 'require' | 'verify-ca' | 'verify-full'`
+- `sslrootcert?: string`
+
+Verified TLS modes require `sslrootcert`. The package boundary expects certificate contents, not a file path.
+
+## Migrations
+
+`loadMigrations()` reads `NNN-name.sql` files, validates version uniqueness, and sorts them deterministically.
+
+`runMigrations()`:
+
+- reserves one database session for the full migration run
+- acquires a session-scoped advisory lock
+- applies each unapplied migration inside its own transaction
+- records applied versions in `_migrations`
+
+`getMigrationStatus()` returns the applied migration list, and treats a fresh database with no `_migrations` table as zero applied migrations.
 
 ## Quick Start
 
