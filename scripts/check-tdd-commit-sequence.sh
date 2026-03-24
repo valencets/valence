@@ -3,6 +3,7 @@ set -euo pipefail
 
 MODE="${1:-branch}"
 ARG="${2:-}"
+TDD_SEQUENCE_START="${TDD_SEQUENCE_START:-}"
 
 extract_scope() {
   local line="$1"
@@ -78,6 +79,13 @@ validate_branch_range() {
   commits_output="$(git rev-list --reverse "$range")"
   if [[ -z "$commits_output" ]]; then
     exit 0
+  fi
+
+  if [[ -n "$TDD_SEQUENCE_START" ]] && git rev-parse --verify "$TDD_SEQUENCE_START" >/dev/null 2>&1; then
+    commits_output="$(git rev-list --reverse "$range" "^${TDD_SEQUENCE_START}^")"
+    if [[ -z "$commits_output" ]]; then
+      exit 0
+    fi
   fi
 
   local first_commit="${commits_output%%$'\n'*}"

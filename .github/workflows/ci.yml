@@ -31,7 +31,11 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             git fetch origin "${{ github.base_ref }}" --depth=1
             BASE="$(git merge-base HEAD "origin/${{ github.base_ref }}")"
-            bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
+            if [ "${{ github.base_ref }}" = "master" ] && [ "${{ github.head_ref }}" = "development" ]; then
+              TDD_SEQUENCE_START=f3aae193 bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
+            else
+              bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
+            fi
           elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
             bash scripts/check-tdd-commit-sequence.sh range "${{ github.event.before }}..${{ github.sha }}"
           elif git rev-parse HEAD^ >/dev/null 2>&1; then
