@@ -4,7 +4,7 @@ import { ok, err, ResultAsync } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 import { RouterErrorCode, resolveConfig } from './router-types.js'
 import type { RouterConfig, RouterError, NavigationDetail, ResolvedRouterConfig, NavigationPerformance } from './router-types.js'
-import { parseHtml, extractFragment, extractTitle, swapContent, getCsrfToken } from './fragment-swap.js'
+import { parseHtml, extractFragment, extractTitle, swapContent, getCsrfToken, validateFragmentResponse } from './fragment-swap.js'
 import { initPrefetch } from './prefetch.js'
 import type { PrefetchHandle } from './prefetch.js'
 import { initPageCache } from './page-cache.js'
@@ -180,6 +180,14 @@ function performNavigation (
       }
       if (!response.ok) {
         return Promise.reject(new Error(`Fetch returned status ${String(response.status)}`))
+      }
+      if (config.enableFragmentProtocol) {
+        const validation = validateFragmentResponse(response)
+        if (validation.isErr()) {
+          const protocolError = new Error(validation.error.message)
+          Object.assign(protocolError, { code: validation.error.code })
+          return Promise.reject(protocolError)
+        }
       }
       const version = response.headers.get('X-Valence-Version')
       const titleHeader = response.headers.get('X-Valence-Title')
