@@ -15,6 +15,8 @@ export interface GeneratedRoute {
   readonly type: 'list' | 'detail'
 }
 
+const TEMPLATE_SEGMENT_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/
+
 const generatedGetOverridePathSet = (customRoutes: readonly RouteConfig[] | undefined): ReadonlySet<string> => {
   if (customRoutes === undefined) return new Set()
   return new Set(
@@ -106,12 +108,21 @@ function extractQueryFromReq (req: IncomingMessage): URLSearchParams {
   return new URLSearchParams(rawUrl.slice(qIndex + 1))
 }
 
-function resolveTemplatePath (routePath: string, projectDir: string): string {
+function isValidTemplateSegment (segment: string): boolean {
+  return TEMPLATE_SEGMENT_PATTERN.test(segment) && !segment.includes('..')
+}
+
+function resolveTemplatePath (routePath: string, projectDir: string): string | null {
   // Preserve static route shape for template lookup.
   // Param segments do not become directories; any param selects detail.html.
   const segments = routePath.split('/').filter(s => s.length > 0)
   const hasParam = segments.some(s => s.startsWith(':'))
   const staticSegments = segments.filter(s => !s.startsWith(':'))
+
+  for (const segment of staticSegments) {
+    if (!isValidTemplateSegment(segment)) return null
+  }
+
   const pageSegments = staticSegments.length > 0 ? staticSegments : ['page']
   return hasParam
     ? join(projectDir, 'src', 'pages', ...pageSegments, 'ui', 'detail.html')
@@ -159,7 +170,7 @@ function makeLoaderHandler (
     const status = result.status ?? 200
     const script = serializeLoaderData(result.data)
 
-    if (existsSync(templatePath)) {
+    if (templatePath !== null && existsSync(templatePath)) {
       const templateContent = readFileSync(templatePath, 'utf-8')
       const html = injectLoaderData(templateContent, script)
       res.writeHead(status, mergeResponseHeaders({ 'Content-Type': 'text/html; charset=utf-8' }, result.headers))
@@ -205,7 +216,7 @@ function makeActionHandler (
 
     const status = result.status ?? 200
 
-    if (existsSync(templatePath)) {
+    if (templatePath !== null && existsSync(templatePath)) {
       const templateContent = readFileSync(templatePath, 'utf-8')
       res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end(templateContent)
@@ -247,6 +258,9 @@ export function buildUserRouteMap (
 
     if (route.action !== undefined) {
       const actionMethod = (route.method ?? 'POST').toUpperCase()
+      if (route.loader !== undefined && actionMethod === 'GET') {
+        continue
+      }
       methodMap.set(actionMethod, makeActionHandler(route, projectDir, pool, cms))
     }
   }

@@ -265,27 +265,39 @@ describe('buildUserRouteMap', () => {
     expect(map.get('/contact')?.has('POST')).toBe(true)
   })
 
-  it('rejects GET actions that would overwrite a loader handler', () => {
+  it('preserves the loader when a GET action would overwrite its handler', async () => {
     const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({ data: {} })
     const action = async (_ctx: ActionContext): Promise<ActionResult> => ({ redirect: '/done' })
     const routes: readonly RouteConfig[] = [
       { path: '/contact', method: 'GET', loader, action }
     ]
+    const map = buildUserRouteMap(routes, '/fake/dir', pool, cms)
+    const h = map.get('/contact')?.get('GET')
+    const req = makeReq()
+    const res = makeRes()
 
-    expect(() => buildUserRouteMap(routes, '/fake/dir', pool, cms)).toThrow(
-      'GET action cannot overwrite loader for route: /contact'
-    )
+    await h?.(req, res, {})
+
+    const body = (res.end as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string
+    expect(body).toContain('data-val-loader')
+    expect(body).not.toContain('/done')
   })
 
-  it('rejects traversal-shaped route paths during template resolution', () => {
+  it('falls back safely when template resolution sees traversal-shaped route paths', async () => {
     const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({ data: {} })
     const routes: readonly RouteConfig[] = [
       { path: '/../../../etc/passwd', loader }
     ]
+    const map = buildUserRouteMap(routes, '/project', pool, cms)
+    const h = map.get('/../../../etc/passwd')?.get('GET')
+    const req = makeReq()
+    const res = makeRes()
 
-    expect(() => buildUserRouteMap(routes, '/project', pool, cms)).toThrow(
-      'Invalid route path segment in template resolution: ..'
-    )
+    await h?.(req, res, {})
+
+    expect(existsSyncMock).not.toHaveBeenCalled()
+    expect(readFileSyncMock).not.toHaveBeenCalled()
+    expect(res.end).toHaveBeenCalledWith(expect.stringContaining('data-val-loader'))
   })
 
   it('resolves multi-segment static routes to nested index templates', async () => {
