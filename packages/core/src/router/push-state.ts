@@ -52,10 +52,25 @@ interface NavigationResult {
   readonly outletName?: string | undefined
 }
 
+interface CodedRouterError extends Error {
+  readonly code: RouterErrorCode
+}
+
+const ROUTER_ERROR_CODES = new Set<string>(Object.values(RouterErrorCode))
+
 function csrfHeaders (): Record<string, string> {
   const token = getCsrfToken()
   if (token === undefined) return {}
   return { 'X-CSRF-Token': token }
+}
+
+function isRouterErrorCode (value: string): value is RouterErrorCode {
+  return ROUTER_ERROR_CODES.has(value)
+}
+
+function isCodedRouterError (error: Error): error is CodedRouterError {
+  const code = Reflect.get(error, 'code')
+  return typeof code === 'string' && isRouterErrorCode(code)
 }
 
 async function runBackgroundRevalidation (
@@ -196,11 +211,8 @@ function performNavigation (
       return response.text().then((html) => ({ html, version, titleHeader, outletName }))
     }),
     (reason): RouterError => {
-      if (reason instanceof Error) {
-        const coded = reason as Error & { code?: string }
-        if (coded.code !== undefined) {
-          return { code: coded.code as RouterErrorCode, message: reason.message }
-        }
+      if (reason instanceof Error && isCodedRouterError(reason)) {
+        return { code: reason.code, message: reason.message }
       }
       return {
         code: RouterErrorCode.FETCH_FAILED,
