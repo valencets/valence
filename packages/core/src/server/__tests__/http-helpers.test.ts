@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { EventEmitter } from 'node:events'
 import type { ServerResponse, IncomingMessage } from 'node:http'
-import { sendHtml, isFragmentRequest, readBody, MAX_BODY_BYTES } from '../http-helpers.js'
+import { sendHtml, sendError, isFragmentRequest, readBody, MAX_BODY_BYTES } from '../http-helpers.js'
 
 function mockRes (): ServerResponse & { _status: number; _headers: Record<string, string | number>; _body: string } {
   const res = {
@@ -54,6 +54,21 @@ describe('sendHtml', () => {
   })
 })
 
+describe('sendError', () => {
+  it('escapes error message text before rendering html', () => {
+    const res = mockRes()
+    sendError(res, {
+      code: 'VALIDATION_ERROR',
+      message: '<script>alert(1)</script>',
+      statusCode: 400
+    })
+
+    expect(res._status).toBe(400)
+    expect(res._body).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(res._body).not.toContain('<script>')
+  })
+})
+
 describe('isFragmentRequest', () => {
   it('returns true when X-Valence-Fragment is 1', () => {
     const req = { headers: { 'x-valence-fragment': '1' } } as unknown as IncomingMessage
@@ -95,6 +110,20 @@ describe('readBody', () => {
     req.emit('data', half)
     req.emit('data', half)
     await expect(promise).rejects.toThrow('Body exceeds')
+  })
+
+  it('rejects when request emits error', async () => {
+    const req = mockReq()
+    const promise = readBody(req)
+    req.emit('error', new Error('socket failure'))
+    await expect(promise).rejects.toThrow('socket failure')
+  })
+
+  it('rejects when request is aborted', async () => {
+    const req = mockReq()
+    const promise = readBody(req)
+    req.emit('aborted')
+    await expect(promise).rejects.toThrow('Request body aborted')
   })
 
   it('exports MAX_BODY_BYTES as a number', () => {
