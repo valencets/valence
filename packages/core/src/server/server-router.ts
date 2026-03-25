@@ -1,13 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { setSecurityHeaders, generateNonce } from './security-headers.js'
 import { ResultAsync } from '@valencets/resultkit'
+import { composeMiddleware } from './middleware-pipeline.js'
+import type { Middleware, ErrorHandler, RequestContext } from './middleware-types.js'
+import { matchRoute } from './route-matcher.js'
+import { createRequestContext, parseRequestUrl } from './request-context.js'
+import { setSecurityHeaders, generateNonce } from './security-headers.js'
+import { sendError } from './http-helpers.js'
 import { ServerErrorCode } from './server-types.js'
 import type { RouteHandler, RouteEntry, ServerRouter, RouteOptions } from './server-types.js'
-import type { Middleware, ErrorHandler, RequestContext } from './middleware-types.js'
-import { sendError } from './http-helpers.js'
-import { createRequestContext, parseRequestUrl } from './request-context.js'
-import { matchRoute } from './route-matcher.js'
-import { composeMiddleware } from './middleware-pipeline.js'
 
 export { ServerErrorCode }
 
@@ -65,18 +65,20 @@ export function createServerRouter (): ServerRouter {
     const nonce = generateNonce()
     setSecurityHeaders(res, { nonce })
 
-    const url = parseRequestUrl(req)
-    if (url === null) {
-      sendError(res, { code: ServerErrorCode.VALIDATION_ERROR, message: 'Invalid request URL', statusCode: 400 })
+    const parsedUrl = parseRequestUrl(req)
+    if (parsedUrl.isErr()) {
+      sendError(res, parsedUrl.error)
       return
     }
+
+    const url = parsedUrl.value
     const pathname = url.pathname
     const method = req.method ?? 'GET'
 
     const patterns = Array.from(routes.keys())
     const match = matchRoute(pathname, patterns)
 
-    const ctx: RequestContext = createRequestContext(req, match?.params)
+    const ctx: RequestContext = createRequestContext(req, match?.params, url)
     res.setHeader('X-Request-Id', ctx.requestId)
 
     if (!match) {
@@ -92,14 +94,12 @@ export function createServerRouter (): ServerRouter {
     const stored = routes.get(match.pattern)!
     let handler: RouteHandler | undefined = stored.entry[method as keyof RouteEntry]
 
-    // OPTIONS auto-response runs before middleware intentionally —
-    // CORS preflight requests are sent without credentials per spec
     if (method === 'OPTIONS' && !handler) {
+      const methodKeys: ReadonlyArray<keyof RouteEntry> = ['GET', 'POST', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
+      const defined = methodKeys.filter(m => stored.entry[m] !== undefined)
+      if (!defined.includes('HEAD') && stored.entry.GET) defined.push('HEAD')
+      if (!defined.includes('OPTIONS')) defined.push('OPTIONS')
       const autoOptionsHandler: RouteHandler = async (_req, res) => {
-        const methodKeys: ReadonlyArray<keyof RouteEntry> = ['GET', 'POST', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
-        const defined = methodKeys.filter(m => stored.entry[m] !== undefined)
-        if (!defined.includes('HEAD') && stored.entry.GET) defined.push('HEAD')
-        if (!defined.includes('OPTIONS')) defined.push('OPTIONS')
         res.writeHead(204, { Allow: defined.join(', ') })
         res.end()
       }
@@ -107,7 +107,6 @@ export function createServerRouter (): ServerRouter {
       return
     }
 
-    // HEAD fallback: reuse GET handler (Node.js strips the body automatically for HEAD)
     if (method === 'HEAD' && !handler && stored.entry.GET) {
       handler = stored.entry.GET
     }
