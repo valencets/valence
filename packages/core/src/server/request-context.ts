@@ -21,8 +21,8 @@ export function parseRequestUrl (req: IncomingMessage): Result<URL, ServerError>
 
 export function createRequestContext (
   req: IncomingMessage,
-  params: Readonly<Record<string, string>> | undefined,
-  url: URL
+  url: URL,
+  params?: Readonly<Record<string, string>>
 ): RequestContext {
   return {
     requestId: randomUUID(),

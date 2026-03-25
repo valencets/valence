@@ -50,18 +50,28 @@ function toRestoredPageCacheEntryShape (value: JsonValue): RestoredPageCacheEntr
   }
 }
 
-function isPageCacheEntry (value: JsonValue): value is PageCacheEntry {
+function toPageCacheEntry (value: JsonValue): PageCacheEntry | null {
   const entry = toRestoredPageCacheEntryShape(value)
-  if (entry === null) return false
+  if (entry === null) return null
   const versionValid = entry.version === null || typeof entry.version === 'string'
   const titleValid = entry.title === null || typeof entry.title === 'string'
 
-  return typeof entry.url === 'string' &&
+  const valid = typeof entry.url === 'string' &&
     typeof entry.html === 'string' &&
     typeof entry.timestamp === 'number' &&
     Number.isFinite(entry.timestamp) &&
     versionValid &&
     titleValid
+
+  if (!valid) return null
+
+  return {
+    url: entry.url,
+    html: entry.html,
+    timestamp: entry.timestamp,
+    version: entry.version ?? null,
+    title: entry.title ?? null
+  }
 }
 
 export interface PageCacheHandle {
@@ -106,9 +116,10 @@ export function initPageCache (config: ResolvedRouterConfig): PageCacheHandle {
       if (cache.size >= config.pageCacheCapacity) break
       if (!Array.isArray(restored) || restored.length !== 2) continue
 
-      const [key, entry] = restored
+      const [key, restoredEntry] = restored
       if (typeof key !== 'string') continue
-      if (!isPageCacheEntry(entry)) continue
+      const entry = toPageCacheEntry(restoredEntry)
+      if (entry === null) continue
 
       cache.set(key, entry)
     }

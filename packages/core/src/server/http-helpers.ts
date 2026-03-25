@@ -2,11 +2,11 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { cacheControl } from './cache-control.js'
 import type { ServerError } from './server-types.js'
 
-type JsonValue = string | number | boolean | null | JsonObject | JsonArray
-interface JsonObject {
+export type JsonValue = string | number | boolean | null | JsonObject | JsonArray
+export interface JsonObject {
   readonly [key: string]: JsonValue | undefined
 }
-type JsonArray = ReadonlyArray<JsonValue>
+export type JsonArray = ReadonlyArray<JsonValue>
 
 const CACHED_RAW_BODY = Symbol('cached-raw-body')
 
