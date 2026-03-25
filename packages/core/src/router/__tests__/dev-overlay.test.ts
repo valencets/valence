@@ -87,6 +87,13 @@ describe('initDevOverlay', () => {
     expect(Number(overlay.style.zIndex)).toBeGreaterThanOrEqual(9999)
   })
 
+  it('does not use Record<string, string> for overlay styles', async () => {
+    const { readFileSync } = await import('node:fs')
+    const source = readFileSync(`${process.cwd()}/src/router/dev-overlay.ts`, 'utf-8')
+
+    expect(source).not.toContain('Record<string, string>')
+  })
+
   it('renders current pathname as text, not HTML', () => {
     window.history.replaceState({}, '', '/<img src=x onerror=alert(1)>')
 
