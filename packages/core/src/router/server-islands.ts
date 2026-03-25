@@ -107,7 +107,7 @@ export function initServerIslands (config?: IslandConfig): IslandHandle {
   function loadIsland (island: Element, src: string): void {
     ResultAsync.fromPromise(
       runIslandLoad(island, src),
-      (reason) => reason
+      (reason) => reason instanceof Error ? reason : new Error(String(reason))
     ).match(
       () => {
         loadingIslands.delete(island)
