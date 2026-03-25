@@ -14,7 +14,26 @@ export interface DevOverlayHandle {
 const OVERLAY_ID = 'val-dev-overlay'
 
 // Static inline styles as a dictionary to avoid string concatenation issues
-const PANEL_STYLES: Record<string, string> = {
+interface PanelStyles {
+  readonly position: string
+  readonly bottom: string
+  readonly right: string
+  readonly zIndex: string
+  readonly background: string
+  readonly color: string
+  readonly fontFamily: string
+  readonly fontSize: string
+  readonly lineHeight: string
+  readonly padding: string
+  readonly borderRadius: string
+  readonly border: string
+  readonly boxShadow: string
+  readonly minWidth: string
+  readonly maxWidth: string
+  readonly display: string
+}
+
+const PANEL_STYLES: PanelStyles = {
   position: 'fixed',
   bottom: '16px',
   right: '16px',
@@ -33,7 +52,7 @@ const PANEL_STYLES: Record<string, string> = {
   display: 'none'
 }
 
-function applyStyles (el: HTMLElement, styles: Record<string, string>): void {
+function applyStyles (el: HTMLElement, styles: PanelStyles): void {
   for (const [key, value] of Object.entries(styles)) {
     el.style.setProperty(
       key.replace(/([A-Z])/g, (c) => `-${c.toLowerCase()}`),
