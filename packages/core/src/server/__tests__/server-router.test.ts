@@ -500,6 +500,28 @@ describe('createServerRouter', () => {
     expect(res._body).toBe('custom: kaboom')
   })
 
+  it('contains thrown custom error handlers and falls back to the standard 500 response', async () => {
+    const router = createServerRouter()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    router.onError(async () => {
+      throw new Error('error handler exploded')
+    })
+    router.register('/boom', { GET: async () => { throw new Error('kaboom') } })
+
+    const res = mockRes()
+    await expect(router.handle(mockReq('/boom'), res)).resolves.toBeUndefined()
+
+    expect(res._status).toBe(500)
+    expect(res._body).toContain('Internal server error')
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[server-router] error handler failed on /boom:'),
+      'error handler exploded'
+    )
+
+    consoleSpy.mockRestore()
+  })
+
   it('middleware short-circuit returns 401 without calling handler', async () => {
     const router = createServerRouter()
     const handler = vi.fn<RouteHandler>(async (_req, res) => { res.end('ok') })
