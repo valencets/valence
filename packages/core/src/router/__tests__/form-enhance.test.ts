@@ -295,6 +295,13 @@ describe('initFormEnhancement', () => {
     expect(event.defaultPrevented).toBe(false)
   })
 
+  it('does not use a raw promise catch in form enhancement', async () => {
+    const { readFileSync } = await import('node:fs')
+    const source = readFileSync('src/router/form-enhance.ts', 'utf-8')
+    expect(source).not.toMatch(/fetchFn\(url, \{ method, headers, body \}\)\s*\.then/)
+    expect(source).not.toMatch(/\.catch\(/)
+  })
+
   it('destroy removes event listener — no longer intercepts after destroy', async () => {
     const mockFetch = createMockFetch()
     handle = initFormEnhancement(undefined, mockFetch)
