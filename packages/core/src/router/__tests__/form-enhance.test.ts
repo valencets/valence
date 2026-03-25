@@ -261,6 +261,40 @@ describe('initFormEnhancement', () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
+  it('does not enhance multipart forms', async () => {
+    const mockFetch = createMockFetch()
+    handle = initFormEnhancement(undefined, mockFetch)
+
+    const form = createForm({ 'data-val-enhance': '' })
+    form.action = 'http://localhost:3000/upload'
+    form.enctype = 'multipart/form-data'
+    createInput(form, 'title', 'Upload')
+
+    const event = submitForm(form)
+    await Promise.resolve()
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('does not enhance forms with file inputs', async () => {
+    const mockFetch = createMockFetch()
+    handle = initFormEnhancement(undefined, mockFetch)
+
+    const form = createForm({ 'data-val-enhance': '' })
+    form.action = 'http://localhost:3000/upload'
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.name = 'asset'
+    form.appendChild(fileInput)
+
+    const event = submitForm(form)
+    await Promise.resolve()
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(false)
+  })
+
   it('destroy removes event listener — no longer intercepts after destroy', async () => {
     const mockFetch = createMockFetch()
     handle = initFormEnhancement(undefined, mockFetch)
