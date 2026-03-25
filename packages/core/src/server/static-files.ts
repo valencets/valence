@@ -183,7 +183,7 @@ export function serveStaticFile (
       return
     }
 
-    const stat = statResult.value!
+    const stat = statResult.value
     const fileSize = Number(stat.size)
 
     const rangeResult = parseRangeHeader(rangeHeader, fileSize)

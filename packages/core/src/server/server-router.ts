@@ -103,7 +103,11 @@ export function createServerRouter (): ServerRouter {
       return
     }
 
-    const stored = routes.get(match.pattern)!
+    const stored = routes.get(match.pattern)
+    if (stored === undefined) {
+      sendError(res, { code: ServerErrorCode.NOT_FOUND, message: `Not found: ${pathname}`, statusCode: 404 })
+      return
+    }
     let handler: RouteHandler | undefined = stored.entry[method as keyof RouteEntry]
 
     if (method === 'OPTIONS' && !handler) {
