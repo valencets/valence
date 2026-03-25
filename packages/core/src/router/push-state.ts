@@ -1,5 +1,5 @@
 import { createAbortableFetch } from './fetch-retry.js'
-import { initScrollRestore } from './scroll-restore.js'
+import { initScrollRestore, toHistoryStateShape } from './scroll-restore.js'
 import { ok, err, ResultAsync } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 import { RouterErrorCode, resolveConfig } from './router-types.js'
@@ -433,14 +433,15 @@ export function initRouter (
   }
 
   function onPopstate (event: Event): void {
-    const popEvent = event as PopStateEvent
-    const state = popEvent.state as { url?: string } | null
+    if (!(event instanceof PopStateEvent)) return
+    const popEvent = event
+    const state = toHistoryStateShape(popEvent.state)
     const url = state?.url ?? window.location.href
 
     const startTime = performance.now()
 
     performNavigation(url, resolved, abortableFetch.fetch, fetchFn, prefetchHandle, pageCacheHandle)
-      .map((navResult) => {
+      .match((navResult) => {
         const durationMs = Math.round(performance.now() - startTime)
 
         if (navResult.title !== null) {
@@ -457,9 +458,8 @@ export function initRouter (
           bubbles: true,
           detail: perfDetail
         }))
-        scrollRestore.restorePosition(popEvent.state)
-        return undefined
-      })
+        scrollRestore.restorePosition(state)
+      }, () => undefined)
   }
 
   function onClick (event: Event): void {

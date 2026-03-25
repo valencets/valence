@@ -16,6 +16,19 @@ interface ScrollState {
   readonly scrollY: number
 }
 
+export function toHistoryStateShape (value: object | null): HistoryStateShape | null {
+  if (value === null) return null
+  const url = Reflect.get(value, 'url')
+  const scrollX = Reflect.get(value, 'scrollX')
+  const scrollY = Reflect.get(value, 'scrollY')
+
+  return {
+    url: typeof url === 'string' ? url : undefined,
+    scrollX: typeof scrollX === 'number' ? scrollX : undefined,
+    scrollY: typeof scrollY === 'number' ? scrollY : undefined
+  }
+}
+
 function hasScrollState (state: HistoryStateShape | null): state is ScrollState {
   return state !== null &&
     typeof state.scrollX === 'number' &&
@@ -24,7 +37,7 @@ function hasScrollState (state: HistoryStateShape | null): state is ScrollState 
 
 export function initScrollRestore (): ScrollRestoreHandle {
   function saveCurrentPosition (): void {
-    const currentState = history.state as HistoryStateShape | null
+    const currentState = toHistoryStateShape(history.state)
     history.replaceState(
       { ...currentState, scrollX: window.scrollX, scrollY: window.scrollY },
       ''
@@ -32,7 +45,7 @@ export function initScrollRestore (): ScrollRestoreHandle {
   }
 
   function restorePosition (state?: HistoryStateShape | null): void {
-    const s = (state ?? history.state) as HistoryStateShape | null
+    const s = state ?? toHistoryStateShape(history.state)
     if (!hasScrollState(s)) return
     window.scrollTo(s.scrollX, s.scrollY)
   }
