@@ -4,8 +4,8 @@ import { createServerRouter } from '../server-router.js'
 import type { RouteHandler } from '../server-types.js'
 import type { Middleware } from '../middleware-types.js'
 
-function mockReq (url: string, method: string = 'GET'): IncomingMessage {
-  return { url, method, headers: { host: 'localhost' } } as unknown as IncomingMessage
+function mockReq (url: string, method: string = 'GET', host: string = 'localhost'): IncomingMessage {
+  return { url, method, headers: { host } } as unknown as IncomingMessage
 }
 
 function mockRes (): ServerResponse & { _body: string; _status: number; _headers: Record<string, string> } {
@@ -115,6 +115,18 @@ describe('createServerRouter', () => {
 
     expect(res._status).toBe(405)
     expect(res._body).toContain('not allowed')
+  })
+
+  it('returns 400 for malformed request urls', async () => {
+    const router = createServerRouter()
+    router.register('/hello', { GET: async (_req, res) => { res.end('ok') } })
+
+    const req = mockReq('/hello', 'GET', 'bad host')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(res._status).toBe(400)
+    expect(res._body).toContain('Invalid request URL')
   })
 
   it('calls 404 fallback handler when registered', async () => {
