@@ -298,8 +298,27 @@ describe('initFormEnhancement', () => {
   it('does not use a raw promise catch in form enhancement', async () => {
     const { readFileSync } = await import('node:fs')
     const source = readFileSync('src/router/form-enhance.ts', 'utf-8')
+    expect(source).toContain('ResultAsync.fromPromise(\n    submitEnhancedForm')
     expect(source).not.toMatch(/fetchFn\(url, \{ method, headers, body \}\)\s*\.then/)
     expect(source).not.toMatch(/\.catch\(/)
+  })
+
+  it('contains rejected enhanced submissions without unhandled rejections', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockRejectedValue(new Error('network down'))
+    const unhandledRejection = vi.fn()
+    handle = initFormEnhancement(undefined, mockFetch)
+    window.addEventListener('unhandledrejection', unhandledRejection)
+
+    const form = createForm({ 'data-val-enhance': '' })
+    form.action = 'http://localhost:3000/submit'
+    createInput(form, 'x', '1')
+
+    submitForm(form)
+    await Promise.resolve()
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    window.removeEventListener('unhandledrejection', unhandledRejection)
+    expect(unhandledRejection).not.toHaveBeenCalled()
   })
 
   it('destroy removes event listener — no longer intercepts after destroy', async () => {
