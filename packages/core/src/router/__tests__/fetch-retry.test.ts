@@ -193,11 +193,31 @@ describe('createAbortableFetch', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
+  it('normalizes non-Error fetch rejections into Error instances', async () => {
+    const mockFetch = vi.fn<typeof fetch>()
+      .mockRejectedValueOnce('network down')
+      .mockRejectedValueOnce('network down')
+      .mockRejectedValueOnce('network down')
+
+    const handle = createAbortableFetch(mockFetch)
+    const responsePromise = handle.fetch('/page')
+
+    const rejectAssertion = expect(responsePromise).rejects.toSatisfy((error: Error) =>
+      error instanceof Error && error.message === 'network down'
+    )
+
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1000)
+
+    await rejectAssertion
+  })
+
   it('does not use a raw promise catch in fetch retry transport', async () => {
     const source = await import('node:fs/promises').then(fs =>
       fs.readFile(`${process.cwd()}/src/router/fetch-retry.ts`, 'utf8')
     )
 
+    expect(source).not.toContain('error as DOMException | Error')
     expect(source).not.toMatch(/fetchFn\(url, \{ \.\.\.init, signal \}\)[\s\S]*\.catch\(/)
   })
 })
