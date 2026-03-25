@@ -2,6 +2,7 @@
 // Full type safety with autocomplete is achieved when users import ValenceRoutes
 // from their generated .valence/routes.d.ts.
 
+import { ResultAsync } from '@valencets/resultkit'
 import { initRouter } from './push-state.js'
 
 export interface NavigateOptions {
@@ -42,19 +43,37 @@ export function navigateTo (
   if (routerResult.isErr()) return
 
   const handle = routerResult.value
+  let navigationSettled = false
 
-  // For replace mode, we rewrite history after navigation completes
-  if (opts?.replace === true) {
-    const unlistenNav = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { toUrl: string } | undefined
-      if (detail?.toUrl === url) {
-        window.history.replaceState({ url }, '', url)
-        document.removeEventListener('valence:navigated', unlistenNav)
-      }
+  const unlistenNav = (e: Event) => {
+    if (navigationSettled || opts?.replace !== true) return
+    const detail = (e as CustomEvent).detail as { toUrl: string } | undefined
+    if (detail?.toUrl === url) {
+      window.history.replaceState({ url }, '', url)
+      document.removeEventListener('valence:navigated', unlistenNav)
     }
+  }
+
+  if (opts?.replace === true) {
     document.addEventListener('valence:navigated', unlistenNav)
   }
 
-  handle.navigate(url)
-  handle.destroy()
+  ResultAsync.fromPromise(
+    handle.navigate(url).match(
+      () => undefined,
+      () => undefined
+    ),
+    () => null
+  ).match(
+    () => {
+      navigationSettled = true
+      document.removeEventListener('valence:navigated', unlistenNav)
+      handle.destroy()
+    },
+    () => {
+      navigationSettled = true
+      document.removeEventListener('valence:navigated', unlistenNav)
+      handle.destroy()
+    }
+  )
 }
