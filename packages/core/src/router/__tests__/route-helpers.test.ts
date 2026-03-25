@@ -43,6 +43,7 @@ describe('routeUrl', () => {
 
 describe('navigateTo', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     vi.spyOn(window.history, 'pushState').mockImplementation(() => undefined)
     const main = document.createElement('main')
     document.body.appendChild(main)
@@ -51,6 +52,7 @@ describe('navigateTo', () => {
   afterEach(() => {
     document.body.innerHTML = ''
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it('builds URL from path and params then dispatches valence:before-navigate', () => {
@@ -159,5 +161,21 @@ describe('navigateTo', () => {
     await vi.waitFor(() => {
       expect(replaceStateSpy).toHaveBeenCalledWith({ url: '/posts/9' }, '', '/posts/9')
     })
+  })
+
+  it('cleans up replace listener when navigation never settles', async () => {
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => new Promise(() => {}))
+    replaceStateSpy.mockClear()
+
+    navigateTo('/posts/:id', { id: '11' }, { replace: true }, mockFetch)
+
+    await vi.advanceTimersByTimeAsync(8000)
+
+    document.dispatchEvent(new CustomEvent('valence:navigated', {
+      detail: { toUrl: '/posts/11' }
+    }))
+
+    expect(replaceStateSpy.mock.calls.some((call) => call[2] === '/posts/11')).toBe(false)
   })
 })
