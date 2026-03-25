@@ -39,6 +39,10 @@ describe('routeUrl', () => {
   it('preserves query string segments that look like params', () => {
     expect(routeUrl('/posts/:id?filter=:foo', { id: '3' })).toBe('/posts/3?filter=:foo')
   })
+
+  it('URL-encodes param values before interpolation', () => {
+    expect(routeUrl('/posts/:id', { id: 'a/b?x=1#y' })).toBe('/posts/a%2Fb%3Fx%3D1%23y')
+  })
 })
 
 describe('navigateTo', () => {
@@ -91,8 +95,8 @@ describe('navigateTo', () => {
     expect(detail.toUrl).toBe('/about')
   })
 
-  it('accepts NavigateOptions type without error', () => {
-    const opts: NavigateOptions = { replace: true, scroll: 'top' }
+  it('accepts replace NavigateOptions without error', () => {
+    const opts: NavigateOptions = { replace: true }
     const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
       new Response('<html><body><main>ok</main></body></html>', {
         status: 200,
@@ -103,12 +107,11 @@ describe('navigateTo', () => {
     navigateTo('/about', {}, opts, mockFetch)
   })
 
-  it('scroll preserve option is accepted', () => {
+  it('dispatches encoded navigation urls', () => {
     const events: CustomEvent[] = []
     const listener = (e: Event) => events.push(e as CustomEvent)
     document.addEventListener('valence:before-navigate', listener)
 
-    const opts: NavigateOptions = { scroll: 'preserve' }
     const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
       new Response('<html><body><main>ok</main></body></html>', {
         status: 200,
@@ -116,10 +119,12 @@ describe('navigateTo', () => {
       })
     )
 
-    navigateTo('/contact', {}, opts, mockFetch)
+    navigateTo('/posts/:id', { id: 'a/b?x=1#y' }, undefined, mockFetch)
 
     document.removeEventListener('valence:before-navigate', listener)
     expect(events).toHaveLength(1)
+    const detail = events[0]?.detail as { toUrl: string }
+    expect(detail.toUrl).toBe('/posts/a%2Fb%3Fx%3D1%23y')
   })
 
   it('completes a content swap before tearing down navigation', async () => {
