@@ -51,20 +51,20 @@ describe('start command', () => {
   })
 })
 
-describe('CLI redirect safety', () => {
-  it('keeps safe local trailing-slash redirects', async () => {
-    const { resolveSafeLocalRedirectTarget } = await import('../cli.js')
-    expect(resolveSafeLocalRedirectTarget('/admin')).toBe('/admin')
-    expect(resolveSafeLocalRedirectTarget('/posts?page=2')).toBe('/posts?page=2')
+describe('CLI path normalization', () => {
+  it('normalizes trailing-slash pathnames without building redirect targets', async () => {
+    const { normalizeRequestPathname } = await import('../cli.js')
+    expect(normalizeRequestPathname('/')).toBe('/')
+    expect(normalizeRequestPathname('/admin/')).toBe('/admin')
+    expect(normalizeRequestPathname('/posts/')).toBe('/posts')
+    expect(normalizeRequestPathname('/posts')).toBe('/posts')
   })
 
-  it('rejects external and malformed redirect targets', async () => {
-    const { resolveSafeLocalRedirectTarget } = await import('../cli.js')
-    expect(resolveSafeLocalRedirectTarget('//evil.com')).toBeNull()
-    expect(resolveSafeLocalRedirectTarget('https://evil.com')).toBeNull()
-    expect(resolveSafeLocalRedirectTarget('/\\evil.com')).toBeNull()
-    expect(resolveSafeLocalRedirectTarget('javascript:alert(1)')).toBeNull()
-    expect(resolveSafeLocalRedirectTarget('')).toBeNull()
+  it('does not keep a request-derived redirect sink in the CLI server', async () => {
+    const { readFileSync } = await import('node:fs')
+    const cliSource = readFileSync(new URL('../cli.ts', import.meta.url).pathname.replace('/dist/', '/src/'), 'utf-8')
+    expect(cliSource).not.toContain('resolveSafeLocalRedirectTarget')
+    expect(cliSource).not.toMatch(/Location:\s*redirectTarget/)
   })
 })
 
