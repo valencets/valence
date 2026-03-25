@@ -77,6 +77,38 @@ function stubReqWithDishonestLength (options: {
   return req as unknown as IncomingMessage
 }
 
+function stubReqWithLength (options: {
+  method?: string
+  contentType?: string
+  contentLength: number
+  chunks: Buffer[]
+}): IncomingMessage {
+  const headers: Record<string, string> = {
+    'content-length': String(options.contentLength)
+  }
+  if (options.contentType !== undefined) {
+    headers['content-type'] = options.contentType
+  }
+
+  const emitter = new EventEmitter()
+  const req = Object.assign(emitter, {
+    method: options.method ?? 'POST',
+    headers,
+    destroy: vi.fn(() => {
+      emitter.emit('close')
+    })
+  })
+
+  queueMicrotask(() => {
+    for (const chunk of options.chunks) {
+      req.emit('data', chunk)
+    }
+    req.emit('end')
+  })
+
+  return req as unknown as IncomingMessage
+}
+
 function stubRes (): ServerResponse & { written: string, statusCode: number, headers: Record<string, string> } {
   const headers: Record<string, string> = {}
   let written = ''
@@ -150,7 +182,12 @@ describe('createBodyLimitMiddleware', () => {
     const next = vi.fn(async () => {})
 
     await middleware(
-      stubReq({ method: 'POST', contentType: 'application/json', contentLength: 50_000 }),
+      stubReqWithLength({
+        method: 'POST',
+        contentType: 'application/json',
+        contentLength: 50_000,
+        chunks: [Buffer.alloc(50_000, 'a')]
+      }),
       stubRes(), stubCtx(), next
     )
 
@@ -189,7 +226,12 @@ describe('createBodyLimitMiddleware', () => {
 
     // Under limit — should pass
     await middleware(
-      stubReq({ method: 'POST', contentType: 'multipart/form-data; boundary=----abc', contentLength: 4999 }),
+      stubReqWithLength({
+        method: 'POST',
+        contentType: 'multipart/form-data; boundary=----abc',
+        contentLength: 4999,
+        chunks: [Buffer.alloc(4999, 'a')]
+      }),
       stubRes(), stubCtx(), next
     )
     expect(next).toHaveBeenCalledOnce()
@@ -232,7 +274,12 @@ describe('createBodyLimitMiddleware', () => {
     // Under custom limit should pass
     const next2 = vi.fn(async () => {})
     await middleware(
-      stubReq({ method: 'POST', contentType: 'application/json', contentLength: 49 }),
+      stubReqWithLength({
+        method: 'POST',
+        contentType: 'application/json',
+        contentLength: 49,
+        chunks: [Buffer.alloc(49, 'a')]
+      }),
       stubRes(), stubCtx(), next2
     )
     expect(next2).toHaveBeenCalledOnce()
@@ -360,6 +407,20 @@ describe('createBodyLimitMiddleware', () => {
 
     await middleware(
       stubReq({ method: 'DELETE', contentType: 'application/json', contentLength: 101 }),
+      res, stubCtx(), next
+    )
+
+    expect(res.statusCode).toBe(413)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('rejects body requests that cannot be tracked safely', async () => {
+    const middleware = createBodyLimitMiddleware({ json: 100 })
+    const next = vi.fn(async () => {})
+    const res = stubRes()
+
+    await middleware(
+      stubReq({ method: 'POST', contentType: 'application/json', contentLength: 50 }),
       res, stubCtx(), next
     )
 
