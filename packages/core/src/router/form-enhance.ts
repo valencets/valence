@@ -26,6 +26,22 @@ export function serializeForm (form: HTMLFormElement): URLSearchParams {
   return params
 }
 
+function isEnhanceableForm (form: HTMLFormElement): boolean {
+  const enctype = form.enctype.trim().toLowerCase()
+  if (enctype !== '' && enctype !== 'application/x-www-form-urlencoded') {
+    return false
+  }
+
+  const data = new FormData(form)
+  for (const value of data.values()) {
+    if (typeof value !== 'string') {
+      return false
+    }
+  }
+
+  return true
+}
+
 function csrfHeaders (): Record<string, string> {
   const token = getCsrfToken()
   if (token === undefined) return {}
@@ -64,6 +80,7 @@ function onSubmit (
   if (form === null) return
 
   if (!shouldEnhanceForm(form)) return
+  if (!isEnhanceableForm(form)) return
 
   event.preventDefault()
 
