@@ -620,4 +620,29 @@ describe('createServerRouter', () => {
     expect(allow).toContain('OPTIONS')
     expect(allow).not.toContain('HEAD')
   })
+
+  it('OPTIONS auto-response still runs middleware', async () => {
+    const router = createServerRouter()
+    const order: string[] = []
+
+    router.use(async (_req, res, _ctx, next) => {
+      order.push('mw')
+      res.setHeader('X-Middleware', 'ran')
+      await next()
+    })
+
+    router.register('/items', {
+      GET: async (_req, res) => { order.push('get'); res.end('list') },
+      POST: async (_req, res) => { order.push('post'); res.end('create') }
+    })
+
+    const req = mockReq('/items', 'OPTIONS')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(res._status).toBe(204)
+    expect(res._headers['X-Middleware']).toBe('ran')
+    expect(res._headers.Allow).toContain('OPTIONS')
+    expect(order).toEqual(['mw'])
+  })
 })
