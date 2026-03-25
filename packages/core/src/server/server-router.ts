@@ -99,12 +99,10 @@ export function createServerRouter (): ServerRouter {
       const defined = methodKeys.filter(m => stored.entry[m] !== undefined)
       if (!defined.includes('HEAD') && stored.entry.GET) defined.push('HEAD')
       if (!defined.includes('OPTIONS')) defined.push('OPTIONS')
-      const autoOptionsHandler: RouteHandler = async (_req, res) => {
+      handler = async (_req, res) => {
         res.writeHead(204, { Allow: defined.join(', ') })
         res.end()
       }
-      await runHandler(stored, autoOptionsHandler, req, res, ctx, pathname)
-      return
     }
 
     if (method === 'HEAD' && !handler && stored.entry.GET) {
