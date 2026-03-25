@@ -20,17 +20,17 @@ function hasSessionStorage (): boolean {
   return typeof sessionStorage !== 'undefined'
 }
 
-interface UnknownPageCacheEntryShape {
-  readonly url?: unknown
-  readonly html?: unknown
-  readonly timestamp?: unknown
-  readonly version?: unknown
-  readonly title?: unknown
+interface RestoredPageCacheEntryShape {
+  readonly url?: string | undefined
+  readonly html?: string | undefined
+  readonly timestamp?: number | undefined
+  readonly version?: string | null | undefined
+  readonly title?: string | null | undefined
 }
 
 function isPageCacheEntry (value: unknown): value is PageCacheEntry {
   if (value === null || typeof value !== 'object') return false
-  const entry = value as UnknownPageCacheEntryShape
+  const entry = value as RestoredPageCacheEntryShape
   const versionValid = entry.version === null || typeof entry.version === 'string'
   const titleValid = entry.title === null || typeof entry.title === 'string'
 
