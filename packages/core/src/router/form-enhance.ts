@@ -68,6 +68,18 @@ function handleRedirect (response: Response, config: FormEnhanceConfig): void {
   }
 }
 
+async function submitEnhancedForm (
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body: string,
+  config: FormEnhanceConfig,
+  fetchFn: typeof fetch
+): Promise<void> {
+  const response = await fetchFn(url, { method, headers, body })
+  handleRedirect(response, config)
+}
+
 function onSubmit (
   event: Event,
   config: FormEnhanceConfig,
@@ -94,14 +106,7 @@ function onSubmit (
     ...csrfHeaders()
   }
 
-  fetchFn(url, { method, headers, body })
-    .then((response) => {
-      handleRedirect(response, config)
-      // Success — no further action needed for now (fragment swap handled by router)
-    })
-    .catch(() => {
-      // Fetch errors are silently ignored — form degrades gracefully
-    })
+  submitEnhancedForm(url, method, headers, body, config, fetchFn)
 }
 
 export function initFormEnhancement (
