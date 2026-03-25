@@ -3,6 +3,7 @@
 // fetch their content from server endpoints after initial render.
 
 import { ResultAsync } from '@valencets/resultkit'
+import { fromThrowable } from '@valencets/resultkit'
 import { parseHtml, stripScripts, validateFragmentResponse } from './fragment-swap.js'
 
 export interface IslandConfig {
@@ -16,9 +17,17 @@ export interface IslandHandle {
 
 export function initServerIslands (config?: IslandConfig): IslandHandle {
   const fetchFn = config?.fetchFn ?? globalThis.fetch
+  const safeNewUrl = fromThrowable((value: string) => new URL(value, window.location.origin), () => null)
   const loadedIslands = new WeakSet<Element>()
   const loadingIslands = new WeakSet<Element>()
   const abortController = new AbortController()
+
+  function normalizeIslandSrc (src: string): string | null {
+    const result = safeNewUrl(src)
+    if (result.isErr() || result.value === null) return null
+    if (result.value.origin !== window.location.origin) return null
+    return result.value.pathname + result.value.search
+  }
 
   function scanAndLoad (): void {
     const islands = document.querySelectorAll('[server\\:defer][src]')
@@ -29,9 +38,17 @@ export function initServerIslands (config?: IslandConfig): IslandHandle {
 
       const src = island.getAttribute('src')
       if (src === null) continue
+      const normalizedSrc = normalizeIslandSrc(src)
+      if (normalizedSrc === null) {
+        island.dispatchEvent(new CustomEvent('valence:island-error', {
+          bubbles: true,
+          detail: { src, error: `Island src must be same-origin: ${src}` }
+        }))
+        continue
+      }
 
       loadingIslands.add(island)
-      loadIsland(island, src)
+      loadIsland(island, normalizedSrc)
     }
   }
 
