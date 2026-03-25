@@ -8,7 +8,6 @@ import { resolveConfig } from './router-types.js'
 
 export interface NavigateOptions {
   readonly replace?: boolean
-  readonly scroll?: 'top' | 'preserve'
 }
 
 // Matches :paramName segments (colon followed by word chars, bounded by / . ? # or end)
@@ -21,7 +20,7 @@ const PARAM_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)(?=\/|\.|\?|#|$)/g
 export function routeUrl (path: string, params: Record<string, string>): string {
   return path.replace(PARAM_PATTERN, (_match, name: string) => {
     const value = params[name]
-    return value !== undefined ? value : `:${name}`
+    return value !== undefined ? encodeURIComponent(value) : `:${name}`
   })
 }
 
