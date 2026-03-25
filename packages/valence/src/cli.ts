@@ -19,7 +19,7 @@ import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loade
 import type { RouteHandler } from './define-config.js'
 import { resolveCustomRoute } from './route-matcher.js'
 import { generateCollectionRoutes, buildGeneratedRouteMap, buildUserRouteMap } from './route-generator.js'
-import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash, setSecurityHeaders } from '@valencets/core/server'
+import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash, setSecurityHeaders, safeRedirect } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
@@ -49,6 +49,11 @@ const commandMap: Record<Command, (args: ReadonlyArray<string>) => Promise<void>
   'user:create': runUserCreate,
   learn: runLearn,
   'telemetry:aggregate': runTelemetryAggregate
+}
+
+export function resolveSafeLocalRedirectTarget (target: string): string | null {
+  const safeTarget = safeRedirect(target, '')
+  return safeTarget.length > 0 ? safeTarget : null
 }
 
 export async function run (argv: ReadonlyArray<string>): Promise<void> {
@@ -630,8 +635,8 @@ async function runDev (): Promise<void> {
     }
 
     // Trailing-slash redirect (301) — before any route matching
-    const redirectTarget = stripTrailingSlash(req.url ?? '/')
-    if (redirectTarget !== null && redirectTarget.startsWith('/') && !redirectTarget.startsWith('//')) {
+    const redirectTarget = resolveSafeLocalRedirectTarget(stripTrailingSlash(req.url ?? '/') ?? '')
+    if (redirectTarget !== null) {
       res.writeHead(301, { Location: redirectTarget })
       res.end()
       return
@@ -903,8 +908,8 @@ export async function runStart (): Promise<void> {
     }
 
     // Trailing-slash redirect (301) — before any route matching
-    const redirectTarget = stripTrailingSlash(req.url ?? '/')
-    if (redirectTarget !== null && redirectTarget.startsWith('/') && !redirectTarget.startsWith('//')) {
+    const redirectTarget = resolveSafeLocalRedirectTarget(stripTrailingSlash(req.url ?? '/') ?? '')
+    if (redirectTarget !== null) {
       res.writeHead(301, { Location: redirectTarget })
       res.end()
       return
