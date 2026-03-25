@@ -203,7 +203,7 @@ describe('initFormEnhancement', () => {
 
     const [, init] = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     const headers = init.headers as Record<string, string>
-    expect(headers['X-Valence-Fragment']).toBe('true')
+    expect(headers['X-Valence-Fragment']).toBe('1')
   })
 
   it('includes CSRF token in request when cookie is set', async () => {
@@ -223,11 +223,11 @@ describe('initFormEnhancement', () => {
     expect(headers['X-CSRF-Token']).toBe('test-token-123')
   })
 
-  it('follows redirect response by navigating', async () => {
+  it('navigates when X-Valence-Redirect is present', async () => {
     const mockFetch = createMockFetch({
-      ok: false,
-      status: 302,
-      headers: new Headers({ Location: '/done' })
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'X-Valence-Redirect': '/done' })
     })
     const mockNavigate = vi.fn()
     handle = initFormEnhancement({ onNavigate: mockNavigate }, mockFetch)
@@ -240,6 +240,25 @@ describe('initFormEnhancement', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(mockNavigate).toHaveBeenCalledWith('/done')
+  })
+
+  it('does not navigate based on redirect status alone', async () => {
+    const mockFetch = createMockFetch({
+      ok: false,
+      status: 302,
+      headers: new Headers()
+    })
+    const mockNavigate = vi.fn()
+    handle = initFormEnhancement({ onNavigate: mockNavigate }, mockFetch)
+
+    const form = createForm({ 'data-val-enhance': '' })
+    form.action = 'http://localhost:3000/submit'
+    createInput(form, 'x', '1')
+
+    submitForm(form)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
   it('destroy removes event listener — no longer intercepts after destroy', async () => {
