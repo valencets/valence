@@ -92,7 +92,10 @@ describe('navigateTo', () => {
   it('accepts NavigateOptions type without error', () => {
     const opts: NavigateOptions = { replace: true, scroll: 'top' }
     const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('<html><body><main>ok</main></body></html>', { status: 200 })
+      new Response('<html><body><main>ok</main></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html', 'X-Valence-Fragment': '1' }
+      })
     )
     // Should not throw
     navigateTo('/about', {}, opts, mockFetch)
@@ -105,12 +108,56 @@ describe('navigateTo', () => {
 
     const opts: NavigateOptions = { scroll: 'preserve' }
     const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('<html><body><main>ok</main></body></html>', { status: 200 })
+      new Response('<html><body><main>ok</main></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html', 'X-Valence-Fragment': '1' }
+      })
     )
 
     navigateTo('/contact', {}, opts, mockFetch)
 
     document.removeEventListener('valence:before-navigate', listener)
     expect(events).toHaveLength(1)
+  })
+
+  it('completes a content swap before tearing down navigation', async () => {
+    const main = document.querySelector('main') as HTMLElement
+    main.innerHTML = '<p>old</p>'
+
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('<html><body><main><p>new</p></main></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html', 'X-Valence-Fragment': '1' }
+      })
+    )
+
+    navigateTo('/posts/:id', { id: '7' }, undefined, mockFetch)
+
+    await vi.waitFor(() => {
+      expect(main.querySelector('p')?.textContent).toBe('new')
+    })
+  })
+
+  it('replace option rewrites history after successful navigation', async () => {
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    const main = document.querySelector('main') as HTMLElement
+    main.innerHTML = '<p>old</p>'
+
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('<html><body><main><p>new</p></main></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html', 'X-Valence-Fragment': '1' }
+      })
+    )
+
+    navigateTo('/posts/:id', { id: '9' }, { replace: true }, mockFetch)
+
+    await vi.waitFor(() => {
+      expect(main.querySelector('p')?.textContent).toBe('new')
+    })
+
+    await vi.waitFor(() => {
+      expect(replaceStateSpy).toHaveBeenCalledWith({ url: '/posts/9' }, '', '/posts/9')
+    })
   })
 })
