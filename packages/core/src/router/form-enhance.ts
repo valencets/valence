@@ -43,7 +43,7 @@ function resolveFormUrl (form: HTMLFormElement): string {
 }
 
 function handleRedirect (response: Response, config: FormEnhanceConfig): void {
-  const location = response.headers.get('Location')
+  const location = response.headers.get('X-Valence-Redirect')
   if (location === null) return
   if (config.onNavigate !== undefined) {
     config.onNavigate(location)
@@ -73,15 +73,13 @@ function onSubmit (
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/x-www-form-urlencoded',
-    'X-Valence-Fragment': 'true',
+    'X-Valence-Fragment': '1',
     ...csrfHeaders()
   }
 
   fetchFn(url, { method, headers, body })
     .then((response) => {
-      if (response.status === 302 || (response.status >= 300 && response.status < 400)) {
-        handleRedirect(response, config)
-      }
+      handleRedirect(response, config)
       // Success — no further action needed for now (fragment swap handled by router)
     })
     .catch(() => {
