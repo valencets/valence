@@ -2,6 +2,21 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ServerError } from './server-types.js'
 import { cacheControl } from './cache-control.js'
 
+type JsonValue = string | number | boolean | null | JsonObject | JsonArray
+interface JsonObject {
+  readonly [key: string]: JsonValue | undefined
+}
+type JsonArray = ReadonlyArray<JsonValue>
+
+function escapeHtml (value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
 export function sendHtml (
   res: ServerResponse,
   html: string,
@@ -17,7 +32,7 @@ export function sendHtml (
   res.end(html)
 }
 
-export function sendJson (res: ServerResponse, data: unknown, statusCode: number = 200): void {
+export function sendJson (res: ServerResponse, data: JsonValue, statusCode: number = 200): void {
   const body = JSON.stringify(data)
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -27,7 +42,7 @@ export function sendJson (res: ServerResponse, data: unknown, statusCode: number
 }
 
 export function sendError (res: ServerResponse, error: ServerError): void {
-  sendHtml(res, `<h1>${error.statusCode}</h1><p>${error.message}</p>`, error.statusCode)
+  sendHtml(res, `<h1>${error.statusCode}</h1><p>${escapeHtml(error.message)}</p>`, error.statusCode)
 }
 
 export function isFragmentRequest (req: IncomingMessage): boolean {
@@ -41,16 +56,54 @@ export function readBody (req: IncomingMessage, maxBytes: number = MAX_BODY_BYTE
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
     let received = 0
-    req.on('data', (chunk: Buffer) => {
+    let settled = false
+
+    function cleanup (): void {
+      req.removeListener('data', onData)
+      req.removeListener('end', onEnd)
+      req.removeListener('error', onError)
+      req.removeListener('aborted', onAborted)
+    }
+
+    function rejectOnce (error: Error): void {
+      if (settled) return
+      settled = true
+      cleanup()
+      reject(error)
+    }
+
+    function resolveOnce (body: string): void {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve(body)
+    }
+
+    function onData (chunk: Buffer): void {
       received += chunk.length
       if (received > maxBytes) {
-        req.removeAllListeners('data')
-        reject(new Error(`Body exceeds ${maxBytes} bytes`))
+        rejectOnce(new Error(`Body exceeds ${maxBytes} bytes`))
         return
       }
       chunks.push(chunk)
-    })
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')))
+    }
+
+    function onEnd (): void {
+      resolveOnce(Buffer.concat(chunks).toString('utf-8'))
+    }
+
+    function onError (error: Error): void {
+      rejectOnce(error)
+    }
+
+    function onAborted (): void {
+      rejectOnce(new Error('Request body aborted'))
+    }
+
+    req.on('data', onData)
+    req.on('end', onEnd)
+    req.on('error', onError)
+    req.on('aborted', onAborted)
   })
 }
 
