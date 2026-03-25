@@ -1,4 +1,4 @@
-import { fromThrowable } from '@valencets/resultkit'
+import { ResultAsync, fromThrowable } from '@valencets/resultkit'
 import { getCsrfToken } from './fragment-swap.js'
 
 export interface FormEnhanceConfig {
@@ -106,7 +106,13 @@ function onSubmit (
     ...csrfHeaders()
   }
 
-  submitEnhancedForm(url, method, headers, body, config, fetchFn)
+  ResultAsync.fromPromise(
+    submitEnhancedForm(url, method, headers, body, config, fetchFn),
+    () => new Error('Enhanced form submission failed')
+  ).match(
+    () => undefined,
+    () => undefined
+  )
 }
 
 export function initFormEnhancement (
