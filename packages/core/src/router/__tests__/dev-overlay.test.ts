@@ -86,6 +86,17 @@ describe('initDevOverlay', () => {
     const overlay = document.getElementById('val-dev-overlay') as HTMLElement
     expect(Number(overlay.style.zIndex)).toBeGreaterThanOrEqual(9999)
   })
+
+  it('renders current pathname as text, not HTML', () => {
+    window.history.replaceState({}, '', '/<img src=x onerror=alert(1)>')
+
+    handle = initDevOverlay()
+    handle.show()
+
+    const overlay = document.getElementById('val-dev-overlay') as HTMLElement
+    expect(overlay.textContent).toContain('/%3Cimg%20src=x%20onerror=alert(1)%3E')
+    expect(overlay.querySelector('img')).toBeNull()
+  })
 })
 
 describe('dev overlay navigation events', () => {
@@ -151,6 +162,24 @@ describe('dev overlay navigation events', () => {
 
     const overlay = document.getElementById('val-dev-overlay') as HTMLElement
     expect(overlay.textContent).toContain('123')
+  })
+
+  it('renders navigated route text without parsing HTML', () => {
+    const perfDetail = {
+      source: 'network' as const,
+      durationMs: 42,
+      fromUrl: 'http://localhost/old',
+      toUrl: '/<img src=x onerror=alert(1)>'
+    }
+
+    document.dispatchEvent(new CustomEvent('valence:navigated', {
+      bubbles: true,
+      detail: perfDetail
+    }))
+
+    const overlay = document.getElementById('val-dev-overlay') as HTMLElement
+    expect(overlay.textContent).toContain('onerror=alert(1)')
+    expect(overlay.querySelector('img')).toBeNull()
   })
 })
 
