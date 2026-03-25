@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { routeUrl, navigateTo } from '../route-helpers.js'
 import type { NavigateOptions } from '../route-helpers.js'
+import { okAsync } from '@valencets/resultkit'
+import type { RouterHandle } from '../push-state.js'
 
 describe('routeUrl', () => {
   it('returns path unchanged when no params', () => {
@@ -105,6 +107,24 @@ describe('navigateTo', () => {
     )
     // Should not throw
     navigateTo('/about', {}, opts, mockFetch)
+  })
+
+  it('reuses an existing router handle without destroying it', async () => {
+    const destroy = vi.fn()
+    const navigate = vi.fn(() => okAsync(undefined))
+    const handle: RouterHandle = {
+      destroy,
+      navigate,
+      prefetch: vi.fn(() => okAsync(undefined)),
+      clearPageCache: vi.fn(),
+      pageCacheSize: vi.fn(() => 0)
+    }
+
+    navigateTo('/about', {}, { handle })
+    await Promise.resolve()
+
+    expect(navigate).toHaveBeenCalledWith('/about')
+    expect(destroy).not.toHaveBeenCalled()
   })
 
   it('dispatches encoded navigation urls', () => {
