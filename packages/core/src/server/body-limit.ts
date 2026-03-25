@@ -127,7 +127,7 @@ export function createBodyLimitMiddleware (config?: BodyLimitConfig): Middleware
       }
 
       if (!canTrackStream(req)) {
-        await next()
+        send413(res)
         return
       }
 
@@ -143,7 +143,7 @@ export function createBodyLimitMiddleware (config?: BodyLimitConfig): Middleware
 
     // No Content-Length header — enforce limit via streaming byte counter
     if (!canTrackStream(req)) {
-      await next()
+      send413(res)
       return
     }
 
