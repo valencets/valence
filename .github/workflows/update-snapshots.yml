@@ -1,21 +1,22 @@
 name: Update Visual Snapshots
 
 on:
-  issue_comment:
-    types: [created]
+  workflow_dispatch:
+    inputs:
+      head_ref:
+        description: Branch to update snapshots on
+        required: true
+        type: string
+      head_sha:
+        description: Reviewed commit SHA to lease snapshot updates against
+        required: true
+        type: string
 
 permissions:
   contents: write
-  pull-requests: read
 
 jobs:
   update-snapshots:
-    if: >
-      github.event.issue.pull_request != null &&
-      github.event.comment.body == '/update-snapshots' &&
-      (github.event.comment.author_association == 'OWNER' ||
-       github.event.comment.author_association == 'MEMBER' ||
-       github.event.comment.author_association == 'COLLABORATOR')
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -29,27 +30,10 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - name: Get PR branch
-        id: pr
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
-        with:
-          script: |
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
-            })
-            core.setOutput('head_ref', pr.data.head.ref)
-            core.setOutput('head_sha', pr.data.head.sha)
-            core.setOutput('head_repo', pr.data.head.repo.full_name)
-
       - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.pr.outputs.head_sha }}
+          ref: ${{ inputs.head_sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Reject fork PRs
-        run: test "${{ steps.pr.outputs.head_repo }}" = "${{ github.repository }}"
 
       - uses: pnpm/action-setup@v4
 
@@ -74,8 +58,8 @@ jobs:
 
       - name: Commit updated snapshots
         env:
-          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
-          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          HEAD_SHA: ${{ inputs.head_sha }}
         run: |
           if git diff --quiet -- tests/e2e/__snapshots__/; then
             echo "No snapshot changes to commit."
