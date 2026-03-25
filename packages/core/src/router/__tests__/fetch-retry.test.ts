@@ -4,6 +4,7 @@ import { createAbortableFetch } from '../fetch-retry.js'
 describe('createAbortableFetch', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.setSystemTime(0)
   })
 
   afterEach(() => {
@@ -125,6 +126,35 @@ describe('createAbortableFetch', () => {
     const response = await responsePromise
     expect(response.status).toBe(200)
     expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries a 500, 500, 200 sequence after a single 1s wait before the third attempt', async () => {
+    const callTimes: number[] = []
+    const mockFetch = vi.fn<typeof fetch>()
+      .mockImplementationOnce(() => {
+        callTimes.push(Date.now())
+        return Promise.resolve(new Response('error', { status: 500 }))
+      })
+      .mockImplementationOnce(() => {
+        callTimes.push(Date.now())
+        return Promise.resolve(new Response('error', { status: 500 }))
+      })
+      .mockImplementationOnce(() => {
+        callTimes.push(Date.now())
+        return Promise.resolve(new Response('ok', { status: 200 }))
+      })
+
+    const handle = createAbortableFetch(mockFetch)
+    const responsePromise = handle.fetch('/server-error')
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(callTimes).toEqual([0, 0])
+
+    await vi.advanceTimersByTimeAsync(1000)
+
+    const response = await responsePromise
+    expect(response.status).toBe(200)
+    expect(callTimes).toEqual([0, 0, 1000])
   })
 
   it('abort during retry cancels the retry chain', async () => {
