@@ -45,7 +45,10 @@ async function attemptFetch (
 
   return ResultAsync.fromPromise(
     fetchFn(url, { ...init, signal }),
-    (error): DOMException | Error => error as DOMException | Error
+    (error): DOMException | Error =>
+      error instanceof DOMException || error instanceof Error
+        ? error
+        : new Error(String(error))
   ).match(async (response) => {
     if (signal.aborted) {
       return { done: false, error: new DOMException('The operation was aborted.', 'AbortError') } as FetchAttemptResult
