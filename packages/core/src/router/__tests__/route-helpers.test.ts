@@ -168,6 +168,20 @@ describe('navigateTo', () => {
     })
   })
 
+  it('ignores malformed valence:navigated detail when replace handling is active', async () => {
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => new Promise(() => {}))
+
+    navigateTo('/posts/:id', { id: '12' }, { replace: true }, mockFetch)
+    replaceStateSpy.mockClear()
+
+    document.dispatchEvent(new CustomEvent('valence:navigated', {
+      detail: { toUrl: 12 }
+    }))
+
+    expect(replaceStateSpy).not.toHaveBeenCalled()
+  })
+
   it('cleans up replace listener when navigation never settles', async () => {
     const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
     const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => new Promise(() => {}))
@@ -182,5 +196,12 @@ describe('navigateTo', () => {
     }))
 
     expect(replaceStateSpy.mock.calls.some((call) => call[2] === '/posts/11')).toBe(false)
+  })
+
+  it('does not use detail casts in navigateTo', async () => {
+    const { readFileSync } = await import('node:fs')
+    const source = readFileSync(`${process.cwd()}/src/router/route-helpers.ts`, 'utf-8')
+
+    expect(source).not.toContain('(e as CustomEvent).detail as { toUrl: string } | undefined')
   })
 })
