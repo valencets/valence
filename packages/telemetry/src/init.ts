@@ -42,7 +42,11 @@ export function initTelemetry (config: TelemetryConfig): Result<TelemetryHandle,
   }
   const delegation = delegationResult.value
 
-  const flush = scheduleAutoFlush(buffer, config.endpoint, flushIntervalMs)
+  const flushResult = scheduleAutoFlush(buffer, config.endpoint, flushIntervalMs)
+  if (flushResult.isErr()) {
+    return err(flushResult.error)
+  }
+  const flush = flushResult.value
 
   const autoPageview = config.autoPageview ?? true
   if (autoPageview && shouldTrack()) {
