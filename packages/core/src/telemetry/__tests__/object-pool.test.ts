@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { TelemetryObjectPool } from '../object-pool.js'
-import { IntentType } from '../intent-types.js'
+import { IntentType, BusinessType, CURRENT_SCHEMA_VERSION, TelemetryErrorCode } from '../intent-types.js'
 
 describe('TelemetryObjectPool', () => {
   describe('create', () => {
@@ -79,6 +79,11 @@ describe('TelemetryObjectPool', () => {
           expect(slot!.x_coord).toBe(0)
           expect(slot!.y_coord).toBe(0)
           expect(slot!.isDirty).toBe(false)
+          expect(slot!.schema_version).toBe(CURRENT_SCHEMA_VERSION)
+          expect(slot!.site_id).toBe('')
+          expect(slot!.business_type).toBe(BusinessType.OTHER)
+          expect(slot!.path).toBe('')
+          expect(slot!.referrer).toBe('')
         }
       }
     })
@@ -121,7 +126,7 @@ describe('TelemetryObjectPool', () => {
   })
 
   describe('resetSlot', () => {
-    it('zeroes values but preserves id', () => {
+    it('zeroes all values but preserves id', () => {
       const result = TelemetryObjectPool.create(4)
       expect(result.isOk()).toBe(true)
       if (result.isOk()) {
@@ -133,6 +138,11 @@ describe('TelemetryObjectPool', () => {
         slot.x_coord = 100
         slot.y_coord = 200
         slot.isDirty = true
+        slot.schema_version = 99
+        slot.site_id = 'site-abc'
+        slot.business_type = BusinessType.LEGAL
+        slot.path = '/about'
+        slot.referrer = 'https://example.com'
 
         const resetResult = pool.resetSlot(1)
         expect(resetResult.isOk()).toBe(true)
@@ -143,16 +153,36 @@ describe('TelemetryObjectPool', () => {
         expect(slot.x_coord).toBe(0)
         expect(slot.y_coord).toBe(0)
         expect(slot.isDirty).toBe(false)
+        expect(slot.schema_version).toBe(CURRENT_SCHEMA_VERSION)
+        expect(slot.site_id).toBe('')
+        expect(slot.business_type).toBe(BusinessType.OTHER)
+        expect(slot.path).toBe('')
+        expect(slot.referrer).toBe('')
       }
     })
 
-    it('returns Err for out-of-bounds index', () => {
+    it('preserves object identity through reset', () => {
+      const result = TelemetryObjectPool.create(4)
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        const pool = result.value
+        const before = pool.getSlot(2)
+        pool.resetSlot(2)
+        const after = pool.getSlot(2)
+        expect(before).toBe(after)
+      }
+    })
+
+    it('returns Err with INVALID_SLOT_INDEX for out-of-bounds', () => {
       const result = TelemetryObjectPool.create(4)
       expect(result.isOk()).toBe(true)
       if (result.isOk()) {
         const pool = result.value
         const resetResult = pool.resetSlot(10)
         expect(resetResult.isErr()).toBe(true)
+        if (resetResult.isErr()) {
+          expect(resetResult.error.code).toBe(TelemetryErrorCode.INVALID_SLOT_INDEX)
+        }
       }
     })
   })
@@ -168,6 +198,8 @@ describe('TelemetryObjectPool', () => {
           slot.timestamp = 9999
           slot.isDirty = true
           slot.targetDOMNode = 'modified'
+          slot.business_type = BusinessType.MEDICAL
+          slot.schema_version = 42
         }
 
         pool.resetAll()
@@ -178,6 +210,8 @@ describe('TelemetryObjectPool', () => {
           expect(slot.timestamp).toBe(0)
           expect(slot.isDirty).toBe(false)
           expect(slot.targetDOMNode).toBe('')
+          expect(slot.business_type).toBe(BusinessType.OTHER)
+          expect(slot.schema_version).toBe(CURRENT_SCHEMA_VERSION)
         }
       }
     })
