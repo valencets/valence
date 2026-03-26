@@ -12,7 +12,8 @@ export const StoreFieldType = Object.freeze({
   SLUG: 'slug',
   JSON: 'json',
   ARRAY: 'array',
-  GROUP: 'group'
+  GROUP: 'group',
+  CUSTOM: 'custom'
 } as const)
 
 export type StoreFieldType = typeof StoreFieldType[keyof typeof StoreFieldType]
@@ -89,6 +90,12 @@ export interface JsonFieldConfig extends StoreFieldBase {
   readonly type: 'json'
 }
 
+export interface CustomFieldConfig extends StoreFieldBase {
+  readonly type: 'custom'
+  readonly validator: import('zod').ZodTypeAny
+  readonly default?: unknown
+}
+
 export interface ArrayFieldConfig extends StoreFieldBase {
   readonly type: 'array'
   readonly fields: readonly StoreFieldConfig[]
@@ -112,5 +119,6 @@ export type StoreFieldConfig =
   | ColorFieldConfig
   | SlugFieldConfig
   | JsonFieldConfig
+  | CustomFieldConfig
   | ArrayFieldConfig
   | GroupFieldConfig
