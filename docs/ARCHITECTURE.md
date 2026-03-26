@@ -80,14 +80,14 @@ Every error type in the monorepo follows the same structural pattern: a const un
 ### Const Union + Interface Pattern
 
 ```typescript
-export const DbErrorCode = {
+export const DbErrorCode = Object.freeze({
   CONNECTION_FAILED: 'CONNECTION_FAILED',
   QUERY_FAILED: 'QUERY_FAILED',
   MIGRATION_FAILED: 'MIGRATION_FAILED',
   INVALID_CONFIG: 'INVALID_CONFIG',
   CONSTRAINT_VIOLATION: 'CONSTRAINT_VIOLATION',
   NO_ROWS: 'NO_ROWS'
-} as const
+} as const)
 
 export type DbErrorCode = typeof DbErrorCode[keyof typeof DbErrorCode]
 
@@ -195,7 +195,7 @@ interface GlobalTelemetryIntent {
 
 Location: `packages/core/src/telemetry/object-pool.ts`
 
-Pre-allocates `N` `GlobalTelemetryIntent` objects at boot via `createEmptyIntent()`. Capacity must be a power of two (validated at creation via `Result`). Provides `getSlot(index)` for direct access and `resetSlot(index)` to zero out a slot's fields without destroying the object. `resetAll()` zeros every slot in a single pass.
+Pre-allocates `N` `GlobalTelemetryIntent` objects at boot via `createEmptyIntent()`. Capacity must be a power of two (validated at creation via `Result`). Provides `getSlot(index)` for direct access and `resetSlot(index)` which returns `Result<void, TelemetryError>` with `INVALID_SLOT_INDEX` for out-of-bounds. `resetAll()` zeros every slot in a single pass with safe bounds checking.
 
 No objects are created or destroyed after initialization. The pool is the memory budget, and the buffer operates within it. Pre-allocation eliminates GC pressure during runtime when every millisecond of frame time matters.
 
@@ -215,17 +215,25 @@ Fixed capacity backed by a `TelemetryObjectPool`. Uses bitmask pointer arithmeti
 
 Location: `packages/core/src/telemetry/event-delegation.ts`
 
-Single click listener on a root element (defaults to `document.body`). HTML elements declare tracking intent via `data-*` attributes:
+Single click listener on a root element (defaults to `document.body`). Two detection modes:
+
+**Explicit tracking** via `data-*` attributes — the delegation handler reads `data-telemetry-type` and `data-telemetry-target` on event bubbling, resolves the type through a frozen static dictionary map (`intentTypeMap`), and writes to the next buffer slot:
 
 ```html
-<a href="tel:555-1234"
-   data-telemetry-type="INTENT_CALL"
-   data-telemetry-target="header-phone">
-  Call Us
-</a>
+<button data-telemetry-type="INTENT_NAVIGATE"
+        data-telemetry-target="hero-cta">
+  Get Started
+</button>
 ```
 
-The delegation handler reads `data-telemetry-type` and `data-telemetry-target` on event bubbling, resolves the type through a static dictionary map (`intentTypeMap`), and writes to the next buffer slot. Lead actions (`tel:`, `mailto:` links) are detected automatically by href prefix without requiring `data-*` attributes.
+**Automatic lead detection** — `tel:` and `mailto:` links are detected by href prefix via `leadHrefMap` without requiring `data-*` attributes. Fires `LEAD_PHONE` and `LEAD_EMAIL` intent types respectively:
+
+```html
+<a href="tel:555-1234">Call Us</a>        <!-- auto: LEAD_PHONE -->
+<a href="mailto:hi@example.com">Email</a> <!-- auto: LEAD_EMAIL -->
+```
+
+Both maps are `Object.freeze()`d at module level. Event targets are narrowed via `instanceof Element` (not unsafe `as` casts).
 
 Components never execute tracking directly. The engine owns all telemetry writes.
 
@@ -233,18 +241,18 @@ Components never execute tracking directly. The engine owns all telemetry writes
 
 Location: `packages/core/src/telemetry/flush.ts`
 
-`flushTelemetry()` collects dirty entries from the buffer, serializes via `JSON.stringify`, and dispatches via `navigator.sendBeacon()`. Returns `Result<number, TelemetryError>` -- `Ok` with the count flushed, or `Err` if the buffer was empty or `sendBeacon` rejected.
+`flushTelemetry()` validates the endpoint URL (must be relative path or HTTP/HTTPS), checks consent via `shouldTrack()`, collects dirty entries from the buffer, serializes via `JSON.stringify`, and dispatches via `navigator.sendBeacon()`. Returns `Result<number, TelemetryError>` -- `Ok` with the count flushed, or `Err` if consent denied, buffer empty, URL invalid, `sendBeacon` rejected, or `markFlushed` failed.
 
-`scheduleAutoFlush()` sets up an interval timer and a `visibilitychange` listener (flushes when the tab is hidden). Returns a `FlushHandle` with `stop()` and `flushNow()` methods.
+`scheduleAutoFlush()` sets up an interval timer and a `visibilitychange` listener (flushes when the tab is hidden). Validates `intervalMs` (minimum 1000ms). Returns `Result<FlushHandle, TelemetryError>` -- `Ok` with a handle providing `stop()` and `flushNow()` methods, or `Err` if the interval is invalid.
 
 ### Schema Versioning
 
-Every intent includes `schema_version: 1`. The ingestion pipeline routes events through a version-discriminated handler dictionary:
+Every intent includes `schema_version` set to `CURRENT_SCHEMA_VERSION` (currently `1`). The ingestion pipeline routes events through a version-discriminated handler dictionary:
 
 ```typescript
-const handlers: Record<number, IntentHandler> = {
+const handlers: Readonly<{ [version: number]: IntentHandler }> = Object.freeze({
   1: handleV1Intent,
-}
+})
 ```
 
 Old events in the immutable ledger remain valid forever. No migration. No rewrite.
