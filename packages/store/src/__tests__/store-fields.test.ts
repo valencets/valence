@@ -5,10 +5,16 @@ import { StoreFieldType } from '../fields/store-field-types.js'
 describe('StoreFieldType', () => {
   it('contains all expected field types', () => {
     expect(StoreFieldType.TEXT).toBe('text')
+    expect(StoreFieldType.TEXTAREA).toBe('textarea')
     expect(StoreFieldType.NUMBER).toBe('number')
     expect(StoreFieldType.BOOLEAN).toBe('boolean')
     expect(StoreFieldType.SELECT).toBe('select')
+    expect(StoreFieldType.MULTISELECT).toBe('multiselect')
     expect(StoreFieldType.DATE).toBe('date')
+    expect(StoreFieldType.EMAIL).toBe('email')
+    expect(StoreFieldType.URL).toBe('url')
+    expect(StoreFieldType.COLOR).toBe('color')
+    expect(StoreFieldType.SLUG).toBe('slug')
     expect(StoreFieldType.JSON).toBe('json')
     expect(StoreFieldType.ARRAY).toBe('array')
     expect(StoreFieldType.GROUP).toBe('group')
@@ -79,6 +85,85 @@ describe('field.select', () => {
   })
 })
 
+describe('field.textarea', () => {
+  it('returns config with type textarea', () => {
+    const f = field.textarea({ name: 'bio' })
+    expect(f.type).toBe('textarea')
+    expect(f.name).toBe('bio')
+  })
+
+  it('includes minLength and maxLength constraints', () => {
+    const f = field.textarea({ name: 'desc', minLength: 10, maxLength: 5000 })
+    expect(f.minLength).toBe(10)
+    expect(f.maxLength).toBe(5000)
+  })
+})
+
+describe('field.multiselect', () => {
+  it('returns config with type multiselect and options', () => {
+    const f = field.multiselect({ name: 'tags', options: ['tech', 'design', 'biz'] })
+    expect(f.type).toBe('multiselect')
+    expect(f.options).toEqual(['tech', 'design', 'biz'])
+  })
+
+  it('includes default value as array', () => {
+    const f = field.multiselect({ name: 'roles', options: ['admin', 'editor'], default: ['editor'] })
+    expect(f.default).toEqual(['editor'])
+  })
+})
+
+describe('field.email', () => {
+  it('returns config with type email', () => {
+    const f = field.email({ name: 'contact' })
+    expect(f.type).toBe('email')
+    expect(f.name).toBe('contact')
+  })
+
+  it('includes default value', () => {
+    const f = field.email({ name: 'support', default: 'help@example.com' })
+    expect(f.default).toBe('help@example.com')
+  })
+})
+
+describe('field.url', () => {
+  it('returns config with type url', () => {
+    const f = field.url({ name: 'website' })
+    expect(f.type).toBe('url')
+    expect(f.name).toBe('website')
+  })
+
+  it('includes default value', () => {
+    const f = field.url({ name: 'docs', default: 'https://docs.example.com' })
+    expect(f.default).toBe('https://docs.example.com')
+  })
+})
+
+describe('field.color', () => {
+  it('returns config with type color', () => {
+    const f = field.color({ name: 'accent' })
+    expect(f.type).toBe('color')
+    expect(f.name).toBe('accent')
+  })
+
+  it('includes default value', () => {
+    const f = field.color({ name: 'brand', default: '#ff6600' })
+    expect(f.default).toBe('#ff6600')
+  })
+})
+
+describe('field.slug', () => {
+  it('returns config with type slug', () => {
+    const f = field.slug({ name: 'handle' })
+    expect(f.type).toBe('slug')
+    expect(f.name).toBe('handle')
+  })
+
+  it('includes slugFrom reference', () => {
+    const f = field.slug({ name: 'handle', slugFrom: 'title' })
+    expect(f.slugFrom).toBe('title')
+  })
+})
+
 describe('field.date', () => {
   it('returns config with type date', () => {
     const f = field.date({ name: 'publishAt' })
@@ -132,10 +217,16 @@ describe('field factories', () => {
   it('all return readonly configs', () => {
     const configs = [
       field.text({ name: 'a' }),
+      field.textarea({ name: 'a2' }),
       field.number({ name: 'b' }),
       field.boolean({ name: 'c' }),
       field.select({ name: 'd', options: ['x'] }),
+      field.multiselect({ name: 'd2', options: ['x'] }),
       field.date({ name: 'e' }),
+      field.email({ name: 'e2' }),
+      field.url({ name: 'e3' }),
+      field.color({ name: 'e4' }),
+      field.slug({ name: 'e5' }),
       field.json({ name: 'f' }),
       field.array({ name: 'g', fields: [] }),
       field.group({ name: 'h', fields: [] })
