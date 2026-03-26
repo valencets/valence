@@ -19,14 +19,14 @@ describe('SessionStateHolder', () => {
     expect(state.status).toBe('draft')
   })
 
-  it('getState returns same defaults for fields without default', () => {
+  it('fields without default start as undefined', () => {
     const holder = SessionStateHolder.create([
       field.text({ name: 'name' }),
       field.number({ name: 'age' })
     ])
     const state = holder.getState('s1')
-    expect(state.name).toBe('')
-    expect(state.age).toBe(0)
+    expect(state.name).toBeUndefined()
+    expect(state.age).toBeUndefined()
   })
 
   it('different sessions have isolated state', () => {
@@ -36,7 +36,7 @@ describe('SessionStateHolder', () => {
     holder.setState('s1', state1)
 
     const state2 = holder.getState('s2')
-    expect(state2.count).toBe(0)
+    expect(state2.count).toBe(0) // default: 0 was specified in field config
   })
 
   it('setState persists and getState retrieves', () => {
@@ -62,8 +62,8 @@ describe('SessionStateHolder', () => {
     holder.setState('s1', { title: 'test', count: 5, active: true, status: 'draft' })
     holder.clear('s1')
     const state = holder.getState('s1')
-    expect(state.count).toBe(0)
-    expect(state.title).toBe('untitled')
+    expect(state.count).toBe(0) // back to field default
+    expect(state.title).toBe('untitled') // back to field default
   })
 
   it('clearAll removes all sessions', () => {
@@ -71,8 +71,8 @@ describe('SessionStateHolder', () => {
     holder.setState('s1', { title: 'a', count: 1, active: true, status: 'draft' })
     holder.setState('s2', { title: 'b', count: 2, active: true, status: 'draft' })
     holder.clearAll()
-    expect(holder.getState('s1').count).toBe(0)
-    expect(holder.getState('s2').count).toBe(0)
+    expect(holder.getState('s1').count).toBe(0) // back to field default
+    expect(holder.getState('s2').count).toBe(0) // back to field default
   })
 
   it('sessionCount tracks active sessions', () => {
@@ -86,28 +86,28 @@ describe('SessionStateHolder', () => {
     expect(holder.sessionCount).toBe(1)
   })
 
-  it('handles array field defaults as empty array', () => {
+  it('array field without default starts as undefined', () => {
     const holder = SessionStateHolder.create([
       field.array({ name: 'items', fields: [field.text({ name: 'sku' })] })
     ])
     const state = holder.getState('s1')
-    expect(state.items).toEqual([])
+    expect(state.items).toBeUndefined()
   })
 
-  it('handles group field defaults as empty object', () => {
+  it('group field without default starts as undefined', () => {
     const holder = SessionStateHolder.create([
       field.group({ name: 'address', fields: [field.text({ name: 'city' })] })
     ])
     const state = holder.getState('s1')
-    expect(state.address).toEqual({})
+    expect(state.address).toBeUndefined()
   })
 
-  it('handles multiselect field defaults as empty array', () => {
+  it('multiselect field without default starts as undefined', () => {
     const holder = SessionStateHolder.create([
       field.multiselect({ name: 'tags', options: ['a', 'b'] })
     ])
     const state = holder.getState('s1')
-    expect(state.tags).toEqual([])
+    expect(state.tags).toBeUndefined()
   })
 
   it('handles boolean default false correctly', () => {
