@@ -3,10 +3,16 @@ export { field, StoreFieldType } from './fields/index.js'
 export type {
   StoreFieldConfig,
   TextFieldConfig,
+  TextareaFieldConfig,
   NumberFieldConfig,
   BooleanFieldConfig,
   SelectFieldConfig,
+  MultiselectFieldConfig,
   DateFieldConfig,
+  EmailFieldConfig,
+  UrlFieldConfig,
+  ColorFieldConfig,
+  SlugFieldConfig,
   JsonFieldConfig,
   ArrayFieldConfig,
   GroupFieldConfig
