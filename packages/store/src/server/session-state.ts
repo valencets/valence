@@ -1,31 +1,11 @@
 import type { StoreFieldConfig } from '../fields/store-field-types.js'
 import type { StoreState, StoreValue } from '../types.js'
 
-const DEFAULT_BY_TYPE: Readonly<{ [type: string]: StoreValue }> = Object.freeze({
-  text: '',
-  textarea: '',
-  number: 0,
-  boolean: false,
-  select: '',
-  multiselect: [],
-  date: '',
-  email: '',
-  url: '',
-  color: '',
-  slug: '',
-  json: null,
-  custom: null,
-  array: [],
-  group: {}
-})
-
 function resolveDefault (field: StoreFieldConfig): StoreValue {
   if ('default' in field && field.default !== undefined) {
     return field.default as StoreValue
   }
-  const fallback = DEFAULT_BY_TYPE[field.type]
-  if (fallback !== undefined) return fallback
-  return null
+  return undefined
 }
 
 function buildDefaults (fields: readonly StoreFieldConfig[]): StoreState {
