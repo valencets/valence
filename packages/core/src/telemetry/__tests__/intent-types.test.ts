@@ -43,6 +43,7 @@ describe('TelemetryErrorCode', () => {
     expect(TelemetryErrorCode.FLUSH_EMPTY).toBe('FLUSH_EMPTY')
     expect(TelemetryErrorCode.FLUSH_DISPATCH_FAILED).toBe('FLUSH_DISPATCH_FAILED')
     expect(TelemetryErrorCode.FLUSH_CONSENT_DENIED).toBe('FLUSH_CONSENT_DENIED')
+    expect(TelemetryErrorCode.FLUSH_OVERFLOW).toBe('FLUSH_OVERFLOW')
     expect(TelemetryErrorCode.INVALID_CAPACITY).toBe('INVALID_CAPACITY')
     expect(TelemetryErrorCode.INVALID_INTENT_TYPE).toBe('INVALID_INTENT_TYPE')
     expect(TelemetryErrorCode.INVALID_SLOT_INDEX).toBe('INVALID_SLOT_INDEX')
