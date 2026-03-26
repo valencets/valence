@@ -1,0 +1,47 @@
+{
+  "name": "@valencets/store",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Schema-driven shared state with server authority, optimistic mutations, and SSE reconciliation",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@valencets/reactive": "workspace:*",
+    "@valencets/resultkit": "^0.2.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/valencets/valence.git",
+    "directory": "packages/store"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
