@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { z } from 'zod'
 import { field } from '../fields/index.js'
 import { StoreFieldType } from '../fields/store-field-types.js'
 
@@ -18,6 +19,7 @@ describe('StoreFieldType', () => {
     expect(StoreFieldType.JSON).toBe('json')
     expect(StoreFieldType.ARRAY).toBe('array')
     expect(StoreFieldType.GROUP).toBe('group')
+    expect(StoreFieldType.CUSTOM).toBe('custom')
   })
 
   it('is frozen and cannot be mutated', () => {
@@ -213,6 +215,28 @@ describe('field.group', () => {
   })
 })
 
+describe('field.custom', () => {
+  it('returns config with type custom and developer-provided validator', () => {
+    const vec3Schema = z.object({ x: z.number(), y: z.number(), z: z.number() })
+    const f = field.custom({ name: 'position', validator: vec3Schema })
+    expect(f.type).toBe('custom')
+    expect(f.name).toBe('position')
+    expect(f.validator).toBe(vec3Schema)
+  })
+
+  it('includes default value', () => {
+    const schema = z.object({ r: z.number(), g: z.number(), b: z.number() })
+    const f = field.custom({ name: 'rgb', validator: schema, default: { r: 0, g: 0, b: 0 } })
+    expect(f.default).toEqual({ r: 0, g: 0, b: 0 })
+  })
+
+  it('works with primitive validators', () => {
+    const f = field.custom({ name: 'score', validator: z.number().int().positive() })
+    expect(f.type).toBe('custom')
+    expect(f.validator).toBeDefined()
+  })
+})
+
 describe('field factories', () => {
   it('all return readonly configs', () => {
     const configs = [
@@ -229,7 +253,8 @@ describe('field factories', () => {
       field.slug({ name: 'e5' }),
       field.json({ name: 'f' }),
       field.array({ name: 'g', fields: [] }),
-      field.group({ name: 'h', fields: [] })
+      field.group({ name: 'h', fields: [] }),
+      field.custom({ name: 'i', validator: z.string() })
     ]
     for (const config of configs) {
       expect(config).toBeDefined()
