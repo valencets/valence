@@ -11,6 +11,7 @@ import type {
   ColorFieldConfig,
   SlugFieldConfig,
   JsonFieldConfig,
+  CustomFieldConfig,
   ArrayFieldConfig,
   GroupFieldConfig
 } from './store-field-types.js'
@@ -51,6 +52,9 @@ export const field = Object.freeze({
   },
   json (opts: Omit<JsonFieldConfig, 'type'>): JsonFieldConfig {
     return { type: 'json', ...opts }
+  },
+  custom (opts: Omit<CustomFieldConfig, 'type'>): CustomFieldConfig {
+    return { type: 'custom', ...opts }
   },
   array (opts: Omit<ArrayFieldConfig, 'type'>): ArrayFieldConfig {
     return { type: 'array', ...opts }

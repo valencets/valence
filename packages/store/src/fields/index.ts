@@ -14,6 +14,7 @@ export type {
   ColorFieldConfig,
   SlugFieldConfig,
   JsonFieldConfig,
+  CustomFieldConfig,
   ArrayFieldConfig,
   GroupFieldConfig
 } from './store-field-types.js'
