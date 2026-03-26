@@ -37,7 +37,7 @@ export class TelemetryObjectPool {
     const slot = this.slots[index]
     if (slot === undefined) {
       return err({
-        code: TelemetryErrorCode.POOL_EXHAUSTED,
+        code: TelemetryErrorCode.INVALID_SLOT_INDEX,
         message: `Slot index ${index} out of bounds`
       })
     }
@@ -47,7 +47,8 @@ export class TelemetryObjectPool {
 
   resetAll (): void {
     for (let i = 0; i < this.capacity; i++) {
-      resetIntent(this.slots[i]!)
+      const slot = this.slots[i]
+      if (slot) resetIntent(slot)
     }
   }
 }
