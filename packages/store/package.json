@@ -29,6 +29,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "happy-dom": "^20.8.3",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
