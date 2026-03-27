@@ -207,13 +207,13 @@ describe('createStoreSignals', () => {
       coupon: 'SAVE10'
     })
 
-    expect(signals.status.value).toBe('open')
-    expect(signals.coupon.value).toBe('SAVE10')
-    const items = signals.items.value as Array<{ sku: string }>
+    expect(signals.status!.value).toBe('open')
+    expect(signals.coupon!.value).toBe('SAVE10')
+    const items = signals.items!.value as Array<{ sku: string }>
     expect(items[0]!.sku).toBe('W1')
 
     // Mutate
-    signals.items.value = [...items, { sku: 'W2', qty: 1, price: 4.99 }]
-    expect((signals.items.value as Array<{ sku: string }>)).toHaveLength(2)
+    signals.items!.value = [...items, { sku: 'W2', qty: 1, price: 4.99 }]
+    expect((signals.items!.value as Array<{ sku: string }>)).toHaveLength(2)
   })
 })
