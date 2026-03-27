@@ -58,7 +58,10 @@ export function registerStoreRoutesOnServer (
       const mutationName = params.mutation ?? ''
       const bodyText = await readJsonBody(req)
       const parseResult = safeJsonParse(bodyText)
-      const args = (parseResult.isOk() && parseResult.value !== null) ? parseResult.value : {}
+      const parsed = (parseResult.isOk() && parseResult.value !== null) ? parseResult.value : {}
+      // Client sends { args, mutationId } — echo mutationId back as confirmedId
+      const args = parsed.args ?? parsed
+      const clientMutationId = typeof parsed.mutationId === 'number' ? parsed.mutationId : undefined
 
       const result = await routes.handleMutation(sessionId, mutationName, args)
 
@@ -70,7 +73,8 @@ export function registerStoreRoutesOnServer (
           }
         }
 
-        const body = JSON.stringify(result.value)
+        const confirmedId = clientMutationId ?? result.value.confirmedId
+        const body = JSON.stringify({ ok: true, state: result.value.state, confirmedId })
         res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
         res.end(body)
       } else {
