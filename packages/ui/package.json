@@ -36,7 +36,7 @@
     "@playwright/test": "^1.58.2",
     "@storybook/web-components": "^10.3.1",
     "@storybook/web-components-vite": "^10.3.1",
-    "happy-dom": "^20.8.3",
+    "happy-dom": "^20.8.8",
     "lit": "^3.3.2",
     "storybook": "^10.3.1",
     "typescript": "^5.9.3",
