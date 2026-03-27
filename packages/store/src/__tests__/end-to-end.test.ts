@@ -68,10 +68,10 @@ describe('End-to-end: Signal Mode counter store', () => {
     expect(initialState.count).toBe(0)
 
     // 5. Client: create store client with mock POST
-    const mockPost = vi.fn().mockImplementation(async (slug: string, mutation: string, args: StoreState, mutationId: number) => {
+    const mockPost = vi.fn().mockImplementation(async (_slug: string, mutation: string, args: StoreState, mutationId: number) => {
       const result = await routes.handleMutation('user-1', mutation, args as { [key: string]: string | number | boolean | null })
       if (result.isOk()) {
-        return { ok: true, state: result.value.state, confirmedId: result.value.confirmedId }
+        return { ok: true, state: result.value.state, confirmedId: mutationId }
       }
       return { ok: false, error: { code: 'MUTATION_FAILED', message: 'Server error' } }
     })
@@ -195,6 +195,143 @@ describe('End-to-end: Fragment Mode cart store', () => {
   })
 })
 
+describe('End-to-end: Concurrent mutations (replay path)', () => {
+  it('two concurrent optimistic increments reconcile correctly', async () => {
+    const counterResult = store({
+      slug: 'concurrent',
+      scope: 'session',
+      fields: [field.number({ name: 'count', default: 0 })],
+      mutations: {
+        increment: {
+          input: [field.number({ name: 'amount' })],
+          server: async ({ state, input }) => {
+            state.count = (state.count as number) + (input.amount as number)
+          },
+          client: ({ state, input }) => {
+            state.count = (state.count as number) + (input.amount as number)
+          }
+        }
+      }
+    })
+    const config = counterResult.unwrap()
+    const holder = SessionStateHolder.create(config.fields)
+    const broadcaster = SSEBroadcaster.create()
+    const routes = registerStoreRoutes(config, holder, broadcaster)
+
+    const mockPost = vi.fn().mockImplementation(async (_s: string, mutation: string, args: StoreState, mutationId: number) => {
+      const result = await routes.handleMutation('user-1', mutation, args as { [key: string]: string | number | boolean | null })
+      if (result.isOk()) return { ok: true, state: result.value.state, confirmedId: mutationId }
+      return { ok: false, error: { code: 'FAILED', message: 'err' } }
+    })
+
+    const client = createStoreClient(config, { count: 0 }, mockPost)
+    expect(client.signals.count.value).toBe(0)
+
+    // Fire two mutations concurrently — both start before either POST returns
+    const p1 = client.mutations.increment({ amount: 5 })
+    const p2 = client.mutations.increment({ amount: 3 })
+
+    // After synchronous optimistic applies: 0 + 5 = 5 (p1), 5 + 3 = 8 (p2)
+    expect(client.signals.count.value).toBe(8)
+
+    const [r1, r2] = await Promise.all([p1, p2])
+    expect(r1.isOk()).toBe(true)
+    expect(r2.isOk()).toBe(true)
+
+    // Server processed sequentially via session lock: 0+5=5, 5+3=8
+    // After reconciliation: final = 8
+    expect(client.signals.count.value).toBe(8)
+    expect(routes.getState('user-1').count).toBe(8)
+
+    client.dispose()
+  })
+})
+
+describe('End-to-end: Server rejection rollback', () => {
+  it('rolls back optimistic state on server failure', async () => {
+    const counterResult = store({
+      slug: 'rollback',
+      scope: 'session',
+      fields: [field.number({ name: 'count', default: 0 })],
+      mutations: {
+        increment: {
+          input: [field.number({ name: 'amount' })],
+          server: async ({ state, input }) => {
+            state.count = (state.count as number) + (input.amount as number)
+          },
+          client: ({ state, input }) => {
+            state.count = (state.count as number) + (input.amount as number)
+          }
+        }
+      }
+    })
+    const config = counterResult.unwrap()
+    const holder = SessionStateHolder.create(config.fields)
+    const routes = registerStoreRoutes(config, holder)
+
+    let callCount = 0
+    const mockPost = vi.fn().mockImplementation(async (_s: string, mutation: string, args: StoreState, mutationId: number) => {
+      callCount++
+      // First call succeeds, second call fails
+      if (callCount === 2) {
+        return { ok: false, error: { code: 'MUTATION_FAILED', message: 'Server rejected' } }
+      }
+      const result = await routes.handleMutation('user-1', mutation, args as { [key: string]: string | number | boolean | null })
+      if (result.isOk()) return { ok: true, state: result.value.state, confirmedId: mutationId }
+      return { ok: false, error: { code: 'FAILED', message: 'err' } }
+    })
+
+    const client = createStoreClient(config, { count: 0 }, mockPost)
+
+    // First mutation succeeds
+    const r1 = await client.mutations.increment({ amount: 10 })
+    expect(r1.isOk()).toBe(true)
+    expect(client.signals.count.value).toBe(10)
+
+    // Second mutation: optimistic goes to 15, server rejects → rollback to 10
+    const r2 = await client.mutations.increment({ amount: 5 })
+    expect(r2.isErr()).toBe(true)
+    expect(client.signals.count.value).toBe(10)
+
+    // Server state unaffected
+    expect(routes.getState('user-1').count).toBe(10)
+
+    client.dispose()
+  })
+})
+
+describe('End-to-end: Validation failure', () => {
+  it('rejects invalid input without touching signals or server', async () => {
+    const counterResult = store({
+      slug: 'validate',
+      scope: 'session',
+      fields: [field.number({ name: 'count', default: 0 })],
+      mutations: {
+        increment: {
+          input: [field.number({ name: 'amount' })],
+          server: async ({ state, input }) => {
+            state.count = (state.count as number) + (input.amount as number)
+          }
+        }
+      }
+    })
+    const config = counterResult.unwrap()
+
+    const mockPost = vi.fn()
+    const client = createStoreClient(config, { count: 0 }, mockPost)
+
+    // Pass string instead of number — Zod rejects
+    const result = await client.mutations.increment({ amount: 'not-a-number' as unknown as number })
+    expect(result.isErr()).toBe(true)
+
+    // Signal unchanged, server never called
+    expect(client.signals.count.value).toBe(0)
+    expect(mockPost).not.toHaveBeenCalled()
+
+    client.dispose()
+  })
+})
+
 describe('End-to-end: Custom field types', () => {
   it('custom validator flows through store lifecycle', async () => {
     const vec2Schema = z.object({ x: z.number(), y: z.number() })
@@ -222,9 +359,9 @@ describe('End-to-end: Custom field types', () => {
     const holder = SessionStateHolder.create(config.fields)
     const routes = registerStoreRoutes(config, holder)
 
-    const mockPost = vi.fn().mockImplementation(async (_s: string, mutation: string, args: StoreState) => {
+    const mockPost = vi.fn().mockImplementation(async (_s: string, mutation: string, args: StoreState, mutationId: number) => {
       const result = await routes.handleMutation('player-1', mutation, args as { [key: string]: string | number | boolean | null })
-      if (result.isOk()) return { ok: true, state: result.value.state, confirmedId: result.value.confirmedId }
+      if (result.isOk()) return { ok: true, state: result.value.state, confirmedId: mutationId }
       return { ok: false, error: { code: 'FAILED', message: 'err' } }
     })
 
