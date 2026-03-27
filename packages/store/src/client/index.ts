@@ -1,3 +1,5 @@
 export { PendingQueue } from './pending-queue.js'
 export type { PendingMutation } from './pending-queue.js'
 export { SSEListener } from './sse-listener.js'
+export { createStoreSignals } from './store-signals.js'
+export type { StoreSignals } from './store-signals.js'
