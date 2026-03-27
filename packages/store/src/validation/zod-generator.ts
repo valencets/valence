@@ -67,14 +67,24 @@ function buildSlugSchema (): ZodTypeAny {
 }
 
 function buildJsonSchema (): ZodTypeAny {
-  return z.unknown()
+  // Restrict to JSON-safe values — objects, arrays, strings, numbers, booleans, null.
+  // Rejects undefined, functions, symbols, and class instances.
+  return z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(z.lazy(() => buildJsonSchema())),
+    z.record(z.string(), z.lazy(() => buildJsonSchema()))
+  ])
 }
 
 function buildCustomSchema (field: StoreFieldConfig): ZodTypeAny {
   if ('validator' in field) {
     return field.validator
   }
-  return z.unknown()
+  // Custom field without validator — accept JSON-safe values as fallback
+  return buildJsonSchema()
 }
 
 function buildArraySchema (field: StoreFieldConfig): ZodTypeAny {

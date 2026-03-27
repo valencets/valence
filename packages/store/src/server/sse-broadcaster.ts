@@ -5,7 +5,12 @@ interface SSEClient {
   readonly res: ServerResponse
 }
 
+const SAFE_EVENT_NAME = /^[a-zA-Z][a-zA-Z0-9_-]*$/
+
 function formatSSE (event: string, data: { [key: string]: string | number | boolean | null }): string {
+  if (!SAFE_EVENT_NAME.test(event)) {
+    return ''
+  }
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 }
 

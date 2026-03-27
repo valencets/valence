@@ -84,3 +84,4 @@ export type {
   FragmentRenderFn,
   DerivedFn
 } from './types.js'
+export { escapeHtml } from './escape.js'
