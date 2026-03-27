@@ -21,10 +21,11 @@ export function renderStoreFragment (
 
   const selector = `[data-store="${config.slug}"]`
 
+  const fragmentFn = config.fragment
   const safeRender = fromThrowable(
-    config.fragment,
-    (e) => ({
-      code: StoreErrorCode.STATE_ERROR as const,
+    (s: StoreState) => fragmentFn(s),
+    (e): StoreError => ({
+      code: StoreErrorCode.STATE_ERROR,
       message: e instanceof Error ? e.message : `Fragment render failed for store '${config.slug}'`
     })
   )

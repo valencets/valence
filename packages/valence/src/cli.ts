@@ -779,6 +779,10 @@ async function runDev (): Promise<void> {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
 
+  // Register store routes (no-op if no stores defined)
+  const { maybeRegisterStores } = await import('./store-wiring.js')
+  maybeRegisterStores(loadedConfig.stores, registerRoute, log)
+
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
   const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
@@ -996,6 +1000,11 @@ export async function runStart (): Promise<void> {
   if (loadedConfig.onServer) {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
+
+  // Register store routes if stores are defined in config
+  // Register store routes (no-op if no stores defined)
+  const { maybeRegisterStores: maybeRegisterStoresProd } = await import('./store-wiring.js')
+  maybeRegisterStoresProd(loadedConfig.stores, registerRoute)
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)

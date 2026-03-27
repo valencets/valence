@@ -38,22 +38,24 @@ export function createStoreClient (
   for (const [name, mutation] of Object.entries(config.mutations)) {
     const inputSchema = generateStoreSchema(mutation.input)
 
-    const clientFn = mutation.client
-      ? (state: StoreState, input: { [key: string]: StoreValue }) => {
-          mutation.client!({ state, input })
-        }
-      : undefined
-
-    mutations[name] = createMutationCaller({
+    const callerConfig = {
       storeSlug: config.slug,
       mutationName: name,
       inputSchema,
       signals,
       pendingQueue,
       postMutation,
-      clientFn,
-      serverState: { ...hydrationState }
-    })
+      ...(mutation.client
+        ? {
+            clientFn: (state: StoreState, input: { [key: string]: StoreValue }) => {
+              mutation.client!({ state, input })
+            }
+          }
+        : {}),
+      ...(Object.keys(hydrationState).length > 0 ? { serverState: { ...hydrationState } } : {})
+    }
+
+    mutations[name] = createMutationCaller(callerConfig)
   }
 
   return {

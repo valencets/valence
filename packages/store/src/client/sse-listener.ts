@@ -57,11 +57,11 @@ export class SSEListener {
     })
   }
 
-  private _dispatch (event: keyof SSECallbacks, data: StoreState | { mutationId: number } | { mutationId: number; error: { code: string; message: string } } | { selector: string; html: string }): void {
+  private _dispatch (event: keyof SSECallbacks, data: { readonly [key: string]: unknown }): void {
     if (!this._connected) return
     const callbacks = this._callbacks[event]
     for (const cb of callbacks) {
-      (cb as (data: typeof data) => void)(data)
+      (cb as (d: { readonly [key: string]: unknown }) => void)(data)
     }
   }
 
@@ -90,7 +90,7 @@ export class SSEListener {
   }
 
   /** Test-only: simulate an SSE event without a real server */
-  _simulateEvent (event: keyof SSECallbacks, data: StoreState | { mutationId: number } | { mutationId: number; error: { code: string; message: string } } | { selector: string; html: string }): void {
+  _simulateEvent (event: keyof SSECallbacks, data: { readonly [key: string]: unknown }): void {
     this._dispatch(event, data)
   }
 }

@@ -41,14 +41,15 @@ export function store (input: StoreInput): Result<StoreDefinition, StoreError> {
     }
   }
 
-  return ok({
+  const definition: StoreDefinition = {
     slug: input.slug,
     scope: input.scope,
     fields: input.fields,
     mutations: input.mutations,
-    fragment: input.fragment,
-    derived: input.derived
-  })
+    ...(input.fragment ? { fragment: input.fragment } : {}),
+    ...(input.derived ? { derived: input.derived } : {})
+  }
+  return ok(definition)
 }
 
 export { field, StoreFieldType } from './fields/index.js'

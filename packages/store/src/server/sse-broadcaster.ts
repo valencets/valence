@@ -7,7 +7,7 @@ interface SSEClient {
 
 const SAFE_EVENT_NAME = /^[a-zA-Z][a-zA-Z0-9_-]*$/
 
-function formatSSE (event: string, data: { [key: string]: string | number | boolean | null }): string {
+function formatSSE (event: string, data: { readonly [key: string]: unknown }): string {
   if (!SAFE_EVENT_NAME.test(event)) {
     return ''
   }
@@ -59,19 +59,21 @@ export class SSEBroadcaster {
     }
   }
 
-  broadcast (storeSlug: string, event: string, data: { [key: string]: string | number | boolean | null }): void {
+  broadcast (storeSlug: string, event: string, data: { readonly [key: string]: unknown }): void {
     const clients = this._stores.get(storeSlug)
     if (!clients) return
     const message = formatSSE(event, data)
+    if (message.length === 0) return
     for (const client of clients.values()) {
       client.res.write(message)
     }
   }
 
-  broadcastExcept (storeSlug: string, excludeSessionId: string, event: string, data: { [key: string]: string | number | boolean | null }): void {
+  broadcastExcept (storeSlug: string, excludeSessionId: string, event: string, data: { readonly [key: string]: unknown }): void {
     const clients = this._stores.get(storeSlug)
     if (!clients) return
     const message = formatSSE(event, data)
+    if (message.length === 0) return
     for (const client of clients.values()) {
       if (client.sessionId !== excludeSessionId) {
         client.res.write(message)

@@ -39,6 +39,8 @@ export interface UserConfig {
   // Preserved from ResolvedValenceConfig — handlers are functions and cannot be
   // serialised through the tsx subprocess, so only populated via direct import.
   readonly routes?: readonly RouteConfig[] | undefined
+  // Store definitions — contain mutation server/client functions, only via direct import.
+  readonly stores?: readonly import('@valencets/store').StoreInput[] | undefined
 }
 
 export function loadEnvConfig (): DbConfig | null {
@@ -120,10 +122,11 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
         collections: result.value?.collections ?? [],
         admin: result.value?.admin,
         telemetry: result.value?.telemetry,
-        // onServer and routes are functions/contain functions and can only be
+        // onServer, routes, and stores contain functions and can only be
         // preserved via direct import — serialisation through the tsx subprocess would lose them.
         onServer: result.value?.onServer,
-        routes: result.value?.routes
+        routes: result.value?.routes,
+        stores: result.value?.stores
       }
     }
     return null
