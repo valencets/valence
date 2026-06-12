@@ -36,9 +36,9 @@
   },
   "devDependencies": {
     "@types/node": "^25.4.0",
-    "happy-dom": "^20.8.3",
+    "happy-dom": "^20.8.9",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   },
   "engines": {
     "node": ">=22"
