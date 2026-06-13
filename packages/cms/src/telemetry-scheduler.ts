@@ -1,3 +1,4 @@
+import { ResultAsync } from '@valencets/resultkit'
 import type { DbPool } from '@valencets/db'
 
 export interface TelemetrySchedulerHandle {
@@ -30,7 +31,7 @@ export function startTelemetryScheduler (
     const dateOnly = s.slice(0, 10)
 
     // Session summaries
-    pool.sql.unsafe(`
+    const summaryChain = pool.sql.unsafe(`
       INSERT INTO session_summaries (period_start, period_end, total_sessions, unique_referrers, device_mobile, device_desktop, device_tablet)
       SELECT $1::timestamptz, $2::timestamptz, COUNT(*)::int, COUNT(DISTINCT referrer)::int,
         COUNT(*) FILTER (WHERE device_type = 'mobile')::int,
@@ -72,7 +73,8 @@ export function startTelemetryScheduler (
             conversion_count = EXCLUDED.conversion_count, synced_at = NOW()
         `, [siteId, dateOnly, sessionCount, pageviewCount, conversionCount])
       })
-      .catch(() => { /* Aggregation failure is non-fatal — tables may not exist yet */ })
+    // Aggregation failure is non-fatal (tables may not exist yet) — contained at the boundary
+    ResultAsync.fromPromise(summaryChain, () => undefined)
   }
 
   // Run once immediately, then on interval
