@@ -24,12 +24,19 @@ function withSessionLock<T> (sessionId: string, fn: () => Promise<T>): Promise<T
   const lock = new Promise<void>(resolve => { releaseLock = resolve })
   _sessionLocks.set(sessionId, lock)
 
-  return prev.then(fn).finally(() => {
+  const release = (): void => {
     releaseLock()
     if (_sessionLocks.get(sessionId) === lock) {
       _sessionLocks.delete(sessionId)
     }
-  })
+  }
+
+  // Two-arg then replaces .finally: release the lock on both fulfilment and
+  // rejection, re-propagating any rejection so callers still observe failures.
+  return prev.then(fn).then(
+    (value) => { release(); return value },
+    (cause: unknown) => { release(); return Promise.reject(cause instanceof Error ? cause : new Error(String(cause))) }
+  )
 }
 
 export async function handleMutation (

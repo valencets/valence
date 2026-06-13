@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@valencets/reactive": "workspace:*",
-    "@valencets/resultkit": "^0.2.0",
+    "@valencets/resultkit": "^0.5.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

@@ -58,8 +58,8 @@ importers:
         specifier: workspace:*
         version: link:packages/plugin-seo
       '@valencets/resultkit':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.5.0
+        version: 0.5.0
       '@vitest/coverage-v8':
         specifier: ^4.0.18
         version: 4.0.18(vitest@4.0.18(@types/node@25.4.0)(happy-dom@20.8.3)(lightningcss@1.32.0)(msw@2.12.13(@types/node@25.4.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
@@ -121,8 +121,8 @@ importers:
         specifier: workspace:*
         version: link:../reactive
       '@valencets/resultkit':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.5.0
+        version: 0.5.0
       '@valencets/telemetry':
         specifier: workspace:*
         version: link:../telemetry
@@ -155,8 +155,8 @@ importers:
   packages/core:
     dependencies:
       '@valencets/resultkit':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.5.0
+        version: 0.5.0
     devDependencies:
       '@types/node':
         specifier: ^25.4.0
@@ -165,8 +165,8 @@ importers:
   packages/db:
     dependencies:
       '@valencets/resultkit':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.5.0
+        version: 0.5.0
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -184,8 +184,8 @@ importers:
         specifier: workspace:*
         version: link:../cms
       '@valencets/resultkit':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.5.0
+        version: 0.5.0
       graphql:
         specifier: ^16.10.0
         version: 16.13.1
@@ -206,8 +206,8 @@ importers:
         specifier: ^3.782.0
         version: 3.1013.0
       '@valencets/resultkit':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.5.0
+        version: 0.5.0
     devDependencies:
       '@types/node':
         specifier: ^25.4.0
@@ -273,8 +273,8 @@ importers:
         specifier: workspace:*
         version: link:../reactive
       '@valencets/resultkit':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.5.0
+        version: 0.5.0
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -298,8 +298,8 @@ importers:
         specifier: workspace:*
         version: link:../db
       '@valencets/resultkit':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.5.0
+        version: 0.5.0
       postgres:
         specifier: ^3.4.8
         version: 3.4.8
@@ -363,8 +363,8 @@ importers:
         specifier: workspace:*
         version: link:../db
       '@valencets/resultkit':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.5.0
+        version: 0.5.0
       '@valencets/store':
         specifier: workspace:*
         version: link:../store
@@ -2296,8 +2296,8 @@ packages:
     resolution: {integrity: sha512-zm6xx8UT/Xy2oSr2ZXD0pZo7Jx2XsCoID2IUh9YSTFRu7z+WdwYTRk6LhUftm1crwqbuoF6I8zAFeCMw0YjwDg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@valencets/resultkit@0.2.0':
-    resolution: {integrity: sha512-CxyFQHriiwM0wpvsG+c9b1OwSFsS2qtBUS1PVr1tWcBHyJbgAC2J1/qA+AisSxDGbfLjcBUmjfrxb6oxGA3zZA==}
+  '@valencets/resultkit@0.5.0':
+    resolution: {integrity: sha512-zzTM6T1VjALEoQAmEKf+/yh93Yul10JIT5sJoehxZYtdmyRwmFCZQNc2Od/zVJBf21/70aiU74d8DTniGu7K/w==}
     engines: {node: '>=22'}
 
   '@vitest/coverage-v8@4.0.18':
@@ -5067,8 +5067,8 @@ packages:
   third-party-web@0.26.7:
     resolution: {integrity: sha512-buUzX4sXC4efFX6xg2bw6/eZsCUh8qQwSavC4D9HpONMFlRbcHhD8Je5qwYdCpViR6q0qla2wPP+t91a2vgolg==}
 
-  third-party-web@0.29.0:
-    resolution: {integrity: sha512-nBDSJw5B7Sl1YfsATG2XkW5qgUPODbJhXw++BKygi9w6O/NKS98/uY/nR/DxDq2axEjL6halHW1v+jhm/j1DBQ==}
+  third-party-web@0.29.2:
+    resolution: {integrity: sha512-fegtha91tq2DHphyoiBXVHjVi2YG9zFaRnboT9C28tO1en9Y3wJsfspuy40F+u5wl3hHVbw7cnd1b67kEGHb8g==}
 
   through@2.3.8:
     resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
@@ -6885,7 +6885,7 @@ snapshots:
   '@paulirish/trace_engine@0.0.53':
     dependencies:
       legacy-javascript: 0.0.1
-      third-party-web: 0.29.0
+      third-party-web: 0.29.2
 
   '@phc/format@1.0.0': {}
 
@@ -7959,7 +7959,7 @@ snapshots:
       '@typescript-eslint/types': 8.57.0
       eslint-visitor-keys: 5.0.1
 
-  '@valencets/resultkit@0.2.0': {}
+  '@valencets/resultkit@0.5.0': {}
 
   '@vitest/coverage-v8@4.0.18(vitest@4.0.18(@types/node@25.4.0)(happy-dom@20.8.3)(lightningcss@1.32.0)(msw@2.12.13(@types/node@25.4.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
@@ -11228,7 +11228,7 @@ snapshots:
 
   third-party-web@0.26.7: {}
 
-  third-party-web@0.29.0: {}
+  third-party-web@0.29.2: {}
 
   through@2.3.8: {}
 
