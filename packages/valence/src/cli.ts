@@ -562,9 +562,11 @@ async function runDev (): Promise<void> {
         configPath,
         onConfigChange: () => {
           markConfigChanged(learnSignals!)
-          // Reload config to get updated slug list + regenerate codegen
-          ResultAsync.fromPromise(loadUserConfig(), (e) => e).match(
-            (cfg) => {
+          // Reload config to get updated slug list + regenerate codegen.
+          // Body runs inside the fromPromise boundary so a malformed config
+          // (throwing in the handler) is contained, not an unhandled rejection.
+          ResultAsync.fromPromise(
+            loadUserConfig().then((cfg) => {
               if (!cfg) return
               currentConfigSlugs = cfg.collections.map(c => c.slug)
               regenerateFromConfig(projectDir, cfg.collections).match(
@@ -574,9 +576,9 @@ async function runDev (): Promise<void> {
                 },
                 (e) => { log(`Regeneration error: ${e.message}`) }
               )
-            },
-            (e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) }
-          )
+            }),
+            (e) => e
+          ).match(() => undefined, (e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
         }
       })
     }
@@ -590,8 +592,10 @@ async function runDev (): Promise<void> {
     configWatcher = startConfigWatcher({
       configPath,
       onConfigChange: () => {
-        ResultAsync.fromPromise(loadUserConfig(), (e) => e).match(
-          (cfg) => {
+        // Body runs inside the fromPromise boundary so a malformed config
+        // (throwing in the handler) is contained, not an unhandled rejection.
+        ResultAsync.fromPromise(
+          loadUserConfig().then((cfg) => {
             if (!cfg) return
             currentConfigSlugs = cfg.collections.map(c => c.slug)
             regenerateFromConfig(projectDir, cfg.collections).match(
@@ -601,9 +605,9 @@ async function runDev (): Promise<void> {
               },
               (e) => { log(`Regeneration error: ${e.message}`) }
             )
-          },
-          (e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) }
-        )
+          }),
+          (e) => e
+        ).match(() => undefined, (e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
       }
     })
   }
