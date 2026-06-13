@@ -562,18 +562,23 @@ async function runDev (): Promise<void> {
         configPath,
         onConfigChange: () => {
           markConfigChanged(learnSignals!)
-          // Reload config to get updated slug list + regenerate codegen
-          loadUserConfig().then(cfg => {
-            if (!cfg) return
-            currentConfigSlugs = cfg.collections.map(c => c.slug)
-            regenerateFromConfig(projectDir, cfg.collections).match(
-              (result) => {
-                const total = result.added.length + result.updated.length
-                if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
-              },
-              (e) => { log(`Regeneration error: ${e.message}`) }
-            )
-          }).catch((e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
+          // Reload config to get updated slug list + regenerate codegen.
+          // Body runs inside the fromPromise boundary so a malformed config
+          // (throwing in the handler) is contained, not an unhandled rejection.
+          ResultAsync.fromPromise(
+            loadUserConfig().then((cfg) => {
+              if (!cfg) return
+              currentConfigSlugs = cfg.collections.map(c => c.slug)
+              regenerateFromConfig(projectDir, cfg.collections).match(
+                (result) => {
+                  const total = result.added.length + result.updated.length
+                  if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
+                },
+                (e) => { log(`Regeneration error: ${e.message}`) }
+              )
+            }),
+            (e) => e
+          ).match(() => undefined, (e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
         }
       })
     }
@@ -587,17 +592,22 @@ async function runDev (): Promise<void> {
     configWatcher = startConfigWatcher({
       configPath,
       onConfigChange: () => {
-        loadUserConfig().then(cfg => {
-          if (!cfg) return
-          currentConfigSlugs = cfg.collections.map(c => c.slug)
-          regenerateFromConfig(projectDir, cfg.collections).match(
-            (result) => {
-              const total = result.added.length + result.updated.length
-              if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
-            },
-            (e) => { log(`Regeneration error: ${e.message}`) }
-          )
-        }).catch((e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
+        // Body runs inside the fromPromise boundary so a malformed config
+        // (throwing in the handler) is contained, not an unhandled rejection.
+        ResultAsync.fromPromise(
+          loadUserConfig().then((cfg) => {
+            if (!cfg) return
+            currentConfigSlugs = cfg.collections.map(c => c.slug)
+            regenerateFromConfig(projectDir, cfg.collections).match(
+              (result) => {
+                const total = result.added.length + result.updated.length
+                if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
+              },
+              (e) => { log(`Regeneration error: ${e.message}`) }
+            )
+          }),
+          (e) => e
+        ).match(() => undefined, (e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
       }
     })
   }

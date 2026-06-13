@@ -1,3 +1,4 @@
+import { ResultAsync } from '@valencets/resultkit'
 import { themeManager, ThemeMode, createTokenSheet } from '@valencets/ui'
 import overrideCss from '../styles/km-overrides.css'
 import { initBlocksFields } from './blocks-client.js'
@@ -8,7 +9,7 @@ themeManager.setTheme(ThemeMode.Dark)
 themeManager.applyOverrides(createTokenSheet(overrideCss))
 
 // Lazy-load component registration — FOUC CSS hides :not(:defined) until upgrade
-import('@valencets/ui').then(({ registerAll }) => { registerAll() }).catch(() => { /* dynamic import failed */ })
+ResultAsync.fromPromise(import('@valencets/ui').then(({ registerAll }) => registerAll()), () => undefined)
 
 // Lazy-load Tiptap only when richtext editors exist on the page
 async function loadAndInitEditors (): Promise<void> {
@@ -18,14 +19,14 @@ async function loadAndInitEditors (): Promise<void> {
 
 // Script is type="module" so DOM is ready — no need for DOMContentLoaded
 if (document.querySelector('.richtext-editor')) {
-  loadAndInitEditors().catch(() => { /* dynamic import failed */ })
+  ResultAsync.fromPromise(loadAndInitEditors(), () => undefined)
 }
 initBlocksFields()
 
 // Login form reactive bindings — lazy-load to keep first-flight bundle small
 const loginForm = document.querySelector<HTMLFormElement>('form[action="/admin/login"]')
 if (loginForm) {
-  import('./login-reactive.js').then(({ initLoginForm }) => { initLoginForm(loginForm) }).catch(() => { /* dynamic import failed */ })
+  ResultAsync.fromPromise(import('./login-reactive.js').then(({ initLoginForm }) => initLoginForm(loginForm)), () => undefined)
 }
 
 // Wire up conditional field partial re-render (htmx-compatible data attributes)
@@ -41,27 +42,27 @@ if (conditionalForm) {
       for (const [key, val] of formData.entries()) {
         if (typeof val === 'string') params.append(key, val)
       }
-      return fetch(postUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString()
-      }).then((res) => {
+      const run = async (): Promise<void> => {
+        const res = await fetch(postUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString()
+        })
         if (res.ok && target) {
-          return res.text().then((html) => {
-            target.innerHTML = html // Server-rendered, escaped via escapeHtml()
-            if (target.querySelector('.richtext-editor')) {
-              return loadAndInitEditors()
-            }
-            return Promise.resolve()
-          })
+          const html = await res.text()
+          target.innerHTML = html // Server-rendered, escaped via escapeHtml()
+          if (target.querySelector('.richtext-editor')) {
+            await loadAndInitEditors()
+          }
         }
-        return Promise.resolve()
-      }).catch(() => { /* ignore fetch errors */ })
+      }
+      // Fetch failures are ignored — never rejects, so callers can fire-and-forget
+      return ResultAsync.fromPromise(run(), () => undefined).match(() => undefined, () => undefined)
     }
     conditionalForm.addEventListener('change', (e) => {
       const el = e.target as Element | null
       if (el?.closest('.condition-trigger')) {
-        handleConditionalChange().catch(() => { /* ignore */ })
+        handleConditionalChange()
       }
     })
   }
@@ -80,31 +81,34 @@ for (const wrap of mediaUploads) {
     if (!file) return
     const formData = new FormData()
     formData.append('file', file)
-    fetch(endpoint, { method: 'POST', body: formData })
-      .then((res) => res.json() as Promise<{ filename?: string; id?: string }>)
-      .then((json) => {
-        const value = json.id ?? json.filename ?? ''
-        hiddenInput.value = value
-        if (preview) {
-          if (file.type.startsWith('image/')) {
-            const img = document.createElement('img')
-            img.src = `/media/${encodeURIComponent(value)}`
-            img.alt = ''
-            preview.replaceChildren(img)
-          } else {
-            const span = document.createElement('span')
-            span.textContent = file.name
-            preview.replaceChildren(span)
-          }
+    const upload = async (): Promise<void> => {
+      const res = await fetch(endpoint, { method: 'POST', body: formData })
+      const json = await res.json() as { filename?: string; id?: string }
+      const value = json.id ?? json.filename ?? ''
+      hiddenInput.value = value
+      if (preview) {
+        if (file.type.startsWith('image/')) {
+          const img = document.createElement('img')
+          img.src = `/media/${encodeURIComponent(value)}`
+          img.alt = ''
+          preview.replaceChildren(img)
+        } else {
+          const span = document.createElement('span')
+          span.textContent = file.name
+          preview.replaceChildren(span)
         }
-      })
-      .catch(() => {
+      }
+    }
+    ResultAsync.fromPromise(upload(), () => undefined).match(
+      () => undefined,
+      () => {
         if (preview) {
           const span = document.createElement('span')
           span.style.color = 'var(--val-color-error)'
           span.textContent = 'Upload failed'
           preview.replaceChildren(span)
         }
-      })
+      }
+    )
   })
 }
