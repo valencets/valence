@@ -9,7 +9,7 @@ themeManager.setTheme(ThemeMode.Dark)
 themeManager.applyOverrides(createTokenSheet(overrideCss))
 
 // Lazy-load component registration — FOUC CSS hides :not(:defined) until upgrade
-ResultAsync.fromPromise(import('@valencets/ui'), () => undefined).map(({ registerAll }) => registerAll())
+ResultAsync.fromPromise(import('@valencets/ui').then(({ registerAll }) => registerAll()), () => undefined)
 
 // Lazy-load Tiptap only when richtext editors exist on the page
 async function loadAndInitEditors (): Promise<void> {
@@ -26,7 +26,7 @@ initBlocksFields()
 // Login form reactive bindings — lazy-load to keep first-flight bundle small
 const loginForm = document.querySelector<HTMLFormElement>('form[action="/admin/login"]')
 if (loginForm) {
-  ResultAsync.fromPromise(import('./login-reactive.js'), () => undefined).map(({ initLoginForm }) => initLoginForm(loginForm))
+  ResultAsync.fromPromise(import('./login-reactive.js').then(({ initLoginForm }) => initLoginForm(loginForm)), () => undefined)
 }
 
 // Wire up conditional field partial re-render (htmx-compatible data attributes)
