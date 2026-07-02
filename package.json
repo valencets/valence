@@ -78,6 +78,8 @@
     "overrides": {
       "flatted": ">=3.4.2",
       "fast-xml-parser": ">=5.5.7",
+      "fast-xml-builder": ">=1.1.7",
+      "linkify-it": ">=5.0.1",
       "picomatch": ">=4.0.4"
     }
   },
