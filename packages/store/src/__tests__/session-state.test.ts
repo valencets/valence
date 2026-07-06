@@ -118,3 +118,29 @@ describe('SessionStateHolder', () => {
     expect(state.hidden).toBe(false)
   })
 })
+
+describe('SessionStateHolder — bounded memory', () => {
+  const capFields = [field.number({ name: 'count', default: 0 })]
+
+  it('caps distinct sessions and evicts the least-recently-used', () => {
+    const holder = SessionStateHolder.create(capFields, { maxSessions: 2 })
+    holder.setState('s1', { count: 1 })
+    holder.setState('s2', { count: 2 })
+    holder.getState('s1') // refresh s1 — s2 becomes least-recently-used
+    holder.setState('s3', { count: 3 })
+
+    expect(holder.sessionCount).toBe(2)
+    expect(holder.getState('s1').count).toBe(1)
+    expect(holder.getState('s3').count).toBe(3)
+    // s2 was evicted — a fresh read falls back to field defaults
+    expect(holder.getState('s2').count).toBe(0)
+  })
+
+  it('defaults to a 1000-session cap', () => {
+    const holder = SessionStateHolder.create(capFields)
+    for (let i = 0; i < 1100; i++) {
+      holder.setState(`session-${i}`, { count: i })
+    }
+    expect(holder.sessionCount).toBe(1000)
+  })
+})
