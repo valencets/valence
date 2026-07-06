@@ -12,6 +12,7 @@ export type StoreScope = typeof StoreScope[keyof typeof StoreScope]
 export const StoreErrorCode = Object.freeze({
   INVALID_SLUG: 'INVALID_SLUG',
   INVALID_FIELDS: 'INVALID_FIELDS',
+  INVALID_PERSIST: 'INVALID_PERSIST',
   DUPLICATE_FIELD: 'DUPLICATE_FIELD',
   INVALID_MUTATION: 'INVALID_MUTATION',
   MUTATION_FAILED: 'MUTATION_FAILED',
@@ -83,6 +84,9 @@ export type DerivedFn = (state: StoreState) => StoreValue
 export interface StoreDefinition {
   readonly slug: string
   readonly scope: StoreScope
+  /** Durable state: back this store with postgres instead of process memory.
+   *  Implied for `user` scope; opt-in for `session` and `global`. */
+  readonly persist?: boolean
   readonly fields: readonly StoreFieldConfig[]
   readonly mutations: Readonly<Record<string, MutationDefinition>>
   readonly fragment?: FragmentRenderFn
@@ -92,6 +96,7 @@ export interface StoreDefinition {
 export interface StoreInput {
   readonly slug: string
   readonly scope: StoreScope
+  readonly persist?: boolean
   readonly fields: readonly StoreFieldConfig[]
   readonly mutations: Record<string, {
     readonly input: readonly StoreFieldConfig[]

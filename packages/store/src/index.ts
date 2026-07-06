@@ -14,6 +14,13 @@ export function store (input: StoreInput): Result<StoreDefinition, StoreError> {
     })
   }
 
+  if (input.persist === true && input.scope === 'page') {
+    return err({
+      code: StoreErrorCode.INVALID_PERSIST,
+      message: 'persist: true is invalid for page scope — page stores are client-only and have no server state to persist'
+    })
+  }
+
   if (input.fields.length === 0) {
     return err({
       code: StoreErrorCode.INVALID_FIELDS,
@@ -44,6 +51,7 @@ export function store (input: StoreInput): Result<StoreDefinition, StoreError> {
   const definition: StoreDefinition = {
     slug: input.slug,
     scope: input.scope,
+    ...(input.persist !== undefined ? { persist: input.persist } : {}),
     fields: input.fields,
     mutations: input.mutations,
     ...(input.fragment ? { fragment: input.fragment } : {}),
@@ -87,3 +95,4 @@ export type {
   DerivedFn
 } from './types.js'
 export { escapeHtml } from './escape.js'
+export { generateStoreModule } from './codegen/store-generator.js'
