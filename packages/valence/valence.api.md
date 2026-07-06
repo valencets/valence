@@ -15,6 +15,7 @@ import type { Result } from '@valencets/resultkit';
 import { ResultAsync } from '@valencets/resultkit';
 import type { Server } from 'node:http';
 import type { ServerResponse } from 'node:http';
+import type { StoreInput } from '@valencets/store';
 
 // @public (undocumented)
 export interface ActionContext {
@@ -209,6 +210,8 @@ export interface ResolvedValenceConfig {
         readonly host: string;
     };
     // (undocumented)
+    readonly stores?: readonly StoreInput[] | undefined;
+    // (undocumented)
     readonly telemetry?: {
         readonly enabled: boolean;
         readonly endpoint: string;
@@ -288,6 +291,8 @@ export interface ValenceConfig {
         readonly port: number;
         readonly host?: string | undefined;
     };
+    // (undocumented)
+    readonly stores?: readonly StoreInput[] | undefined;
     // (undocumented)
     readonly telemetry?: {
         readonly enabled: boolean;
