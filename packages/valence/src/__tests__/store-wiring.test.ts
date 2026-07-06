@@ -425,3 +425,88 @@ describe('hydration auto-injection', () => {
     expect(out).toContain('"count":9')
   })
 })
+
+describe('persist option wiring', () => {
+  const SECRET = 'wiring-test-secret'
+
+  function persistPool (): { query: ReturnType<typeof vi.fn>; rows: Map<string, { [key: string]: unknown }> } {
+    const rows = new Map<string, { [key: string]: unknown }>()
+    const query = vi.fn(async (sql: string, ...params: string[]) => {
+      if (sql.startsWith('CREATE TABLE')) return []
+      if (sql.startsWith('INSERT')) {
+        rows.set(`${params[0]}|${params[1]}`, JSON.parse(params[2]!) as { [key: string]: unknown })
+        return []
+      }
+      const row = rows.get(`${params[0]}|${params[1]}`)
+      return row ? [{ state: row }] : []
+    })
+    return { query, rows }
+  }
+
+  it('session-scoped persist stores write through to store_states keyed by the signed session id', async () => {
+    const { mintSignedSessionId } = await import('../store-session.js')
+    const token = mintSignedSessionId(SECRET)
+    const sessionId = token.slice(0, token.indexOf('.'))
+
+    const { query, rows } = persistPool()
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore({ scope: 'session', persist: true })], registerRoute, {
+      secret: SECRET,
+      pool: { query }
+    })
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":4}}', `session_id=${token}`)
+    expect(captured.statusCode).toBe(200)
+    expect(JSON.parse(captured.body).state.count).toBe(4)
+
+    const sqlCalls = query.mock.calls.map(call => String(call[0]))
+    expect(sqlCalls.some(sql => sql.startsWith('CREATE TABLE IF NOT EXISTS'))).toBe(true)
+    expect(sqlCalls.some(sql => sql.includes('INSERT INTO store_states'))).toBe(true)
+    expect(rows.has(`counter|${sessionId}`)).toBe(true)
+  })
+
+  it('global persist stores share the __global__ state key', async () => {
+    const { mintSignedSessionId } = await import('../store-session.js')
+    const token = mintSignedSessionId(SECRET)
+
+    const { query, rows } = persistPool()
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore({ scope: 'global', persist: true })], registerRoute, {
+      secret: SECRET,
+      pool: { query }
+    })
+
+    await postMutation(routes, 'counter', 'increment', '{"args":{"amount":2}}', `session_id=${token}`)
+
+    expect(rows.has('counter|__global__')).toBe(true)
+  })
+
+  it('persisted state survives across sessions of the same signed id', async () => {
+    const { mintSignedSessionId } = await import('../store-session.js')
+    const token = mintSignedSessionId(SECRET)
+
+    const { query } = persistPool()
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore({ scope: 'session', persist: true })], registerRoute, {
+      secret: SECRET,
+      pool: { query }
+    })
+
+    await postMutation(routes, 'counter', 'increment', '{"args":{"amount":3}}', `session_id=${token}`)
+    const second = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":5}}', `session_id=${token}`)
+
+    expect(JSON.parse(second.body).state.count).toBe(8)
+  })
+
+  it('persist without a pool falls back to in-memory state', async () => {
+    const { mintSignedSessionId } = await import('../store-session.js')
+    const token = mintSignedSessionId(SECRET)
+
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore({ scope: 'session', persist: true })], registerRoute, { secret: SECRET })
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":7}}', `session_id=${token}`)
+    expect(captured.statusCode).toBe(200)
+    expect(JSON.parse(captured.body).state.count).toBe(7)
+  })
+})
