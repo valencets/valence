@@ -119,7 +119,7 @@ export function registerStoreRoutesOnServer (
       const args = parsed.args ?? parsed
       const clientMutationId = typeof parsed.mutationId === 'number' ? parsed.mutationId : undefined
 
-      const result = await routes.handleMutation(sessionId, mutationName, args, clientMutationId)
+      const result = await routes.handleMutation({ id: sessionId }, mutationName, args, clientMutationId)
 
       if (result.isOk()) {
         let fragmentPayload: { selector: string; html: string } | null = null
@@ -153,7 +153,7 @@ export function registerStoreRoutesOnServer (
     registerRoute('GET', `/store/${config.slug}/state`, async (req: IncomingMessage, res: ServerResponse) => {
       const sessionId = extractSessionId(req)
       if (sessionId === null) { rejectNoSession(res); return }
-      const state = routes.getState(sessionId)
+      const state = await routes.getState({ id: sessionId })
       const body = JSON.stringify(state)
       res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': String(Buffer.byteLength(body)) })
       res.end(body)
@@ -170,7 +170,7 @@ export function registerStoreRoutesOnServer (
     registerRoute('GET', `/store/${config.slug}/hydration`, async (req: IncomingMessage, res: ServerResponse) => {
       const sessionId = extractSessionId(req)
       if (sessionId === null) { rejectNoSession(res); return }
-      const state = routes.getState(sessionId)
+      const state = await routes.getState({ id: sessionId })
       const html = renderStoreHydration(config.slug, state)
       res.writeHead(200, { 'Content-Type': 'text/html', 'Content-Length': String(Buffer.byteLength(html)) })
       res.end(html)

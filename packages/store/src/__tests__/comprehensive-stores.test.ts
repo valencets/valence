@@ -118,7 +118,7 @@ describe('Blog Editor Store', () => {
 
   it('initializes with correct defaults and undefined for unset fields', () => {
     const routes = registerStoreRoutes(config, holder)
-    const state = routes.getState('s1')
+    const state = routes.getState({ id: 's1' })
     expect(state.title).toBeUndefined()
     expect(state.body).toBeUndefined()
     expect(state.status).toBe('draft')
@@ -131,29 +131,29 @@ describe('Blog Editor Store', () => {
   it('full content creation workflow', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
 
-    await routes.handleMutation('author', 'updateContent', {
+    await routes.handleMutation({ id: 'author' }, 'updateContent', {
       title: 'Building a Zero-GC Web Framework',
       body: 'The browser is already a framework...',
       handle: 'building-zero-gc-web-framework'
     })
 
-    await routes.handleMutation('author', 'setTags', {
+    await routes.handleMutation({ id: 'author' }, 'setTags', {
       tags: ['tech', 'tutorial']
     })
 
-    await routes.handleMutation('author', 'updateSeo', {
+    await routes.handleMutation({ id: 'author' }, 'updateSeo', {
       metaTitle: 'Zero-GC Web Framework Guide',
       metaDescription: 'Learn how to build a web framework that trusts the browser platform.',
       canonicalUrl: 'https://valence.dev/blog/zero-gc'
     })
 
-    await routes.handleMutation('author', 'toggleFeatured', {})
+    await routes.handleMutation({ id: 'author' }, 'toggleFeatured', {})
 
-    await routes.handleMutation('author', 'publish', {
+    await routes.handleMutation({ id: 'author' }, 'publish', {
       publishAt: '2026-04-01T09:00:00Z'
     })
 
-    const state = routes.getState('author')
+    const state = routes.getState({ id: 'author' })
     expect(state.title).toBe('Building a Zero-GC Web Framework')
     expect(state.handle).toBe('building-zero-gc-web-framework')
     expect(state.status).toBe('published')
@@ -167,7 +167,7 @@ describe('Blog Editor Store', () => {
 
   it('rejects SEO metaTitle over 60 chars', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'updateSeo', {
+    const result = await routes.handleMutation({ id: 's1' }, 'updateSeo', {
       metaTitle: 'x'.repeat(61),
       metaDescription: 'Valid',
       canonicalUrl: 'https://example.com'
@@ -177,7 +177,7 @@ describe('Blog Editor Store', () => {
 
   it('rejects SEO metaDescription over 160 chars', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'updateSeo', {
+    const result = await routes.handleMutation({ id: 's1' }, 'updateSeo', {
       metaTitle: 'Valid',
       metaDescription: 'x'.repeat(161),
       canonicalUrl: 'https://example.com'
@@ -187,7 +187,7 @@ describe('Blog Editor Store', () => {
 
   it('rejects invalid canonical URL', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'updateSeo', {
+    const result = await routes.handleMutation({ id: 's1' }, 'updateSeo', {
       metaTitle: 'Valid',
       metaDescription: 'Valid',
       canonicalUrl: 'not-a-url'
@@ -197,7 +197,7 @@ describe('Blog Editor Store', () => {
 
   it('rejects invalid tag option', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'setTags', {
+    const result = await routes.handleMutation({ id: 's1' }, 'setTags', {
       tags: ['tech', 'invalid-tag']
     })
     expect(result.isErr()).toBe(true)
@@ -205,11 +205,11 @@ describe('Blog Editor Store', () => {
 
   it('archive after publish transitions status correctly', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('s1', 'publish', { publishAt: '2026-01-01T00:00:00Z' })
-    expect(routes.getState('s1').status).toBe('published')
+    await routes.handleMutation({ id: 's1' }, 'publish', { publishAt: '2026-01-01T00:00:00Z' })
+    expect(routes.getState({ id: 's1' }).status).toBe('published')
 
-    await routes.handleMutation('s1', 'archive', {})
-    expect(routes.getState('s1').status).toBe('archived')
+    await routes.handleMutation({ id: 's1' }, 'archive', {})
+    expect(routes.getState({ id: 's1' }).status).toBe('archived')
   })
 
   it('SSE broadcasts complex nested state', async () => {
@@ -218,7 +218,7 @@ describe('Blog Editor Store', () => {
     // Session-scoped stores broadcast only to the mutating session's own tabs
     broadcaster.addClient('blog-editor', 'author', sseRes as ServerResponse)
 
-    await routes.handleMutation('author', 'updateSeo', {
+    await routes.handleMutation({ id: 'author' }, 'updateSeo', {
       metaTitle: 'Test',
       metaDescription: 'Desc',
       canonicalUrl: 'https://example.com'
@@ -337,7 +337,7 @@ describe('Game Inventory Store', () => {
 
   it('initializes with empty inventory and custom equipped field', () => {
     const routes = registerStoreRoutes(config, holder)
-    const state = routes.getState('player1')
+    const state = routes.getState({ id: 'player1' })
     expect(state.slots).toBeUndefined()
     expect(state.gold).toBe(0)
     expect(state.maxWeight).toBe(100)
@@ -346,57 +346,57 @@ describe('Game Inventory Store', () => {
 
   it('loot stacks same item quantities', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('p1', 'lootItem', { itemId: 'potion', itemName: 'Health Potion', quantity: 3, weight: 0.5, rarity: 'common' })
-    await routes.handleMutation('p1', 'lootItem', { itemId: 'potion', itemName: 'Health Potion', quantity: 2, weight: 0.5, rarity: 'common' })
+    await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'potion', itemName: 'Health Potion', quantity: 3, weight: 0.5, rarity: 'common' })
+    await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'potion', itemName: 'Health Potion', quantity: 2, weight: 0.5, rarity: 'common' })
 
-    const slots = routes.getState('p1').slots as Array<{ itemId: string; quantity: number }>
+    const slots = routes.getState({ id: 'p1' }).slots as Array<{ itemId: string; quantity: number }>
     expect(slots).toHaveLength(1)
     expect(slots[0]!.quantity).toBe(5)
   })
 
   it('loot different items creates separate slots', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('p1', 'lootItem', { itemId: 'sword', itemName: 'Iron Sword', quantity: 1, weight: 5, rarity: 'uncommon' })
-    await routes.handleMutation('p1', 'lootItem', { itemId: 'shield', itemName: 'Wood Shield', quantity: 1, weight: 8, rarity: 'common' })
+    await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'sword', itemName: 'Iron Sword', quantity: 1, weight: 5, rarity: 'uncommon' })
+    await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'shield', itemName: 'Wood Shield', quantity: 1, weight: 8, rarity: 'common' })
 
-    const slots = routes.getState('p1').slots as Array<{ itemId: string }>
+    const slots = routes.getState({ id: 'p1' }).slots as Array<{ itemId: string }>
     expect(slots).toHaveLength(2)
     expect(slots.map(s => s.itemId)).toEqual(['sword', 'shield'])
   })
 
   it('drop reduces quantity', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('p1', 'lootItem', { itemId: 'arrow', itemName: 'Arrow', quantity: 20, weight: 0.1, rarity: 'common' })
-    await routes.handleMutation('p1', 'dropItem', { itemId: 'arrow', quantity: 5 })
+    await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'arrow', itemName: 'Arrow', quantity: 20, weight: 0.1, rarity: 'common' })
+    await routes.handleMutation({ id: 'p1' }, 'dropItem', { itemId: 'arrow', quantity: 5 })
 
-    const slots = routes.getState('p1').slots as Array<{ itemId: string; quantity: number }>
+    const slots = routes.getState({ id: 'p1' }).slots as Array<{ itemId: string; quantity: number }>
     expect(slots[0]!.quantity).toBe(15)
   })
 
   it('drop all removes slot entirely', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('p1', 'lootItem', { itemId: 'gem', itemName: 'Ruby', quantity: 1, weight: 0.1, rarity: 'rare' })
-    await routes.handleMutation('p1', 'dropItem', { itemId: 'gem', quantity: 1 })
+    await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'gem', itemName: 'Ruby', quantity: 1, weight: 0.1, rarity: 'rare' })
+    await routes.handleMutation({ id: 'p1' }, 'dropItem', { itemId: 'gem', quantity: 1 })
 
-    const slots = routes.getState('p1').slots as Array<{ itemId: string }>
+    const slots = routes.getState({ id: 'p1' }).slots as Array<{ itemId: string }>
     expect(slots).toHaveLength(0)
   })
 
   it('equip updates custom field slot', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('p1', 'lootItem', { itemId: 'excalibur', itemName: 'Excalibur', quantity: 1, weight: 3, rarity: 'legendary' })
-    await routes.handleMutation('p1', 'equipItem', { itemId: 'excalibur', slot: 'weapon' })
+    await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'excalibur', itemName: 'Excalibur', quantity: 1, weight: 3, rarity: 'legendary' })
+    await routes.handleMutation({ id: 'p1' }, 'equipItem', { itemId: 'excalibur', slot: 'weapon' })
 
-    const equipped = routes.getState('p1').equipped as { weapon: string | null }
+    const equipped = routes.getState({ id: 'p1' }).equipped as { weapon: string | null }
     expect(equipped.weapon).toBe('excalibur')
   })
 
   it('equip different slot preserves other slots', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('p1', 'equipItem', { itemId: 'sword', slot: 'weapon' })
-    await routes.handleMutation('p1', 'equipItem', { itemId: 'plate', slot: 'armor' })
+    await routes.handleMutation({ id: 'p1' }, 'equipItem', { itemId: 'sword', slot: 'weapon' })
+    await routes.handleMutation({ id: 'p1' }, 'equipItem', { itemId: 'plate', slot: 'armor' })
 
-    const equipped = routes.getState('p1').equipped as { weapon: string; armor: string; accessory: string | null }
+    const equipped = routes.getState({ id: 'p1' }).equipped as { weapon: string; armor: string; accessory: string | null }
     expect(equipped.weapon).toBe('sword')
     expect(equipped.armor).toBe('plate')
     expect(equipped.accessory).toBeNull()
@@ -404,37 +404,37 @@ describe('Game Inventory Store', () => {
 
   it('rejects loot with quantity 0', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('p1', 'lootItem', { itemId: 'x', itemName: 'X', quantity: 0, weight: 1, rarity: 'common' })
+    const result = await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'x', itemName: 'X', quantity: 0, weight: 1, rarity: 'common' })
     expect(result.isErr()).toBe(true)
   })
 
   it('rejects invalid rarity', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('p1', 'lootItem', { itemId: 'x', itemName: 'X', quantity: 1, weight: 1, rarity: 'mythic' })
+    const result = await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'x', itemName: 'X', quantity: 1, weight: 1, rarity: 'mythic' })
     expect(result.isErr()).toBe(true)
   })
 
   it('rejects invalid equip slot', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('p1', 'equipItem', { itemId: 'x', slot: 'boots' })
+    const result = await routes.handleMutation({ id: 'p1' }, 'equipItem', { itemId: 'x', slot: 'boots' })
     expect(result.isErr()).toBe(true)
   })
 
   it('gold accumulates across mutations', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('p1', 'addGold', { amount: 100 })
-    await routes.handleMutation('p1', 'addGold', { amount: 50 })
-    await routes.handleMutation('p1', 'addGold', { amount: -30 })
-    expect(routes.getState('p1').gold).toBe(120)
+    await routes.handleMutation({ id: 'p1' }, 'addGold', { amount: 100 })
+    await routes.handleMutation({ id: 'p1' }, 'addGold', { amount: 50 })
+    await routes.handleMutation({ id: 'p1' }, 'addGold', { amount: -30 })
+    expect(routes.getState({ id: 'p1' }).gold).toBe(120)
   })
 
   it('different players have isolated inventories', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('p1', 'lootItem', { itemId: 'sword', itemName: 'Sword', quantity: 1, weight: 5, rarity: 'rare' })
-    await routes.handleMutation('p2', 'lootItem', { itemId: 'bow', itemName: 'Bow', quantity: 1, weight: 3, rarity: 'uncommon' })
+    await routes.handleMutation({ id: 'p1' }, 'lootItem', { itemId: 'sword', itemName: 'Sword', quantity: 1, weight: 5, rarity: 'rare' })
+    await routes.handleMutation({ id: 'p2' }, 'lootItem', { itemId: 'bow', itemName: 'Bow', quantity: 1, weight: 3, rarity: 'uncommon' })
 
-    const p1Slots = routes.getState('p1').slots as Array<{ itemId: string }>
-    const p2Slots = routes.getState('p2').slots as Array<{ itemId: string }>
+    const p1Slots = routes.getState({ id: 'p1' }).slots as Array<{ itemId: string }>
+    const p2Slots = routes.getState({ id: 'p2' }).slots as Array<{ itemId: string }>
     expect(p1Slots[0]!.itemId).toBe('sword')
     expect(p2Slots[0]!.itemId).toBe('bow')
   })
@@ -540,11 +540,11 @@ describe('Form Builder Store', () => {
   it('builds a form with multiple question types', async () => {
     const routes = registerStoreRoutes(config, holder)
 
-    await routes.handleMutation('s1', 'addQuestion', { id: 'q1', label: 'Full Name', type: 'text', required: true })
-    await routes.handleMutation('s1', 'addQuestion', { id: 'q2', label: 'Age', type: 'number', required: false })
-    await routes.handleMutation('s1', 'addQuestion', { id: 'q3', label: 'Agree to Terms', type: 'checkbox', required: true })
+    await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q1', label: 'Full Name', type: 'text', required: true })
+    await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q2', label: 'Age', type: 'number', required: false })
+    await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q3', label: 'Agree to Terms', type: 'checkbox', required: true })
 
-    const questions = routes.getState('s1').questions as Array<{ id: string; type: string; required: boolean }>
+    const questions = routes.getState({ id: 's1' }).questions as Array<{ id: string; type: string; required: boolean }>
     expect(questions).toHaveLength(3)
     expect(questions[0]!.type).toBe('text')
     expect(questions[0]!.required).toBe(true)
@@ -554,37 +554,37 @@ describe('Form Builder Store', () => {
 
   it('removes question by id', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('s1', 'addQuestion', { id: 'q1', label: 'A', type: 'text', required: false })
-    await routes.handleMutation('s1', 'addQuestion', { id: 'q2', label: 'B', type: 'text', required: false })
-    await routes.handleMutation('s1', 'addQuestion', { id: 'q3', label: 'C', type: 'text', required: false })
-    await routes.handleMutation('s1', 'removeQuestion', { id: 'q2' })
+    await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q1', label: 'A', type: 'text', required: false })
+    await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q2', label: 'B', type: 'text', required: false })
+    await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q3', label: 'C', type: 'text', required: false })
+    await routes.handleMutation({ id: 's1' }, 'removeQuestion', { id: 'q2' })
 
-    const questions = routes.getState('s1').questions as Array<{ id: string }>
+    const questions = routes.getState({ id: 's1' }).questions as Array<{ id: string }>
     expect(questions).toHaveLength(2)
     expect(questions.map(q => q.id)).toEqual(['q1', 'q3'])
   })
 
   it('reorders questions', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('s1', 'addQuestion', { id: 'q1', label: 'First', type: 'text', required: false })
-    await routes.handleMutation('s1', 'addQuestion', { id: 'q2', label: 'Second', type: 'text', required: false })
-    await routes.handleMutation('s1', 'addQuestion', { id: 'q3', label: 'Third', type: 'text', required: false })
-    await routes.handleMutation('s1', 'reorderQuestions', { order: ['q3', 'q1', 'q2'] })
+    await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q1', label: 'First', type: 'text', required: false })
+    await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q2', label: 'Second', type: 'text', required: false })
+    await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q3', label: 'Third', type: 'text', required: false })
+    await routes.handleMutation({ id: 's1' }, 'reorderQuestions', { order: ['q3', 'q1', 'q2'] })
 
-    const questions = routes.getState('s1').questions as Array<{ id: string }>
+    const questions = routes.getState({ id: 's1' }).questions as Array<{ id: string }>
     expect(questions.map(q => q.id)).toEqual(['q3', 'q1', 'q2'])
   })
 
   it('updates nested settings group', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('s1', 'updateSettings', {
+    await routes.handleMutation({ id: 's1' }, 'updateSettings', {
       collectEmail: true,
       allowMultipleSubmissions: false,
       submitButtonText: 'Send Application',
       redirectUrl: 'https://example.com/thanks'
     })
 
-    const settings = routes.getState('s1').settings as {
+    const settings = routes.getState({ id: 's1' }).settings as {
       collectEmail: boolean
       allowMultipleSubmissions: boolean
       submitButtonText: string
@@ -598,13 +598,13 @@ describe('Form Builder Store', () => {
 
   it('rejects invalid question type', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'addQuestion', { id: 'q1', label: 'Bad', type: 'dropdown', required: false })
+    const result = await routes.handleMutation({ id: 's1' }, 'addQuestion', { id: 'q1', label: 'Bad', type: 'dropdown', required: false })
     expect(result.isErr()).toBe(true)
   })
 
   it('rejects invalid redirect URL in settings', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'updateSettings', {
+    const result = await routes.handleMutation({ id: 's1' }, 'updateSettings', {
       collectEmail: false,
       allowMultipleSubmissions: true,
       submitButtonText: 'Go',
@@ -642,10 +642,10 @@ describe('Concurrent mutation ordering', () => {
 
     // Fire 20 mutations sequentially
     for (let i = 0; i < 20; i++) {
-      await routes.handleMutation('s1', 'append', { entry: `msg-${i}` })
+      await routes.handleMutation({ id: 's1' }, 'append', { entry: `msg-${i}` })
     }
 
-    const log = routes.getState('s1').log as Array<{ entry: string }>
+    const log = routes.getState({ id: 's1' }).log as Array<{ entry: string }>
     expect(log).toHaveLength(20)
     for (let i = 0; i < 20; i++) {
       expect(log[i]!.entry).toBe(`msg-${i}`)
@@ -673,13 +673,13 @@ describe('Concurrent mutation ordering', () => {
 
     // Fire 10 mutations concurrently
     const promises = Array.from({ length: 10 }, () =>
-      routes.handleMutation('s1', 'increment', {})
+      routes.handleMutation({ id: 's1' }, 'increment', {})
     )
     await Promise.all(promises)
 
     // The per-session mutation lock serializes state read/apply/write,
     // so all 10 concurrent increments must land — no lost updates.
-    const count = routes.getState('s1').count as number
+    const count = routes.getState({ id: 's1' }).count as number
     expect(count).toBe(10)
   })
 })

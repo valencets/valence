@@ -39,7 +39,7 @@ describe('registerStoreRoutes', () => {
     const holder = SessionStateHolder.create(config.fields)
     const routes = registerStoreRoutes(config, holder)
 
-    const result = await routes.handleMutation('test-session', 'increment', { amount: 5 })
+    const result = await routes.handleMutation({ id: 'test-session' }, 'increment', { amount: 5 })
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
       expect(result.value.state.count).toBe(5)
@@ -51,7 +51,7 @@ describe('registerStoreRoutes', () => {
     const holder = SessionStateHolder.create(config.fields)
     const routes = registerStoreRoutes(config, holder)
 
-    const result = await routes.handleMutation('test-session', 'unknown', {})
+    const result = await routes.handleMutation({ id: 'test-session' }, 'unknown', {})
     expect(result.isErr()).toBe(true)
   })
 
@@ -60,7 +60,7 @@ describe('registerStoreRoutes', () => {
     const holder = SessionStateHolder.create(config.fields)
     const routes = registerStoreRoutes(config, holder)
 
-    const state = routes.getState('test-session')
+    const state = routes.getState({ id: 'test-session' })
     expect(state.count).toBe(0)
   })
 
@@ -69,9 +69,9 @@ describe('registerStoreRoutes', () => {
     const holder = SessionStateHolder.create(config.fields)
     const routes = registerStoreRoutes(config, holder)
 
-    await routes.handleMutation('test-session', 'increment', { amount: 3 })
-    await routes.handleMutation('test-session', 'increment', { amount: 7 })
-    const state = routes.getState('test-session')
+    await routes.handleMutation({ id: 'test-session' }, 'increment', { amount: 3 })
+    await routes.handleMutation({ id: 'test-session' }, 'increment', { amount: 7 })
+    const state = routes.getState({ id: 'test-session' })
     expect(state.count).toBe(10)
   })
 })

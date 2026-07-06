@@ -181,9 +181,9 @@ describe('Cart Store — real-world array mutations', () => {
 
   it('addItem pushes object into items array', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    await routes.handleMutation('s1', 'addItem', { sku: 'WIDGET-1', name: 'Widget', qty: 2, price: 9.99 })
+    await routes.handleMutation({ id: 's1' }, 'addItem', { sku: 'WIDGET-1', name: 'Widget', qty: 2, price: 9.99 })
 
-    const state = routes.getState('s1')
+    const state = routes.getState({ id: 's1' })
     const items = state.items as Array<{ sku: string; name: string; qty: number; price: number }>
     expect(items).toHaveLength(1)
     expect(items[0]!.sku).toBe('WIDGET-1')
@@ -193,68 +193,68 @@ describe('Cart Store — real-world array mutations', () => {
 
   it('multiple addItem calls accumulate', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    await routes.handleMutation('s1', 'addItem', { sku: 'A', name: 'Alpha', qty: 1, price: 5 })
-    await routes.handleMutation('s1', 'addItem', { sku: 'B', name: 'Beta', qty: 3, price: 12 })
-    await routes.handleMutation('s1', 'addItem', { sku: 'C', name: 'Gamma', qty: 1, price: 25 })
+    await routes.handleMutation({ id: 's1' }, 'addItem', { sku: 'A', name: 'Alpha', qty: 1, price: 5 })
+    await routes.handleMutation({ id: 's1' }, 'addItem', { sku: 'B', name: 'Beta', qty: 3, price: 12 })
+    await routes.handleMutation({ id: 's1' }, 'addItem', { sku: 'C', name: 'Gamma', qty: 1, price: 25 })
 
-    const items = routes.getState('s1').items as Array<{ sku: string }>
+    const items = routes.getState({ id: 's1' }).items as Array<{ sku: string }>
     expect(items).toHaveLength(3)
     expect(items.map(i => i.sku)).toEqual(['A', 'B', 'C'])
   })
 
   it('removeItem filters by sku', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    await routes.handleMutation('s1', 'addItem', { sku: 'A', name: 'Alpha', qty: 1, price: 5 })
-    await routes.handleMutation('s1', 'addItem', { sku: 'B', name: 'Beta', qty: 1, price: 10 })
-    await routes.handleMutation('s1', 'removeItem', { sku: 'A' })
+    await routes.handleMutation({ id: 's1' }, 'addItem', { sku: 'A', name: 'Alpha', qty: 1, price: 5 })
+    await routes.handleMutation({ id: 's1' }, 'addItem', { sku: 'B', name: 'Beta', qty: 1, price: 10 })
+    await routes.handleMutation({ id: 's1' }, 'removeItem', { sku: 'A' })
 
-    const items = routes.getState('s1').items as Array<{ sku: string }>
+    const items = routes.getState({ id: 's1' }).items as Array<{ sku: string }>
     expect(items).toHaveLength(1)
     expect(items[0]!.sku).toBe('B')
   })
 
   it('updateQty modifies nested item property', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    await routes.handleMutation('s1', 'addItem', { sku: 'X', name: 'X', qty: 1, price: 10 })
-    await routes.handleMutation('s1', 'updateQty', { sku: 'X', qty: 5 })
+    await routes.handleMutation({ id: 's1' }, 'addItem', { sku: 'X', name: 'X', qty: 1, price: 10 })
+    await routes.handleMutation({ id: 's1' }, 'updateQty', { sku: 'X', qty: 5 })
 
-    const items = routes.getState('s1').items as Array<{ sku: string; qty: number }>
+    const items = routes.getState({ id: 's1' }).items as Array<{ sku: string; qty: number }>
     expect(items[0]!.qty).toBe(5)
   })
 
   it('updateQty rejects qty below min', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    await routes.handleMutation('s1', 'addItem', { sku: 'X', name: 'X', qty: 1, price: 10 })
-    const result = await routes.handleMutation('s1', 'updateQty', { sku: 'X', qty: 0 })
+    await routes.handleMutation({ id: 's1' }, 'addItem', { sku: 'X', name: 'X', qty: 1, price: 10 })
+    const result = await routes.handleMutation({ id: 's1' }, 'updateQty', { sku: 'X', qty: 0 })
     expect(result.isErr()).toBe(true)
   })
 
   it('applyCoupon sets string field', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    await routes.handleMutation('s1', 'applyCoupon', { code: 'SAVE20' })
-    expect(routes.getState('s1').couponCode).toBe('SAVE20')
+    await routes.handleMutation({ id: 's1' }, 'applyCoupon', { code: 'SAVE20' })
+    expect(routes.getState({ id: 's1' }).couponCode).toBe('SAVE20')
   })
 
   it('applyCoupon rejects short code', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    const result = await routes.handleMutation('s1', 'applyCoupon', { code: 'AB' })
+    const result = await routes.handleMutation({ id: 's1' }, 'applyCoupon', { code: 'AB' })
     expect(result.isErr()).toBe(true)
   })
 
   it('checkout changes status field', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    await routes.handleMutation('s1', 'checkout', {})
-    expect(routes.getState('s1').status).toBe('checkout')
+    await routes.handleMutation({ id: 's1' }, 'checkout', {})
+    expect(routes.getState({ id: 's1' }).status).toBe('checkout')
   })
 
   it('clear resets multiple fields at once', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    await routes.handleMutation('s1', 'addItem', { sku: 'A', name: 'A', qty: 1, price: 5 })
-    await routes.handleMutation('s1', 'applyCoupon', { code: 'DEAL' })
-    await routes.handleMutation('s1', 'checkout', {})
-    await routes.handleMutation('s1', 'clear', {})
+    await routes.handleMutation({ id: 's1' }, 'addItem', { sku: 'A', name: 'A', qty: 1, price: 5 })
+    await routes.handleMutation({ id: 's1' }, 'applyCoupon', { code: 'DEAL' })
+    await routes.handleMutation({ id: 's1' }, 'checkout', {})
+    await routes.handleMutation({ id: 's1' }, 'clear', {})
 
-    const state = routes.getState('s1')
+    const state = routes.getState({ id: 's1' })
     expect(state.items).toEqual([])
     expect(state.couponCode).toBeUndefined()
     expect(state.status).toBe('open')
@@ -266,7 +266,7 @@ describe('Cart Store — real-world array mutations', () => {
     // Session-scoped stores broadcast only to the mutating session's own tabs
     broadcaster.addClient('cart', 'mutator', sseRes as ServerResponse)
 
-    await routes.handleMutation('mutator', 'addItem', { sku: 'Z', name: 'Zeta', qty: 1, price: 42 })
+    await routes.handleMutation({ id: 'mutator' }, 'addItem', { sku: 'Z', name: 'Zeta', qty: 1, price: 42 })
 
     expect(sseRes._written).toHaveLength(1)
     const payload = JSON.parse(sseRes._written[0]!.split('\n')[1]!.replace('data: ', '')) as StoreState
@@ -277,11 +277,11 @@ describe('Cart Store — real-world array mutations', () => {
 
   it('sessions are isolated — different carts', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
-    await routes.handleMutation('user-1', 'addItem', { sku: 'A', name: 'A', qty: 1, price: 5 })
-    await routes.handleMutation('user-2', 'addItem', { sku: 'B', name: 'B', qty: 1, price: 10 })
+    await routes.handleMutation({ id: 'user-1' }, 'addItem', { sku: 'A', name: 'A', qty: 1, price: 5 })
+    await routes.handleMutation({ id: 'user-2' }, 'addItem', { sku: 'B', name: 'B', qty: 1, price: 10 })
 
-    const cart1 = routes.getState('user-1').items as Array<{ sku: string }>
-    const cart2 = routes.getState('user-2').items as Array<{ sku: string }>
+    const cart1 = routes.getState({ id: 'user-1' }).items as Array<{ sku: string }>
+    const cart2 = routes.getState({ id: 'user-2' }).items as Array<{ sku: string }>
     expect(cart1).toHaveLength(1)
     expect(cart1[0]!.sku).toBe('A')
     expect(cart2).toHaveLength(1)
@@ -300,7 +300,7 @@ describe('User Preferences Store — mixed types, custom fields', () => {
 
   it('defaults initialize correctly for mixed field types', () => {
     const routes = registerStoreRoutes(config, holder)
-    const state = routes.getState('s1')
+    const state = routes.getState({ id: 's1' })
 
     expect(state.displayName).toBeUndefined()
     expect(state.email).toBeUndefined()
@@ -313,13 +313,13 @@ describe('User Preferences Store — mixed types, custom fields', () => {
 
   it('updateProfile sets multiple string fields', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('s1', 'updateProfile', {
+    await routes.handleMutation({ id: 's1' }, 'updateProfile', {
       displayName: 'Alice',
       email: 'alice@example.com',
       avatar: 'https://example.com/alice.jpg'
     })
 
-    const state = routes.getState('s1')
+    const state = routes.getState({ id: 's1' })
     expect(state.displayName).toBe('Alice')
     expect(state.email).toBe('alice@example.com')
     expect(state.avatar).toBe('https://example.com/alice.jpg')
@@ -327,7 +327,7 @@ describe('User Preferences Store — mixed types, custom fields', () => {
 
   it('updateProfile rejects invalid email', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'updateProfile', {
+    const result = await routes.handleMutation({ id: 's1' }, 'updateProfile', {
       displayName: 'Alice',
       email: 'not-an-email',
       avatar: 'https://example.com/a.jpg'
@@ -337,7 +337,7 @@ describe('User Preferences Store — mixed types, custom fields', () => {
 
   it('updateProfile rejects invalid URL', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'updateProfile', {
+    const result = await routes.handleMutation({ id: 's1' }, 'updateProfile', {
       displayName: 'Alice',
       email: 'alice@example.com',
       avatar: 'not a url'
@@ -347,38 +347,38 @@ describe('User Preferences Store — mixed types, custom fields', () => {
 
   it('toggleDarkMode flips boolean field', async () => {
     const routes = registerStoreRoutes(config, holder)
-    expect(routes.getState('s1').darkMode).toBe(false)
+    expect(routes.getState({ id: 's1' }).darkMode).toBe(false)
 
-    await routes.handleMutation('s1', 'toggleDarkMode', {})
-    expect(routes.getState('s1').darkMode).toBe(true)
+    await routes.handleMutation({ id: 's1' }, 'toggleDarkMode', {})
+    expect(routes.getState({ id: 's1' }).darkMode).toBe(true)
 
-    await routes.handleMutation('s1', 'toggleDarkMode', {})
-    expect(routes.getState('s1').darkMode).toBe(false)
+    await routes.handleMutation({ id: 's1' }, 'toggleDarkMode', {})
+    expect(routes.getState({ id: 's1' }).darkMode).toBe(false)
   })
 
   it('setNotifications updates multiselect array', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('s1', 'setNotifications', { channels: ['email', 'push'] })
-    expect(routes.getState('s1').notifications).toEqual(['email', 'push'])
+    await routes.handleMutation({ id: 's1' }, 'setNotifications', { channels: ['email', 'push'] })
+    expect(routes.getState({ id: 's1' }).notifications).toEqual(['email', 'push'])
   })
 
   it('setNotifications rejects invalid option', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'setNotifications', { channels: ['email', 'pigeon'] })
+    const result = await routes.handleMutation({ id: 's1' }, 'setNotifications', { channels: ['email', 'pigeon'] })
     expect(result.isErr()).toBe(true)
   })
 
   it('setLayout updates custom field with complex object', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('s1', 'setLayout', {
+    await routes.handleMutation({ id: 's1' }, 'setLayout', {
       layout: { sidebar: 'hidden', density: 'compact' }
     })
-    expect(routes.getState('s1').layout).toEqual({ sidebar: 'hidden', density: 'compact' })
+    expect(routes.getState({ id: 's1' }).layout).toEqual({ sidebar: 'hidden', density: 'compact' })
   })
 
   it('setLayout rejects invalid layout values', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'setLayout', {
+    const result = await routes.handleMutation({ id: 's1' }, 'setLayout', {
       layout: { sidebar: 'top', density: 'huge' }
     })
     expect(result.isErr()).toBe(true)
@@ -386,14 +386,14 @@ describe('User Preferences Store — mixed types, custom fields', () => {
 
   it('preserves unmodified fields across mutations', async () => {
     const routes = registerStoreRoutes(config, holder)
-    await routes.handleMutation('s1', 'updateProfile', {
+    await routes.handleMutation({ id: 's1' }, 'updateProfile', {
       displayName: 'Bob',
       email: 'bob@example.com',
       avatar: 'https://example.com/bob.jpg'
     })
-    await routes.handleMutation('s1', 'toggleDarkMode', {})
+    await routes.handleMutation({ id: 's1' }, 'toggleDarkMode', {})
 
-    const state = routes.getState('s1')
+    const state = routes.getState({ id: 's1' })
     expect(state.displayName).toBe('Bob')
     expect(state.darkMode).toBe(true)
     expect(state.accentColor).toBe('#3b82f6')
