@@ -231,7 +231,6 @@ describe('runMigrations edge cases', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: async (): Promise<ReadonlyArray<Record<string, number>>> => [],
-        begin: async (): Promise<void> => {},
         release: async (): Promise<void> => {}
       }
     )
@@ -239,7 +238,6 @@ describe('runMigrations edge cases', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: async (): Promise<ReadonlyArray<Record<string, number>>> => [],
-        begin: async (): Promise<void> => {},
         reserve: async () => reservedSql
       }
     ) as unknown as import('../connection.js').DbPool['sql']
@@ -254,7 +252,6 @@ describe('runMigrations advisory lock', () => {
   it('uses one reserved connection for lock, migration execution, and unlock', async () => {
     const rootCalls: string[] = []
     const reservedCalls: string[] = []
-    const txCalls: string[] = []
 
     const reservedUnsafe = async (query: string): Promise<ReadonlyArray<Record<string, number>>> => {
       reservedCalls.push(query)
@@ -265,14 +262,6 @@ describe('runMigrations advisory lock', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: reservedUnsafe,
-        begin: async (fn: (tx: { unsafe: typeof reservedUnsafe }) => Promise<void>): Promise<void> => {
-          await fn({
-            unsafe: async (query: string): Promise<ReadonlyArray<Record<string, number>>> => {
-              txCalls.push(query)
-              return []
-            }
-          })
-        },
         release: async (): Promise<void> => {}
       }
     )
@@ -284,7 +273,6 @@ describe('runMigrations advisory lock', () => {
           rootCalls.push(query)
           return []
         },
-        begin: async (): Promise<void> => {},
         reserve: async () => reservedSql
       }
     ) as unknown as import('../connection.js').DbPool['sql']
@@ -298,15 +286,27 @@ describe('runMigrations advisory lock', () => {
     expect(rootCalls).toEqual([])
     expect(reservedCalls.some((query) => query.includes('pg_advisory_lock'))).toBe(true)
     expect(reservedCalls.some((query) => query.includes('pg_advisory_unlock'))).toBe(true)
-    expect(txCalls).toContain('CREATE TABLE test (id INT);')
+    // The migration and its bookkeeping run inside one explicit transaction
+    // on the reserved connection — postgres.js reserved connections expose
+    // no begin(), so the runner must issue BEGIN/COMMIT itself.
+    const beginIndex = reservedCalls.indexOf('BEGIN')
+    const migrationIndex = reservedCalls.indexOf('CREATE TABLE test (id INT);')
+    const insertIndex = reservedCalls.findIndex((query) => query.includes('INSERT INTO _migrations'))
+    const commitIndex = reservedCalls.indexOf('COMMIT')
+    expect(beginIndex).toBeGreaterThanOrEqual(0)
+    expect(migrationIndex).toBeGreaterThan(beginIndex)
+    expect(insertIndex).toBeGreaterThan(migrationIndex)
+    expect(commitIndex).toBeGreaterThan(insertIndex)
   })
 
-  it('releases the advisory lock on the reserved connection when a migration fails', async () => {
+  it('rolls back and releases the advisory lock when a migration fails', async () => {
     const reservedCalls: string[] = []
-    const txCalls: string[] = []
 
     const reservedUnsafe = async (query: string): Promise<ReadonlyArray<Record<string, number>>> => {
       reservedCalls.push(query)
+      if (query === 'CREATE TABLE test (id INT);') {
+        throw new Error('boom')
+      }
       return []
     }
 
@@ -314,14 +314,6 @@ describe('runMigrations advisory lock', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: reservedUnsafe,
-        begin: async (fn: (tx: { unsafe: typeof reservedUnsafe }) => Promise<void>): Promise<void> => {
-          await fn({
-            unsafe: async (query: string): Promise<ReadonlyArray<Record<string, number>>> => {
-              txCalls.push(query)
-              throw new Error('boom')
-            }
-          })
-        },
         release: async (): Promise<void> => {}
       }
     )
@@ -330,7 +322,6 @@ describe('runMigrations advisory lock', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: async (): Promise<ReadonlyArray<Record<string, number>>> => [],
-        begin: async (): Promise<void> => {},
         reserve: async () => reservedSql
       }
     ) as unknown as import('../connection.js').DbPool['sql']
@@ -341,9 +332,14 @@ describe('runMigrations advisory lock', () => {
     ])
 
     expect(result.isErr()).toBe(true)
-    expect(txCalls).toContain('CREATE TABLE test (id INT);')
+    expect(reservedCalls).toContain('CREATE TABLE test (id INT);')
+    // The failed statement's transaction is rolled back on the same
+    // connection before the lock is surrendered.
+    const rollbackIndex = reservedCalls.indexOf('ROLLBACK')
+    const unlockIndex = reservedCalls.findIndex((query) => query.includes('pg_advisory_unlock'))
+    expect(rollbackIndex).toBeGreaterThan(reservedCalls.indexOf('BEGIN'))
+    expect(unlockIndex).toBeGreaterThan(rollbackIndex)
     expect(reservedCalls.some((query) => query.includes('pg_advisory_lock'))).toBe(true)
-    expect(reservedCalls.some((query) => query.includes('pg_advisory_unlock'))).toBe(true)
   })
 
   it('attempts release when advisory unlock fails', async () => {
@@ -362,7 +358,6 @@ describe('runMigrations advisory lock', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: reservedUnsafe,
-        begin: async (): Promise<void> => {},
         release: async (): Promise<void> => {
           releaseCalls++
         }
@@ -373,7 +368,6 @@ describe('runMigrations advisory lock', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: async (): Promise<ReadonlyArray<Record<string, number>>> => [],
-        begin: async (): Promise<void> => {},
         reserve: async () => reservedSql
       }
     ) as unknown as import('../connection.js').DbPool['sql']
@@ -392,6 +386,9 @@ describe('runMigrations advisory lock', () => {
       if (query.includes('pg_advisory_unlock')) {
         throw new Error('unlock failed')
       }
+      if (query === 'CREATE TABLE test (id INT);') {
+        throw new Error('migration failed')
+      }
       return []
     }
 
@@ -399,13 +396,6 @@ describe('runMigrations advisory lock', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: reservedUnsafe,
-        begin: async (fn: (tx: { unsafe: typeof reservedUnsafe }) => Promise<void>): Promise<void> => {
-          await fn({
-            unsafe: async (): Promise<ReadonlyArray<Record<string, number>>> => {
-              throw new Error('migration failed')
-            }
-          })
-        },
         release: async (): Promise<void> => {
           releaseCalls++
         }
@@ -416,7 +406,6 @@ describe('runMigrations advisory lock', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: async (): Promise<ReadonlyArray<Record<string, number>>> => [],
-        begin: async (): Promise<void> => {},
         reserve: async () => reservedSql
       }
     ) as unknown as import('../connection.js').DbPool['sql']
@@ -440,7 +429,6 @@ describe('runMigrations advisory lock', () => {
           }
           return []
         },
-        begin: async (): Promise<void> => {},
         release: async (): Promise<void> => {
           throw new Error('release failed')
         }
@@ -451,7 +439,6 @@ describe('runMigrations advisory lock', () => {
       async (): Promise<ReadonlyArray<Record<string, number>>> => [],
       {
         unsafe: async (): Promise<ReadonlyArray<Record<string, number>>> => [],
-        begin: async (): Promise<void> => {},
         reserve: async () => reservedSql
       }
     ) as unknown as import('../connection.js').DbPool['sql']
