@@ -1,37 +1,37 @@
+import { computed } from '@valencets/reactive'
 import type { Result } from '@valencets/resultkit'
+import type { ReadonlySignal } from '@valencets/reactive'
 import type { StoreDefinition, StoreState, StoreError, StoreValue } from '../types.js'
 import { createStoreSignals } from './store-signals.js'
 import type { StoreSignals } from './store-signals.js'
 import { PendingQueue } from './pending-queue.js'
 import { createMutationCaller } from './mutation-caller.js'
 import type { ServerStateRef } from './mutation-caller.js'
+import { reconcileState } from './reconciler.js'
 import { generateStoreSchema } from '../validation/zod-generator.js'
-
-type PostMutationFn = (
-  storeSlug: string,
-  mutationName: string,
-  args: { [key: string]: StoreValue },
-  mutationId: number
-) => Promise<{
-  readonly ok: boolean
-  readonly state?: StoreState
-  readonly confirmedId?: number
-  readonly error?: { readonly code: string; readonly message: string }
-}>
+import type { PostMutationFn } from './post-mutation.js'
 
 type MutationFn = (args: { [key: string]: StoreValue }) => Promise<Result<void, StoreError>>
 
-interface StoreClient {
+export interface StoreClientOptions {
+  readonly onFragment?: (fragment: { readonly selector: string; readonly html: string }) => void
+}
+
+export interface StoreClient {
   readonly signals: StoreSignals
   readonly mutations: { [name: string]: MutationFn }
+  readonly derived: { [name: string]: ReadonlySignal<StoreValue> }
   readonly pendingCount: number
+  /** Apply authoritative server state pushed over SSE — replays pending on top */
+  readonly applyServerState: (state: StoreState) => void
   readonly dispose: () => void
 }
 
 export function createStoreClient (
   config: StoreDefinition,
   hydrationState: StoreState,
-  postMutation: PostMutationFn
+  postMutation: PostMutationFn,
+  options?: StoreClientOptions
 ): StoreClient {
   const signals = createStoreSignals(config.fields, hydrationState)
   const pendingQueue = PendingQueue.create()
@@ -59,6 +59,7 @@ export function createStoreClient (
       postMutation,
       sharedClientFns,
       serverStateRef,
+      ...(options?.onFragment ? { onFragment: options.onFragment } : {}),
       ...(mutation.client
         ? {
             clientFn: (state: StoreState, input: { [key: string]: StoreValue }) => {
@@ -71,11 +72,29 @@ export function createStoreClient (
     mutations[name] = createMutationCaller(callerConfig)
   }
 
+  // Derived definitions become auto-tracking computed signals: reading every
+  // field signal inside the computed body subscribes it to the whole store.
+  const derived: { [name: string]: ReadonlySignal<StoreValue> } = {}
+  for (const [name, deriveFn] of Object.entries(config.derived ?? {})) {
+    derived[name] = computed(() => {
+      const snapshot: StoreState = {}
+      for (const key of Object.keys(signals)) {
+        snapshot[key] = signals[key]!.value
+      }
+      return deriveFn(snapshot)
+    })
+  }
+
   return {
     signals,
     mutations,
+    derived,
     get pendingCount () {
       return pendingQueue.size
+    },
+    applyServerState (state: StoreState) {
+      serverStateRef.current = state
+      reconcileState(signals, state, pendingQueue, undefined, sharedClientFns)
     },
     dispose () {
       pendingQueue.clear()

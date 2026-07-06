@@ -11,6 +11,7 @@ interface PostMutationResponse {
   readonly ok: boolean
   readonly state?: StoreState
   readonly confirmedId?: number
+  readonly fragment?: { readonly selector: string; readonly html: string }
   readonly error?: { readonly code: string; readonly message: string }
 }
 
@@ -40,6 +41,8 @@ interface MutationCallerConfig {
   /** Shared across ALL of a store's callers so mixed pending mutations rebase together */
   readonly sharedClientFns?: Map<number, (state: StoreState) => void>
   readonly serverStateRef?: ServerStateRef
+  /** Invoked with the server-rendered fragment when the POST response carries one */
+  readonly onFragment?: (fragment: { readonly selector: string; readonly html: string }) => void
 }
 
 const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set(Object.values(StoreErrorCode))
@@ -105,6 +108,9 @@ export function createMutationCaller (
       stateRef.current = response.state
       reconcileState(config.signals, response.state, config.pendingQueue, mutationId, clientFns)
       clientFns.delete(mutationId)
+      if (response.fragment && config.onFragment) {
+        config.onFragment(response.fragment)
+      }
       return ok(undefined)
     }
 

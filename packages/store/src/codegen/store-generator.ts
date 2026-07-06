@@ -74,18 +74,30 @@ function pascalCase (slug: string): string {
     .join('')
 }
 
+function generateDerivedInterface (config: StoreDefinition): string {
+  const names = Object.keys(config.derived ?? {})
+  if (names.length === 0) {
+    return '  readonly derived: {}'
+  }
+  const props = names.map(name => `    readonly ${name}: ReadonlySignal<StoreValue>`).join('\n')
+  return `  readonly derived: {\n${props}\n  }`
+}
+
 export function generateStoreModule (config: StoreDefinition): string {
   const stateInterface = generateStateInterface(config)
   const mutationInputTypes = Object.entries(config.mutations)
     .map(([name, mutation]) => generateMutationInputType(name, mutation))
     .join('\n\n')
   const mutationsInterface = generateMutationsInterface(config)
+  const pascal = pascalCase(config.slug)
 
   return `// @generated — regenerated from valence.config.ts. DO NOT EDIT.
 
-import type { Signal } from '@valencets/reactive'
+import { createStoreClient, createPostMutation, readHydrationState } from '@valencets/store/client'
+import type { StoreClient } from '@valencets/store/client'
+import type { Signal, ReadonlySignal } from '@valencets/reactive'
 import type { Result } from '@valencets/resultkit'
-import type { StoreError } from '@valencets/store'
+import type { StoreError, StoreDefinition, StoreValue } from '@valencets/store'
 
 ${stateInterface}
 
@@ -93,14 +105,26 @@ ${mutationInputTypes}
 
 ${mutationsInterface}
 
-export interface ${pascalCase(config.slug)}Store {
+/** Reference shape of this store's client — annotate call sites with the
+ *  precise state and input types exported above. */
+export interface ${pascal}Store {
   readonly signals: {
 ${config.fields.map(f => `    readonly ${f.name}: Signal<${fieldToTsType(f)}>`).join('\n')}
   }
-  readonly mutations: ${pascalCase(config.slug)}Mutations
+  readonly mutations: ${pascal}Mutations
+${generateDerivedInterface(config)}
+  readonly pendingCount: number
+  readonly applyServerState: (state: ${pascal}State) => void
   readonly dispose: () => void
 }
 
-export declare const ${config.slug}: ${pascalCase(config.slug)}Store
+/**
+ * Runtime factory. Pass the shared store definition (the same object given
+ * to valence.config.ts) — mutation server fns never reach the browser
+ * because only the client-safe parts are read here.
+ */
+export function create${pascal}Store (definition: StoreDefinition): StoreClient {
+  return createStoreClient(definition, readHydrationState('${config.slug}'), createPostMutation())
+}
 `
 }
