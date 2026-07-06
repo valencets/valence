@@ -138,3 +138,10 @@ describe('generateStoreModule', () => {
     expect(code).toContain('export')
   })
 })
+
+describe('codegen barrel export', () => {
+  it('exports generateStoreModule from the package root for build-time consumers', async () => {
+    const barrel = await import('../index.js')
+    expect(typeof (barrel as { generateStoreModule?: unknown }).generateStoreModule).toBe('function')
+  })
+})

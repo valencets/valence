@@ -238,3 +238,72 @@ describe('store', () => {
     expect(result.isOk()).toBe(true)
   })
 })
+
+describe('persist option', () => {
+  it('accepts persist: true on session scope and carries it into the definition', () => {
+    const result = store({
+      slug: 'draft',
+      scope: 'session',
+      persist: true,
+      fields: [field.text({ name: 'body' })],
+      mutations: {}
+    })
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value.persist).toBe(true)
+    }
+  })
+
+  it('accepts persist: true on global scope', () => {
+    const result = store({
+      slug: 'banner',
+      scope: 'global',
+      persist: true,
+      fields: [field.text({ name: 'message' })],
+      mutations: {}
+    })
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value.persist).toBe(true)
+    }
+  })
+
+  it('accepts persist: true on user scope (already implied)', () => {
+    const result = store({
+      slug: 'prefs',
+      scope: 'user',
+      persist: true,
+      fields: [field.boolean({ name: 'dark' })],
+      mutations: {}
+    })
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('rejects persist: true on page scope — page stores have no server state to persist', () => {
+    const result = store({
+      slug: 'wizard',
+      scope: 'page',
+      persist: true,
+      fields: [field.number({ name: 'step', default: 0 })],
+      mutations: {}
+    })
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.code).toBe(StoreErrorCode.INVALID_PERSIST)
+      expect(result.error.message).toContain('page')
+    }
+  })
+
+  it('leaves persist undefined when not declared', () => {
+    const result = store({
+      slug: 'cart',
+      scope: 'session',
+      fields: [field.number({ name: 'count', default: 0 })],
+      mutations: {}
+    })
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value.persist).toBeUndefined()
+    }
+  })
+})

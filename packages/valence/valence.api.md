@@ -258,6 +258,7 @@ export type StoreHydrator = (req: IncomingMessage, res: ServerResponse, html: st
 
 // @public (undocumented)
 export interface StoreWiringOptions {
+    readonly clientScriptUrl?: string;
     // (undocumented)
     readonly log?: (msg: string) => void;
     // (undocumented)

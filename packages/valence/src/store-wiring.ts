@@ -139,6 +139,9 @@ export interface StoreWiringOptions {
   readonly secret?: string
   /** Resolves a cms_session token to a userId, or null when invalid */
   readonly validateCmsSession?: (sessionId: string) => Promise<string | null>
+  /** URL of the bundled client entry — when set, store-referencing pages
+   *  get a module script tag injected alongside their hydration tags. */
+  readonly clientScriptUrl?: string
 }
 
 /**
@@ -157,10 +160,12 @@ export function registerStoreRoutesOnServer (
   const log = options?.log ?? (() => {})
   const hydratable: Array<{ slug: string; scope: string; getState: (session: SessionInfo) => ReturnType<ReturnType<typeof registerStoreRoutes>['getState']> }> = []
 
-  // User-scoped stores persist to postgres; the table is ensured once and
-  // every state query waits on that. Failure degrades loudly, not silently.
-  const wantsPersistence = options?.pool !== undefined &&
-    storeInputs.some(input => input.scope === 'user')
+  // User-scoped stores persist to postgres, as does any store that opts in
+  // via persist: true; the table is ensured once and every state query
+  // waits on that. Failure degrades loudly, not silently.
+  const isPersisted = (input: { readonly scope: string; readonly persist?: boolean }): boolean =>
+    input.scope === 'user' || (input.persist === true && input.scope !== 'page')
+  const wantsPersistence = options?.pool !== undefined && storeInputs.some(isPersisted)
   const tableReady: Promise<void> = wantsPersistence
     ? options!.pool!.query(STORE_STATES_DDL).then(
       () => undefined,
@@ -187,7 +192,7 @@ export function registerStoreRoutesOnServer (
     }
 
     let holder: StateBackend = SessionStateHolder.create(config.fields)
-    if (config.scope === 'user' && options?.pool) {
+    if (isPersisted(config) && options?.pool) {
       const gatedPool: StorePool = {
         query: async (...args: readonly string[]) => {
           await tableReady
@@ -297,16 +302,21 @@ export function registerStoreRoutesOnServer (
     const referenced = hydratable.filter(entry => html.includes(`data-store="${entry.slug}"`))
     if (referenced.length === 0) return html
 
-    const identity = await resolveIdentity(req, res, options)
-    if (identity === null) return html
-
     let tags = ''
-    for (const entry of referenced) {
-      // Anonymous visitors get no user-scoped state — the client falls back
-      // to its authenticated fetch path, which enforces 403 properly.
-      if (entry.scope === 'user' && identity.userId === undefined) continue
-      const state = await entry.getState(identity)
-      tags += renderStoreHydration(entry.slug, state)
+    const identity = await resolveIdentity(req, res, options)
+    if (identity !== null) {
+      for (const entry of referenced) {
+        // Anonymous visitors get no user-scoped state — the client falls back
+        // to its authenticated fetch path, which enforces 403 properly.
+        if (entry.scope === 'user' && identity.userId === undefined) continue
+        const state = await entry.getState(identity)
+        tags += renderStoreHydration(entry.slug, state)
+      }
+    }
+    // The runtime ships with the page that needs it — module scripts defer
+    // until the DOM (including the hydration tags above) is parsed.
+    if (options?.clientScriptUrl !== undefined) {
+      tags += `<script type="module" src="${options.clientScriptUrl}"></script>`
     }
     if (tags.length === 0) return html
 
@@ -323,12 +333,14 @@ export function maybeRegisterStores (
   registerRoute: (method: string, path: string, handler: RouteHandler) => void,
   logFn?: (msg: string) => void,
   dbPool?: DbPool,
-  secret?: string
+  secret?: string,
+  clientScriptUrl?: string
 ): StoreHydrator | undefined {
   if (!stores || stores.length === 0) return undefined
   const options: StoreWiringOptions = {
     ...(logFn ? { log: logFn } : {}),
     ...(secret !== undefined ? { secret } : {}),
+    ...(clientScriptUrl !== undefined ? { clientScriptUrl } : {}),
     ...(dbPool
       ? {
           pool: {

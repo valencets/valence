@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { regenerateFromConfig } from '../codegen/regenerate.js'
 import { collection, field } from '@valencets/cms'
+import { field as storeField } from '@valencets/store'
+import { join } from 'node:path'
 
 vi.mock('node:fs/promises', () => ({
   writeFile: vi.fn(async () => {}),
@@ -103,5 +105,71 @@ describe('regenerateFromConfig', () => {
       c => String(c[0]).includes('entities/users')
     )
     expect(userEntityWrite).toBeUndefined()
+  })
+})
+
+describe('store module regeneration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('writes a generated typed module per store under src/shared/stores', async () => {
+    const stores = [{
+      slug: 'cart',
+      scope: 'session' as const,
+      fields: [storeField.number({ name: 'count', default: 0 })],
+      mutations: {
+        increment: {
+          input: [storeField.number({ name: 'amount' })],
+          server: async () => {}
+        }
+      }
+    }]
+
+    const result = await regenerateFromConfig('/tmp/project', [], stores)
+    expect(result.isOk()).toBe(true)
+
+    const storeWrite = mockedWriteFile.mock.calls.find(
+      c => String(c[0]).includes(join('shared', 'stores', 'cart.ts'))
+    )
+    expect(storeWrite).toBeDefined()
+    const content = String(storeWrite![1])
+    expect(content.startsWith('// @generated')).toBe(true)
+    expect(content).toContain('createCartStore')
+    expect(content).toContain('CartState')
+  })
+
+  it('skips invalid store definitions without failing the run', async () => {
+    const stores = [{
+      slug: 'Bad Slug',
+      scope: 'session' as const,
+      fields: [storeField.number({ name: 'count', default: 0 })],
+      mutations: {}
+    }]
+
+    const result = await regenerateFromConfig('/tmp/project', [], stores)
+    expect(result.isOk()).toBe(true)
+
+    const storeWrite = mockedWriteFile.mock.calls.find(
+      c => String(c[0]).includes(join('shared', 'stores'))
+    )
+    expect(storeWrite).toBeUndefined()
+  })
+
+  it('generates nothing store-related when stores are omitted', async () => {
+    const collections = [
+      collection({
+        slug: 'posts',
+        fields: [field.text({ name: 'title', required: true })]
+      })
+    ]
+
+    const result = await regenerateFromConfig('/tmp/project', collections)
+    expect(result.isOk()).toBe(true)
+
+    const storeWrite = mockedWriteFile.mock.calls.find(
+      c => String(c[0]).includes(join('shared', 'stores'))
+    )
+    expect(storeWrite).toBeUndefined()
   })
 })

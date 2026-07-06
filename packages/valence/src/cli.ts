@@ -580,7 +580,7 @@ async function runDev (): Promise<void> {
             loadUserConfig().then((cfg) => {
               if (!cfg) return
               currentConfigSlugs = cfg.collections.map(c => c.slug)
-              regenerateFromConfig(projectDir, cfg.collections).match(
+              regenerateFromConfig(projectDir, cfg.collections, cfg.stores).match(
                 (result) => {
                   const total = result.added.length + result.updated.length
                   if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
@@ -609,7 +609,7 @@ async function runDev (): Promise<void> {
           loadUserConfig().then((cfg) => {
             if (!cfg) return
             currentConfigSlugs = cfg.collections.map(c => c.slug)
-            regenerateFromConfig(projectDir, cfg.collections).match(
+            regenerateFromConfig(projectDir, cfg.collections, cfg.stores).match(
               (result) => {
                 const total = result.added.length + result.updated.length
                 if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
@@ -791,9 +791,12 @@ async function runDev (): Promise<void> {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
 
+  // Bundle and serve the client entry (no-op if the project ships none)
+  const clientBundleUrl = await setupClientBundle(projectDir, registerRoute, true, log)
+
   // Register store routes (no-op if no stores defined)
   const { maybeRegisterStores } = await import('./store-wiring.js')
-  const storeHydrator = maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool, devCmsSecret)
+  const storeHydrator = maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool, devCmsSecret, clientBundleUrl)
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
@@ -828,6 +831,28 @@ async function runDev (): Promise<void> {
 }
 
 // -- start --
+
+async function setupClientBundle (
+  projectDir: string,
+  registerRoute: (method: string, path: string, handler: RouteHandler) => void,
+  watch: boolean,
+  logFn: (msg: string) => void
+): Promise<string | undefined> {
+  const { resolveClientEntry, createClientBundler, registerClientBundleRoute, CLIENT_BUNDLE_PATH } = await import('./client-bundler.js')
+  if (resolveClientEntry(projectDir) === null) return undefined
+
+  return await createClientBundler({ projectDir, watch, log: logFn }).match(
+    (bundler) => {
+      registerClientBundleRoute(registerRoute, bundler)
+      logFn(`Client bundle served at ${CLIENT_BUNDLE_PATH}`)
+      return CLIENT_BUNDLE_PATH
+    },
+    (e) => {
+      logFn(`Client bundler failed to start: ${e.message}`)
+      return undefined
+    }
+  )
+}
 
 export async function runStart (): Promise<void> {
   await registerTsxLoader()
@@ -1014,9 +1039,12 @@ export async function runStart (): Promise<void> {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
 
+  // Bundle and serve the client entry (no-op if the project ships none)
+  const clientBundleUrl = await setupClientBundle(projectDir, registerRoute, false, log)
+
   // Register store routes (no-op if no stores defined)
   const { maybeRegisterStores: maybeRegisterStoresProd } = await import('./store-wiring.js')
-  const storeHydrator = maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool, cmsSecret)
+  const storeHydrator = maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool, cmsSecret, clientBundleUrl)
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
