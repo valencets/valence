@@ -6,6 +6,7 @@ import type { DbPool } from '@valencets/db'
 import type { RouteConfig, RouteHandler, LoaderContext } from './define-config.js'
 import { sendHtml } from '@valencets/core/server'
 import { executeLoader, serializeLoaderData, injectLoaderData } from './loader.js'
+import type { StoreHydrator } from './store-wiring.js'
 import { executeAction, readRequestBody } from './action.js'
 
 export interface GeneratedRoute {
@@ -58,7 +59,7 @@ const detailTemplatePath = (projectDir: string, slug: string): string =>
 const isFragment = (req: IncomingMessage): boolean =>
   req.headers['x-valence-fragment'] === 'true'
 
-function makeGeneratedHandler (route: GeneratedRoute, projectDir: string): RouteHandler {
+function makeGeneratedHandler (route: GeneratedRoute, projectDir: string, storeHydrator?: StoreHydrator): RouteHandler {
   const templatePath = route.type === 'list'
     ? listTemplatePath(projectDir, route.collection)
     : detailTemplatePath(projectDir, route.collection)
@@ -66,7 +67,8 @@ function makeGeneratedHandler (route: GeneratedRoute, projectDir: string): Route
   return async (req: IncomingMessage, res: ServerResponse, params: Record<string, string>): Promise<void> => {
     if (existsSync(templatePath)) {
       const content = readFileSync(templatePath, 'utf-8')
-      sendHtml(res, content)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, content) : content
+      sendHtml(res, hydrated)
       return
     }
 
@@ -84,12 +86,13 @@ function makeGeneratedHandler (route: GeneratedRoute, projectDir: string): Route
 
 export function buildGeneratedRouteMap (
   routes: readonly GeneratedRoute[],
-  projectDir: string
+  projectDir: string,
+  storeHydrator?: StoreHydrator
 ): Map<string, Map<string, RouteHandler>> {
   const routeMap = new Map<string, Map<string, RouteHandler>>()
 
   for (const route of routes) {
-    const handler = makeGeneratedHandler(route, projectDir)
+    const handler = makeGeneratedHandler(route, projectDir, storeHydrator)
     let methodMap = routeMap.get(route.path)
     if (methodMap === undefined) {
       methodMap = new Map<string, RouteHandler>()
@@ -143,7 +146,8 @@ function makeLoaderHandler (
   route: RouteConfig,
   projectDir: string,
   pool: DbPool,
-  cms: CmsInstance
+  cms: CmsInstance,
+  storeHydrator?: StoreHydrator
 ): RouteHandler {
   const loader = route.loader!
   const templatePath = resolveTemplatePath(route.path, projectDir)
@@ -173,8 +177,9 @@ function makeLoaderHandler (
     if (templatePath !== null && existsSync(templatePath)) {
       const templateContent = readFileSync(templatePath, 'utf-8')
       const html = injectLoaderData(templateContent, script)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, html) : html
       res.writeHead(status, mergeResponseHeaders({ 'Content-Type': 'text/html; charset=utf-8' }, result.headers))
-      res.end(html)
+      res.end(hydrated)
       return
     }
 
@@ -234,7 +239,8 @@ export function buildUserRouteMap (
   routes: readonly RouteConfig[] | undefined,
   projectDir: string,
   pool: DbPool,
-  cms: CmsInstance
+  cms: CmsInstance,
+  storeHydrator?: StoreHydrator
 ): Map<string, Map<string, RouteHandler>> {
   const routeMap = new Map<string, Map<string, RouteHandler>>()
   if (routes === undefined) return routeMap
@@ -253,7 +259,7 @@ export function buildUserRouteMap (
     }
 
     if (route.loader !== undefined) {
-      methodMap.set('GET', makeLoaderHandler(route, projectDir, pool, cms))
+      methodMap.set('GET', makeLoaderHandler(route, projectDir, pool, cms, storeHydrator))
     }
 
     if (route.action !== undefined) {

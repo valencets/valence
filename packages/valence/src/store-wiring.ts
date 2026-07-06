@@ -141,13 +141,21 @@ export interface StoreWiringOptions {
   readonly validateCmsSession?: (sessionId: string) => Promise<string | null>
 }
 
+/**
+ * Injects <script data-store-hydrate> tags into a rendered page for every
+ * registered store the page references via data-store attributes, so
+ * first paint carries the caller's state without a fetch.
+ */
+export type StoreHydrator = (req: IncomingMessage, res: ServerResponse, html: string) => Promise<string>
+
 export function registerStoreRoutesOnServer (
   storeInputs: readonly StoreInput[],
   registerRoute: (method: string, path: string, handler: RouteHandler) => void,
   options?: StoreWiringOptions
-): void {
+): StoreHydrator {
   const broadcaster = SSEBroadcaster.create()
   const log = options?.log ?? (() => {})
+  const hydratable: Array<{ slug: string; scope: string; getState: (session: SessionInfo) => ReturnType<ReturnType<typeof registerStoreRoutes>['getState']> }> = []
 
   // User-scoped stores persist to postgres; the table is ensured once and
   // every state query waits on that. Failure degrades loudly, not silently.
@@ -189,6 +197,7 @@ export function registerStoreRoutesOnServer (
       holder = PostgresStateHolder.create({ pool: gatedPool, slug: config.slug, fields: config.fields })
     }
     const routes = registerStoreRoutes(config, holder, broadcaster, options?.pool)
+    hydratable.push({ slug: config.slug, scope: config.scope, getState: (session) => routes.getState(session) })
 
     const requireIdentity = async (req: IncomingMessage, res: ServerResponse): Promise<SessionInfo | null> => {
       const identity = await resolveIdentity(req, res, options)
@@ -281,6 +290,32 @@ export function registerStoreRoutesOnServer (
       res.end(html)
     })
   }
+
+  return async (req, res, html) => {
+    // Only pages that actually bind a registered store get tags — and only
+    // those resolve an identity, so plain pages never mint session cookies.
+    const referenced = hydratable.filter(entry => html.includes(`data-store="${entry.slug}"`))
+    if (referenced.length === 0) return html
+
+    const identity = await resolveIdentity(req, res, options)
+    if (identity === null) return html
+
+    let tags = ''
+    for (const entry of referenced) {
+      // Anonymous visitors get no user-scoped state — the client falls back
+      // to its authenticated fetch path, which enforces 403 properly.
+      if (entry.scope === 'user' && identity.userId === undefined) continue
+      const state = await entry.getState(identity)
+      tags += renderStoreHydration(entry.slug, state)
+    }
+    if (tags.length === 0) return html
+
+    const closeBody = html.indexOf('</body>')
+    if (closeBody !== -1) {
+      return html.slice(0, closeBody) + tags + html.slice(closeBody)
+    }
+    return html + tags
+  }
 }
 
 export function maybeRegisterStores (
@@ -289,8 +324,8 @@ export function maybeRegisterStores (
   logFn?: (msg: string) => void,
   dbPool?: DbPool,
   secret?: string
-): void {
-  if (!stores || stores.length === 0) return
+): StoreHydrator | undefined {
+  if (!stores || stores.length === 0) return undefined
   const options: StoreWiringOptions = {
     ...(logFn ? { log: logFn } : {}),
     ...(secret !== undefined ? { secret } : {}),
@@ -310,6 +345,7 @@ export function maybeRegisterStores (
         }
       : {})
   }
-  registerStoreRoutesOnServer(stores, registerRoute, options)
+  const hydrator = registerStoreRoutesOnServer(stores, registerRoute, options)
   if (logFn) logFn(`Registered ${stores.length} store(s)`)
+  return hydrator
 }

@@ -748,7 +748,8 @@ async function runDev (): Promise<void> {
     const pageHtmlPath = resolvePageRoute(pathname, srcDir)
     if (pageHtmlPath !== null && existsSync(pageHtmlPath)) {
       const pageContent = readFileSync(pageHtmlPath, 'utf-8')
-      sendHtml(res, pageContent)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, pageContent) : pageContent
+      sendHtml(res, hydrated)
       return
     }
 
@@ -792,14 +793,14 @@ async function runDev (): Promise<void> {
 
   // Register store routes (no-op if no stores defined)
   const { maybeRegisterStores } = await import('./store-wiring.js')
-  maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool, devCmsSecret)
+  const storeHydrator = maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool, devCmsSecret)
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
-  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
+  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir, storeHydrator)
 
   // User-defined routes with loaders/actions
-  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
+  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms, storeHydrator)
 
   server.listen(port, async () => {
     // Fire plugin onReady hooks
@@ -987,7 +988,8 @@ export async function runStart (): Promise<void> {
     const pageHtmlPath = resolvePageRoute(pathname, srcDir)
     if (pageHtmlPath !== null && existsSync(pageHtmlPath)) {
       const pageContent = readFileSync(pageHtmlPath, 'utf-8')
-      sendHtml(res, pageContent)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, pageContent) : pageContent
+      sendHtml(res, hydrated)
       return
     }
 
@@ -1014,14 +1016,14 @@ export async function runStart (): Promise<void> {
 
   // Register store routes (no-op if no stores defined)
   const { maybeRegisterStores: maybeRegisterStoresProd } = await import('./store-wiring.js')
-  maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool, cmsSecret)
+  const storeHydrator = maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool, cmsSecret)
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
-  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
+  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir, storeHydrator)
 
   // User-defined routes with loaders/actions
-  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
+  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms, storeHydrator)
 
   server.listen(port, async () => {
     // Fire plugin onReady hooks
