@@ -347,3 +347,81 @@ describe('user-scope postgres persistence wiring', () => {
     expect(storeStateCalls).toHaveLength(0)
   })
 })
+
+describe('hydration auto-injection', () => {
+  const SECRET = 'wiring-test-secret'
+
+  async function mintCookie (): Promise<string> {
+    const { mintSignedSessionId } = await import('../store-session.js')
+    return `session_id=${mintSignedSessionId(SECRET)}`
+  }
+
+  function pageReq (cookie: string): IncomingMessage {
+    const emitter = new EventEmitter()
+    return Object.assign(emitter, { headers: { cookie }, method: 'GET' }) as unknown as IncomingMessage
+  }
+
+  it('returns a hydrator that injects tags for stores referenced by data-store', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+    expect(hydrator).toBeDefined()
+
+    const cookie = await mintCookie()
+    const html = '<html><body><div data-store="counter"></div></body></html>'
+    const res = mockRes()
+
+    const out = await hydrator!(pageReq(cookie), res, html)
+
+    expect(out).toContain('data-store-hydrate="counter"')
+    expect(out).toContain('"count":0')
+    expect(out.indexOf('data-store-hydrate')).toBeLessThan(out.indexOf('</body>'))
+  })
+
+  it('leaves pages without store references untouched and mints no cookie', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    const html = '<html><body><p>plain page</p></body></html>'
+    const res = mockRes()
+    const out = await hydrator!(pageReq(''), res, html)
+
+    expect(out).toBe(html)
+    expect(res._captured.headers['Set-Cookie']).toBeUndefined()
+  })
+
+  it('mints the anonymous session cookie on first paint of a store page', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    const html = '<body><div data-store="counter"></div></body>'
+    const res = mockRes()
+    const out = await hydrator!(pageReq(''), res, html)
+
+    expect(out).toContain('data-store-hydrate="counter"')
+    expect(res._captured.headers['Set-Cookie']).toContain('session_id=')
+  })
+
+  it('skips user-scoped stores for anonymous identities', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore({ scope: 'user' })], registerRoute, { secret: SECRET })
+
+    const cookie = await mintCookie()
+    const html = '<body><div data-store="counter"></div></body>'
+    const out = await hydrator!(pageReq(cookie), mockRes(), html)
+
+    expect(out).not.toContain('data-store-hydrate')
+  })
+
+  it('reflects the session state already mutated through the POST route', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    const cookie = await mintCookie()
+    await postMutation(routes, 'counter', 'increment', '{"args":{"amount":9}}', cookie)
+
+    const html = '<body><div data-store="counter"></div></body>'
+    const out = await hydrator!(pageReq(cookie), mockRes(), html)
+
+    expect(out).toContain('"count":9')
+  })
+})
