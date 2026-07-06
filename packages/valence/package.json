@@ -28,6 +28,7 @@
     "@valencets/resultkit": "^0.5.0",
     "@valencets/store": "workspace:*",
     "@valencets/telemetry": "workspace:*",
+    "esbuild": "^0.27.0",
     "tsx": "^4.21.0",
     "zod": "^4.3.6"
   },
