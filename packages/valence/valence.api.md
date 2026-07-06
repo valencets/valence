@@ -16,6 +16,7 @@ import { ResultAsync } from '@valencets/resultkit';
 import type { Server } from 'node:http';
 import type { ServerResponse } from 'node:http';
 import type { StoreInput } from '@valencets/store';
+import type { StorePool } from '@valencets/store/server';
 
 // @public (undocumented)
 export interface ActionContext {
@@ -52,10 +53,10 @@ export interface ActionResult {
 }
 
 // @public (undocumented)
-export function buildGeneratedRouteMap(routes: readonly GeneratedRoute[], projectDir: string): Map<string, Map<string, RouteHandler>>;
+export function buildGeneratedRouteMap(routes: readonly GeneratedRoute[], projectDir: string, storeHydrator?: StoreHydrator): Map<string, Map<string, RouteHandler>>;
 
 // @public (undocumented)
-export function buildUserRouteMap(routes: readonly RouteConfig[] | undefined, projectDir: string, pool: DbPool, cms: CmsInstance): Map<string, Map<string, RouteHandler>>;
+export function buildUserRouteMap(routes: readonly RouteConfig[] | undefined, projectDir: string, pool: DbPool, cms: CmsInstance, storeHydrator?: StoreHydrator): Map<string, Map<string, RouteHandler>>;
 
 export { collection }
 
@@ -251,6 +252,19 @@ export function serializeLoaderData(data: Record<string, JsonValue> | undefined)
 
 // @public (undocumented)
 export function setOutletHeader(res: ServerResponse, outletName: string | undefined): void;
+
+// @public
+export type StoreHydrator = (req: IncomingMessage, res: ServerResponse, html: string) => Promise<string>;
+
+// @public (undocumented)
+export interface StoreWiringOptions {
+    // (undocumented)
+    readonly log?: (msg: string) => void;
+    // (undocumented)
+    readonly pool?: StorePool;
+    readonly secret?: string;
+    readonly validateCmsSession?: (sessionId: string) => Promise<string | null>;
+}
 
 // @public (undocumented)
 export interface ValenceConfig {

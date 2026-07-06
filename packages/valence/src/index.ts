@@ -31,3 +31,5 @@ export { generateRouteTypes, extractParams } from './codegen/route-type-generato
 export { collection, field, global } from '@valencets/cms'
 
 export { setOutletHeader, isFragmentRequest } from './outlet-header.js'
+
+export type { StoreHydrator, StoreWiringOptions } from './store-wiring.js'
