@@ -109,6 +109,10 @@ describe('regenerateFromConfig', () => {
 })
 
 describe('store module regeneration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('writes a generated typed module per store under src/shared/stores', async () => {
     const stores = [{
       slug: 'cart',

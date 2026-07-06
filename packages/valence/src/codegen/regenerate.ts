@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { ResultAsync } from '@valencets/resultkit'
 import type { CollectionConfig } from '@valencets/cms'
+import { store as validateStore, generateStoreModule } from '@valencets/store'
+import type { StoreInput } from '@valencets/store'
 import { generateEntityInterface } from './type-generator.js'
 import { generateApiClient } from './api-client-generator.js'
 import { generateBaseClient } from './base-client-generator.js'
@@ -46,7 +48,8 @@ async function writeIfGenerated (
 
 export function regenerateFromConfig (
   projectDir: string,
-  collections: readonly CollectionConfig[]
+  collections: readonly CollectionConfig[],
+  stores?: readonly StoreInput[]
 ): ResultAsync<RegenResult, ScaffoldError> {
   return ResultAsync.fromPromise(
     (async (): Promise<RegenResult> => {
@@ -65,6 +68,20 @@ export function regenerateFromConfig (
 
         const clientPath = join(entityDir, 'api', 'client.ts')
         await writeIfGenerated(clientPath, generateApiClient(col), tracker)
+      }
+
+      // Regenerate typed store modules — invalid definitions are skipped
+      // here exactly as the route wiring skips them at serve time.
+      const validStores = (stores ?? []).flatMap(input => {
+        const result = validateStore(input)
+        return result.isOk() ? [result.value] : []
+      })
+      if (validStores.length > 0) {
+        await mkdir(join(srcDir, 'shared', 'stores'), { recursive: true })
+        for (const storeConfig of validStores) {
+          const modulePath = join(srcDir, 'shared', 'stores', `${storeConfig.slug}.ts`)
+          await writeIfGenerated(modulePath, generateStoreModule(storeConfig), tracker)
+        }
       }
 
       // Regenerate shared base client

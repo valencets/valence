@@ -580,7 +580,7 @@ async function runDev (): Promise<void> {
             loadUserConfig().then((cfg) => {
               if (!cfg) return
               currentConfigSlugs = cfg.collections.map(c => c.slug)
-              regenerateFromConfig(projectDir, cfg.collections).match(
+              regenerateFromConfig(projectDir, cfg.collections, cfg.stores).match(
                 (result) => {
                   const total = result.added.length + result.updated.length
                   if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
@@ -609,7 +609,7 @@ async function runDev (): Promise<void> {
           loadUserConfig().then((cfg) => {
             if (!cfg) return
             currentConfigSlugs = cfg.collections.map(c => c.slug)
-            regenerateFromConfig(projectDir, cfg.collections).match(
+            regenerateFromConfig(projectDir, cfg.collections, cfg.stores).match(
               (result) => {
                 const total = result.added.length + result.updated.length
                 if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
