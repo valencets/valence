@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { SSEBroadcaster } from '../server/sse-broadcaster.js'
 import { EventEmitter } from 'node:events'
 import type { ServerResponse } from 'node:http'
@@ -78,10 +78,10 @@ describe('SSEBroadcaster', () => {
     expect(cartRes._written).toHaveLength(0)
   })
 
-  it('removeClient removes a specific connection', () => {
+  it('removeClient removes a specific connection by id', () => {
     const res = mockRes()
-    broadcaster.addClient('counter', 's1', res as ServerResponse)
-    broadcaster.removeClient('counter', 's1')
+    const connId = broadcaster.addClient('counter', 's1', res as ServerResponse)
+    broadcaster.removeClient('counter', connId)
     expect(broadcaster.connectionCount('counter')).toBe(0)
   })
 
@@ -123,14 +123,68 @@ describe('SSEBroadcaster', () => {
   it('multiple stores tracked independently', () => {
     const r1 = mockRes()
     const r2 = mockRes()
-    broadcaster.addClient('counter', 's1', r1 as ServerResponse)
+    const c1 = broadcaster.addClient('counter', 's1', r1 as ServerResponse)
     broadcaster.addClient('cart', 's2', r2 as ServerResponse)
 
     expect(broadcaster.connectionCount('counter')).toBe(1)
     expect(broadcaster.connectionCount('cart')).toBe(1)
 
-    broadcaster.removeClient('counter', 's1')
+    broadcaster.removeClient('counter', c1)
     expect(broadcaster.connectionCount('counter')).toBe(0)
     expect(broadcaster.connectionCount('cart')).toBe(1)
+  })
+
+  it('one session can hold multiple live connections (multi-tab)', () => {
+    const tab1 = mockRes()
+    const tab2 = mockRes()
+    broadcaster.addClient('counter', 's1', tab1 as ServerResponse)
+    broadcaster.addClient('counter', 's1', tab2 as ServerResponse)
+
+    expect(broadcaster.connectionCount('counter')).toBe(2)
+
+    broadcaster.broadcast('counter', 'state', { count: 1 })
+    expect(tab1._written).toHaveLength(1)
+    expect(tab2._written).toHaveLength(1)
+  })
+
+  it('closing a stale connection does not evict a newer one from the same session', () => {
+    const stale = mockRes()
+    const live = mockRes()
+    broadcaster.addClient('counter', 's1', stale as ServerResponse)
+    broadcaster.addClient('counter', 's1', live as ServerResponse)
+
+    stale.emit('close')
+
+    expect(broadcaster.connectionCount('counter')).toBe(1)
+    broadcaster.broadcast('counter', 'state', { count: 9 })
+    expect(stale._written).toHaveLength(0)
+    expect(live._written).toHaveLength(1)
+  })
+
+  it('sendToSession reaches every connection of one session and nobody else', () => {
+    const tabA1 = mockRes()
+    const tabA2 = mockRes()
+    const tabB = mockRes()
+    broadcaster.addClient('counter', 'session-a', tabA1 as ServerResponse)
+    broadcaster.addClient('counter', 'session-a', tabA2 as ServerResponse)
+    broadcaster.addClient('counter', 'session-b', tabB as ServerResponse)
+
+    broadcaster.sendToSession('counter', 'session-a', 'state', { count: 2 })
+
+    expect(tabA1._written).toHaveLength(1)
+    expect(tabA2._written).toHaveLength(1)
+    expect(tabB._written).toHaveLength(0)
+  })
+
+  it('sends a heartbeat comment to all connections on the heartbeat interval', () => {
+    vi.useFakeTimers()
+    const hb = SSEBroadcaster.create()
+    const res = mockRes()
+    hb.addClient('counter', 's1', res as ServerResponse)
+
+    vi.advanceTimersByTime(30_000)
+
+    expect(res._written.some(chunk => chunk.startsWith(':'))).toBe(true)
+    vi.useRealTimers()
   })
 })
