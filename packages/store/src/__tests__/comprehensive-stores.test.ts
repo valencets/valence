@@ -215,7 +215,8 @@ describe('Blog Editor Store', () => {
   it('SSE broadcasts complex nested state', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
     const sseRes = mockSSERes()
-    broadcaster.addClient('blog-editor', 'reader', sseRes as ServerResponse)
+    // Session-scoped stores broadcast only to the mutating session's own tabs
+    broadcaster.addClient('blog-editor', 'author', sseRes as ServerResponse)
 
     await routes.handleMutation('author', 'updateSeo', {
       metaTitle: 'Test',

@@ -179,9 +179,10 @@ describe('End-to-end: Fragment Mode cart store', () => {
     expect(storeEl.innerHTML).toContain('$29.99')
     expect(storeEl.innerHTML).toContain('1 item(s)')
 
-    // 9. SSE: verify broadcast to other clients
+    // 9. SSE: verify broadcast to the session's other tabs
+    // (session scope never leaves the mutating session)
     const observerRes = mockSSERes()
-    broadcaster.addClient('cart', 'observer', observerRes as ServerResponse)
+    broadcaster.addClient('cart', 'user-1', observerRes as ServerResponse)
 
     await routes.handleMutation('user-1', 'addItem', {
       sku: 'GADGET-1', name: 'Mega Gadget', price: 49.99

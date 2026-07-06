@@ -263,7 +263,8 @@ describe('Cart Store — real-world array mutations', () => {
   it('SSE broadcasts full cart state after addItem', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
     const sseRes = mockSSERes()
-    broadcaster.addClient('cart', 'observer', sseRes as ServerResponse)
+    // Session-scoped stores broadcast only to the mutating session's own tabs
+    broadcaster.addClient('cart', 'mutator', sseRes as ServerResponse)
 
     await routes.handleMutation('mutator', 'addItem', { sku: 'Z', name: 'Zeta', qty: 1, price: 42 })
 

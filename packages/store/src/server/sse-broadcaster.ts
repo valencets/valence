@@ -6,6 +6,7 @@ interface SSEClient {
 }
 
 const SAFE_EVENT_NAME = /^[a-zA-Z][a-zA-Z0-9_-]*$/
+const HEARTBEAT_INTERVAL_MS = 30_000
 
 function formatSSE (event: string, data: { readonly [key: string]: unknown }): string {
   if (!SAFE_EVENT_NAME.test(event)) {
@@ -15,10 +16,17 @@ function formatSSE (event: string, data: { readonly [key: string]: unknown }): s
 }
 
 export class SSEBroadcaster {
-  private readonly _stores: Map<string, Map<string, SSEClient>>
+  // Connections are keyed by a unique connection id, NOT by session id —
+  // one session can hold several live tabs, and a stale tab's close event
+  // must never evict a newer connection from the same session.
+  private readonly _stores: Map<string, Map<number, SSEClient>>
+  private _nextConnectionId: number
+  private _heartbeat: ReturnType<typeof setInterval> | null
 
   private constructor () {
     this._stores = new Map()
+    this._nextConnectionId = 1
+    this._heartbeat = null
   }
 
   static create (): SSEBroadcaster {
@@ -31,7 +39,7 @@ export class SSEBroadcaster {
     return clients.size
   }
 
-  addClient (storeSlug: string, sessionId: string, res: ServerResponse): void {
+  addClient (storeSlug: string, sessionId: string, res: ServerResponse): number {
     let clients = this._stores.get(storeSlug)
     if (!clients) {
       clients = new Map()
@@ -43,19 +51,26 @@ export class SSEBroadcaster {
     res.setHeader('connection', 'keep-alive')
     res.flushHeaders()
 
-    clients.set(sessionId, { sessionId, res })
+    const connectionId = this._nextConnectionId++
+    clients.set(connectionId, { sessionId, res })
 
     res.on('close', () => {
-      this.removeClient(storeSlug, sessionId)
+      this.removeClient(storeSlug, connectionId)
     })
+
+    this._ensureHeartbeat()
+    return connectionId
   }
 
-  removeClient (storeSlug: string, sessionId: string): void {
+  removeClient (storeSlug: string, connectionId: number): void {
     const clients = this._stores.get(storeSlug)
     if (!clients) return
-    clients.delete(sessionId)
+    clients.delete(connectionId)
     if (clients.size === 0) {
       this._stores.delete(storeSlug)
+    }
+    if (this._stores.size === 0) {
+      this._stopHeartbeat()
     }
   }
 
@@ -69,6 +84,19 @@ export class SSEBroadcaster {
     }
   }
 
+  /** Deliver to every live connection of ONE session (multi-tab sync) */
+  sendToSession (storeSlug: string, sessionId: string, event: string, data: { readonly [key: string]: unknown }): void {
+    const clients = this._stores.get(storeSlug)
+    if (!clients) return
+    const message = formatSSE(event, data)
+    if (message.length === 0) return
+    for (const client of clients.values()) {
+      if (client.sessionId === sessionId) {
+        client.res.write(message)
+      }
+    }
+  }
+
   broadcastExcept (storeSlug: string, excludeSessionId: string, event: string, data: { readonly [key: string]: unknown }): void {
     const clients = this._stores.get(storeSlug)
     if (!clients) return
@@ -79,5 +107,28 @@ export class SSEBroadcaster {
         client.res.write(message)
       }
     }
+  }
+
+  // Periodic comment frames keep intermediary proxies from reaping idle
+  // connections; started with the first connection, stopped with the last.
+  private _ensureHeartbeat (): void {
+    if (this._heartbeat !== null) return
+    const timer = setInterval(() => {
+      for (const clients of this._stores.values()) {
+        for (const client of clients.values()) {
+          client.res.write(': ping\n\n')
+        }
+      }
+    }, HEARTBEAT_INTERVAL_MS)
+    if (typeof timer === 'object' && 'unref' in timer) {
+      timer.unref()
+    }
+    this._heartbeat = timer
+  }
+
+  private _stopHeartbeat (): void {
+    if (this._heartbeat === null) return
+    clearInterval(this._heartbeat)
+    this._heartbeat = null
   }
 }

@@ -1,3 +1,5 @@
+import { fromThrowable } from '@valencets/resultkit'
+import type { Result } from '@valencets/resultkit'
 import type { StoreValue } from '../types.js'
 
 interface DelegationStore {
@@ -9,10 +11,17 @@ interface DelegationHandle {
   destroy (): void
 }
 
-function parseArgs (el: Element): { [key: string]: StoreValue } {
+const safeJsonParse = fromThrowable(
+  (raw: string) => JSON.parse(raw) as { [key: string]: StoreValue },
+  () => null
+)
+
+// Malformed data-args markup yields an Err instead of throwing inside the
+// click handler — the trigger is skipped rather than crashing delegation.
+function parseArgs (el: Element): Result<{ [key: string]: StoreValue }, null> {
   const raw = el.getAttribute('data-args')
-  if (!raw) return {}
-  return JSON.parse(raw) as { [key: string]: StoreValue }
+  if (!raw) return safeJsonParse('{}')
+  return safeJsonParse(raw)
 }
 
 export function initMutationDelegation (
@@ -37,13 +46,27 @@ export function initMutationDelegation (
     const mutationFn = store.mutations[mutationName]
     if (!mutationFn) return
 
-    const args = parseArgs(trigger)
+    const argsResult = parseArgs(trigger)
+    if (argsResult.isErr() || argsResult.value === null) return
 
+    // LiveView-style optimistic affordance: is-pending applies instantly and
+    // resolves with the server response; failures surface as is-error until
+    // the next attempt.
+    trigger.classList.remove('is-error')
     trigger.classList.add('is-pending')
 
-    mutationFn(args).then((result) => {
-      trigger.classList.remove('is-pending')
-    })
+    mutationFn(argsResult.value).then(
+      (result) => {
+        trigger.classList.remove('is-pending')
+        if (result.isErr()) {
+          trigger.classList.add('is-error')
+        }
+      },
+      () => {
+        trigger.classList.remove('is-pending')
+        trigger.classList.add('is-error')
+      }
+    )
   }
 
   root.addEventListener('click', handleClick)
