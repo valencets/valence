@@ -157,10 +157,12 @@ export function registerStoreRoutesOnServer (
   const log = options?.log ?? (() => {})
   const hydratable: Array<{ slug: string; scope: string; getState: (session: SessionInfo) => ReturnType<ReturnType<typeof registerStoreRoutes>['getState']> }> = []
 
-  // User-scoped stores persist to postgres; the table is ensured once and
-  // every state query waits on that. Failure degrades loudly, not silently.
-  const wantsPersistence = options?.pool !== undefined &&
-    storeInputs.some(input => input.scope === 'user')
+  // User-scoped stores persist to postgres, as does any store that opts in
+  // via persist: true; the table is ensured once and every state query
+  // waits on that. Failure degrades loudly, not silently.
+  const isPersisted = (input: { readonly scope: string; readonly persist?: boolean }): boolean =>
+    input.scope === 'user' || (input.persist === true && input.scope !== 'page')
+  const wantsPersistence = options?.pool !== undefined && storeInputs.some(isPersisted)
   const tableReady: Promise<void> = wantsPersistence
     ? options!.pool!.query(STORE_STATES_DDL).then(
       () => undefined,
@@ -187,7 +189,7 @@ export function registerStoreRoutesOnServer (
     }
 
     let holder: StateBackend = SessionStateHolder.create(config.fields)
-    if (config.scope === 'user' && options?.pool) {
+    if (isPersisted(config) && options?.pool) {
       const gatedPool: StorePool = {
         query: async (...args: readonly string[]) => {
           await tableReady
