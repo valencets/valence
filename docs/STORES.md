@@ -87,6 +87,25 @@ is identical across scopes.
 Session-scoped state never crosses sessions — neither via `getState` nor
 via SSE.
 
+### Durable state with `persist`
+
+Persistence is orthogonal to audience. `user` scope always persists;
+`session` and `global` stores opt in with `persist: true`:
+
+```ts
+{ slug: 'server-config', scope: 'session', persist: true, fields: [...] }
+```
+
+A persisted session store writes each bucket to `store_states` keyed by
+the signed session id, so anonymous state survives server restarts and
+LRU pressure — the durable-anonymous-draft case (config generators,
+carts) that in-memory session state cannot cover. A persisted global
+store keys one row as `__global__` and survives restarts too.
+`persist: true` on `page` scope is a definition error: page stores have
+no server state to persist. Anonymous rows are never expired
+automatically — prune `store_states` by `updated_at` on whatever
+schedule fits the app.
+
 ## The mutation lifecycle
 
 ```
@@ -157,8 +176,34 @@ events into DOM swaps, and delegates `[data-mutation]` clicks.
 Keep store definitions importable by both `valence.config.ts` and client
 entry code. Only client-safe parts (fields, input schemas, `client` fns,
 `derived`, `fragment`) are read in the browser; `server` fns execute only
-server-side. Generated typed modules (`createXStore` factories plus state
-and input interfaces) come from the store codegen.
+server-side. Typed modules (`createXStore` factories plus state and input
+interfaces) are regenerated into `src/shared/stores/<slug>.ts` whenever
+`valence.config.ts` changes — user-edited files (missing the
+`// @generated` marker) are never overwritten.
+
+## Client delivery
+
+The framework ships the runtime — no bundler configuration in the app.
+Put the client bootstrap at the conventional entry `src/app/client.ts`
+(or `.js`):
+
+```ts
+// src/app/client.ts
+import { initStores } from '@valencets/store/client'
+import { serverConfigDefinition } from '../shared/stores/definitions.js'
+
+initStores([serverConfigDefinition])
+```
+
+`valence dev` bundles it with esbuild (rebuilt on change, inline source
+maps), `valence start` bundles once at boot (minified), and both serve
+the result at `/_valence/client.js` with ETag revalidation. Every
+server-rendered page that references a store via `data-store` gets
+`<script type="module" src="/_valence/client.js"></script>` injected
+automatically alongside its hydration tags; pages without store
+references stay byte-identical. A compile error never takes the server
+down — the route answers 503 (dev logs the error and recovers on the
+next file change) and the last good bundle keeps serving.
 
 ## Server endpoints
 
