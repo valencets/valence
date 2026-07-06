@@ -56,7 +56,7 @@ describe('End-to-end: Signal Mode counter store', () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
 
     // 3. Server: render hydration for initial page
-    const hydrationHtml = renderStoreHydration(config.slug, routes.getState('user-1'))
+    const hydrationHtml = renderStoreHydration(config.slug, routes.getState({ id: 'user-1' }))
     expect(hydrationHtml).toContain('data-store-hydrate="counter"')
 
     // 4. Client: inject hydration HTML and read it
@@ -69,7 +69,7 @@ describe('End-to-end: Signal Mode counter store', () => {
 
     // 5. Client: create store client with mock POST
     const mockPost = vi.fn().mockImplementation(async (_slug: string, mutation: string, args: StoreState, mutationId: number) => {
-      const result = await routes.handleMutation('user-1', mutation, args as { [key: string]: string | number | boolean | null })
+      const result = await routes.handleMutation({ id: 'user-1' }, mutation, args as { [key: string]: string | number | boolean | null })
       if (result.isOk()) {
         return { ok: true, state: result.value.state, confirmedId: mutationId }
       }
@@ -96,7 +96,7 @@ describe('End-to-end: Signal Mode counter store', () => {
     expect(client.signals.count.value).toBe(8)
 
     // 10. Server state matches
-    expect(routes.getState('user-1').count).toBe(8)
+    expect(routes.getState({ id: 'user-1' }).count).toBe(8)
 
     // 11. Cleanup
     client.dispose()
@@ -145,7 +145,7 @@ describe('End-to-end: Fragment Mode cart store', () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
 
     // 3. Server: render initial fragment
-    const initialState = routes.getState('user-1')
+    const initialState = routes.getState({ id: 'user-1' })
     const fragmentResult = renderStoreFragment(config, initialState)
     expect(fragmentResult.isOk()).toBe(true)
     const fragment = fragmentResult.unwrap()
@@ -161,13 +161,13 @@ describe('End-to-end: Fragment Mode cart store', () => {
     document.body.appendChild(root)
 
     // 5. Server: process mutation
-    const mutationResult = await routes.handleMutation('user-1', 'addItem', {
+    const mutationResult = await routes.handleMutation({ id: 'user-1' }, 'addItem', {
       sku: 'WIDGET-1', name: 'Super Widget', price: 29.99
     })
     expect(mutationResult.isOk()).toBe(true)
 
     // 6. Server: render updated fragment
-    const updatedState = routes.getState('user-1')
+    const updatedState = routes.getState({ id: 'user-1' })
     const updatedFragment = renderStoreFragment(config, updatedState)
     expect(updatedFragment.isOk()).toBe(true)
 
@@ -184,7 +184,7 @@ describe('End-to-end: Fragment Mode cart store', () => {
     const observerRes = mockSSERes()
     broadcaster.addClient('cart', 'user-1', observerRes as ServerResponse)
 
-    await routes.handleMutation('user-1', 'addItem', {
+    await routes.handleMutation({ id: 'user-1' }, 'addItem', {
       sku: 'GADGET-1', name: 'Mega Gadget', price: 49.99
     })
 
@@ -220,7 +220,7 @@ describe('End-to-end: Concurrent mutations (replay path)', () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
 
     const mockPost = vi.fn().mockImplementation(async (_s: string, mutation: string, args: StoreState, mutationId: number) => {
-      const result = await routes.handleMutation('user-1', mutation, args as { [key: string]: string | number | boolean | null })
+      const result = await routes.handleMutation({ id: 'user-1' }, mutation, args as { [key: string]: string | number | boolean | null })
       if (result.isOk()) return { ok: true, state: result.value.state, confirmedId: mutationId }
       return { ok: false, error: { code: 'FAILED', message: 'err' } }
     })
@@ -242,7 +242,7 @@ describe('End-to-end: Concurrent mutations (replay path)', () => {
     // Server processed sequentially via session lock: 0+5=5, 5+3=8
     // After reconciliation: final = 8
     expect(client.signals.count.value).toBe(8)
-    expect(routes.getState('user-1').count).toBe(8)
+    expect(routes.getState({ id: 'user-1' }).count).toBe(8)
 
     client.dispose()
   })
@@ -277,7 +277,7 @@ describe('End-to-end: Server rejection rollback', () => {
       if (callCount === 2) {
         return { ok: false, error: { code: 'MUTATION_FAILED', message: 'Server rejected' } }
       }
-      const result = await routes.handleMutation('user-1', mutation, args as { [key: string]: string | number | boolean | null })
+      const result = await routes.handleMutation({ id: 'user-1' }, mutation, args as { [key: string]: string | number | boolean | null })
       if (result.isOk()) return { ok: true, state: result.value.state, confirmedId: mutationId }
       return { ok: false, error: { code: 'FAILED', message: 'err' } }
     })
@@ -295,7 +295,7 @@ describe('End-to-end: Server rejection rollback', () => {
     expect(client.signals.count.value).toBe(10)
 
     // Server state unaffected
-    expect(routes.getState('user-1').count).toBe(10)
+    expect(routes.getState({ id: 'user-1' }).count).toBe(10)
 
     client.dispose()
   })
@@ -361,7 +361,7 @@ describe('End-to-end: Custom field types', () => {
     const routes = registerStoreRoutes(config, holder)
 
     const mockPost = vi.fn().mockImplementation(async (_s: string, mutation: string, args: StoreState, mutationId: number) => {
-      const result = await routes.handleMutation('player-1', mutation, args as { [key: string]: string | number | boolean | null })
+      const result = await routes.handleMutation({ id: 'player-1' }, mutation, args as { [key: string]: string | number | boolean | null })
       if (result.isOk()) return { ok: true, state: result.value.state, confirmedId: mutationId }
       return { ok: false, error: { code: 'FAILED', message: 'err' } }
     })
@@ -376,7 +376,7 @@ describe('End-to-end: Custom field types', () => {
     await client.mutations.move({ delta: { x: -3, y: 2 } })
     expect(client.signals.position.value).toEqual({ x: 7, y: 7 })
 
-    expect(routes.getState('player-1').position).toEqual({ x: 7, y: 7 })
+    expect(routes.getState({ id: 'player-1' }).position).toEqual({ x: 7, y: 7 })
 
     client.dispose()
   })

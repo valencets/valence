@@ -1,6 +1,6 @@
 import type { Result } from '@valencets/resultkit'
 import type { StoreDefinition, StoreState, StoreError, SessionInfo } from '../types.js'
-import type { SessionStateHolder } from './session-state.js'
+import type { StateBackend } from './state-backend.js'
 import type { SSEBroadcaster } from './sse-broadcaster.js'
 import { handleMutation } from './mutation-handler.js'
 
@@ -13,12 +13,12 @@ interface StoreRouteHandlers {
   readonly mutationPath: string
   readonly statePath: string
   readonly handleMutation: (
-    sessionId: string,
+    session: SessionInfo,
     mutationName: string,
     args: { [key: string]: string | number | boolean | null },
     clientMutationId?: number
   ) => Promise<Result<MutationResult, StoreError>>
-  readonly getState: (sessionId: string) => StoreState
+  readonly getState: (session: SessionInfo) => StoreState | Promise<StoreState>
 }
 
 export interface StorePool {
@@ -29,16 +29,18 @@ const defaultPool: StorePool = { query: async () => [] }
 
 const GLOBAL_STATE_KEY = '__global__'
 
-// The scope decides which bucket of the state holder a request touches:
-// global stores share ONE copy across all sessions, everything else is
-// keyed per session.
-function stateKeyFor (config: StoreDefinition, sessionId: string): string {
-  return config.scope === 'global' ? GLOBAL_STATE_KEY : sessionId
+// The scope decides which bucket of the state backend a request touches:
+// global stores share ONE copy, user stores follow the verified userId
+// across sessions and devices, everything else is keyed per session.
+function stateKeyFor (config: StoreDefinition, session: SessionInfo): string {
+  if (config.scope === 'global') return GLOBAL_STATE_KEY
+  if (config.scope === 'user' && session.userId !== undefined) return `user:${session.userId}`
+  return session.id
 }
 
 export function registerStoreRoutes (
   config: StoreDefinition,
-  stateHolder: SessionStateHolder,
+  stateHolder: StateBackend,
   broadcaster?: SSEBroadcaster,
   pool?: StorePool
 ): StoreRouteHandlers {
@@ -50,31 +52,32 @@ export function registerStoreRoutes (
     statePath: `/store/${slug}/state`,
 
     async handleMutation (
-      sessionId: string,
+      session: SessionInfo,
       mutationName: string,
       args: { [key: string]: string | number | boolean | null },
       clientMutationId?: number
     ): Promise<Result<MutationResult, StoreError>> {
-      const session: SessionInfo = { id: sessionId }
-      const stateKey = stateKeyFor(config, sessionId)
+      const stateKey = stateKeyFor(config, session)
       const result = await handleMutation(config, stateHolder, stateKey, mutationName, args, mutationPool, session, clientMutationId)
 
       if (result.isOk() && broadcaster) {
         // Scope decides the SSE audience: global fans out to every session,
-        // session/user reach only the mutating session's tabs, page is
-        // client-local and never broadcasts.
+        // user reaches every session of the mutating user, session reaches
+        // only the mutating session's tabs, page never broadcasts.
         if (config.scope === 'global') {
           broadcaster.broadcast(slug, 'state', result.value.state)
+        } else if (config.scope === 'user' && session.userId !== undefined) {
+          broadcaster.sendToUser(slug, session.userId, 'state', result.value.state)
         } else if (config.scope !== 'page') {
-          broadcaster.sendToSession(slug, sessionId, 'state', result.value.state)
+          broadcaster.sendToSession(slug, session.id, 'state', result.value.state)
         }
       }
 
       return result
     },
 
-    getState (sessionId: string): StoreState {
-      return stateHolder.getState(stateKeyFor(config, sessionId))
+    getState (session: SessionInfo): StoreState | Promise<StoreState> {
+      return stateHolder.getState(stateKeyFor(config, session))
     }
   }
 }

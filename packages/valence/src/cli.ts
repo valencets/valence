@@ -371,6 +371,16 @@ CREATE TABLE IF NOT EXISTS "daily_summaries" (
   "created_at" TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE("site_id", "date")
 );
+
+-- Store tables (user-scoped store state persistence)
+CREATE TABLE IF NOT EXISTS "store_states" (
+  "store_slug" TEXT NOT NULL,
+  "state_key" TEXT NOT NULL,
+  "state" JSONB NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "deleted_at" TIMESTAMPTZ,
+  PRIMARY KEY ("store_slug", "state_key")
+);
 `)
 
   // Scaffold FSD src/ directory from the collections we just wrote
@@ -520,9 +530,10 @@ async function runDev (): Promise<void> {
   log('Building CMS...')
   const pool = createPool(devConfig)
 
+  const devCmsSecret = process.env.CMS_SECRET ?? 'dev-secret'
   const cmsResult = buildCms({
     db: pool,
-    secret: process.env.CMS_SECRET ?? 'dev-secret',
+    secret: devCmsSecret,
     uploadDir: join(projectDir, 'uploads'),
     collections: userConfig,
     telemetryPool: telemetryEnabled ? pool : undefined,
@@ -737,7 +748,8 @@ async function runDev (): Promise<void> {
     const pageHtmlPath = resolvePageRoute(pathname, srcDir)
     if (pageHtmlPath !== null && existsSync(pageHtmlPath)) {
       const pageContent = readFileSync(pageHtmlPath, 'utf-8')
-      sendHtml(res, pageContent)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, pageContent) : pageContent
+      sendHtml(res, hydrated)
       return
     }
 
@@ -781,14 +793,14 @@ async function runDev (): Promise<void> {
 
   // Register store routes (no-op if no stores defined)
   const { maybeRegisterStores } = await import('./store-wiring.js')
-  maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool)
+  const storeHydrator = maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool, devCmsSecret)
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
-  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
+  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir, storeHydrator)
 
   // User-defined routes with loaders/actions
-  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
+  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms, storeHydrator)
 
   server.listen(port, async () => {
     // Fire plugin onReady hooks
@@ -976,7 +988,8 @@ export async function runStart (): Promise<void> {
     const pageHtmlPath = resolvePageRoute(pathname, srcDir)
     if (pageHtmlPath !== null && existsSync(pageHtmlPath)) {
       const pageContent = readFileSync(pageHtmlPath, 'utf-8')
-      sendHtml(res, pageContent)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, pageContent) : pageContent
+      sendHtml(res, hydrated)
       return
     }
 
@@ -1003,14 +1016,14 @@ export async function runStart (): Promise<void> {
 
   // Register store routes (no-op if no stores defined)
   const { maybeRegisterStores: maybeRegisterStoresProd } = await import('./store-wiring.js')
-  maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool)
+  const storeHydrator = maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool, cmsSecret)
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
-  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
+  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir, storeHydrator)
 
   // User-defined routes with loaders/actions
-  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
+  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms, storeHydrator)
 
   server.listen(port, async () => {
     // Fire plugin onReady hooks

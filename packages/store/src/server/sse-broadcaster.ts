@@ -2,6 +2,7 @@ import type { ServerResponse } from 'node:http'
 
 interface SSEClient {
   readonly sessionId: string
+  readonly userId?: string
   readonly res: ServerResponse
 }
 
@@ -39,7 +40,7 @@ export class SSEBroadcaster {
     return clients.size
   }
 
-  addClient (storeSlug: string, sessionId: string, res: ServerResponse): number {
+  addClient (storeSlug: string, sessionId: string, res: ServerResponse, userId?: string): number {
     let clients = this._stores.get(storeSlug)
     if (!clients) {
       clients = new Map()
@@ -52,7 +53,7 @@ export class SSEBroadcaster {
     res.flushHeaders()
 
     const connectionId = this._nextConnectionId++
-    clients.set(connectionId, { sessionId, res })
+    clients.set(connectionId, { sessionId, res, ...(userId !== undefined ? { userId } : {}) })
 
     res.on('close', () => {
       this.removeClient(storeSlug, connectionId)
@@ -81,6 +82,19 @@ export class SSEBroadcaster {
     if (message.length === 0) return
     for (const client of clients.values()) {
       client.res.write(message)
+    }
+  }
+
+  /** Deliver to every live connection of ONE user, across all their sessions */
+  sendToUser (storeSlug: string, userId: string, event: string, data: { readonly [key: string]: unknown }): void {
+    const clients = this._stores.get(storeSlug)
+    if (!clients) return
+    const message = formatSSE(event, data)
+    if (message.length === 0) return
+    for (const client of clients.values()) {
+      if (client.userId === userId) {
+        client.res.write(message)
+      }
     }
   }
 

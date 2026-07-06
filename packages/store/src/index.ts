@@ -77,6 +77,7 @@ export type {
   StoreDefinition,
   StoreInput,
   StoreError,
+  SessionInfo,
   MutationDefinition,
   MutationServerFn,
   MutationClientFn,

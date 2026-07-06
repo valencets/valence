@@ -63,7 +63,7 @@ describe('SSE + Mutation integration — session scope', () => {
     broadcaster.addClient('counter', 'mutator', tab1 as ServerResponse)
     broadcaster.addClient('counter', 'mutator', tab2 as ServerResponse)
 
-    await routes.handleMutation('mutator', 'increment', { amount: 5 })
+    await routes.handleMutation({ id: 'mutator' }, 'increment', { amount: 5 })
 
     expect(tab1._written).toHaveLength(1)
     expect(tab1._written[0]).toContain('event: state')
@@ -77,7 +77,7 @@ describe('SSE + Mutation integration — session scope', () => {
     const observerRes = mockSSERes()
     broadcaster.addClient('counter', 'observer', observerRes as ServerResponse)
 
-    await routes.handleMutation('mutator', 'increment', { amount: 3 })
+    await routes.handleMutation({ id: 'mutator' }, 'increment', { amount: 3 })
 
     expect(observerRes._written).toHaveLength(0)
   })
@@ -87,7 +87,7 @@ describe('SSE + Mutation integration — session scope', () => {
     const sseRes = mockSSERes()
     broadcaster.addClient('counter', 'mutator', sseRes as ServerResponse)
 
-    await routes.handleMutation('mutator', 'increment', { amount: 'bad' })
+    await routes.handleMutation({ id: 'mutator' }, 'increment', { amount: 'bad' })
 
     expect(sseRes._written).toHaveLength(0)
   })
@@ -95,7 +95,7 @@ describe('SSE + Mutation integration — session scope', () => {
   it('mutation result includes confirmed state for the mutator', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
 
-    const result = await routes.handleMutation('s1', 'increment', { amount: 7 })
+    const result = await routes.handleMutation({ id: 's1' }, 'increment', { amount: 7 })
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
       expect(result.value.state.count).toBe(7)
@@ -108,9 +108,9 @@ describe('SSE + Mutation integration — session scope', () => {
     const secondTab = mockSSERes()
     broadcaster.addClient('counter', 'mutator', secondTab as ServerResponse)
 
-    await routes.handleMutation('mutator', 'increment', { amount: 1 })
-    await routes.handleMutation('mutator', 'increment', { amount: 2 })
-    await routes.handleMutation('mutator', 'increment', { amount: 3 })
+    await routes.handleMutation({ id: 'mutator' }, 'increment', { amount: 1 })
+    await routes.handleMutation({ id: 'mutator' }, 'increment', { amount: 2 })
+    await routes.handleMutation({ id: 'mutator' }, 'increment', { amount: 3 })
 
     expect(secondTab._written).toHaveLength(3)
     expect(secondTab._written[2]).toContain('"count":6')
@@ -118,7 +118,7 @@ describe('SSE + Mutation integration — session scope', () => {
 
   it('works without broadcaster (backwards compatible)', async () => {
     const routes = registerStoreRoutes(config, holder)
-    const result = await routes.handleMutation('s1', 'increment', { amount: 10 })
+    const result = await routes.handleMutation({ id: 's1' }, 'increment', { amount: 10 })
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
       expect(result.value.state.count).toBe(10)
@@ -142,7 +142,7 @@ describe('SSE + Mutation integration — global scope', () => {
     const observerRes = mockSSERes()
     broadcaster.addClient('counter', 'observer', observerRes as ServerResponse)
 
-    await routes.handleMutation('mutator', 'increment', { amount: 4 })
+    await routes.handleMutation({ id: 'mutator' }, 'increment', { amount: 4 })
 
     expect(observerRes._written).toHaveLength(1)
     expect(observerRes._written[0]).toContain('"count":4')
@@ -151,20 +151,20 @@ describe('SSE + Mutation integration — global scope', () => {
   it('global-scoped state is one shared copy across sessions', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
 
-    await routes.handleMutation('session-a', 'increment', { amount: 5 })
+    await routes.handleMutation({ id: 'session-a' }, 'increment', { amount: 5 })
 
-    expect(routes.getState('session-b').count).toBe(5)
+    expect(routes.getState({ id: 'session-b' }).count).toBe(5)
   })
 
   it('concurrent global mutations from different sessions all land', async () => {
     const routes = registerStoreRoutes(config, holder, broadcaster)
 
     const promises = Array.from({ length: 10 }, (_, i) =>
-      routes.handleMutation(`session-${i}`, 'bump', {})
+      routes.handleMutation({ id: `session-${i}` }, 'bump', {})
     )
     await Promise.all(promises)
 
-    expect(routes.getState('any-session').count).toBe(10)
+    expect(routes.getState({ id: 'any-session' }).count).toBe(10)
   })
 })
 
@@ -177,7 +177,7 @@ describe('SSE + Mutation integration — page scope', () => {
     const sseRes = mockSSERes()
     broadcaster.addClient('counter', 'mutator', sseRes as ServerResponse)
 
-    await routes.handleMutation('mutator', 'increment', { amount: 1 })
+    await routes.handleMutation({ id: 'mutator' }, 'increment', { amount: 1 })
 
     expect(sseRes._written).toHaveLength(0)
   })

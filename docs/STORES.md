@@ -81,7 +81,7 @@ is identical across scopes.
 |---|---|---|
 | `page` | None — no routes, no SSE. Typed shared signals with validation only. | — |
 | `session` | In-memory, keyed by session, LRU-capped (1000 sessions). | The mutating session's own tabs only. |
-| `user` | Same as `session` today. Postgres persistence is planned; mutations already receive the real database pool. | The mutating session's own tabs only. |
+| `user` | Postgres-backed (`store_states` table, one row per store + user), keyed by the verified `userId` — state follows the user across sessions, devices, and restarts. Requires an authenticated cms session (403 otherwise). | Every connection of that user, across all their sessions. |
 | `global` | One shared copy for every session. Mutations from all sessions linearize on one lock. | Every connected client. |
 
 Session-scoped state never crosses sessions — neither via `getState` nor
@@ -172,19 +172,55 @@ Per store (except `page` scope):
 - `GET /store/:slug/hydration` — the hydration script tag for server
   templates that compose pages from fetched partials.
 
-All routes require a session (`session_id`/`cms_session` cookie or
-`X-Session-Id` header) and return 401 without one.
+## Session identity
+
+Every route resolves the caller's identity, strongest claim first:
+
+1. A `cms_session` cookie is verified against the CMS sessions table and
+   yields an authenticated identity with a `userId` — this is what
+   user-scoped stores key on, and it reaches mutation `server` fns as
+   `session.userId`.
+2. A `session_id` cookie or `X-Session-Id` header must carry a
+   **server-signed token** (`id.hmac`, HMAC-SHA256 over `CMS_SECRET`).
+   Forged or tampered ids get 401 — presenting someone else's session id no
+   longer opens their bucket.
+3. No claim at all mints a fresh signed anonymous session and sets the
+   cookie, so anonymous carts work from first contact and every later
+   request lands in the same bucket.
+
+Stale cms sessions (e.g. after logout) degrade gracefully to a fresh
+anonymous identity. User-scoped routes return 403 for anonymous callers.
+Without a configured secret (bare `registerStoreRoutesOnServer` in dev
+harnesses), identity falls back to the legacy presence check.
+
+## Automatic hydration
+
+Server-rendered pages that reference a store via `data-store="<slug>"` get
+their `<script data-store-hydrate>` tags injected automatically before
+`</body>` — page routes from `src/pages/`, generated collection routes, and
+loader routes are all covered. Pages that reference no store are left
+byte-identical and never mint session cookies. First paint of a store page
+mints the anonymous session cookie, so the hydrated state and every later
+fetch/SSE call share one bucket. User-scoped stores are skipped for
+anonymous visitors. Static HTML served from `public/` is not transformed —
+embed `renderStoreHydration` manually there or rely on the `/state`
+endpoint.
+
+New projects get the `store_states` table from the scaffolded initial
+migration; existing projects get it from an idempotent
+`CREATE TABLE IF NOT EXISTS` the wiring issues once at boot when a
+user-scoped store and a database pool are configured.
 
 ## Security model and current limits
 
 - Hydration JSON is OWASP-escaped; fragments are sanitized client-side; SSE
   event names are validated. Both directions carry XSS tests.
-- Session identity is currently presence-checked, not verified against a
-  session table. Do not treat session/user scope as an authorization
-  boundary yet — verification against CMS sessions is planned work.
-- `user` scope does not persist to postgres yet (state is in-memory and
-  LRU-capped); the mutation `pool` is the real database pool, so mutations
-  can already read/write collections.
-- Hydration tags are not auto-injected into rendered pages; embed
-  `renderStoreHydration(slug, state)` in server templates or rely on the
-  bootstrap's SSE/state endpoints.
+- Anonymous session ids are HMAC-signed and verified timing-safely;
+  authenticated identity is validated against the CMS sessions table with
+  its expiry and soft-delete checks.
+- The per-bucket mutation lock is in-process. Multi-process or multi-node
+  deployments sharing one database need row-level locking on
+  `store_states` before serving the same user-scoped store from several
+  instances.
+- Signed anonymous sessions are not stored server-side, so they cannot be
+  revoked individually — rotate `CMS_SECRET` to invalidate all of them.
