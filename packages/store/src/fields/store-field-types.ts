@@ -21,6 +21,8 @@ export type StoreFieldType = typeof StoreFieldType[keyof typeof StoreFieldType]
 interface StoreFieldBase {
   readonly name: string
   readonly type: StoreFieldType
+  /** Required fields must be present in mutation input; fields are optional by default */
+  readonly required?: boolean
 }
 
 export interface TextFieldConfig extends StoreFieldBase {

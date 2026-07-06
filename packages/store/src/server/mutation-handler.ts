@@ -46,7 +46,8 @@ export async function handleMutation (
   mutationName: string,
   args: { [key: string]: string | number | boolean | null },
   pool: { readonly query: (...args: readonly string[]) => Promise<readonly unknown[]> },
-  session: SessionInfo
+  session: SessionInfo,
+  clientMutationId?: number
 ): Promise<Result<MutationResult, StoreError>> {
   const mutation = config.mutations[mutationName]
   if (mutation === undefined) {
@@ -56,6 +57,9 @@ export async function handleMutation (
     })
   }
 
+  // Zod strips unknown keys — only declared input fields reach the server fn.
+  // Mutations with no input definition ignore client args entirely.
+  let validatedInput: { [key: string]: string | number | boolean | null } = {}
   if (mutation.input.length > 0) {
     const inputSchema = generateStoreSchema(mutation.input)
     const validation = inputSchema.safeParse(args)
@@ -65,15 +69,19 @@ export async function handleMutation (
         message: `Mutation '${mutationName}' input validation failed: ${validation.error.message}`
       })
     }
+    validatedInput = validation.data as { [key: string]: string | number | boolean | null }
   }
 
   // Serialize mutations per session to prevent TOCTOU race on state
   return withSessionLock(sessionId, async () => {
     const state = stateHolder.getState(sessionId)
-    const mutationId = _nextMutationId++
+    // The confirmedId's job is to tell the mutating client which of ITS pending
+    // entries was applied — echo the client's id when supplied, fall back to a
+    // server counter for direct callers.
+    const mutationId = clientMutationId ?? _nextMutationId++
 
     const result = await ResultAsync.fromPromise(
-      mutation.server({ state, input: Object.freeze(args), pool, session }),
+      mutation.server({ state, input: Object.freeze(validatedInput), pool, session }),
       (e) => ({
         code: StoreErrorCode.MUTATION_FAILED,
         message: e instanceof Error ? e.message : `Mutation '${mutationName}' failed`

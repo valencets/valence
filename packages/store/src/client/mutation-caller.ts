@@ -23,6 +23,11 @@ type PostMutationFn = (
 
 type ClientFn = (state: StoreState, input: { [key: string]: StoreValue }) => void
 
+/** Rollback baseline shared by every mutation caller of one store client */
+export interface ServerStateRef {
+  current: StoreState
+}
+
 interface MutationCallerConfig {
   readonly storeSlug: string
   readonly mutationName: string
@@ -32,16 +37,29 @@ interface MutationCallerConfig {
   readonly postMutation: PostMutationFn
   readonly clientFn?: ClientFn
   readonly serverState?: StoreState
+  /** Shared across ALL of a store's callers so mixed pending mutations rebase together */
+  readonly sharedClientFns?: Map<number, (state: StoreState) => void>
+  readonly serverStateRef?: ServerStateRef
+}
+
+const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set(Object.values(StoreErrorCode))
+
+function toStoreErrorCode (code: string | undefined): StoreErrorCode {
+  if (code !== undefined && KNOWN_ERROR_CODES.has(code)) {
+    return code as StoreErrorCode
+  }
+  return StoreErrorCode.MUTATION_FAILED
 }
 
 export function createMutationCaller (
   config: MutationCallerConfig
 ): (args: { [key: string]: StoreValue }) => Promise<Result<void, StoreError>> {
-  const clientFns = new Map<number, (state: StoreState) => void>()
-  let lastKnownServerState: StoreState = config.serverState ?? {}
+  const clientFns = config.sharedClientFns ?? new Map<number, (state: StoreState) => void>()
+  const stateRef: ServerStateRef = config.serverStateRef ?? { current: config.serverState ?? {} }
 
   return async (args) => {
-    // Step 1: Validate input
+    // Step 1: Validate input — Zod strips unknown keys, so only declared
+    // input fields survive into the optimistic apply and the wire payload
     const validation = config.inputSchema.safeParse(args)
     if (!validation.success) {
       return err({
@@ -49,9 +67,10 @@ export function createMutationCaller (
         message: validation.error.message
       })
     }
+    const input = validation.data as { [key: string]: StoreValue }
 
     // Step 2: Enqueue mutation
-    const mutationId = config.pendingQueue.enqueue(config.mutationName, args as { [key: string]: string | number | boolean | null })
+    const mutationId = config.pendingQueue.enqueue(config.mutationName, input as { [key: string]: string | number | boolean | null })
 
     // Step 3: Optimistic apply (if client function provided)
     if (config.clientFn) {
@@ -59,10 +78,10 @@ export function createMutationCaller (
       for (const key of Object.keys(config.signals)) {
         localState[key] = config.signals[key]!.value
       }
-      config.clientFn(localState, args)
+      config.clientFn(localState, input)
 
       // Register for replay during reconciliation
-      const boundFn = (state: StoreState) => config.clientFn!(state, args)
+      const boundFn = (state: StoreState) => config.clientFn!(state, input)
       clientFns.set(mutationId, boundFn)
 
       // Apply to signals
@@ -76,14 +95,15 @@ export function createMutationCaller (
     const response = await config.postMutation(
       config.storeSlug,
       config.mutationName,
-      args,
+      input,
       mutationId
     )
 
-    // Step 5: Reconcile
+    // Step 5: Reconcile. This caller KNOWS which of its pending entries the
+    // response settles — confirm the local id rather than trusting an echo.
     if (response.ok && response.state) {
-      lastKnownServerState = response.state
-      reconcileState(config.signals, response.state, config.pendingQueue, response.confirmedId, clientFns)
+      stateRef.current = response.state
+      reconcileState(config.signals, response.state, config.pendingQueue, mutationId, clientFns)
       clientFns.delete(mutationId)
       return ok(undefined)
     }
@@ -93,10 +113,10 @@ export function createMutationCaller (
     clientFns.delete(mutationId)
 
     // Restore to last known server state + replay remaining pending
-    reconcileState(config.signals, lastKnownServerState, config.pendingQueue, undefined, clientFns)
+    reconcileState(config.signals, stateRef.current, config.pendingQueue, undefined, clientFns)
 
     return err({
-      code: (response.error?.code as StoreErrorCode) ?? StoreErrorCode.MUTATION_FAILED,
+      code: toStoreErrorCode(response.error?.code),
       message: response.error?.message ?? `Mutation '${config.mutationName}' failed`
     })
   }

@@ -15,7 +15,8 @@ interface StoreRouteHandlers {
   readonly handleMutation: (
     sessionId: string,
     mutationName: string,
-    args: { [key: string]: string | number | boolean | null }
+    args: { [key: string]: string | number | boolean | null },
+    clientMutationId?: number
   ) => Promise<Result<MutationResult, StoreError>>
   readonly getState: (sessionId: string) => StoreState
 }
@@ -36,10 +37,11 @@ export function registerStoreRoutes (
     async handleMutation (
       sessionId: string,
       mutationName: string,
-      args: { [key: string]: string | number | boolean | null }
+      args: { [key: string]: string | number | boolean | null },
+      clientMutationId?: number
     ): Promise<Result<MutationResult, StoreError>> {
       const session: SessionInfo = { id: sessionId }
-      const result = await handleMutation(config, stateHolder, sessionId, mutationName, args, defaultPool, session)
+      const result = await handleMutation(config, stateHolder, sessionId, mutationName, args, defaultPool, session, clientMutationId)
 
       if (result.isOk() && broadcaster) {
         broadcaster.broadcastExcept(slug, sessionId, 'state', result.value.state)

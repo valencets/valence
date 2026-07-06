@@ -16,7 +16,7 @@ export function store (input: StoreInput): Result<StoreDefinition, StoreError> {
 
   if (input.fields.length === 0) {
     return err({
-      code: StoreErrorCode.INVALID_SLUG,
+      code: StoreErrorCode.INVALID_FIELDS,
       message: 'Store must have at least one field'
     })
   }

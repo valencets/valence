@@ -125,7 +125,7 @@ function buildObjectSchema (fields: readonly StoreFieldConfig[]): z.ZodObject<Re
   for (const f of fields) {
     const builder = STORE_FIELD_SCHEMA_MAP[f.type]
     if (builder === undefined) continue
-    shape[f.name] = builder(f).optional()
+    shape[f.name] = f.required === true ? builder(f) : builder(f).optional()
   }
 
   return z.object(shape)

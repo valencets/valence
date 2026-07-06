@@ -4,6 +4,7 @@ import { createStoreSignals } from './store-signals.js'
 import type { StoreSignals } from './store-signals.js'
 import { PendingQueue } from './pending-queue.js'
 import { createMutationCaller } from './mutation-caller.js'
+import type { ServerStateRef } from './mutation-caller.js'
 import { generateStoreSchema } from '../validation/zod-generator.js'
 
 type PostMutationFn = (
@@ -23,6 +24,7 @@ type MutationFn = (args: { [key: string]: StoreValue }) => Promise<Result<void, 
 interface StoreClient {
   readonly signals: StoreSignals
   readonly mutations: { [name: string]: MutationFn }
+  readonly pendingCount: number
   readonly dispose: () => void
 }
 
@@ -35,6 +37,16 @@ export function createStoreClient (
   const pendingQueue = PendingQueue.create()
   const mutations: { [name: string]: MutationFn } = {}
 
+  // One rebase context per store: rollback restores field defaults + hydration
+  // (the signals' initial values), and every caller shares the same replay map
+  // so mixed pending mutations rebase together regardless of name.
+  const initialState: StoreState = {}
+  for (const key of Object.keys(signals)) {
+    initialState[key] = signals[key]!.value
+  }
+  const serverStateRef: ServerStateRef = { current: initialState }
+  const sharedClientFns = new Map<number, (state: StoreState) => void>()
+
   for (const [name, mutation] of Object.entries(config.mutations)) {
     const inputSchema = generateStoreSchema(mutation.input)
 
@@ -45,14 +57,15 @@ export function createStoreClient (
       signals,
       pendingQueue,
       postMutation,
+      sharedClientFns,
+      serverStateRef,
       ...(mutation.client
         ? {
             clientFn: (state: StoreState, input: { [key: string]: StoreValue }) => {
               mutation.client!({ state, input })
             }
           }
-        : {}),
-      ...(Object.keys(hydrationState).length > 0 ? { serverState: { ...hydrationState } } : {})
+        : {})
     }
 
     mutations[name] = createMutationCaller(callerConfig)
@@ -61,8 +74,12 @@ export function createStoreClient (
   return {
     signals,
     mutations,
+    get pendingCount () {
+      return pendingQueue.size
+    },
     dispose () {
       pendingQueue.clear()
+      sharedClientFns.clear()
     }
   }
 }
