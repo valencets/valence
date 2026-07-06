@@ -29,15 +29,17 @@ export interface StoreError {
   readonly message: string
 }
 
-/** Any value that can appear in store state — recursive to support nested objects/arrays */
+/**
+ * Any value that can appear in store state — recursive to support nested
+ * objects/arrays. Restricted to JSON-safe values: state crosses the wire as
+ * JSON and is cloned via JSON round-trips, so binary values cannot survive.
+ */
 export type StoreValue =
   | string
   | number
   | boolean
   | null
   | undefined
-  | Blob
-  | File
   | StoreValue[]
   | { [key: string]: StoreValue }
 
