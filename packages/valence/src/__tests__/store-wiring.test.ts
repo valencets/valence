@@ -510,3 +510,49 @@ describe('persist option wiring', () => {
     expect(JSON.parse(captured.body).state.count).toBe(7)
   })
 })
+
+describe('client script auto-injection', () => {
+  const SECRET = 'wiring-test-secret'
+
+  function pageReq (cookie: string): IncomingMessage {
+    const emitter = new EventEmitter()
+    return Object.assign(emitter, { headers: { cookie }, method: 'GET' }) as unknown as IncomingMessage
+  }
+
+  it('injects one module script tag on store-referencing pages when a client bundle is configured', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, {
+      secret: SECRET,
+      clientScriptUrl: '/_valence/client.js'
+    })
+
+    const html = '<html><body><div data-store="counter"></div><div data-store="counter"></div></body></html>'
+    const out = await hydrator!(pageReq(''), mockRes(), html)
+
+    const tag = '<script type="module" src="/_valence/client.js"></script>'
+    expect(out).toContain(tag)
+    expect(out.indexOf(tag)).toBe(out.lastIndexOf(tag))
+    expect(out.indexOf(tag)).toBeLessThan(out.indexOf('</body>'))
+  })
+
+  it('leaves pages without store references untouched', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, {
+      secret: SECRET,
+      clientScriptUrl: '/_valence/client.js'
+    })
+
+    const html = '<html><body><p>plain page</p></body></html>'
+    const out = await hydrator!(pageReq(''), mockRes(), html)
+    expect(out).toBe(html)
+  })
+
+  it('injects no script tag when no client bundle is configured', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    const html = '<html><body><div data-store="counter"></div></body></html>'
+    const out = await hydrator!(pageReq(''), mockRes(), html)
+    expect(out).not.toContain('<script type="module"')
+  })
+})
