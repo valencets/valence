@@ -213,3 +213,137 @@ describe('registerStoreRoutesOnServer', () => {
     expect(otherFrames).not.toContain('event: state')
   })
 })
+
+describe('session verification (secret configured)', () => {
+  const SECRET = 'wiring-test-secret'
+
+  async function importSession () {
+    return await import('../store-session.js')
+  }
+
+  it('rejects unsigned session ids with 401', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":1}}', 'session_id=plain-forged-id')
+    expect(captured.statusCode).toBe(401)
+  })
+
+  it('accepts signed session ids and isolates state between them', async () => {
+    const { mintSignedSessionId } = await importSession()
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    const tokenA = mintSignedSessionId(SECRET)
+    const tokenB = mintSignedSessionId(SECRET)
+
+    const first = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":4}}', `session_id=${tokenA}`)
+    expect(first.statusCode).toBe(200)
+    expect(JSON.parse(first.body).state.count).toBe(4)
+
+    const other = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":1}}', `session_id=${tokenB}`)
+    expect(JSON.parse(other.body).state.count).toBe(1)
+  })
+
+  it('mints a signed session and sets the cookie when none is present', async () => {
+    const { verifySignedSessionId } = await importSession()
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":2}}', '')
+    expect(captured.statusCode).toBe(200)
+
+    const setCookie = captured.headers['Set-Cookie'] ?? captured.headers['set-cookie']
+    expect(setCookie).toBeDefined()
+    const token = String(setCookie).match(/session_id=([^;]+)/)?.[1]
+    expect(token).toBeDefined()
+    expect(verifySignedSessionId(SECRET, token!)).not.toBeNull()
+  })
+
+  it('resolves userId from a cms_session cookie via the validator', async () => {
+    let seenUserId: string | undefined
+    const validateCmsSession = vi.fn(async () => 'user-77')
+    const { registerRoute, routes } = collectRoutes()
+
+    const storeInput = counterStore({
+      scope: 'user',
+      mutations: {
+        record: {
+          input: [],
+          server: async ({ session }) => { seenUserId = session.userId }
+        }
+      }
+    })
+    registerStoreRoutesOnServer([storeInput], registerRoute, { secret: SECRET, validateCmsSession })
+
+    const captured = await postMutation(routes, 'counter', 'record', '{"args":{}}', 'cms_session=11111111-2222-3333-4444-555555555555')
+    expect(captured.statusCode).toBe(200)
+    expect(validateCmsSession).toHaveBeenCalledWith('11111111-2222-3333-4444-555555555555')
+    expect(seenUserId).toBe('user-77')
+  })
+
+  it('falls back to minting an anonymous session when the cms session is invalid', async () => {
+    const validateCmsSession = vi.fn(async () => null)
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET, validateCmsSession })
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":1}}', 'cms_session=stale-after-logout')
+    expect(captured.statusCode).toBe(200)
+    const setCookie = captured.headers['Set-Cookie'] ?? captured.headers['set-cookie']
+    expect(setCookie).toBeDefined()
+  })
+
+  it('rejects anonymous identities on user-scoped stores with 403', async () => {
+    const { mintSignedSessionId } = await importSession()
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore({ scope: 'user' })], registerRoute, { secret: SECRET })
+
+    const token = mintSignedSessionId(SECRET)
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":1}}', `session_id=${token}`)
+    expect(captured.statusCode).toBe(403)
+  })
+})
+
+describe('user-scope postgres persistence wiring', () => {
+  const SECRET = 'wiring-test-secret'
+
+  it('ensures the store_states table and persists user state through the pool', async () => {
+    const rows = new Map<string, { [key: string]: unknown }>()
+    const query = vi.fn(async (sql: string, ...params: string[]) => {
+      if (sql.startsWith('CREATE TABLE')) return []
+      if (sql.startsWith('INSERT')) {
+        rows.set(`${params[0]}|${params[1]}`, JSON.parse(params[2]!) as { [key: string]: unknown })
+        return []
+      }
+      const row = rows.get(`${params[0]}|${params[1]}`)
+      return row ? [{ state: row }] : []
+    })
+    const validateCmsSession = vi.fn(async () => 'user-9')
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore({ scope: 'user' })], registerRoute, {
+      secret: SECRET,
+      validateCmsSession,
+      pool: { query }
+    })
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":6}}', 'cms_session=cms-token')
+    expect(captured.statusCode).toBe(200)
+    expect(JSON.parse(captured.body).state.count).toBe(6)
+
+    const sqlCalls = query.mock.calls.map(call => String(call[0]))
+    expect(sqlCalls.some(sql => sql.startsWith('CREATE TABLE IF NOT EXISTS'))).toBe(true)
+    expect(sqlCalls.some(sql => sql.includes('INSERT INTO store_states'))).toBe(true)
+    expect(rows.has('counter|user:user-9')).toBe(true)
+  })
+
+  it('session-scoped stores stay in memory — no store_states traffic', async () => {
+    const query = vi.fn(async () => [])
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore({ scope: 'session' })], registerRoute, { pool: { query } })
+
+    await postMutation(routes, 'counter', 'increment', '{"args":{"amount":1}}')
+
+    const storeStateCalls = query.mock.calls.filter(call => String(call[0]).includes('store_states'))
+    expect(storeStateCalls).toHaveLength(0)
+  })
+})
