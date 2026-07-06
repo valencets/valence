@@ -676,10 +676,9 @@ describe('Concurrent mutation ordering', () => {
     )
     await Promise.all(promises)
 
-    // Note: due to read-then-write race, final count may not be 10
-    // This test documents the current behavior
+    // The per-session mutation lock serializes state read/apply/write,
+    // so all 10 concurrent increments must land — no lost updates.
     const count = routes.getState('s1').count as number
-    expect(count).toBeGreaterThan(0)
-    expect(count).toBeLessThanOrEqual(10)
+    expect(count).toBe(10)
   })
 })
