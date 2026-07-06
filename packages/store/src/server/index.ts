@@ -1,6 +1,8 @@
 export { SessionStateHolder } from './session-state.js'
 export { handleMutation } from './mutation-handler.js'
 export { registerStoreRoutes } from './store-routes.js'
+export type { StorePool } from './store-routes.js'
+export type { SessionStateOptions } from './session-state.js'
 export { SSEBroadcaster } from './sse-broadcaster.js'
 export { renderStoreFragment } from './fragment-renderer.js'
 export { renderStoreHydration } from './hydration.js'

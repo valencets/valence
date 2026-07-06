@@ -21,7 +21,11 @@ interface StoreRouteHandlers {
   readonly getState: (sessionId: string) => StoreState
 }
 
-const defaultPool = { query: async () => [] }
+export interface StorePool {
+  readonly query: (...args: readonly string[]) => Promise<readonly unknown[]>
+}
+
+const defaultPool: StorePool = { query: async () => [] }
 
 const GLOBAL_STATE_KEY = '__global__'
 
@@ -35,9 +39,11 @@ function stateKeyFor (config: StoreDefinition, sessionId: string): string {
 export function registerStoreRoutes (
   config: StoreDefinition,
   stateHolder: SessionStateHolder,
-  broadcaster?: SSEBroadcaster
+  broadcaster?: SSEBroadcaster,
+  pool?: StorePool
 ): StoreRouteHandlers {
   const slug = config.slug
+  const mutationPool = pool ?? defaultPool
 
   return {
     mutationPath: `/store/${slug}/:mutation`,
@@ -51,7 +57,7 @@ export function registerStoreRoutes (
     ): Promise<Result<MutationResult, StoreError>> {
       const session: SessionInfo = { id: sessionId }
       const stateKey = stateKeyFor(config, sessionId)
-      const result = await handleMutation(config, stateHolder, stateKey, mutationName, args, defaultPool, session, clientMutationId)
+      const result = await handleMutation(config, stateHolder, stateKey, mutationName, args, mutationPool, session, clientMutationId)
 
       if (result.isOk() && broadcaster) {
         // Scope decides the SSE audience: global fans out to every session,
