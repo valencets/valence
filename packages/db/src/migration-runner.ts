@@ -155,13 +155,28 @@ function runMigrationsWithLock (pool: DbPool, migrations: ReadonlyArray<Migratio
             continue
           }
 
-          await reservedSql.begin(async (tx) => {
-            await tx.unsafe(migration.sql)
-            await tx.unsafe(
+          // postgres.js reserved connections expose no begin() — the
+          // transaction is issued explicitly so it stays on the same
+          // connection that holds the advisory lock.
+          await reservedSql.unsafe('BEGIN')
+          const failure: unknown = await (async () => {
+            await reservedSql.unsafe(migration.sql)
+            await reservedSql.unsafe(
               'INSERT INTO _migrations (version, name) VALUES ($1, $2)',
               [migration.version, migration.name]
             )
-          })
+          })().then(
+            () => null,
+            (cause: unknown) => cause instanceof Error ? cause : new Error(`migration ${migration.version} failed`)
+          )
+
+          if (failure !== null) {
+            // Surface the original failure even if the rollback also fails
+            await reservedSql.unsafe('ROLLBACK').then(() => undefined, () => undefined)
+            await Promise.reject(failure)
+          }
+
+          await reservedSql.unsafe('COMMIT')
           count++
         }
 
