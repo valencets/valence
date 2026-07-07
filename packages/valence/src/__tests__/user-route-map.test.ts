@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+
+const { existsSyncMock, readFileSyncMock } = vi.hoisted(() => ({
+  existsSyncMock: vi.fn(),
+  readFileSyncMock: vi.fn()
+}))
+
+vi.mock('node:fs', () => ({
+  existsSync: existsSyncMock,
+  readFileSync: readFileSyncMock
+}))
+
 import { buildUserRouteMap } from '../route-generator.js'
 import type { RouteConfig, LoaderContext, LoaderResult, ActionContext, ActionResult } from '../define-config.js'
 import type { DbPool } from '@valencets/db'
@@ -30,6 +41,8 @@ const cms = {} as CmsInstance
 describe('buildUserRouteMap', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    existsSyncMock.mockReturnValue(false)
+    readFileSyncMock.mockReturnValue('')
   })
 
   it('returns empty map for empty routes array', () => {
@@ -141,6 +154,45 @@ describe('buildUserRouteMap', () => {
     expect(res.end).toHaveBeenCalled()
   })
 
+  it('merges custom loader headers into standard responses', async () => {
+    const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({
+      data: { posts: [] },
+      headers: { 'Cache-Control': 'no-store', 'X-Trace-Id': 'abc123' }
+    })
+    const routes: readonly RouteConfig[] = [
+      { path: '/blog', loader }
+    ]
+    const map = buildUserRouteMap(routes, '/nonexistent/fake/dir', pool, cms)
+    const h = map.get('/blog')?.get('GET')
+    const req = makeReq()
+    const res = makeRes()
+    await h?.(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
+      'Content-Type': expect.stringContaining('text/html'),
+      'Cache-Control': 'no-store',
+      'X-Trace-Id': 'abc123'
+    }))
+  })
+
+  it('merges custom loader headers into redirect responses while keeping Location authoritative', async () => {
+    const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({
+      redirect: '/login',
+      headers: { 'Cache-Control': 'no-store', Location: '/wrong' }
+    })
+    const routes: readonly RouteConfig[] = [
+      { path: '/protected', loader }
+    ]
+    const map = buildUserRouteMap(routes, '/nonexistent/fake/dir', pool, cms)
+    const h = map.get('/protected')?.get('GET')
+    const req = makeReq()
+    const res = makeRes()
+    await h?.(req, res, {})
+    expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({
+      Location: '/login',
+      'Cache-Control': 'no-store'
+    }))
+  })
+
   it('sends custom status code when loader returns status', async () => {
     const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({
       status: 403,
@@ -161,6 +213,7 @@ describe('buildUserRouteMap', () => {
 
   it('sends 500 when loader fails', async () => {
     const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => {
+      // Intentional test-only throw to verify server error handling on loader failure.
       throw new Error('DB down')
     }
     const routes: readonly RouteConfig[] = [
@@ -183,6 +236,25 @@ describe('buildUserRouteMap', () => {
     expect(map.get('/contact')?.has('POST')).toBe(true)
   })
 
+  it('registers action routes with their explicit method', () => {
+    const action = async (_ctx: ActionContext): Promise<ActionResult> => ({ redirect: '/done' })
+    const routes: readonly RouteConfig[] = [
+      { path: '/contact', method: 'PUT', action }
+    ]
+    const map = buildUserRouteMap(routes, '/fake/dir', pool, cms)
+    expect(map.get('/contact')?.has('PUT')).toBe(true)
+    expect(map.get('/contact')?.has('POST')).toBe(false)
+  })
+
+  it('defaults action routes to POST when method is omitted', () => {
+    const action = async (_ctx: ActionContext): Promise<ActionResult> => ({ redirect: '/done' })
+    const routes: readonly RouteConfig[] = [
+      { path: '/contact', action }
+    ]
+    const map = buildUserRouteMap(routes, '/fake/dir', pool, cms)
+    expect(map.get('/contact')?.has('POST')).toBe(true)
+  })
+
   it('registers both GET (loader) and POST (action) for same path', () => {
     const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({ data: {} })
     const action = async (_ctx: ActionContext): Promise<ActionResult> => ({ redirect: '/done' })
@@ -192,5 +264,80 @@ describe('buildUserRouteMap', () => {
     const map = buildUserRouteMap(routes, '/fake/dir', pool, cms)
     expect(map.get('/contact')?.has('GET')).toBe(true)
     expect(map.get('/contact')?.has('POST')).toBe(true)
+  })
+
+  it('preserves the loader when a GET action would overwrite its handler', async () => {
+    const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({ data: {} })
+    const action = async (_ctx: ActionContext): Promise<ActionResult> => ({ redirect: '/done' })
+    const routes: readonly RouteConfig[] = [
+      { path: '/contact', method: 'GET', loader, action }
+    ]
+    const map = buildUserRouteMap(routes, '/fake/dir', pool, cms)
+    const h = map.get('/contact')?.get('GET')
+    const req = makeReq()
+    const res = makeRes()
+
+    await h?.(req, res, {})
+
+    const body = (res.end as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string
+    expect(body).toContain('data-val-loader')
+    expect(body).not.toContain('/done')
+  })
+
+  it('falls back safely when template resolution sees traversal-shaped route paths', async () => {
+    const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({ data: {} })
+    const routes: readonly RouteConfig[] = [
+      { path: '/../../../etc/passwd', loader }
+    ]
+    const map = buildUserRouteMap(routes, '/project', pool, cms)
+    const h = map.get('/../../../etc/passwd')?.get('GET')
+    const req = makeReq()
+    const res = makeRes()
+
+    await h?.(req, res, {})
+
+    expect(existsSyncMock).not.toHaveBeenCalled()
+    expect(readFileSyncMock).not.toHaveBeenCalled()
+    expect(res.end).toHaveBeenCalledWith(expect.stringContaining('data-val-loader'))
+  })
+
+  it('resolves multi-segment static routes to nested index templates', async () => {
+    existsSyncMock.mockImplementation((path: unknown) =>
+      typeof path === 'string' && path.endsWith('/src/pages/blog/archive/ui/index.html')
+    )
+    readFileSyncMock.mockReturnValue('<html><body>archive</body></html>')
+
+    const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({ data: { archive: true } })
+    const routes: readonly RouteConfig[] = [
+      { path: '/blog/archive', loader }
+    ]
+    const map = buildUserRouteMap(routes, '/project', pool, cms)
+    const h = map.get('/blog/archive')?.get('GET')
+    const req = makeReq()
+    const res = makeRes()
+    await h?.(req, res, {})
+
+    expect(readFileSyncMock).toHaveBeenCalledWith('/project/src/pages/blog/archive/ui/index.html', 'utf-8')
+    expect(res.end).toHaveBeenCalledWith(expect.stringContaining('archive'))
+  })
+
+  it('resolves mixed static and param routes to nested detail templates', async () => {
+    existsSyncMock.mockImplementation((path: unknown) =>
+      typeof path === 'string' && path.endsWith('/src/pages/docs/history/ui/detail.html')
+    )
+    readFileSyncMock.mockReturnValue('<html><body>history</body></html>')
+
+    const loader = async (_ctx: LoaderContext): Promise<LoaderResult> => ({ data: { ok: true } })
+    const routes: readonly RouteConfig[] = [
+      { path: '/docs/:id/history', loader }
+    ]
+    const map = buildUserRouteMap(routes, '/project', pool, cms)
+    const h = map.get('/docs/:id/history')?.get('GET')
+    const req = makeReq()
+    const res = makeRes()
+    await h?.(req, res, { id: '42' })
+
+    expect(readFileSyncMock).toHaveBeenCalledWith('/project/src/pages/docs/history/ui/detail.html', 'utf-8')
+    expect(res.end).toHaveBeenCalledWith(expect.stringContaining('history'))
   })
 })

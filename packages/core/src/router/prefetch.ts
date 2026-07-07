@@ -1,4 +1,4 @@
-import { ok, err, ResultAsync } from '@valencets/resultkit'
+import { ok, err, ResultAsync, fromThrowable } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 import { RouterErrorCode } from './router-types.js'
 import type { RouterError, ResolvedRouterConfig, CachedResponse } from './router-types.js'
@@ -26,6 +26,7 @@ export function initPrefetch (
   config: ResolvedRouterConfig,
   fetchFn: typeof fetch = globalThis.fetch
 ): Result<PrefetchHandle, RouterError> {
+  const safeNewUrl = fromThrowable((value: string) => new URL(value, window.location.origin), () => null)
   const cache = new Map<string, CachedResponse>()
   const inFlight = new Set<string>()
   const pendingQueue: string[] = []
@@ -36,6 +37,36 @@ export function initPrefetch (
   let lastTime = 0
   let intentTimer: ReturnType<typeof setTimeout> | null = null
   let intentUrl: string | null = null
+
+  function normalizePrefetchUrl (url: string): Result<string, RouterError> {
+    const normalized = safeNewUrl(url)
+    if (normalized.isErr() || normalized.value === null) {
+      return err({
+        code: RouterErrorCode.PREFETCH_FAILED,
+        message: `Prefetch requires valid URL: ${url}`
+      })
+    }
+
+    if (normalized.value.origin !== window.location.origin) {
+      return err({
+        code: RouterErrorCode.PREFETCH_FAILED,
+        message: `Prefetch requires same-origin URL: ${url}`
+      })
+    }
+
+    return ok(normalized.value.pathname + normalized.value.search)
+  }
+
+  function isPrefetchableAnchor (anchor: HTMLAnchorElement): boolean {
+    if (anchor.target === '_blank') return false
+    if (anchor.hasAttribute('data-valence-ignore')) return false
+    if (anchor.hasAttribute('download')) return false
+
+    const href = anchor.getAttribute('href') ?? ''
+    if (href === '' || href.startsWith('#')) return false
+
+    return anchor.origin === window.location.origin
+  }
 
   function evictOldest (): void {
     if (cache.size >= config.prefetchCacheCapacity) {
@@ -57,32 +88,39 @@ export function initPrefetch (
   }
 
   function prefetchUrl (url: string): ResultAsync<void, RouterError> {
-    if (cache.has(url)) return ResultAsync.fromSafePromise(Promise.resolve(undefined))
-    if (inFlight.has(url)) return ResultAsync.fromSafePromise(Promise.resolve(undefined))
+    const normalized = normalizePrefetchUrl(url)
+    if (normalized.isErr()) {
+      return ResultAsync.fromSafePromise(Promise.resolve(undefined)).andThen(() => err(normalized.error))
+    }
+
+    const cacheKey = normalized.value
+
+    if (cache.has(cacheKey)) return ResultAsync.fromSafePromise(Promise.resolve(undefined))
+    if (inFlight.has(cacheKey)) return ResultAsync.fromSafePromise(Promise.resolve(undefined))
 
     // Budget check -- queue if at capacity
     if (inFlight.size >= config.maxConcurrentPrefetches) {
-      if (!pendingSet.has(url)) {
-        pendingQueue.push(url)
-        pendingSet.add(url)
+      if (!pendingSet.has(cacheKey)) {
+        pendingQueue.push(cacheKey)
+        pendingSet.add(cacheKey)
       }
       return ResultAsync.fromSafePromise(Promise.resolve(undefined))
     }
 
-    inFlight.add(url)
+    inFlight.add(cacheKey)
 
     const fetchPromise = config.enableFragmentProtocol
-      ? fetchFn(url, { headers: { 'X-Valence-Fragment': '1' } })
-      : fetchFn(url)
+      ? fetchFn(cacheKey, { headers: { 'X-Valence-Fragment': '1' } })
+      : fetchFn(cacheKey)
 
     return ResultAsync.fromPromise(
       fetchPromise,
       (): RouterError => ({
         code: RouterErrorCode.PREFETCH_FAILED,
-        message: `Prefetch failed for ${url}`
+        message: `Prefetch failed for ${cacheKey}`
       })
     ).andThen((response) => {
-      inFlight.delete(url)
+      inFlight.delete(cacheKey)
 
       if (!response.ok) {
         return err({
@@ -108,15 +146,15 @@ export function initPrefetch (
       )
     }).map((html) => {
       evictOldest()
-      cache.set(url, {
-        url,
+      cache.set(cacheKey, {
+        url: cacheKey,
         html,
         timestamp: Date.now()
       })
       drainQueue()
       return undefined
     }).mapErr((error) => {
-      inFlight.delete(url)
+      inFlight.delete(cacheKey)
       drainQueue()
       return error
     })
@@ -154,13 +192,11 @@ export function initPrefetch (
       return
     }
 
-    const href = anchor.getAttribute('href') ?? ''
-    if (href === '' || href.startsWith('#')) {
+    if (!isPrefetchableAnchor(anchor)) {
       clearIntent()
       return
     }
 
-    // Normalize to pathname + search (strip hash fragment) for consistent cache keys
     const normalizedUrl = anchor.pathname + anchor.search
 
     const now = performance.now()

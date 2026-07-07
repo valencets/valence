@@ -195,3 +195,36 @@ describe('theme-manager', () => {
     })
   })
 })
+
+describe('document-declared theme', () => {
+  it('honors html[data-theme="dark"] when the first root subscribes', () => {
+    themeManager._reset()
+    document.documentElement.setAttribute('data-theme', 'dark')
+
+    const host = document.createElement('div')
+    const root = host.attachShadow({ mode: 'open' })
+    themeManager.subscribe(root)
+
+    expect(themeManager.resolveTheme()).toBe('dark')
+
+    themeManager.unsubscribe(root)
+    document.documentElement.removeAttribute('data-theme')
+    themeManager._reset()
+  })
+
+  it('explicit setTheme calls still win over the document attribute', () => {
+    themeManager._reset()
+    document.documentElement.setAttribute('data-theme', 'dark')
+
+    themeManager.setTheme(ThemeMode.Light)
+    const host = document.createElement('div')
+    const root = host.attachShadow({ mode: 'open' })
+    themeManager.subscribe(root)
+
+    expect(themeManager.resolveTheme()).toBe('light')
+
+    themeManager.unsubscribe(root)
+    document.documentElement.removeAttribute('data-theme')
+    themeManager._reset()
+  })
+})

@@ -10,14 +10,43 @@ interface CacheStorageData {
   readonly entries: ReadonlyArray<readonly [string, PageCacheEntry]>
 }
 
+type JsonValue = string | number | boolean | null | JsonObject | JsonArray
+interface JsonObject {
+  readonly [key: string]: JsonValue | undefined
+}
+type JsonArray = ReadonlyArray<JsonValue>
+
 // System boundary: sessionStorage is external input
 const parseJson = fromThrowable(
-  (raw: string): CacheStorageData => JSON.parse(raw) as CacheStorageData,
+  (raw: string): JsonValue => JSON.parse(raw) as JsonValue,
   (): RouterError => ({ code: RouterErrorCode.PARSE_FAILED, message: 'Invalid cache storage' })
 )
 
 function hasSessionStorage (): boolean {
   return typeof sessionStorage !== 'undefined'
+}
+
+function isJsonObject (value: JsonValue): value is JsonObject {
+  return value !== null && !Array.isArray(value) && typeof value === 'object'
+}
+
+function toPageCacheEntry (value: JsonValue): PageCacheEntry | null {
+  if (!isJsonObject(value)) return null
+
+  const { url, html, timestamp, version, title } = value
+  if (typeof url !== 'string') return null
+  if (typeof html !== 'string') return null
+  if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) return null
+  if (version !== null && typeof version !== 'string') return null
+  if (title !== null && typeof title !== 'string') return null
+
+  return {
+    url,
+    html,
+    timestamp,
+    version: version ?? null,
+    title: title ?? null
+  }
 }
 
 export interface PageCacheHandle {
@@ -51,11 +80,22 @@ export function initPageCache (config: ResolvedRouterConfig): PageCacheHandle {
     const result = parseJson(raw)
     if (result.isErr()) return
     const data = result.value
+    if (!isJsonObject(data)) return
 
-    if (!Array.isArray(data.entries)) return
-    currentVersion = data.version ?? null
-    for (const [key, entry] of data.entries) {
+    const version = data.version
+    const entries = data.entries
+    if ((version !== null && typeof version !== 'string') || !Array.isArray(entries)) return
+
+    currentVersion = version ?? null
+    for (const restored of entries) {
       if (cache.size >= config.pageCacheCapacity) break
+      if (!Array.isArray(restored) || restored.length !== 2) continue
+
+      const [key, restoredEntry] = restored
+      if (typeof key !== 'string') continue
+      const entry = toPageCacheEntry(restoredEntry)
+      if (entry === null) continue
+
       cache.set(key, entry)
     }
   }

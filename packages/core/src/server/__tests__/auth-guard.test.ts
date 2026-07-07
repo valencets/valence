@@ -26,6 +26,12 @@ function makeMockCtx (path: string = '/admin'): RequestContext {
   }
 }
 
+describe('DefaultRoleHierarchy', () => {
+  it('is frozen and cannot be mutated', () => {
+    expect(Object.isFrozen(DefaultRoleHierarchy)).toBe(true)
+  })
+})
+
 describe('hasRole', () => {
   it('returns true when user role outranks required role', () => {
     expect(hasRole('admin', 'editor', DefaultRoleHierarchy)).toBe(true)
@@ -136,7 +142,22 @@ describe('createAuthGuard — HTML redirect flow', () => {
 
     expect(next).not.toHaveBeenCalled()
     expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({
-      Location: '/login?returnTo=/admin/posts'
+      Location: '/login?returnTo=%2Fadmin%2Fposts'
+    }))
+  })
+
+  it('preserves and encodes query string in HTML returnTo redirects', async () => {
+    const validate = vi.fn<() => Promise<AuthResult>>().mockResolvedValue({ authenticated: false })
+    const guard = createAuthGuard({ validate, redirectTo: '/login' })
+    const req = makeMockReq({ accept: 'text/html' })
+    const res = makeMockRes()
+    const ctx = makeMockCtx('/admin/posts?page=2&drafts=1')
+    const next = vi.fn()
+
+    await guard(req, res, ctx, next)
+
+    expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({
+      Location: '/login?returnTo=%2Fadmin%2Fposts%3Fpage%3D2%26drafts%3D1'
     }))
   })
 
@@ -152,7 +173,7 @@ describe('createAuthGuard — HTML redirect flow', () => {
     await guard(req, res, ctx, next)
 
     expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({
-      Location: '/login?returnTo=/'
+      Location: '/login?returnTo=%2F'
     }))
   })
 
@@ -168,7 +189,22 @@ describe('createAuthGuard — HTML redirect flow', () => {
 
     expect(next).not.toHaveBeenCalled()
     expect(res.writeHead).toHaveBeenCalledWith(401, expect.objectContaining({
-      'X-Valence-Redirect': '/login?returnTo=/admin/posts'
+      'X-Valence-Redirect': '/login?returnTo=%2Fadmin%2Fposts'
+    }))
+  })
+
+  it('preserves and encodes query string in fragment returnTo redirects', async () => {
+    const validate = vi.fn<() => Promise<AuthResult>>().mockResolvedValue({ authenticated: false })
+    const guard = createAuthGuard({ validate, redirectTo: '/login' })
+    const req = makeMockReq({ 'x-valence-fragment': '1' })
+    const res = makeMockRes()
+    const ctx = makeMockCtx('/admin/posts?page=2&drafts=1')
+    const next = vi.fn()
+
+    await guard(req, res, ctx, next)
+
+    expect(res.writeHead).toHaveBeenCalledWith(401, expect.objectContaining({
+      'X-Valence-Redirect': '/login?returnTo=%2Fadmin%2Fposts%3Fpage%3D2%26drafts%3D1'
     }))
   })
 })

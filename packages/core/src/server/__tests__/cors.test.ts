@@ -72,6 +72,7 @@ describe('createCorsMiddleware', () => {
 
     expect(next).toHaveBeenCalledOnce()
     expect((res as unknown as MockRes)._headers['access-control-allow-origin']).toBe('https://example.com')
+    expect((res as unknown as MockRes)._headers['vary']).toBe('Origin')
   })
 
   it('allows requests from second allowed origin', async () => {
@@ -107,6 +108,7 @@ describe('createCorsMiddleware', () => {
     expect(next).not.toHaveBeenCalled()
     expect((res as unknown as MockRes).statusCode).toBe(204)
     expect((res as unknown as MockRes)._headers['access-control-allow-origin']).toBe('https://example.com')
+    expect((res as unknown as MockRes)._headers['vary']).toBe('Origin')
     expect((res as unknown as MockRes)._headers['access-control-allow-methods']).toContain('GET')
     expect((res as unknown as MockRes)._headers['access-control-allow-methods']).toContain('POST')
     expect((res as unknown as MockRes)._headers['access-control-allow-headers']).toContain('Content-Type')

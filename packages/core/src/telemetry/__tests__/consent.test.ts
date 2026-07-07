@@ -4,7 +4,7 @@ import { shouldTrack } from '../consent.js'
 describe('shouldTrack', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
-    delete (globalThis as Record<string, unknown>).__valence_telemetry_consent
+    Reflect.deleteProperty(globalThis, '__valence_telemetry_consent')
   })
 
   it('returns true when no privacy signals are set', () => {
@@ -43,14 +43,14 @@ describe('shouldTrack', () => {
   })
 
   it('returns false when __valence_telemetry_consent is false', () => {
-    vi.stubGlobal('navigator', { doNotTrack: null });
-    (globalThis as Record<string, unknown>).__valence_telemetry_consent = false
+    vi.stubGlobal('navigator', { doNotTrack: null })
+    Reflect.set(globalThis, '__valence_telemetry_consent', false)
     expect(shouldTrack()).toBe(false)
   })
 
   it('returns true when __valence_telemetry_consent is true', () => {
-    vi.stubGlobal('navigator', { doNotTrack: null });
-    (globalThis as Record<string, unknown>).__valence_telemetry_consent = true
+    vi.stubGlobal('navigator', { doNotTrack: null })
+    Reflect.set(globalThis, '__valence_telemetry_consent', true)
     expect(shouldTrack()).toBe(true)
   })
 
@@ -60,14 +60,14 @@ describe('shouldTrack', () => {
   })
 
   it('DNT takes priority over consent flag', () => {
-    vi.stubGlobal('navigator', { doNotTrack: '1' });
-    (globalThis as Record<string, unknown>).__valence_telemetry_consent = true
+    vi.stubGlobal('navigator', { doNotTrack: '1' })
+    Reflect.set(globalThis, '__valence_telemetry_consent', true)
     expect(shouldTrack()).toBe(false)
   })
 
   it('GPC takes priority over consent flag', () => {
-    vi.stubGlobal('navigator', { doNotTrack: null, globalPrivacyControl: true });
-    (globalThis as Record<string, unknown>).__valence_telemetry_consent = true
+    vi.stubGlobal('navigator', { doNotTrack: null, globalPrivacyControl: true })
+    Reflect.set(globalThis, '__valence_telemetry_consent', true)
     expect(shouldTrack()).toBe(false)
   })
 })

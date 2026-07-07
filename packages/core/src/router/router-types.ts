@@ -1,4 +1,4 @@
-export const RouterErrorCode = {
+export const RouterErrorCode = Object.freeze({
   FETCH_FAILED: 'FETCH_FAILED',
   PARSE_FAILED: 'PARSE_FAILED',
   SELECTOR_MISS: 'SELECTOR_MISS',
@@ -9,7 +9,7 @@ export const RouterErrorCode = {
   CACHE_STALE: 'CACHE_STALE',
   VERSION_MISMATCH: 'VERSION_MISMATCH',
   AUTH_REDIRECT: 'AUTH_REDIRECT'
-} as const
+} as const)
 
 export type RouterErrorCode = typeof RouterErrorCode[keyof typeof RouterErrorCode]
 

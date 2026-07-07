@@ -52,6 +52,10 @@ describe('TransitionPreset const union', () => {
     expect(TransitionPreset['slide-down']).toBe('slide-down')
     expect(TransitionPreset.none).toBe('none')
   })
+
+  it('is frozen and cannot be mutated', () => {
+    expect(Object.isFrozen(TransitionPreset)).toBe(true)
+  })
 })
 
 describe('injectTransitionCSS', () => {

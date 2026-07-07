@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { TelemetryRingBuffer } from '../ring-buffer.js'
-import { IntentType } from '../intent-types.js'
+import { IntentType, BusinessType, CURRENT_SCHEMA_VERSION, TelemetryErrorCode } from '../intent-types.js'
 
 describe('TelemetryRingBuffer', () => {
   describe('create', () => {
@@ -181,6 +181,37 @@ describe('TelemetryRingBuffer', () => {
       }
     })
 
+    it('overwrite clears stale fields from previous occupant', () => {
+      const result = TelemetryRingBuffer.create(2)
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        const buf = result.value
+        // Fill buffer, then set metadata on slot 0
+        buf.write(IntentType.CLICK, 'old', 0, 0, 1)
+        const slot0 = buf.slotAt(0)!
+        slot0.site_id = 'stale-site'
+        slot0.path = '/stale-path'
+        slot0.referrer = 'https://stale.example.com'
+        slot0.business_type = BusinessType.LEGAL
+        slot0.schema_version = 99
+
+        buf.write(IntentType.CLICK, 'fill', 0, 0, 2)
+        // Buffer full — next write overwrites slot 0
+        buf.write(IntentType.SCROLL, 'new', 50, 60, 3)
+
+        // Slot 0 was overwritten — stale metadata must be cleared
+        expect(slot0.site_id).toBe('')
+        expect(slot0.path).toBe('')
+        expect(slot0.referrer).toBe('')
+        expect(slot0.business_type).toBe(BusinessType.OTHER)
+        expect(slot0.schema_version).toBe(CURRENT_SCHEMA_VERSION)
+        // Explicitly set fields should have new values
+        expect(slot0.targetDOMNode).toBe('new')
+        expect(slot0.type).toBe(IntentType.SCROLL)
+        expect(slot0.timestamp).toBe(3)
+      }
+    })
+
     it('count never exceeds capacity', () => {
       const result = TelemetryRingBuffer.create(4)
       expect(result.isOk()).toBe(true)
@@ -233,6 +264,19 @@ describe('TelemetryRingBuffer', () => {
         // oldest surviving should be item-2 (0,1 overwritten)
         expect(dirty[0]!.targetDOMNode).toBe('item-2')
         expect(dirty[3]!.targetDOMNode).toBe('item-5')
+      }
+    })
+
+    it('reuses the same array across calls (zero allocation)', () => {
+      const result = TelemetryRingBuffer.create(8)
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        const buf = result.value
+        buf.write(IntentType.CLICK, 'a', 0, 0, 1)
+        const first = buf.collectDirty()
+        buf.write(IntentType.CLICK, 'b', 0, 0, 2)
+        const second = buf.collectDirty()
+        expect(first).toBe(second)
       }
     })
 
@@ -292,7 +336,7 @@ describe('TelemetryRingBuffer', () => {
       }
     })
 
-    it('returns Err if count exceeds active entries', () => {
+    it('returns Err with FLUSH_OVERFLOW if count exceeds active entries', () => {
       const result = TelemetryRingBuffer.create(4)
       expect(result.isOk()).toBe(true)
       if (result.isOk()) {
@@ -300,6 +344,35 @@ describe('TelemetryRingBuffer', () => {
         buf.write(IntentType.CLICK, 'a', 0, 0, 1)
         const flushResult = buf.markFlushed(5)
         expect(flushResult.isErr()).toBe(true)
+        if (flushResult.isErr()) {
+          expect(flushResult.error.code).toBe(TelemetryErrorCode.FLUSH_OVERFLOW)
+        }
+      }
+    })
+
+    it('count=0 is a no-op that succeeds', () => {
+      const result = TelemetryRingBuffer.create(4)
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        const buf = result.value
+        buf.write(IntentType.CLICK, 'a', 0, 0, 1)
+        const flushResult = buf.markFlushed(0)
+        expect(flushResult.isOk()).toBe(true)
+        expect(buf.count).toBe(1)
+        expect(buf.slotAt(0)!.targetDOMNode).toBe('a')
+      }
+    })
+
+    it('flushed slots have isDirty=false', () => {
+      const result = TelemetryRingBuffer.create(4)
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        const buf = result.value
+        buf.write(IntentType.CLICK, 'a', 0, 0, 1)
+        buf.write(IntentType.CLICK, 'b', 0, 0, 2)
+        buf.markFlushed(2)
+        expect(buf.slotAt(0)!.isDirty).toBe(false)
+        expect(buf.slotAt(1)!.isDirty).toBe(false)
       }
     })
 

@@ -7,7 +7,7 @@ function createMockFetch (html: string, extraHeaders?: Record<string, string>): 
   return vi.fn<typeof fetch>().mockImplementation(() =>
     Promise.resolve(new Response(html, {
       status: 200,
-      headers: { 'Content-Type': 'text/html', ...extraHeaders }
+      headers: { 'Content-Type': 'text/html', 'X-Valence-Fragment': '1', ...extraHeaders }
     }))
   )
 }
@@ -151,7 +151,8 @@ describe('initRouter outlet header support', () => {
 
     const outletHtml = '<val-outlet name="content"><p>Outlet content</p></val-outlet>'
     const mockFetch = createMockFetch(outletHtml, {
-      'X-Valence-Outlet': 'content'
+      'X-Valence-Outlet': 'content',
+      'X-Valence-Fragment': '1'
     })
 
     const main = document.createElement('main')
@@ -169,6 +170,39 @@ describe('initRouter outlet header support', () => {
       const navResult = await handle.navigate('/page')
       expect(navResult.isOk()).toBe(true)
       expect(outlet.querySelector('p')?.textContent).toBe('Outlet content')
+      handle.destroy()
+    }
+  })
+
+  it('rejects outlet swap responses without fragment header when fragment protocol is enabled', async () => {
+    const { initRouter } = await import('../push-state.js')
+
+    const outletHtml = '<val-outlet name="content"><p>Outlet content</p></val-outlet>'
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() =>
+      Promise.resolve(new Response(outletHtml, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html',
+          'X-Valence-Outlet': 'content'
+        }
+      }))
+    )
+
+    const main = document.createElement('main')
+    document.body.appendChild(main)
+    const outlet = document.createElement('val-outlet') as HTMLElement
+    outlet.setAttribute('name', 'content')
+    outlet.innerHTML = '<p>Old outlet content</p>'
+    main.appendChild(outlet)
+
+    const result = initRouter({ enableFragmentProtocol: true }, mockFetch)
+    expect(result.isOk()).toBe(true)
+
+    if (result.isOk()) {
+      const handle = result.value
+      const navResult = await handle.navigate('/page')
+      expect(navResult.isErr()).toBe(true)
+      expect(outlet.querySelector('p')?.textContent).toBe('Old outlet content')
       handle.destroy()
     }
   })

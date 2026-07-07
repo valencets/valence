@@ -5,7 +5,7 @@ import type { TelemetryConfig } from '../init.js'
 describe('initTelemetry', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
-    delete (globalThis as Record<string, unknown>).__valence_telemetry_consent
+    Reflect.deleteProperty(globalThis, '__valence_telemetry_consent')
   })
 
   it('returns Ok with a TelemetryHandle', () => {
@@ -77,7 +77,7 @@ describe('initTelemetry', () => {
   })
 
   it('skips auto-pageview when consent flag is false', () => {
-    (globalThis as Record<string, unknown>).__valence_telemetry_consent = false
+    Reflect.set(globalThis, '__valence_telemetry_consent', false)
     const result = initTelemetry({
       endpoint: '/api/telemetry',
       siteId: 'test-site',
@@ -99,5 +99,23 @@ describe('initTelemetry', () => {
       autoPageview: true
     })
     expect(result.isOk()).toBe(true)
+  })
+
+  it('returns Err for invalid flush interval', () => {
+    const result = initTelemetry({
+      endpoint: '/api/telemetry',
+      siteId: 'test-site',
+      flushIntervalMs: 0
+    })
+    expect(result.isErr()).toBe(true)
+  })
+
+  it('returns Err for negative flush interval', () => {
+    const result = initTelemetry({
+      endpoint: '/api/telemetry',
+      siteId: 'test-site',
+      flushIntervalMs: -500
+    })
+    expect(result.isErr()).toBe(true)
   })
 })

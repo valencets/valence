@@ -32,7 +32,15 @@ export default defineConfig({
     port: Number(process.env.DB_PORT ?? 5432),
     database: process.env.DB_NAME ?? 'mysite',
     username: process.env.DB_USER ?? 'postgres',
-    password: process.env.DB_PASSWORD ?? ''
+    password: process.env.DB_PASSWORD ?? 'postgres',
+    sslmode:
+      process.env.DB_SSLMODE === 'disable' ||
+      process.env.DB_SSLMODE === 'require' ||
+      process.env.DB_SSLMODE === 'verify-ca' ||
+      process.env.DB_SSLMODE === 'verify-full'
+        ? process.env.DB_SSLMODE
+        : undefined,
+    sslrootcert: process.env.DB_SSLROOTCERT
   },
   server: { port: Number(process.env.PORT ?? 3000) },
   collections: [
@@ -137,6 +145,14 @@ The init wizard walks you through:
 - **Git** -- initializes a repo with the first commit
 
 Init also generates a `src/` directory with Feature-Sliced Design structure, typed entity interfaces, and API clients derived from your collections. Pass `--yes` to skip prompts and accept defaults (useful for CI).
+
+By default, generated apps assume local Postgres with `DB_PASSWORD=postgres`. If you need TLS, set:
+
+- `DB_SSLMODE=disable | require | verify-ca | verify-full`
+- `DB_SSLROOTCERT` to the PEM contents of your root certificate
+- or `DB_SSLROOTCERT_FILE` in `.env` if you want the loader to read the cert from disk
+
+`verify-ca` and `verify-full` require a root certificate.
 
 Open `http://localhost:3000/admin` to sign in. Open `http://localhost:3000` for the landing page.
 

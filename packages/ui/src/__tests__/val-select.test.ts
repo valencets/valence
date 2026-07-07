@@ -185,3 +185,40 @@ describe('ValSelect', () => {
     })
   })
 })
+
+describe('change event contract', () => {
+  let container: HTMLDivElement
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+  })
+
+  afterEach(() => {
+    container.remove()
+  })
+
+  it('dispatches a composed bubbling change event when an option is selected', async () => {
+    const tag = defineTestElement('val-select', ValSelect)
+    const el = document.createElement(tag) as InstanceType<typeof ValSelect>
+    for (const value of ['red', 'green']) {
+      const opt = document.createElement('option')
+      opt.value = value
+      opt.textContent = value
+      el.appendChild(opt)
+    }
+    container.appendChild(el)
+    await Promise.resolve()
+
+    const seen: Event[] = []
+    container.addEventListener('change', (event) => { seen.push(event) })
+
+    el.shadowRoot!.querySelector<HTMLButtonElement>('.trigger')!.click()
+    el.shadowRoot!.querySelectorAll<HTMLElement>('.option')[1]!.click()
+
+    expect(seen).toHaveLength(1)
+    expect(seen[0]!.bubbles).toBe(true)
+    expect(seen[0]!.composed).toBe(true)
+    expect((seen[0]!.target as InstanceType<typeof ValSelect>).value).toBe('green')
+  })
+})

@@ -203,7 +203,7 @@ describe('initFormEnhancement', () => {
 
     const [, init] = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     const headers = init.headers as Record<string, string>
-    expect(headers['X-Valence-Fragment']).toBe('true')
+    expect(headers['X-Valence-Fragment']).toBe('1')
   })
 
   it('includes CSRF token in request when cookie is set', async () => {
@@ -223,11 +223,11 @@ describe('initFormEnhancement', () => {
     expect(headers['X-CSRF-Token']).toBe('test-token-123')
   })
 
-  it('follows redirect response by navigating', async () => {
+  it('navigates when X-Valence-Redirect is present', async () => {
     const mockFetch = createMockFetch({
-      ok: false,
-      status: 302,
-      headers: new Headers({ Location: '/done' })
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'X-Valence-Redirect': '/done' })
     })
     const mockNavigate = vi.fn()
     handle = initFormEnhancement({ onNavigate: mockNavigate }, mockFetch)
@@ -240,6 +240,85 @@ describe('initFormEnhancement', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(mockNavigate).toHaveBeenCalledWith('/done')
+  })
+
+  it('does not navigate based on redirect status alone', async () => {
+    const mockFetch = createMockFetch({
+      ok: false,
+      status: 302,
+      headers: new Headers()
+    })
+    const mockNavigate = vi.fn()
+    handle = initFormEnhancement({ onNavigate: mockNavigate }, mockFetch)
+
+    const form = createForm({ 'data-val-enhance': '' })
+    form.action = 'http://localhost:3000/submit'
+    createInput(form, 'x', '1')
+
+    submitForm(form)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('does not enhance multipart forms', async () => {
+    const mockFetch = createMockFetch()
+    handle = initFormEnhancement(undefined, mockFetch)
+
+    const form = createForm({ 'data-val-enhance': '' })
+    form.action = 'http://localhost:3000/upload'
+    form.enctype = 'multipart/form-data'
+    createInput(form, 'title', 'Upload')
+
+    const event = submitForm(form)
+    await Promise.resolve()
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('does not enhance forms with file inputs', async () => {
+    const mockFetch = createMockFetch()
+    handle = initFormEnhancement(undefined, mockFetch)
+
+    const form = createForm({ 'data-val-enhance': '' })
+    form.action = 'http://localhost:3000/upload'
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.name = 'asset'
+    form.appendChild(fileInput)
+
+    const event = submitForm(form)
+    await Promise.resolve()
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('does not use a raw promise catch in form enhancement', async () => {
+    const { readFileSync } = await import('node:fs')
+    const source = readFileSync(`${process.cwd()}/src/router/form-enhance.ts`, 'utf-8')
+    expect(source).toContain('ResultAsync.fromPromise(\n    submitEnhancedForm')
+    expect(source).not.toMatch(/fetchFn\(url, \{ method, headers, body \}\)\s*\.then/)
+    expect(source).not.toMatch(/\.catch\(/)
+  })
+
+  it('contains rejected enhanced submissions without unhandled rejections', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockRejectedValue(new Error('network down'))
+    const unhandledRejection = vi.fn()
+    handle = initFormEnhancement(undefined, mockFetch)
+    window.addEventListener('unhandledrejection', unhandledRejection)
+
+    const form = createForm({ 'data-val-enhance': '' })
+    form.action = 'http://localhost:3000/submit'
+    createInput(form, 'x', '1')
+
+    submitForm(form)
+    await Promise.resolve()
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    window.removeEventListener('unhandledrejection', unhandledRejection)
+    expect(unhandledRejection).not.toHaveBeenCalled()
   })
 
   it('destroy removes event listener — no longer intercepts after destroy', async () => {

@@ -152,4 +152,12 @@ describe('wrapInTransition', () => {
 
     delete (document as Partial<Document>).startViewTransition
   })
+
+  it('does not use a raw promise catch in view transition cleanup', async () => {
+    const source = await import('node:fs/promises').then(fs =>
+      fs.readFile(`${process.cwd()}/src/router/view-transitions.ts`, 'utf8')
+    )
+
+    expect(source).not.toMatch(/transition\.finished[\s\S]*\.catch\(/)
+  })
 })

@@ -17,18 +17,31 @@ function isValidSegment (segment: string): boolean {
   return SLUG_PATTERN.test(segment) && !segment.includes('..')
 }
 
+function hasDisallowedChars (value: string): boolean {
+  if (value.includes('\0') || value.includes('\\')) return true
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i)
+    if (code >= 1 && code <= 0x1f) return true
+  }
+  return false
+}
+
 export function resolvePageRouteWithParam (pathname: string, srcDir: string): PageRouteResult | null {
   // Reject null bytes and control characters
-  if (pathname.includes('\0')) return null
-  for (let i = 0; i < pathname.length; i++) {
-    const code = pathname.charCodeAt(i)
-    if (code >= 1 && code <= 0x1f) return null
-  }
+  if (hasDisallowedChars(pathname)) return null
 
   // Decode URI — reject malformed percent-encoding
   const decodeResult = safeDecodeURIComponent(pathname)
   const decoded = decodeResult.isOk() ? decodeResult.value : null
   if (decoded === null) return null
+
+  // Reject decoded control characters, null bytes, and backslashes.
+  if (hasDisallowedChars(decoded)) return null
+
+  // Reject percent-decoded slash changes that alter route shape.
+  const rawSegments = pathname.split('/').filter(s => s.length > 0)
+  const decodedSegments = decoded.split('/').filter(s => s.length > 0)
+  if (rawSegments.length !== decodedSegments.length) return null
 
   // Check for traversal
   if (decoded.includes('..')) return null

@@ -10,6 +10,13 @@ export interface FlushHandle {
   flushNow (): Result<number, TelemetryError>
 }
 
+const VALID_URL_PREFIX = /^(https?:\/\/|\/[^/])/
+
+export function isValidBeaconUrl (url: string): boolean {
+  if (url.length === 0) return false
+  return VALID_URL_PREFIX.test(url)
+}
+
 export function flushTelemetry (
   buffer: TelemetryRingBuffer,
   endpointUrl: string
@@ -18,6 +25,13 @@ export function flushTelemetry (
     return err({
       code: TelemetryErrorCode.FLUSH_CONSENT_DENIED,
       message: 'Telemetry blocked by privacy signal'
+    })
+  }
+
+  if (!isValidBeaconUrl(endpointUrl)) {
+    return err({
+      code: TelemetryErrorCode.FLUSH_DISPATCH_FAILED,
+      message: `Invalid beacon URL: ${endpointUrl}`
     })
   }
 
@@ -40,16 +54,27 @@ export function flushTelemetry (
     })
   }
 
-  buffer.markFlushed(dirty.length)
+  const markResult = buffer.markFlushed(dirty.length)
+  if (markResult.isErr()) return err(markResult.error)
+
   return ok(dirty.length)
 }
+
+const MIN_FLUSH_INTERVAL_MS = 1000
 
 export function scheduleAutoFlush (
   buffer: TelemetryRingBuffer,
   endpointUrl: string,
   intervalMs: number = 30000,
   onFlush?: (count: number) => void
-): FlushHandle {
+): Result<FlushHandle, TelemetryError> {
+  if (intervalMs < MIN_FLUSH_INTERVAL_MS) {
+    return err({
+      code: TelemetryErrorCode.INVALID_CAPACITY,
+      message: `Flush interval must be >= ${MIN_FLUSH_INTERVAL_MS}ms, got ${intervalMs}`
+    })
+  }
+
   function flushAndNotify (): void {
     const result = flushTelemetry(buffer, endpointUrl)
     if (result.isOk() && onFlush) {
@@ -67,7 +92,7 @@ export function scheduleAutoFlush (
 
   document.addEventListener('visibilitychange', onVisibilityChange)
 
-  return {
+  return ok({
     stop () {
       clearInterval(intervalId)
       document.removeEventListener('visibilitychange', onVisibilityChange)
@@ -75,5 +100,5 @@ export function scheduleAutoFlush (
     flushNow () {
       return flushTelemetry(buffer, endpointUrl)
     }
-  }
+  })
 }

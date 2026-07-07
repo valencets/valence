@@ -25,8 +25,8 @@ describe('initPageCache', () => {
     expect(handle.size()).toBe(0)
   })
 
-  it('get returns CACHE_MISS for unknown url', () => {
-    const result = handle.get('/unknown')
+  it('get returns CACHE_MISS for missing url', () => {
+    const result = handle.get('/missing')
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {
       expect(result.error.code).toBe(RouterErrorCode.CACHE_MISS)
@@ -114,9 +114,9 @@ describe('initPageCache', () => {
     expect(handle.get('/b').isOk()).toBe(true)
   })
 
-  it('invalidateUrl is a no-op for unknown url', () => {
+  it('invalidateUrl is a no-op for missing url', () => {
     handle.set('/a', { url: '/a', html: 'a', timestamp: Date.now(), version: null, title: null })
-    handle.invalidateUrl('/unknown')
+    handle.invalidateUrl('/missing')
     expect(handle.size()).toBe(1)
   })
 
@@ -241,5 +241,23 @@ describe('page-cache sessionStorage persistence', () => {
     h.setVersion('v2')
     const data = JSON.parse(sessionStorage.getItem('valence:page-cache')!)
     expect(data.version).toBe('v2')
+  })
+
+  it('skips malformed restored cache entries', () => {
+    sessionStorage.setItem('valence:page-cache', JSON.stringify({
+      version: 'v1',
+      entries: [
+        ['/good', { url: '/good', html: '<p>Good</p>', timestamp: Date.now(), version: 'v1', title: 'Good' }],
+        ['/bad-timestamp', { url: '/bad-timestamp', html: '<p>Bad</p>', timestamp: 'oops', version: 'v1', title: 'Bad' }],
+        ['/bad-html', { url: '/bad-html', html: 42, timestamp: Date.now(), version: 'v1', title: 'Bad' }]
+      ]
+    }))
+
+    const h = initPageCache(resolveConfig())
+
+    expect(h.size()).toBe(1)
+    expect(h.get('/good').isOk()).toBe(true)
+    expect(h.get('/bad-timestamp').isErr()).toBe(true)
+    expect(h.get('/bad-html').isErr()).toBe(true)
   })
 })

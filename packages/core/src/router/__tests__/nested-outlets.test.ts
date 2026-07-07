@@ -155,6 +155,7 @@ describe('outlet view transitions', () => {
         status: 200,
         headers: {
           'Content-Type': 'text/html',
+          'X-Valence-Fragment': '1',
           'X-Valence-Outlet': 'main'
         }
       }))
@@ -180,6 +181,7 @@ describe('outlet view transitions', () => {
     document.removeEventListener('valence:before-swap', onBeforeSwap)
 
     // valence:before-swap fires for outlet swaps too (from the full path)
+    expect(beforeSwapEvents).toHaveLength(1)
     // The outlet is swapped correctly
     expect(outlet.querySelector('p')?.textContent).toBe('Transitioned content')
   })

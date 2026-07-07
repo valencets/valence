@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { initScrollRestore } from '../scroll-restore.js'
+import { initScrollRestore, toHistoryStateShape } from '../scroll-restore.js'
 
 describe('initScrollRestore', () => {
   beforeEach(() => {
@@ -118,5 +118,19 @@ describe('initScrollRestore', () => {
 
     expect(result).toBe(false)
     handle.destroy()
+  })
+
+  it('toHistoryStateShape narrows history state safely', () => {
+    expect(toHistoryStateShape({ url: '/page', scrollX: 10, scrollY: 20 })).toEqual({
+      url: '/page',
+      scrollX: 10,
+      scrollY: 20
+    })
+    expect(toHistoryStateShape({ url: 12, scrollX: '10' })).toEqual({
+      url: undefined,
+      scrollX: undefined,
+      scrollY: undefined
+    })
+    expect(toHistoryStateShape(null)).toBeNull()
   })
 })

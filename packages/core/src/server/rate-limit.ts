@@ -19,7 +19,6 @@ export interface TokenBucket {
 interface BucketEntry {
   tokens: number
   lastRefill: number
-  windowStart: number
 }
 
 const CLEANUP_INTERVAL_MS = 300_000
@@ -52,26 +51,35 @@ export function createTokenBucket (config: RateLimitConfig): TokenBucket {
     const now = Date.now()
     let entry = buckets.get(key)
     if (entry === undefined) {
-      entry = { tokens: maxRequests, lastRefill: now, windowStart: now }
+      entry = { tokens: maxRequests, lastRefill: now }
       buckets.set(key, entry)
     } else {
       refill(entry, now)
     }
 
-    const elapsed = now - entry.windowStart
-    const resetMs = elapsed >= windowMs
-      ? windowMs
-      : windowMs - elapsed
+    function computeResetMs (tokens: number): number {
+      let tokenDeficit: number
+      if (tokens >= maxRequests) {
+        tokenDeficit = 0
+      } else if (tokens >= 1) {
+        const fractional = tokens - Math.floor(tokens)
+        tokenDeficit = fractional === 0 ? 1 : 1 - fractional
+      } else {
+        tokenDeficit = 1 - tokens
+      }
+      if (tokenDeficit <= 0) return 0
+      return Math.ceil((tokenDeficit / refillRate) - 1e-9)
+    }
 
     if (entry.tokens < 1) {
-      return { allowed: false, remaining: 0, resetMs, limit: maxRequests }
+      return { allowed: false, remaining: 0, resetMs: computeResetMs(entry.tokens), limit: maxRequests }
     }
 
     entry.tokens -= 1
     return {
       allowed: true,
       remaining: Math.floor(entry.tokens),
-      resetMs,
+      resetMs: computeResetMs(entry.tokens),
       limit: maxRequests
     }
   }

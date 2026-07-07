@@ -1,16 +1,17 @@
 import { createAbortableFetch } from './fetch-retry.js'
-import { initScrollRestore } from './scroll-restore.js'
+import { initScrollRestore, toHistoryStateShape } from './scroll-restore.js'
 import { ok, err, ResultAsync } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 import { RouterErrorCode, resolveConfig } from './router-types.js'
 import type { RouterConfig, RouterError, NavigationDetail, ResolvedRouterConfig, NavigationPerformance } from './router-types.js'
-import { parseHtml, extractFragment, extractTitle, swapContent, getCsrfToken } from './fragment-swap.js'
+import { parseHtml, extractFragment, extractTitle, swapContent, getCsrfToken, validateFragmentResponse } from './fragment-swap.js'
 import { initPrefetch } from './prefetch.js'
 import type { PrefetchHandle } from './prefetch.js'
 import { initPageCache } from './page-cache.js'
 import { wrapInTransition, supportsViewTransitions } from './view-transitions.js'
 import type { PageCacheHandle } from './page-cache.js'
 import { swapOutletContent } from './outlet-swap.js'
+import { findOutlet } from './val-outlet.js'
 
 export interface RouterHandle {
   readonly destroy: () => void
@@ -51,10 +52,62 @@ interface NavigationResult {
   readonly outletName?: string | undefined
 }
 
+interface CodedRouterError extends Error {
+  readonly code: RouterErrorCode
+}
+
+const ROUTER_ERROR_CODES = new Set<string>(Object.values(RouterErrorCode))
+
 function csrfHeaders (): Record<string, string> {
   const token = getCsrfToken()
   if (token === undefined) return {}
   return { 'X-CSRF-Token': token }
+}
+
+function isRouterErrorCode (value: string): value is RouterErrorCode {
+  return ROUTER_ERROR_CODES.has(value)
+}
+
+function isCodedRouterError (error: Error): error is CodedRouterError {
+  const code = Reflect.get(error, 'code')
+  return typeof code === 'string' && isRouterErrorCode(code)
+}
+
+async function runBackgroundRevalidation (
+  url: string,
+  config: ResolvedRouterConfig,
+  fetchFn: typeof fetch,
+  pageCacheHandle: PageCacheHandle,
+  cachedHtml: string
+): Promise<void> {
+  const response = config.enableFragmentProtocol
+    ? await fetchFn(url, { headers: { 'X-Valence-Fragment': '1', ...csrfHeaders() } })
+    : await fetchFn(url)
+
+  if (!response.ok) return
+
+  const version = response.headers.get('X-Valence-Version')
+  const html = await response.text()
+
+  if (version !== null) {
+    pageCacheHandle.setVersion(version)
+  }
+
+  if (html === cachedHtml) return
+
+  const currentPath = window.location.pathname
+  const urlPath = url.startsWith('/') ? url : new URL(url, window.location.origin).pathname
+  if (currentPath !== urlPath) return
+
+  pageCacheHandle.set(url, {
+    url,
+    html,
+    timestamp: Date.now(),
+    version,
+    title: null
+  })
+
+  processHtml(html, config.contentSelector)
 }
 
 function revalidateInBackground (
@@ -64,47 +117,13 @@ function revalidateInBackground (
   pageCacheHandle: PageCacheHandle,
   cachedHtml: string
 ): void {
-  const fetchPromise = config.enableFragmentProtocol
-    ? fetchFn(url, { headers: { 'X-Valence-Fragment': '1', ...csrfHeaders() } })
-    : fetchFn(url)
-
-  fetchPromise
-    .then((response) => {
-      if (!response.ok) return
-      const version = response.headers.get('X-Valence-Version')
-      return response.text().then((html) => ({ html, version }))
-    })
-    .then((result) => {
-      if (result === undefined) return
-
-      // Update version tracking
-      if (result.version !== null) {
-        pageCacheHandle.setVersion(result.version)
-      }
-
-      // Same content -- no re-swap needed
-      if (result.html === cachedHtml) return
-
-      // User navigated away -- don't re-swap
-      const currentPath = window.location.pathname
-      const urlPath = url.startsWith('/') ? url : new URL(url, window.location.origin).pathname
-      if (currentPath !== urlPath) return
-
-      // Content changed -- update cache and re-swap
-      const titleHeader = null
-      pageCacheHandle.set(url, {
-        url,
-        html: result.html,
-        timestamp: Date.now(),
-        version: result.version,
-        title: titleHeader
-      })
-
-      processHtml(result.html, config.contentSelector)
-    })
-    .catch(() => {
-      // Background revalidation is fire-and-forget -- log but don't propagate
-    })
+  ResultAsync.fromPromise(
+    runBackgroundRevalidation(url, config, fetchFn, pageCacheHandle, cachedHtml),
+    () => null
+  ).match(
+    () => undefined,
+    () => undefined
+  )
 }
 
 function isNoCachePath (url: string, noCachePaths: ReadonlyArray<string>): boolean {
@@ -165,37 +184,59 @@ function performNavigation (
     : fetchFn(url)
 
   return ResultAsync.fromPromise(
-    fetchPromise.then((response) => {
-      if (response.status === 401) {
-        const redirectUrl = response.headers.get('X-Valence-Redirect')
-        if (redirectUrl !== null) {
-          window.location.href = redirectUrl
-          const authError = new Error(`Auth redirect to ${redirectUrl}`)
-          Object.assign(authError, { code: RouterErrorCode.AUTH_REDIRECT })
-          return Promise.reject(authError)
-        }
-      }
-      if (!response.ok) {
-        return Promise.reject(new Error(`Fetch returned status ${String(response.status)}`))
-      }
-      const version = response.headers.get('X-Valence-Version')
-      const titleHeader = response.headers.get('X-Valence-Title')
-      const outletName = response.headers.get('X-Valence-Outlet') ?? undefined
-      return response.text().then((html) => ({ html, version, titleHeader, outletName }))
-    }),
+    fetchPromise,
     (reason): RouterError => {
-      if (reason instanceof Error) {
-        const coded = reason as Error & { code?: string }
-        if (coded.code !== undefined) {
-          return { code: coded.code as RouterErrorCode, message: reason.message }
-        }
+      if (reason instanceof Error && isCodedRouterError(reason)) {
+        return { code: reason.code, message: reason.message }
       }
       return {
         code: RouterErrorCode.FETCH_FAILED,
         message: `Navigation fetch failed for ${url}`
       }
     }
-  ).andThen(({ html, version, titleHeader, outletName }) => {
+  ).andThen((response) => {
+    if (response.status === 401) {
+      const redirectUrl = response.headers.get('X-Valence-Redirect')
+      if (redirectUrl !== null) {
+        window.location.href = redirectUrl
+        return ResultAsync.fromSafePromise(Promise.resolve(undefined)).andThen(() =>
+          err({
+            code: RouterErrorCode.AUTH_REDIRECT,
+            message: `Auth redirect to ${redirectUrl}`
+          })
+        )
+      }
+    }
+    if (!response.ok) {
+      return ResultAsync.fromSafePromise(Promise.resolve(undefined)).andThen(() =>
+        err({
+          code: RouterErrorCode.FETCH_FAILED,
+          message: `Fetch returned status ${String(response.status)}`
+        })
+      )
+    }
+    if (config.enableFragmentProtocol) {
+      const validation = validateFragmentResponse(response)
+      if (validation.isErr()) {
+        return ResultAsync.fromSafePromise(Promise.resolve(undefined)).andThen(() =>
+          err({
+            code: validation.error.code,
+            message: validation.error.message
+          })
+        )
+      }
+    }
+    const version = response.headers.get('X-Valence-Version')
+    const titleHeader = response.headers.get('X-Valence-Title')
+    const outletName = response.headers.get('X-Valence-Outlet') ?? undefined
+    return ResultAsync.fromPromise(
+      response.text(),
+      () => ({
+        code: RouterErrorCode.FETCH_FAILED,
+        message: `Failed to read navigation response for ${url}`
+      })
+    ).andThen((html) => ok({ html, version, titleHeader, outletName }))
+  }).andThen(({ html, version, titleHeader, outletName }) => {
     const result = processHtml(html, config.contentSelector, config.enableViewTransitions, outletName)
     if (result.isErr()) return err(result.error)
 
@@ -227,10 +268,42 @@ function processHtml (
   enableViewTransitions: boolean = false,
   outletName?: string
 ): Result<string | null, RouterError> {
+  function runSwap (container: Element, doSwap: () => Result<void, RouterError>): Result<void, RouterError> {
+    document.dispatchEvent(new CustomEvent('valence:before-swap'))
+
+    let swapResult: Result<void, RouterError> | null = null
+
+    if (enableViewTransitions && supportsViewTransitions()) {
+      wrapInTransition(() => {
+        swapResult = doSwap()
+        if (swapResult.isOk()) {
+          document.dispatchEvent(new CustomEvent('valence:after-swap'))
+        }
+      }, container)
+    } else {
+      swapResult = doSwap()
+      if (swapResult.isOk()) {
+        document.dispatchEvent(new CustomEvent('valence:after-swap'))
+      }
+    }
+
+    return swapResult ?? err({
+      code: RouterErrorCode.FETCH_FAILED,
+      message: 'Swap did not complete'
+    })
+  }
+
   // Outlet-targeted swap: route content to a named val-outlet instead of full swap
   if (outletName !== undefined) {
     const liveRoot = document.querySelector(contentSelector) ?? document.body
-    const outletSwapResult = swapOutletContent(liveRoot, outletName, html)
+    const liveOutlet = findOutlet(liveRoot, outletName)
+
+    const outletSwapResult = liveOutlet === null
+      ? err({
+        code: RouterErrorCode.SELECTOR_MISS,
+        message: `Outlet not found in live DOM: ${outletName}`
+      })
+      : runSwap(liveOutlet, () => swapOutletContent(liveRoot, outletName, html))
 
     // If outlet not found in live DOM, fall back to full content swap below
     if (outletSwapResult.isOk()) {
@@ -265,18 +338,8 @@ function processHtml (
     })
   }
 
-  document.dispatchEvent(new CustomEvent('valence:before-swap'))
-
-  if (enableViewTransitions && supportsViewTransitions()) {
-    wrapInTransition(() => {
-      swapContent(liveContainer, fragment)
-      document.dispatchEvent(new CustomEvent('valence:after-swap'))
-    }, liveContainer)
-  } else {
-    const swapResult = swapContent(liveContainer, fragment)
-    if (swapResult.isErr()) return err(swapResult.error)
-    document.dispatchEvent(new CustomEvent('valence:after-swap'))
-  }
+  const swapResult = runSwap(liveContainer, () => swapContent(liveContainer, fragment))
+  if (swapResult.isErr()) return err(swapResult.error)
 
   const title = extractTitle(doc)
   if (title !== null) {
@@ -387,14 +450,15 @@ export function initRouter (
   }
 
   function onPopstate (event: Event): void {
-    const popEvent = event as PopStateEvent
-    const state = popEvent.state as { url?: string } | null
+    if (!(event instanceof PopStateEvent)) return
+    const popEvent = event
+    const state = toHistoryStateShape(popEvent.state)
     const url = state?.url ?? window.location.href
 
     const startTime = performance.now()
 
     performNavigation(url, resolved, abortableFetch.fetch, fetchFn, prefetchHandle, pageCacheHandle)
-      .map((navResult) => {
+      .match((navResult) => {
         const durationMs = Math.round(performance.now() - startTime)
 
         if (navResult.title !== null) {
@@ -411,9 +475,8 @@ export function initRouter (
           bubbles: true,
           detail: perfDetail
         }))
-        scrollRestore.restorePosition(popEvent.state)
-        return undefined
-      })
+        scrollRestore.restorePosition(state)
+      }, () => undefined)
   }
 
   function onClick (event: Event): void {

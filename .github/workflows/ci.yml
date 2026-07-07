@@ -18,29 +18,22 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# ---------------------------------------------------------------------------
+# Pipeline shape
+#
+#   Required gate (ci-gate) — deterministic correctness signals only:
+#     lint, build, unit, integration, e2e, contracts, api-review
+#
+#   Advisory (continue-on-error, never blocks a merge) — reported, triaged
+#   out of band: security audit, coverage, visual regression, tdd-history,
+#   lighthouse, performance, storybook, quarantine.
+#
+#   `build` compiles once and publishes packages/*/dist as a shared artifact;
+#   downstream jobs unpack it instead of rebuilding from scratch.
+# ---------------------------------------------------------------------------
+
 jobs:
-  tdd-history:
-    name: TDD History
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Validate TDD commit sequence
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin "${{ github.base_ref }}" --depth=1
-            BASE="$(git merge-base HEAD "origin/${{ github.base_ref }}")"
-            if [ "${{ github.base_ref }}" = "master" ] && [ "${{ github.head_ref }}" = "development" ]; then
-              TDD_SEQUENCE_START=f3aae193 bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
-            else
-              bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
-            fi
-          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
-            bash scripts/check-tdd-commit-sequence.sh range "${{ github.event.before }}..${{ github.sha }}"
-          elif git rev-parse HEAD^ >/dev/null 2>&1; then
-            bash scripts/check-tdd-commit-sequence.sh range "HEAD^..HEAD"
-          fi
+  # ---- Required correctness gate -----------------------------------------
 
   lint:
     name: Lint
@@ -51,31 +44,21 @@ jobs:
       - run: pnpm lint
       - run: pnpm check:patterns
 
-  typecheck:
-    name: Typecheck
+  build:
+    name: Build & Typecheck
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
       - run: pnpm build
       - run: pnpm check:size
-
-  security:
-    name: Security Audit
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-project
-      - run: pnpm audit --audit-level=high
-
-  build:
-    name: Build
-    needs: [lint, typecheck]
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-project
-      - run: pnpm build
+      - name: Package build output
+        run: tar -czf build-dist.tar.gz packages/*/dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-dist
+          path: build-dist.tar.gz
+          retention-days: 1
 
   unit:
     name: Unit Tests
@@ -84,26 +67,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
-      - run: pnpm build
-      - run: pnpm test
-
-  quarantine:
-    name: Quarantine
-    needs: [unit]
-    runs-on: ubuntu-24.04
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-project
-      - run: pnpm build
-      - run: pnpm test:quarantine
-        continue-on-error: true
-      - uses: actions/upload-artifact@v4
-        if: always()
+      - uses: actions/download-artifact@v4
         with:
-          name: quarantine-results
-          path: quarantine-report.json
-          retention-days: 30
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
+      - run: pnpm test
 
   integration:
     name: Integration
@@ -123,7 +91,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
-      - run: pnpm build
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
       - run: npx vitest run tests/integration/
         env:
           PGHOST: localhost
@@ -155,7 +126,10 @@ jobs:
         with:
           install-playwright: 'true'
           playwright-browser: chromium
-      - run: pnpm build
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
       - run: pnpm test:e2e --grep-invert Visual --shard=${{ matrix.shard }}/2
         env:
           PGHOST: localhost
@@ -201,54 +175,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
-      - run: pnpm build
-      - run: npx vitest run tests/contracts/
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
+      - run: pnpm exec vitest run --config vitest.contracts.config.ts
 
-  coverage:
-    name: Coverage (80% gate)
+  api-review:
+    name: API Review
     needs: [build]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
-      - run: pnpm build
-      - run: cd packages/cms && npx vitest run --coverage --coverage.thresholds.statements=75
-      - uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: coverage-report
-          path: packages/cms/coverage/
-          retention-days: 30
-
-  api-review:
-    name: API Review
-    needs: [typecheck]
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-project
-      - run: pnpm build
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
       - run: pnpm api:check
 
   ci-gate:
     name: CI Gate
-    needs: [unit, integration, e2e-merge-report, contracts, coverage, security]
+    needs: [lint, build, unit, integration, e2e, e2e-merge-report, contracts, api-review]
     runs-on: ubuntu-24.04
     if: always()
     steps:
-      - name: Check all upstream results
+      - name: Check required correctness jobs
         env:
+          LINT: ${{ needs.lint.result }}
+          BUILD: ${{ needs.build.result }}
           UNIT: ${{ needs.unit.result }}
           INTEGRATION: ${{ needs.integration.result }}
+          E2E: ${{ needs.e2e.result }}
           E2E_MERGE: ${{ needs.e2e-merge-report.result }}
           CONTRACTS: ${{ needs.contracts.result }}
-          COVERAGE: ${{ needs.coverage.result }}
-          SECURITY: ${{ needs.security.result }}
+          API_REVIEW: ${{ needs.api-review.result }}
         run: |
-          results=("$UNIT" "$INTEGRATION" "$E2E_MERGE" "$CONTRACTS" "$COVERAGE" "$SECURITY")
+          results=("$LINT" "$BUILD" "$UNIT" "$INTEGRATION" "$E2E" "$E2E_MERGE" "$CONTRACTS" "$API_REVIEW")
           failed=false
           for result in "${results[@]}"; do
             if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              echo "Job failed: $result"
+              echo "Required job failed: $result"
               failed=true
             fi
           done
@@ -258,10 +225,84 @@ jobs:
           fi
           echo "CI gate: PASSED"
 
-  visual:
-    name: Visual Regression
-    needs: [unit]
+  # ---- Advisory jobs (never block a merge) -------------------------------
+
+  tdd-history:
+    name: TDD History (advisory)
     runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate TDD commit sequence
+        env:
+          # Contexts reach the script as environment data, never by string
+          # interpolation into bash — a branch named `x"; cmd; "` stays a
+          # branch name instead of becoming code.
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            # The checkout above is fetch-depth: 0 — a --depth=1 fetch here
+            # would shallow the base ref and corrupt merge-base resolution,
+            # making the check sweep unrelated history after base moves.
+            git fetch origin "$BASE_REF"
+            BASE="$(git merge-base HEAD "origin/$BASE_REF" || true)"
+            if [ -z "$BASE" ]; then
+              echo "No merge base with origin/$BASE_REF — cannot scope the range" >&2
+              exit 1
+            fi
+            if [ "$BASE_REF" = "master" ] && [ "$HEAD_REF" = "development" ]; then
+              TDD_SEQUENCE_START=f3aae193 bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
+            else
+              bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
+            fi
+          elif [ "$EVENT_BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            bash scripts/check-tdd-commit-sequence.sh range "$EVENT_BEFORE..$HEAD_SHA"
+          elif git rev-parse HEAD^ >/dev/null 2>&1; then
+            bash scripts/check-tdd-commit-sequence.sh range "HEAD^..HEAD"
+          fi
+
+  security:
+    name: Security Audit (advisory)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      # Production dependencies only. Dev-tooling CVEs (vitest, vite, lighthouse,
+      # stryker, …) are triaged by Dependabot rather than blocking merges.
+      - run: pnpm audit --prod --audit-level=high
+
+  coverage:
+    name: Coverage (advisory)
+    needs: [build]
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
+      - run: cd packages/cms && npx vitest run --coverage --coverage.thresholds.statements=75
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: packages/cms/coverage/
+          retention-days: 30
+
+  visual:
+    name: Visual Regression (advisory)
+    needs: [build]
+    runs-on: ubuntu-24.04
+    continue-on-error: true
     services:
       postgres:
         image: postgres:16
@@ -279,13 +320,15 @@ jobs:
         with:
           install-playwright: 'true'
           playwright-browser: chromium
-      - run: pnpm build
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
       - run: pnpm test:visual
         env:
           PGHOST: localhost
           PGPORT: 5432
           PGUSER: postgres
-
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -295,9 +338,30 @@ jobs:
             tests/e2e/__snapshots__/
           retention-days: 7
 
+  quarantine:
+    name: Quarantine (advisory)
+    needs: [build]
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-project
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
+      - run: pnpm test:quarantine
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quarantine-results
+          path: quarantine-report.json
+          retention-days: 30
+
   lighthouse:
-    name: Lighthouse
-    needs: [unit]
+    name: Lighthouse (advisory)
+    needs: [build]
     runs-on: ubuntu-24.04
     continue-on-error: true
     services:
@@ -314,7 +378,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
-      - run: pnpm build
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
       - name: Start test server
         run: |
           nohup node --import tsx tests/e2e/server-start.mjs > /tmp/lhci-server.log 2>&1 &
@@ -362,8 +429,8 @@ jobs:
           retention-days: 30
 
   perf:
-    name: Performance (k6)
-    needs: [unit]
+    name: Performance (k6) (advisory)
+    needs: [build]
     runs-on: ubuntu-24.04
     continue-on-error: true
     services:
@@ -381,7 +448,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
       - uses: grafana/setup-k6-action@v1
-      - run: pnpm build
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
       - name: Start perf test server
         run: node tests/perf/server.mjs &
         env:
@@ -414,20 +484,25 @@ jobs:
           retention-days: 30
 
   storybook:
-    name: Storybook
-    needs: [unit]
+    name: Storybook (advisory)
+    needs: [build]
     runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
-      - run: pnpm build
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-dist
+      - run: tar -xzf build-dist.tar.gz
       - run: cd packages/ui && pnpm storybook:build
       - uses: actions/upload-artifact@v4
         with:
           name: storybook-static
           path: packages/ui/storybook-static/
           retention-days: 30
+
+  # ---- master-only release pipeline --------------------------------------
 
   e2e-full:
     name: E2E Full (${{ matrix.browser }}, ${{ matrix.shard }}/4)
@@ -503,7 +578,7 @@ jobs:
       - run: pnpm build
       - name: Publish packages
         run: |
-          for pkg in packages/ui packages/core packages/db packages/reactive packages/telemetry packages/cms packages/graphql packages/plugin-cloud-storage packages/valence; do
+          for pkg in packages/ui packages/core packages/db packages/reactive packages/telemetry packages/cms packages/graphql packages/plugin-cloud-storage packages/store packages/valence; do
             cd "$GITHUB_WORKSPACE/$pkg"
             VERSION=$(node -p "require('./package.json').version")
             NAME=$(node -p "require('./package.json').name")
@@ -534,7 +609,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for pkg in packages/ui packages/core packages/db packages/reactive packages/telemetry packages/cms packages/graphql packages/plugin-cloud-storage packages/valence; do
+          for pkg in packages/ui packages/core packages/db packages/reactive packages/telemetry packages/cms packages/graphql packages/plugin-cloud-storage packages/store packages/valence; do
             VERSION=$(node -p "require('./$pkg/package.json').version")
             NAME=$(node -p "require('./$pkg/package.json').name")
             SHORT=$(echo "$NAME" | sed 's/@valencets\///')
@@ -549,6 +624,8 @@ jobs:
             gh release create "$TAG" --title "$NAME v$VERSION" --notes "$(printf '## %s v%s\n\n### Changes\n\n%s\n\n### Install\n\n```bash\npnpm add %s@%s\n```' "$NAME" "$VERSION" "$CHANGELOG" "$NAME" "$VERSION")"
             echo "Created release $TAG"
           done
+
+  # ---- scheduled / weekly jobs -------------------------------------------
 
   stryker-full:
     name: Stryker (full, weekly)

@@ -24,6 +24,10 @@ describe('Server Islands', () => {
 
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
+        headers: new Headers({
+          'Content-Type': 'text/html',
+          'X-Valence-Fragment': '1'
+        }),
         text: () => Promise.resolve('<p>Related posts here</p>')
       })
 
@@ -72,6 +76,10 @@ describe('Server Islands', () => {
 
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
+        headers: new Headers({
+          'Content-Type': 'text/html',
+          'X-Valence-Fragment': '1'
+        }),
         text: () => Promise.resolve('<p>Done</p>')
       })
 
@@ -95,6 +103,10 @@ describe('Server Islands', () => {
     it('scans new content after navigation swap', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
+        headers: new Headers({
+          'Content-Type': 'text/html',
+          'X-Valence-Fragment': '1'
+        }),
         text: () => Promise.resolve('<p>Content</p>')
       })
 
@@ -180,6 +192,31 @@ describe('Server Islands', () => {
       handle.destroy()
     })
 
+    it('normalizes non-Error island load rejections into event error text', async () => {
+      container.innerHTML = `
+        <div server:defer src="/api/islands/broken-type">
+          <span class="fallback">Fallback</span>
+        </div>
+      `
+
+      const mockFetch = vi.fn().mockRejectedValue('network down')
+      const errorListener = vi.fn()
+      document.addEventListener('valence:island-error', errorListener)
+
+      const handle = initServerIslands({ fetchFn: mockFetch })
+
+      await vi.waitFor(() => {
+        expect(errorListener).toHaveBeenCalledOnce()
+      })
+
+      expect(errorListener.mock.calls[0]?.[0]).toBeInstanceOf(CustomEvent)
+      const event = errorListener.mock.calls[0]?.[0] as CustomEvent<{ error?: string }>
+      expect(event.detail.error).toBe('network down')
+
+      document.removeEventListener('valence:island-error', errorListener)
+      handle.destroy()
+    })
+
     it('dispatches island-loaded on success', async () => {
       container.innerHTML = `
         <div server:defer src="/api/islands/good">
@@ -189,6 +226,10 @@ describe('Server Islands', () => {
 
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
+        headers: new Headers({
+          'Content-Type': 'text/html',
+          'X-Valence-Fragment': '1'
+        }),
         text: () => Promise.resolve('<p>Loaded!</p>')
       })
 
@@ -203,6 +244,195 @@ describe('Server Islands', () => {
 
       document.removeEventListener('valence:island-loaded', loadedListener)
       handle.destroy()
+    })
+
+    it('preserves fallback and dispatches error when fragment header is missing', async () => {
+      container.innerHTML = `
+        <div server:defer src="/api/islands/missing-fragment">
+          <span class="fallback">Fallback</span>
+        </div>
+      `
+
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response('<p>Loaded!</p>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' }
+        })
+      )
+
+      const errorListener = vi.fn()
+      document.addEventListener('valence:island-error', errorListener)
+
+      const handle = initServerIslands({ fetchFn: mockFetch })
+
+      await vi.waitFor(() => {
+        expect(errorListener).toHaveBeenCalledOnce()
+      })
+
+      expect(container.querySelector('.fallback')).not.toBeNull()
+      expect(container.querySelector('p')).toBeNull()
+
+      document.removeEventListener('valence:island-error', errorListener)
+      handle.destroy()
+    })
+
+    it('preserves fallback and dispatches error on non-html island responses', async () => {
+      container.innerHTML = `
+        <div server:defer src="/api/islands/json">
+          <span class="fallback">Fallback</span>
+        </div>
+      `
+
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response('{"ok":true}', {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Valence-Fragment': '1'
+          }
+        })
+      )
+
+      const errorListener = vi.fn()
+      document.addEventListener('valence:island-error', errorListener)
+
+      const handle = initServerIslands({ fetchFn: mockFetch })
+
+      await vi.waitFor(() => {
+        expect(errorListener).toHaveBeenCalledOnce()
+      })
+
+      expect(container.querySelector('.fallback')).not.toBeNull()
+      expect(container.textContent).toContain('Fallback')
+
+      document.removeEventListener('valence:island-error', errorListener)
+      handle.destroy()
+    })
+
+    it('strips scripts before inserting island content', async () => {
+      container.innerHTML = `
+        <div server:defer src="/api/islands/scripted">
+          <span>Loading...</span>
+        </div>
+      `
+
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response('<div><p>Safe</p><script>evil()</script></div>', {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html',
+            'X-Valence-Fragment': '1'
+          }
+        })
+      )
+
+      const handle = initServerIslands({ fetchFn: mockFetch })
+      const island = container.querySelector('[server\\:defer]')!
+
+      await vi.waitFor(() => {
+        expect(island.querySelector('p')?.textContent).toBe('Safe')
+      })
+
+      expect(island.querySelector('script')).toBeNull()
+
+      handle.destroy()
+    })
+
+    it('retries island loading after an earlier failure', async () => {
+      container.innerHTML = `
+        <div server:defer src="/api/islands/retry">
+          <span class="fallback">Fallback</span>
+        </div>
+      `
+
+      let attempts = 0
+      const mockFetch = vi.fn().mockImplementation(() => {
+        attempts++
+        if (attempts === 1) {
+          return Promise.resolve(new Response('<p>Bad</p>', {
+            status: 200,
+            headers: { 'Content-Type': 'text/html' }
+          }))
+        }
+
+        return Promise.resolve(new Response('<p>Recovered</p>', {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html',
+            'X-Valence-Fragment': '1'
+          }
+        }))
+      })
+
+      const handle = initServerIslands({ fetchFn: mockFetch })
+
+      const errorListener = vi.fn()
+      document.addEventListener('valence:island-error', errorListener)
+
+      await vi.waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledOnce()
+      })
+
+      await vi.waitFor(() => {
+        expect(errorListener).toHaveBeenCalledOnce()
+      })
+
+      expect(container.querySelector('.fallback')).not.toBeNull()
+
+      handle.scanAndLoad()
+
+      await vi.waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledTimes(2)
+      })
+
+      await vi.waitFor(() => {
+        expect(container.querySelector('p')?.textContent).toBe('Recovered')
+      })
+
+      document.removeEventListener('valence:island-error', errorListener)
+      handle.destroy()
+    })
+
+    it('rejects external island src values and preserves fallback', async () => {
+      container.innerHTML = `
+        <div server:defer src="https://example.com/island">
+          <span class="fallback">Fallback</span>
+        </div>
+      `
+
+      const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response('<p>External</p>', {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html',
+            'X-Valence-Fragment': '1'
+          }
+        })
+      )
+
+      const errorListener = vi.fn()
+      document.addEventListener('valence:island-error', errorListener)
+
+      const handle = initServerIslands({ fetchFn: mockFetch })
+
+      await vi.waitFor(() => {
+        expect(errorListener).toHaveBeenCalledOnce()
+      })
+
+      expect(mockFetch).not.toHaveBeenCalled()
+      expect(container.querySelector('.fallback')).not.toBeNull()
+      expect(container.querySelector('p')).toBeNull()
+
+      document.removeEventListener('valence:island-error', errorListener)
+      handle.destroy()
+    })
+
+    it('does not use raw promise catches in island loading', async () => {
+      const source = await import('node:fs/promises').then(fs =>
+        fs.readFile(`${process.cwd()}/src/router/server-islands.ts`, 'utf8')
+      )
+
+      expect(source).not.toMatch(/loadIsland[\s\S]*\.catch\(/)
     })
   })
 })

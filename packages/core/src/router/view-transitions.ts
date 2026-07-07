@@ -2,6 +2,8 @@
 // Wraps the browser's startViewTransition around the router's fragment swap.
 // Graceful fallback when the API is unavailable.
 
+import { ResultAsync } from '@valencets/resultkit'
+
 export function supportsViewTransitions (): boolean {
   return typeof document !== 'undefined' &&
     typeof document.startViewTransition === 'function'
@@ -22,6 +24,19 @@ export function clearTransitionNames (container: Element): void {
   }
 }
 
+function clearNamesWhenFinished (
+  transition: ViewTransition,
+  liveContainer: Element
+): void {
+  ResultAsync.fromPromise(
+    transition.finished,
+    () => null
+  ).match(
+    () => clearTransitionNames(liveContainer),
+    () => clearTransitionNames(liveContainer)
+  )
+}
+
 export function wrapInTransition (doSwap: () => void, liveContainer: Element): void {
   if (!supportsViewTransitions()) {
     doSwap()
@@ -35,7 +50,5 @@ export function wrapInTransition (doSwap: () => void, liveContainer: Element): v
     applyTransitionNames(liveContainer)
   })
 
-  transition.finished
-    .then(() => clearTransitionNames(liveContainer))
-    .catch(() => clearTransitionNames(liveContainer))
+  clearNamesWhenFinished(transition, liveContainer)
 }

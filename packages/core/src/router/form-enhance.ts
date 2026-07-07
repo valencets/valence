@@ -1,4 +1,4 @@
-import { fromThrowable } from '@valencets/resultkit'
+import { ResultAsync, fromThrowable } from '@valencets/resultkit'
 import { getCsrfToken } from './fragment-swap.js'
 
 export interface FormEnhanceConfig {
@@ -26,6 +26,22 @@ export function serializeForm (form: HTMLFormElement): URLSearchParams {
   return params
 }
 
+function isEnhanceableForm (form: HTMLFormElement): boolean {
+  const enctype = form.enctype.trim().toLowerCase()
+  if (enctype !== '' && enctype !== 'application/x-www-form-urlencoded') {
+    return false
+  }
+
+  const data = new FormData(form)
+  for (const value of data.values()) {
+    if (typeof value !== 'string') {
+      return false
+    }
+  }
+
+  return true
+}
+
 function csrfHeaders (): Record<string, string> {
   const token = getCsrfToken()
   if (token === undefined) return {}
@@ -43,13 +59,25 @@ function resolveFormUrl (form: HTMLFormElement): string {
 }
 
 function handleRedirect (response: Response, config: FormEnhanceConfig): void {
-  const location = response.headers.get('Location')
+  const location = response.headers.get('X-Valence-Redirect')
   if (location === null) return
   if (config.onNavigate !== undefined) {
     config.onNavigate(location)
   } else {
     window.location.href = location
   }
+}
+
+async function submitEnhancedForm (
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body: string,
+  config: FormEnhanceConfig,
+  fetchFn: typeof fetch
+): Promise<void> {
+  const response = await fetchFn(url, { method, headers, body })
+  handleRedirect(response, config)
 }
 
 function onSubmit (
@@ -64,6 +92,7 @@ function onSubmit (
   if (form === null) return
 
   if (!shouldEnhanceForm(form)) return
+  if (!isEnhanceableForm(form)) return
 
   event.preventDefault()
 
@@ -73,20 +102,17 @@ function onSubmit (
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/x-www-form-urlencoded',
-    'X-Valence-Fragment': 'true',
+    'X-Valence-Fragment': '1',
     ...csrfHeaders()
   }
 
-  fetchFn(url, { method, headers, body })
-    .then((response) => {
-      if (response.status === 302 || (response.status >= 300 && response.status < 400)) {
-        handleRedirect(response, config)
-      }
-      // Success — no further action needed for now (fragment swap handled by router)
-    })
-    .catch(() => {
-      // Fetch errors are silently ignored — form degrades gracefully
-    })
+  ResultAsync.fromPromise(
+    submitEnhancedForm(url, method, headers, body, config, fetchFn),
+    () => new Error('Enhanced form submission failed')
+  ).match(
+    () => undefined,
+    () => undefined
+  )
 }
 
 export function initFormEnhancement (

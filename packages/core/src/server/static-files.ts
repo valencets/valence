@@ -1,6 +1,6 @@
 import { resolve as resolvePath, normalize, extname } from 'node:path'
 import { statSync, createReadStream } from 'node:fs'
-import { ok, err } from '@valencets/resultkit'
+import { ok, err, fromThrowable } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 import type { ServerResponse } from 'node:http'
 import type { ServerError } from './server-types.js'
@@ -40,6 +40,8 @@ export function resolveMimeType (filename: string): string {
   return MIME_TYPES[ext] ?? 'application/octet-stream'
 }
 
+const safeDecodeURIComponent = fromThrowable(decodeURIComponent, () => null)
+
 export function resolveStaticPath (requestPath: string, rootDir: string): Result<string, ServerError> {
   // Reject null bytes
   if (requestPath.includes('\0')) {
@@ -60,12 +62,22 @@ export function resolveStaticPath (requestPath: string, rootDir: string): Result
   }
 
   // Decode and normalize
-  const decoded = decodeURIComponent(requestPath)
+  const decodeResult = safeDecodeURIComponent(requestPath)
+  const decoded = decodeResult.isOk() ? decodeResult.value : null
+  if (decoded === null) {
+    return err({ code: ServerErrorCode.NOT_FOUND, message: 'Invalid path', statusCode: 404 })
+  }
+
+  if (decoded.includes('..')) {
+    return err({ code: ServerErrorCode.NOT_FOUND, message: 'Path traversal rejected', statusCode: 404 })
+  }
+
   const normalized = normalize(decoded)
   const fullPath = resolvePath(rootDir, '.' + normalized)
+  const resolvedRoot = resolvePath(rootDir)
 
   // Path traversal check: resolved path must start with root
-  if (!fullPath.startsWith(resolvePath(rootDir))) {
+  if (fullPath !== resolvedRoot && !fullPath.startsWith(resolvedRoot + '/')) {
     return err({ code: ServerErrorCode.NOT_FOUND, message: 'Path traversal rejected', statusCode: 404 })
   }
 
@@ -162,8 +174,23 @@ export function serveStaticFile (
   res: ServerResponse
 ): Promise<void> {
   return new Promise((resolve: () => void) => {
-    const stat = statSync(filePath)
-    const fileSize = stat.size
+    const safeStat = fromThrowable(statSync, () => null)
+    const statResult = safeStat(filePath)
+    if (statResult.isErr() || statResult.value === null) {
+      res.writeHead(404, { 'Content-Length': 0 })
+      res.end()
+      resolve()
+      return
+    }
+
+    const stat = statResult.value
+    if (stat === undefined) {
+      res.writeHead(404, { 'Content-Length': 0 })
+      res.end()
+      resolve()
+      return
+    }
+    const fileSize = Number(stat.size)
 
     const rangeResult = parseRangeHeader(rangeHeader, fileSize)
 
@@ -188,7 +215,13 @@ export function serveStaticFile (
       })
       const stream = createReadStream(filePath)
       stream.on('end', resolve)
-      stream.on('error', () => { res.end(); resolve() })
+      stream.on('error', () => {
+        if (!res.headersSent) {
+          res.writeHead(404, { 'Content-Length': 0 })
+        }
+        res.end()
+        resolve()
+      })
       stream.pipe(res)
       return
     }
@@ -203,7 +236,13 @@ export function serveStaticFile (
     })
     const stream = createReadStream(filePath, { start: range.start, end: range.end })
     stream.on('end', resolve)
-    stream.on('error', () => { res.end(); resolve() })
+    stream.on('error', () => {
+      if (!res.headersSent) {
+        res.writeHead(404, { 'Content-Length': 0 })
+      }
+      res.end()
+      resolve()
+    })
     stream.pipe(res)
   })
 }

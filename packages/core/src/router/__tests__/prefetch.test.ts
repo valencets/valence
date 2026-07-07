@@ -197,12 +197,12 @@ describe('cache behavior', () => {
     }
   })
 
-  it('getCached returns Err(CACHE_MISS) for unknown URL', () => {
+  it('getCached returns Err(CACHE_MISS) for missing URL', () => {
     const config = resolveConfig()
     const result = initPrefetch(config)
     if (result.isOk()) handle = result.value
 
-    const cached = handle!.getCached('/unknown')
+    const cached = handle!.getCached('/missing')
     expect(cached.isErr()).toBe(true)
     if (cached.isErr()) {
       expect(cached.error.code).toBe(RouterErrorCode.CACHE_MISS)
@@ -280,6 +280,48 @@ describe('cache behavior', () => {
     await handle!.prefetchUrl('/same')
     expect(handle!.cacheSize()).toBe(1)
   })
+
+  it('normalizes same-origin prefetch keys by stripping hash fragments', async () => {
+    const config = resolveConfig()
+    const mockFetch = createMockFetch('<main>Page</main>')
+    const result = initPrefetch(config, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const prefetchResult = await handle!.prefetchUrl('/docs?page=1#intro')
+    expect(prefetchResult.isOk()).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith('/docs?page=1', expect.anything())
+
+    const cached = handle!.getCached('/docs?page=1')
+    expect(cached.isOk()).toBe(true)
+  })
+
+  it('normalizes absolute same-origin prefetch URLs to pathname and search', async () => {
+    const config = resolveConfig()
+    const mockFetch = createMockFetch('<main>Page</main>')
+    const result = initPrefetch(config, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const prefetchResult = await handle!.prefetchUrl(`${window.location.origin}/guides/start?tab=api#top`)
+    expect(prefetchResult.isOk()).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith('/guides/start?tab=api', expect.anything())
+
+    const cached = handle!.getCached('/guides/start?tab=api')
+    expect(cached.isOk()).toBe(true)
+  })
+
+  it('rejects direct external prefetch URLs', async () => {
+    const config = resolveConfig()
+    const mockFetch = createMockFetch('<main>Page</main>')
+    const result = initPrefetch(config, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const prefetchResult = await handle!.prefetchUrl('https://example.com/docs')
+    expect(prefetchResult.isErr()).toBe(true)
+    if (prefetchResult.isErr()) {
+      expect(prefetchResult.error.code).toBe(RouterErrorCode.PREFETCH_FAILED)
+    }
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
 })
 
 describe('hover intent', () => {
@@ -347,6 +389,71 @@ describe('hover intent', () => {
     }))
 
     await new Promise(resolve => { setTimeout(resolve, 50) })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('does not prefetch external links on hover', async () => {
+    const mockFetch = createMockFetch('<main>Page</main>')
+    const config = resolveConfig({ velocityThreshold: 0.3, intentDurationMs: 20 })
+    const result = initPrefetch(config, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const link = document.createElement('a')
+    link.href = 'https://example.com/external'
+    document.body.appendChild(link)
+
+    link.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 100,
+      clientY: 100
+    }))
+
+    await new Promise(resolve => { setTimeout(resolve, 30) })
+    link.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      clientX: 101,
+      clientY: 101
+    }))
+
+    await new Promise(resolve => { setTimeout(resolve, 50) })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('does not prefetch ignored or non-router links on hover', async () => {
+    const mockFetch = createMockFetch('<main>Page</main>')
+    const config = resolveConfig({ velocityThreshold: 0.3, intentDurationMs: 20 })
+    const result = initPrefetch(config, mockFetch)
+    if (result.isOk()) handle = result.value
+
+    const blankLink = document.createElement('a')
+    blankLink.href = '/blank'
+    blankLink.target = '_blank'
+
+    const ignoredLink = document.createElement('a')
+    ignoredLink.href = '/ignored'
+    ignoredLink.setAttribute('data-valence-ignore', '')
+
+    const downloadLink = document.createElement('a')
+    downloadLink.href = '/download'
+    downloadLink.setAttribute('download', 'file.txt')
+
+    document.body.append(blankLink, ignoredLink, downloadLink)
+
+    for (const link of [blankLink, ignoredLink, downloadLink]) {
+      link.dispatchEvent(new MouseEvent('mousemove', {
+        bubbles: true,
+        clientX: 100,
+        clientY: 100
+      }))
+      await new Promise(resolve => { setTimeout(resolve, 30) })
+      link.dispatchEvent(new MouseEvent('mousemove', {
+        bubbles: true,
+        clientX: 101,
+        clientY: 101
+      }))
+      await new Promise(resolve => { setTimeout(resolve, 30) })
+    }
+
     expect(mockFetch).not.toHaveBeenCalled()
   })
 

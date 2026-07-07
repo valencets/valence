@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { ResultAsync } from '@valencets/resultkit'
 import type { CollectionConfig } from '@valencets/cms'
+import { store as validateStore, generateStoreModule } from '@valencets/store'
+import type { StoreInput } from '@valencets/store'
 import { generateEntityInterface } from './type-generator.js'
 import { generateApiClient } from './api-client-generator.js'
 import { generateBaseClient } from './base-client-generator.js'
@@ -44,9 +46,30 @@ async function writeIfGenerated (
   }
 }
 
+/**
+ * Boot-time and watch-time entry: regenerate everything the config implies
+ * and narrate the result. A fresh checkout gets working generated modules
+ * before the first request, not after the first config edit.
+ */
+export async function ensureGeneratedModules (
+  projectDir: string,
+  collections: readonly CollectionConfig[],
+  stores: readonly StoreInput[] | undefined,
+  log: (msg: string) => void
+): Promise<void> {
+  await regenerateFromConfig(projectDir, collections, stores).match(
+    (result) => {
+      const total = result.added.length + result.updated.length
+      if (total > 0) log(`Generated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
+    },
+    (e) => { log(`Code generation error: ${e.message}`) }
+  )
+}
+
 export function regenerateFromConfig (
   projectDir: string,
-  collections: readonly CollectionConfig[]
+  collections: readonly CollectionConfig[],
+  stores?: readonly StoreInput[]
 ): ResultAsync<RegenResult, ScaffoldError> {
   return ResultAsync.fromPromise(
     (async (): Promise<RegenResult> => {
@@ -65,6 +88,20 @@ export function regenerateFromConfig (
 
         const clientPath = join(entityDir, 'api', 'client.ts')
         await writeIfGenerated(clientPath, generateApiClient(col), tracker)
+      }
+
+      // Regenerate typed store modules — invalid definitions are skipped
+      // here exactly as the route wiring skips them at serve time.
+      const validStores = (stores ?? []).flatMap(input => {
+        const result = validateStore(input)
+        return result.isOk() ? [result.value] : []
+      })
+      if (validStores.length > 0) {
+        await mkdir(join(srcDir, 'shared', 'stores'), { recursive: true })
+        for (const storeConfig of validStores) {
+          const modulePath = join(srcDir, 'shared', 'stores', `${storeConfig.slug}.ts`)
+          await writeIfGenerated(modulePath, generateStoreModule(storeConfig), tracker)
+        }
       }
 
       // Regenerate shared base client

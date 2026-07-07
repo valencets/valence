@@ -38,17 +38,14 @@ describe('resolveStaticPath', () => {
     expect(result.unwrap()).toBe('/srv/public/styles.css')
   })
 
-  it('resolves traversal attempts safely within root', () => {
+  it('rejects traversal attempts instead of normalizing them into root', () => {
     const result = resolveStaticPath('/../../../etc/passwd', '/srv/public')
-    expect(result.isOk()).toBe(true)
-    // resolve normalizes .. within the root, never escapes
-    expect(result.unwrap().startsWith('/srv/public')).toBe(true)
+    expect(result.isErr()).toBe(true)
   })
 
-  it('resolves encoded paths safely within root', () => {
+  it('rejects encoded traversal attempts instead of normalizing them into root', () => {
     const result = resolveStaticPath('/%2e%2e/secret', '/srv/public')
-    expect(result.isOk()).toBe(true)
-    expect(result.unwrap().startsWith('/srv/public')).toBe(true)
+    expect(result.isErr()).toBe(true)
   })
 
   it('normalizes slashes', () => {
@@ -79,6 +76,18 @@ describe('resolveStaticPath', () => {
 
   it('rejects control characters in path', () => {
     const result = resolveStaticPath('/foo\x01bar', '/srv/public')
+    expect(result.isErr()).toBe(true)
+  })
+
+  it('returns Err for malformed percent-encoding instead of throwing', () => {
+    expect(() => resolveStaticPath('/%C0', '/srv/public')).not.toThrow()
+    const result = resolveStaticPath('/%C0', '/srv/public')
+    expect(result.isErr()).toBe(true)
+  })
+
+  it('returns Err for incomplete percent-encoding instead of throwing', () => {
+    expect(() => resolveStaticPath('/%', '/srv/public')).not.toThrow()
+    const result = resolveStaticPath('/%', '/srv/public')
     expect(result.isErr()).toBe(true)
   })
 })

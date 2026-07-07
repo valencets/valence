@@ -100,6 +100,30 @@ describe('generateCollectionRoutes', () => {
     expect(result).toHaveLength(0)
   })
 
+  it('keeps generated list route when custom route with same path is non-GET', () => {
+    const customRoutes: readonly RouteConfig[] = [
+      { path: '/posts', method: 'POST' }
+    ]
+    const result = generateCollectionRoutes([makeCollection()], customRoutes)
+    expect(result.find((r) => r.path === '/posts' && r.method === 'GET')).toBeDefined()
+  })
+
+  it('keeps generated detail route when custom route with same path is non-GET', () => {
+    const customRoutes: readonly RouteConfig[] = [
+      { path: '/posts/:id', method: 'DELETE' }
+    ]
+    const result = generateCollectionRoutes([makeCollection()], customRoutes)
+    expect(result.find((r) => r.path === '/posts/:id' && r.method === 'GET')).toBeDefined()
+  })
+
+  it('still treats omitted custom route method as GET for override purposes', () => {
+    const customRoutes: readonly RouteConfig[] = [
+      { path: '/posts' }
+    ]
+    const result = generateCollectionRoutes([makeCollection()], customRoutes)
+    expect(result.find((r) => r.path === '/posts' && r.method === 'GET')).toBeUndefined()
+  })
+
   it('returns readonly array of GeneratedRoute objects', () => {
     const result = generateCollectionRoutes([makeCollection()])
     const route = result[0] as GeneratedRoute

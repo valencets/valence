@@ -6,6 +6,7 @@ import type { DbPool } from '@valencets/db'
 import type { RouteConfig, RouteHandler, LoaderContext } from './define-config.js'
 import { sendHtml } from '@valencets/core/server'
 import { executeLoader, serializeLoaderData, injectLoaderData } from './loader.js'
+import type { StoreHydrator } from './store-wiring.js'
 import { executeAction, readRequestBody } from './action.js'
 
 export interface GeneratedRoute {
@@ -15,16 +16,22 @@ export interface GeneratedRoute {
   readonly type: 'list' | 'detail'
 }
 
-const customPathSet = (customRoutes: readonly RouteConfig[] | undefined): ReadonlySet<string> => {
+const TEMPLATE_SEGMENT_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/
+
+const generatedGetOverridePathSet = (customRoutes: readonly RouteConfig[] | undefined): ReadonlySet<string> => {
   if (customRoutes === undefined) return new Set()
-  return new Set(customRoutes.map((r) => r.path))
+  return new Set(
+    customRoutes
+      .filter((r) => (r.method ?? 'GET').toUpperCase() === 'GET')
+      .map((r) => r.path)
+  )
 }
 
 export function generateCollectionRoutes (
   collections: readonly CollectionConfig[],
   customRoutes?: readonly RouteConfig[] | undefined
 ): readonly GeneratedRoute[] {
-  const overriddenPaths = customPathSet(customRoutes)
+  const overriddenPaths = generatedGetOverridePathSet(customRoutes)
   const routes: GeneratedRoute[] = []
 
   for (const col of collections) {
@@ -52,7 +59,7 @@ const detailTemplatePath = (projectDir: string, slug: string): string =>
 const isFragment = (req: IncomingMessage): boolean =>
   req.headers['x-valence-fragment'] === 'true'
 
-function makeGeneratedHandler (route: GeneratedRoute, projectDir: string): RouteHandler {
+function makeGeneratedHandler (route: GeneratedRoute, projectDir: string, storeHydrator?: StoreHydrator): RouteHandler {
   const templatePath = route.type === 'list'
     ? listTemplatePath(projectDir, route.collection)
     : detailTemplatePath(projectDir, route.collection)
@@ -60,7 +67,8 @@ function makeGeneratedHandler (route: GeneratedRoute, projectDir: string): Route
   return async (req: IncomingMessage, res: ServerResponse, params: Record<string, string>): Promise<void> => {
     if (existsSync(templatePath)) {
       const content = readFileSync(templatePath, 'utf-8')
-      sendHtml(res, content)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, content) : content
+      sendHtml(res, hydrated)
       return
     }
 
@@ -78,12 +86,13 @@ function makeGeneratedHandler (route: GeneratedRoute, projectDir: string): Route
 
 export function buildGeneratedRouteMap (
   routes: readonly GeneratedRoute[],
-  projectDir: string
+  projectDir: string,
+  storeHydrator?: StoreHydrator
 ): Map<string, Map<string, RouteHandler>> {
   const routeMap = new Map<string, Map<string, RouteHandler>>()
 
   for (const route of routes) {
-    const handler = makeGeneratedHandler(route, projectDir)
+    const handler = makeGeneratedHandler(route, projectDir, storeHydrator)
     let methodMap = routeMap.get(route.path)
     if (methodMap === undefined) {
       methodMap = new Map<string, RouteHandler>()
@@ -102,21 +111,43 @@ function extractQueryFromReq (req: IncomingMessage): URLSearchParams {
   return new URLSearchParams(rawUrl.slice(qIndex + 1))
 }
 
-function resolveTemplatePath (routePath: string, projectDir: string): string {
-  // /slug -> index.html, /slug/:param -> detail.html
+function isValidTemplateSegment (segment: string): boolean {
+  return TEMPLATE_SEGMENT_PATTERN.test(segment) && !segment.includes('..')
+}
+
+function resolveTemplatePath (routePath: string, projectDir: string): string | null {
+  // Preserve static route shape for template lookup.
+  // Param segments do not become directories; any param selects detail.html.
   const segments = routePath.split('/').filter(s => s.length > 0)
   const hasParam = segments.some(s => s.startsWith(':'))
-  const collection = segments.find(s => !s.startsWith(':')) ?? 'page'
+  const staticSegments = segments.filter(s => !s.startsWith(':'))
+
+  for (const segment of staticSegments) {
+    if (!isValidTemplateSegment(segment)) return null
+  }
+
+  const pageSegments = staticSegments.length > 0 ? staticSegments : ['page']
   return hasParam
-    ? join(projectDir, 'src', 'pages', collection, 'ui', 'detail.html')
-    : join(projectDir, 'src', 'pages', collection, 'ui', 'index.html')
+    ? join(projectDir, 'src', 'pages', ...pageSegments, 'ui', 'detail.html')
+    : join(projectDir, 'src', 'pages', ...pageSegments, 'ui', 'index.html')
+}
+
+function mergeResponseHeaders (
+  fixedHeaders: Readonly<Record<string, string>>,
+  customHeaders: Record<string, string> | undefined
+): Record<string, string> {
+  return {
+    ...(customHeaders ?? {}),
+    ...fixedHeaders
+  }
 }
 
 function makeLoaderHandler (
   route: RouteConfig,
   projectDir: string,
   pool: DbPool,
-  cms: CmsInstance
+  cms: CmsInstance,
+  storeHydrator?: StoreHydrator
 ): RouteHandler {
   const loader = route.loader!
   const templatePath = resolveTemplatePath(route.path, projectDir)
@@ -135,7 +166,7 @@ function makeLoaderHandler (
     const result = loaderResult.value
 
     if (result.redirect !== undefined) {
-      res.writeHead(302, { Location: result.redirect })
+      res.writeHead(302, mergeResponseHeaders({ Location: result.redirect }, result.headers))
       res.end()
       return
     }
@@ -143,17 +174,18 @@ function makeLoaderHandler (
     const status = result.status ?? 200
     const script = serializeLoaderData(result.data)
 
-    if (existsSync(templatePath)) {
+    if (templatePath !== null && existsSync(templatePath)) {
       const templateContent = readFileSync(templatePath, 'utf-8')
       const html = injectLoaderData(templateContent, script)
-      res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' })
-      res.end(html)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, html) : html
+      res.writeHead(status, mergeResponseHeaders({ 'Content-Type': 'text/html; charset=utf-8' }, result.headers))
+      res.end(hydrated)
       return
     }
 
     // No template -- return minimal HTML with embedded loader data script
     const html = `<!doctype html><html><body>${script}</body></html>`
-    res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.writeHead(status, mergeResponseHeaders({ 'Content-Type': 'text/html; charset=utf-8' }, result.headers))
     res.end(html)
   }
 }
@@ -189,7 +221,7 @@ function makeActionHandler (
 
     const status = result.status ?? 200
 
-    if (existsSync(templatePath)) {
+    if (templatePath !== null && existsSync(templatePath)) {
       const templateContent = readFileSync(templatePath, 'utf-8')
       res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end(templateContent)
@@ -207,7 +239,8 @@ export function buildUserRouteMap (
   routes: readonly RouteConfig[] | undefined,
   projectDir: string,
   pool: DbPool,
-  cms: CmsInstance
+  cms: CmsInstance,
+  storeHydrator?: StoreHydrator
 ): Map<string, Map<string, RouteHandler>> {
   const routeMap = new Map<string, Map<string, RouteHandler>>()
   if (routes === undefined) return routeMap
@@ -226,11 +259,15 @@ export function buildUserRouteMap (
     }
 
     if (route.loader !== undefined) {
-      methodMap.set('GET', makeLoaderHandler(route, projectDir, pool, cms))
+      methodMap.set('GET', makeLoaderHandler(route, projectDir, pool, cms, storeHydrator))
     }
 
     if (route.action !== undefined) {
-      methodMap.set('POST', makeActionHandler(route, projectDir, pool, cms))
+      const actionMethod = (route.method ?? 'POST').toUpperCase()
+      if (route.loader !== undefined && actionMethod === 'GET') {
+        continue
+      }
+      methodMap.set(actionMethod, makeActionHandler(route, projectDir, pool, cms))
     }
   }
 

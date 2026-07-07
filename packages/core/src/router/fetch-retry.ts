@@ -1,3 +1,5 @@
+import { ResultAsync } from '@valencets/resultkit'
+
 export interface AbortableFetchHandle {
   readonly fetch: typeof fetch
   readonly abort: () => void
@@ -41,18 +43,21 @@ async function attemptFetch (
     return { done: false, error: new DOMException('The operation was aborted.', 'AbortError') }
   }
 
-  return fetchFn(url, { ...init, signal }).then(async (response) => {
+  return ResultAsync.fromPromise(
+    fetchFn(url, { ...init, signal }),
+    (error): DOMException | Error =>
+      error instanceof DOMException || error instanceof Error
+        ? error
+        : new Error(String(error))
+  ).match(async (response) => {
     if (signal.aborted) {
       return { done: false, error: new DOMException('The operation was aborted.', 'AbortError') } as FetchAttemptResult
     }
     if (isRetryableResponse(response) && attempt < MAX_ATTEMPTS) {
-      if (attempt >= 2) {
-        await delay(RETRY_DELAY_MS, signal)
-      }
       return { done: false, error: null } as FetchAttemptResult
     }
     return { done: true, response } as FetchAttemptResult
-  }).catch((error: DOMException | Error) => {
+  }, (error) => {
     return { done: false, error } as FetchAttemptResult
   })
 }

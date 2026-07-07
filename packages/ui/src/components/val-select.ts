@@ -223,6 +223,7 @@ export class ValSelect extends ValFormElement {
     this.updateTriggerText()
     this.close()
     this.triggerEl?.focus()
+    this.dispatchEvent(new Event('change', { bubbles: true, composed: true }))
     this.emitInteraction('change', { value: opt.value })
   }
 

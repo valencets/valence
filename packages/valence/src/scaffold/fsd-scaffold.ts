@@ -53,7 +53,9 @@ export async function scaffoldFsd (options: ScaffoldOptions): Promise<void> {
 
   // Generate app styles
   const stylesContent = generateAppStyles()
-  await writeFile(join(srcDir, 'app', 'styles.css'), stylesContent)
+  // Served from public/ — the dev server never serves src/
+  await mkdir(join(projectDir, 'public'), { recursive: true })
+  await writeFile(join(projectDir, 'public', 'styles.css'), stylesContent)
 
   // Generate home page
   const homeContent = generateHomePage()

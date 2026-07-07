@@ -7,11 +7,11 @@ Telemetry engine, HTML-over-the-wire router, and server-side routing primitives.
 ```
 src/
 ├── telemetry/
-│   ├── intent-types.ts       # IntentType const union, GlobalTelemetryIntent, TelemetryError
-│   ├── object-pool.ts        # TelemetryObjectPool (pre-allocated slots, getSlot/resetSlot)
-│   ├── ring-buffer.ts        # TelemetryRingBuffer (circular buffer, modulo pointer math)
-│   ├── event-delegation.ts   # Single click listener on root, data-* attribute reading
-│   ├── flush.ts              # sendBeacon dispatch, scheduleAutoFlush, visibilitychange
+│   ├── intent-types.ts       # IntentType, TelemetryErrorCode, BusinessType, CURRENT_SCHEMA_VERSION, GlobalTelemetryIntent, TelemetryError, resetIntent, createEmptyIntent
+│   ├── object-pool.ts        # TelemetryObjectPool (pre-allocated slots, getSlot/resetSlot with INVALID_SLOT_INDEX)
+│   ├── ring-buffer.ts        # TelemetryRingBuffer (circular buffer, bitmask pointer math, zero-alloc collectDirty)
+│   ├── event-delegation.ts   # Single click listener on root, data-* attribute reading, auto tel:/mailto: lead detection, intentTypeMap/leadHrefMap (frozen)
+│   ├── flush.ts              # sendBeacon dispatch with URL validation, scheduleAutoFlush (Result return, interval bounds), isValidBeaconUrl
 │   └── index.ts
 ├── router/
 │   ├── router-types.ts       # RouterErrorCode, RouterError, RouterConfig, ResolvedRouterConfig, resolveConfig, CachedResponse, NavigationDetail, PageCacheEntry, NavigationPerformance

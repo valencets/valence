@@ -314,3 +314,58 @@ describe('defineConfig graphql option', () => {
     expect(result.isOk()).toBe(true)
   })
 })
+
+describe('defineConfig stores', () => {
+  it('accepts config with stores array', () => {
+    const result = defineConfig({
+      ...minimalConfig,
+      stores: [
+        {
+          slug: 'counter',
+          scope: 'session',
+          fields: [{ type: 'number' as const, name: 'count', default: 0 }],
+          mutations: {
+            increment: {
+              input: [{ type: 'number' as const, name: 'amount' }],
+              server: async ({ state, input }) => {
+                state.count = (state.count as number) + (input.amount as number)
+              }
+            }
+          }
+        }
+      ]
+    })
+    expect(result.isOk()).toBe(true)
+  })
+
+  it('passes stores through to resolved config', () => {
+    const storeConfig = {
+      slug: 'cart',
+      scope: 'session' as const,
+      fields: [{ type: 'text' as const, name: 'status' }],
+      mutations: {}
+    }
+    const result = defineConfig({
+      ...minimalConfig,
+      stores: [storeConfig]
+    })
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value.stores).toHaveLength(1)
+      expect(result.value.stores![0]!.slug).toBe('cart')
+    }
+  })
+
+  it('stores default to undefined when not provided', () => {
+    const result = defineConfig(minimalConfig)
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value.stores).toBeUndefined()
+    }
+  })
+
+  it('backward compat: defineConfig without stores still works', () => {
+    const result = defineConfig(minimalConfig)
+    expect(result.isOk()).toBe(true)
+  })
+})

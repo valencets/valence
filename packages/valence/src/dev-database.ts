@@ -1,5 +1,5 @@
 import type { DbConfig, DbError, DbPool } from '@valencets/db'
-import type { ResultAsync } from '@valencets/resultkit'
+import { ResultAsync } from '@valencets/resultkit'
 import { log } from './cli-utils.js'
 
 interface PoolFactory {
@@ -23,9 +23,8 @@ export async function ensureDevDatabase (config: DbConfig, deps: PoolFactory): P
   log(`Ensuring dev database "${devDbName}" exists...`)
 
   const sqlStatement = `CREATE DATABASE "${devDbName}"`
-  await maintenancePool.sql.unsafe(sqlStatement).catch(() => {
-    /* database already exists — safe to ignore */
-  })
+  // Database already existing is the expected, safe-to-ignore failure
+  await ResultAsync.fromPromise(maintenancePool.sql.unsafe(sqlStatement), () => undefined)
 
   await deps.closePool(maintenancePool)
 }

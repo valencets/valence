@@ -1,14 +1,14 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { RequestContext, Middleware, ErrorHandler } from './middleware-types.js'
 
-export const ServerErrorCode = {
+export const ServerErrorCode = Object.freeze({
   NOT_FOUND: 'NOT_FOUND',
   METHOD_NOT_ALLOWED: 'METHOD_NOT_ALLOWED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   UNAUTHORIZED: 'UNAUTHORIZED',
   RATE_LIMITED: 'RATE_LIMITED'
-} as const
+} as const)
 
 export type ServerErrorCode = typeof ServerErrorCode[keyof typeof ServerErrorCode]
 

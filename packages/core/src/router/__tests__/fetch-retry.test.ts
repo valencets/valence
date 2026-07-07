@@ -4,6 +4,7 @@ import { createAbortableFetch } from '../fetch-retry.js'
 describe('createAbortableFetch', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.setSystemTime(0)
   })
 
   afterEach(() => {
@@ -127,6 +128,35 @@ describe('createAbortableFetch', () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 
+  it('retries a 500, 500, 200 sequence after a single 1s wait before the third attempt', async () => {
+    const callTimes: number[] = []
+    const mockFetch = vi.fn<typeof fetch>()
+      .mockImplementationOnce(() => {
+        callTimes.push(Date.now())
+        return Promise.resolve(new Response('error', { status: 500 }))
+      })
+      .mockImplementationOnce(() => {
+        callTimes.push(Date.now())
+        return Promise.resolve(new Response('error', { status: 500 }))
+      })
+      .mockImplementationOnce(() => {
+        callTimes.push(Date.now())
+        return Promise.resolve(new Response('ok', { status: 200 }))
+      })
+
+    const handle = createAbortableFetch(mockFetch)
+    const responsePromise = handle.fetch('/server-error')
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(callTimes).toEqual([0, 0])
+
+    await vi.advanceTimersByTimeAsync(1000)
+
+    const response = await responsePromise
+    expect(response.status).toBe(200)
+    expect(callTimes).toEqual([0, 0, 1000])
+  })
+
   it('abort during retry cancels the retry chain', async () => {
     const mockFetch = vi.fn<typeof fetch>()
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
@@ -191,5 +221,33 @@ describe('createAbortableFetch', () => {
     )
     // AbortError should NOT trigger retry — only 1 fetch call
     expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('normalizes non-Error fetch rejections into Error instances', async () => {
+    const mockFetch = vi.fn<typeof fetch>()
+      .mockRejectedValueOnce('network down')
+      .mockRejectedValueOnce('network down')
+      .mockRejectedValueOnce('network down')
+
+    const handle = createAbortableFetch(mockFetch)
+    const responsePromise = handle.fetch('/page')
+
+    const rejectAssertion = expect(responsePromise).rejects.toSatisfy((error: Error) =>
+      error instanceof Error && error.message === 'network down'
+    )
+
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1000)
+
+    await rejectAssertion
+  })
+
+  it('does not use a raw promise catch in fetch retry transport', async () => {
+    const source = await import('node:fs/promises').then(fs =>
+      fs.readFile(`${process.cwd()}/src/router/fetch-retry.ts`, 'utf8')
+    )
+
+    expect(source).not.toContain('error as DOMException | Error')
+    expect(source).not.toMatch(/fetchFn\(url, \{ \.\.\.init, signal \}\)[\s\S]*\.catch\(/)
   })
 })

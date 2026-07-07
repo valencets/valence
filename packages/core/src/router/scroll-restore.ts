@@ -1,6 +1,12 @@
+export interface HistoryStateShape {
+  readonly url?: string | undefined
+  readonly scrollX?: number | undefined
+  readonly scrollY?: number | undefined
+}
+
 export interface ScrollRestoreHandle {
   readonly saveCurrentPosition: () => void
-  readonly restorePosition: (state?: unknown) => void
+  readonly restorePosition: (state?: HistoryStateShape | null) => void
   readonly scrollToHash: (hash: string) => boolean
   readonly destroy: () => void
 }
@@ -10,23 +16,36 @@ interface ScrollState {
   readonly scrollY: number
 }
 
-function hasScrollState (state: unknown): state is ScrollState {
-  if (state === null || typeof state !== 'object') return false
-  const s = state as { scrollX?: unknown; scrollY?: unknown }
-  return typeof s.scrollX === 'number' && typeof s.scrollY === 'number'
+export function toHistoryStateShape (value: object | null): HistoryStateShape | null {
+  if (value === null) return null
+  const url = Reflect.get(value, 'url')
+  const scrollX = Reflect.get(value, 'scrollX')
+  const scrollY = Reflect.get(value, 'scrollY')
+
+  return {
+    url: typeof url === 'string' ? url : undefined,
+    scrollX: typeof scrollX === 'number' ? scrollX : undefined,
+    scrollY: typeof scrollY === 'number' ? scrollY : undefined
+  }
+}
+
+function hasScrollState (state: HistoryStateShape | null): state is ScrollState {
+  return state !== null &&
+    typeof state.scrollX === 'number' &&
+    typeof state.scrollY === 'number'
 }
 
 export function initScrollRestore (): ScrollRestoreHandle {
   function saveCurrentPosition (): void {
-    const currentState = history.state as { url?: string; scrollX?: number; scrollY?: number } | null
+    const currentState = toHistoryStateShape(history.state)
     history.replaceState(
       { ...currentState, scrollX: window.scrollX, scrollY: window.scrollY },
       ''
     )
   }
 
-  function restorePosition (state?: unknown): void {
-    const s = (state ?? history.state) as unknown
+  function restorePosition (state?: HistoryStateShape | null): void {
+    const s = state ?? toHistoryStateShape(history.state)
     if (!hasScrollState(s)) return
     window.scrollTo(s.scrollX, s.scrollY)
   }

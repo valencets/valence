@@ -14,7 +14,26 @@ export interface DevOverlayHandle {
 const OVERLAY_ID = 'val-dev-overlay'
 
 // Static inline styles as a dictionary to avoid string concatenation issues
-const PANEL_STYLES: Record<string, string> = {
+interface PanelStyles {
+  readonly position: string
+  readonly bottom: string
+  readonly right: string
+  readonly zIndex: string
+  readonly background: string
+  readonly color: string
+  readonly fontFamily: string
+  readonly fontSize: string
+  readonly lineHeight: string
+  readonly padding: string
+  readonly borderRadius: string
+  readonly border: string
+  readonly boxShadow: string
+  readonly minWidth: string
+  readonly maxWidth: string
+  readonly display: string
+}
+
+const PANEL_STYLES: PanelStyles = {
   position: 'fixed',
   bottom: '16px',
   right: '16px',
@@ -33,7 +52,7 @@ const PANEL_STYLES: Record<string, string> = {
   display: 'none'
 }
 
-function applyStyles (el: HTMLElement, styles: Record<string, string>): void {
+function applyStyles (el: HTMLElement, styles: PanelStyles): void {
   for (const [key, value] of Object.entries(styles)) {
     el.style.setProperty(
       key.replace(/([A-Z])/g, (c) => `-${c.toLowerCase()}`),
@@ -52,18 +71,45 @@ function createPanel (): HTMLElement {
   return panel
 }
 
+function appendTextLine (
+  panel: HTMLElement,
+  label: string,
+  value: string,
+  color: string
+): void {
+  const line = document.createElement('div')
+  line.append(`${label}: `)
+
+  const valueSpan = document.createElement('span')
+  valueSpan.style.color = color
+  valueSpan.textContent = value
+  line.appendChild(valueSpan)
+
+  panel.appendChild(line)
+}
+
 function renderContent (panel: HTMLElement, perf: NavigationPerformance | null): void {
   const route = perf !== null ? perf.toUrl : window.location.pathname
   const source = perf !== null ? perf.source : '—'
   const duration = perf !== null ? `${String(perf.durationMs)}ms` : '—'
 
-  panel.innerHTML = [
-    '<b style="color:#7dd3fc">Valence Dev</b>',
-    `<div>Route: <span style="color:#86efac">${route}</span></div>`,
-    `<div>Source: <span style="color:#fde68a">${source}</span></div>`,
-    `<div>Duration: <span style="color:#c4b5fd">${duration}</span></div>`,
-    '<div style="margin-top:6px;opacity:0.5;font-size:10px">Ctrl+Shift+D to toggle</div>'
-  ].join('')
+  panel.replaceChildren()
+
+  const title = document.createElement('b')
+  title.style.color = '#7dd3fc'
+  title.textContent = 'Valence Dev'
+  panel.appendChild(title)
+
+  appendTextLine(panel, 'Route', route, '#86efac')
+  appendTextLine(panel, 'Source', source, '#fde68a')
+  appendTextLine(panel, 'Duration', duration, '#c4b5fd')
+
+  const hint = document.createElement('div')
+  hint.style.marginTop = '6px'
+  hint.style.opacity = '0.5'
+  hint.style.fontSize = '10px'
+  hint.textContent = 'Ctrl+Shift+D to toggle'
+  panel.appendChild(hint)
 }
 
 /**

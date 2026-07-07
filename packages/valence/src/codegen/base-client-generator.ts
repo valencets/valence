@@ -3,6 +3,19 @@
 export function generateBaseClient (): string {
   return `// @generated — regenerated from valence.config.ts. DO NOT EDIT.
 
+/** The REST list envelope. Collections answer 401 for anonymous callers
+ *  unless the collection declares public access, e.g.
+ *  collection({ access: { read: () => true } }). */
+export interface Paginated<T> {
+  readonly docs: readonly T[]
+  readonly totalDocs: number
+  readonly page: number
+  readonly totalPages: number
+  readonly limit: number
+  readonly hasNextPage: boolean
+  readonly hasPrevPage: boolean
+}
+
 export function apiClient<T> (basePath: string) {
   async function request<R> (url: string, options?: RequestInit): Promise<R> {
     const res = await fetch(url, {
@@ -17,7 +30,11 @@ export function apiClient<T> (basePath: string) {
 
   return {
     async list (): Promise<T[]> {
-      return request<T[]>(basePath)
+      const page = await request<Paginated<T>>(basePath)
+      return [...page.docs]
+    },
+    async listPaginated (): Promise<Paginated<T>> {
+      return request<Paginated<T>>(basePath)
     },
     async get (id: string): Promise<T> {
       return request<T>(\`\${basePath}/\${id}\`)

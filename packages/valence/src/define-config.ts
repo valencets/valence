@@ -5,6 +5,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { DbPool } from '@valencets/db'
 import type { CmsInstance, CollectionConfig } from '@valencets/cms'
 import { validateCollections } from './validate-collections.js'
+import type { StoreInput } from '@valencets/store'
 
 export type RouteHandler = (req: IncomingMessage, res: ServerResponse, params: Record<string, string>) => void | Promise<void>
 
@@ -103,6 +104,9 @@ export interface ValenceConfig {
     readonly uploadDir: string
     readonly maxUploadBytes?: number | undefined
   } | undefined
+  // Schema-driven stores. Contain mutation server/client functions that
+  // are not Zod-serializable — same treatment as onServer and routes.
+  readonly stores?: readonly StoreInput[] | undefined
   // Called after CMS is built and before the HTTP server starts listening.
   // Lets consuming apps attach WebSocket upgrade handlers or custom routes.
   readonly onServer?: ((ctx: OnServerContext) => void | Promise<void>) | undefined
@@ -151,6 +155,8 @@ export interface ResolvedValenceConfig {
   readonly onServer?: ((ctx: OnServerContext) => void | Promise<void>) | undefined
   // Preserved from ValenceConfig — handlers are functions and not Zod-serializable.
   readonly routes?: readonly RouteConfig[] | undefined
+  // Preserved from ValenceConfig — mutation functions are not Zod-serializable.
+  readonly stores?: readonly StoreInput[] | undefined
   // Whether GraphQL endpoint is enabled.
   readonly graphql?: boolean | undefined
 }
@@ -213,9 +219,9 @@ const configSchema = z.object({
 })
 
 export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConfig, ConfigError> {
-  // Strip onServer and routes before Zod validation — both may contain function
+  // Strip onServer, routes, and stores before Zod validation — all contain function
   // values that Zod cannot validate. Preserve them and re-attach after resolution.
-  const { onServer, routes, graphql, ...configWithoutCallbacks } = config
+  const { onServer, routes, stores, graphql, ...configWithoutCallbacks } = config
   const parsed = configSchema.safeParse(configWithoutCallbacks)
 
   if (!parsed.success) {
@@ -287,6 +293,7 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
       : undefined,
     onServer,
     routes,
+    stores,
     graphql
   }
 

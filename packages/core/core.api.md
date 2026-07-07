@@ -69,6 +69,21 @@ export interface BodyLimitConfig {
 }
 
 // @public (undocumented)
+export const BusinessType: Readonly<{
+    readonly BARBERSHOP: "barbershop";
+    readonly LEGAL: "legal";
+    readonly HVAC: "hvac";
+    readonly MEDICAL: "medical";
+    readonly RESTAURANT: "restaurant";
+    readonly CONTRACTOR: "contractor";
+    readonly RETAIL: "retail";
+    readonly OTHER: "other";
+}>;
+
+// @public (undocumented)
+export type BusinessType = typeof BusinessType[keyof typeof BusinessType];
+
+// @public (undocumented)
 export interface ByteRange {
     // (undocumented)
     readonly end: number;
@@ -105,13 +120,13 @@ export function calculateVelocity(x1: number, y1: number, t1: number, x2: number
 export function clearTransitionNames(container: Element): void;
 
 // @public (undocumented)
-export const ContentCategory: {
+export const ContentCategory: Readonly<{
     readonly JSON: "json";
     readonly FORM: "form";
     readonly MULTIPART: "multipart";
     readonly BEACON: "beacon";
     readonly RAW: "raw";
-};
+}>;
 
 // @public (undocumented)
 export type ContentCategory = typeof ContentCategory[keyof typeof ContentCategory];
@@ -157,7 +172,7 @@ export function createOriginCheck(config: OriginCheckConfig): Middleware;
 export function createRateLimitMiddleware(config: RateLimitMiddlewareConfig): RateLimitMiddlewareHandle;
 
 // @public (undocumented)
-export function createRequestContext(req: IncomingMessage, params?: Readonly<Record<string, string>>): RequestContext;
+export function createRequestContext(req: IncomingMessage, url: URL, params?: Readonly<Record<string, string>>): RequestContext;
 
 // @public (undocumented)
 export function createServerRouter(): ServerRouter;
@@ -167,6 +182,9 @@ export function createTokenBucket(config: RateLimitConfig): TokenBucket;
 
 // @public (undocumented)
 export const CSP_NONCE_PLACEHOLDER = "__CSP_NONCE__";
+
+// @public (undocumented)
+export const CURRENT_SCHEMA_VERSION = 1;
 
 // @public (undocumented)
 export const DefaultRoleHierarchy: RoleHierarchy;
@@ -245,6 +263,8 @@ export function getTransitionPreset(el: Element): string | null;
 // @public (undocumented)
 export interface GlobalTelemetryIntent {
     // (undocumented)
+    business_type: BusinessType;
+    // (undocumented)
     id: string;
     // (undocumented)
     isDirty: boolean;
@@ -270,6 +290,16 @@ export interface GlobalTelemetryIntent {
 
 // @public (undocumented)
 export function hasRole(userRole: string, requiredRole: string, hierarchy: RoleHierarchy): boolean;
+
+// @public (undocumented)
+export interface HistoryStateShape {
+    // (undocumented)
+    readonly scrollX?: number | undefined;
+    // (undocumented)
+    readonly scrollY?: number | undefined;
+    // (undocumented)
+    readonly url?: string | undefined;
+}
 
 // @public (undocumented)
 export function html(strings: TemplateStringsArray, ...values: ReadonlyArray<string | number | null | undefined>): string;
@@ -302,7 +332,7 @@ export function initServerIslands(config?: IslandConfig): IslandHandle;
 export function injectTransitionCSS(presetName: string): void;
 
 // @public (undocumented)
-export const IntentType: {
+export const IntentType: Readonly<{
     readonly CLICK: "CLICK";
     readonly SCROLL: "SCROLL";
     readonly VIEWPORT_INTERSECT: "VIEWPORT_INTERSECT";
@@ -315,10 +345,13 @@ export const IntentType: {
     readonly LEAD_EMAIL: "LEAD_EMAIL";
     readonly LEAD_FORM: "LEAD_FORM";
     readonly PAGEVIEW: "PAGEVIEW";
-};
+}>;
 
 // @public (undocumented)
 export type IntentType = typeof IntentType[keyof typeof IntentType];
+
+// @public (undocumented)
+export const intentTypeMap: Readonly<Record<string, IntentType | undefined>>;
 
 // @public (undocumented)
 export function isFragmentRequest(req: IncomingMessage): boolean;
@@ -344,6 +377,21 @@ export interface IslandHtmlOptions {
 }
 
 // @public (undocumented)
+export function isValidBeaconUrl(url: string): boolean;
+
+// @public (undocumented)
+export type JsonArray = ReadonlyArray<JsonValue>;
+
+// @public (undocumented)
+export interface JsonObject {
+    // (undocumented)
+    readonly [key: string]: JsonValue | undefined;
+}
+
+// @public (undocumented)
+export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
+
+// @public (undocumented)
 export interface LayoutConfig {
     // (undocumented)
     readonly content: string;
@@ -362,6 +410,9 @@ export interface LayoutConfig {
 }
 
 // @public (undocumented)
+export const leadHrefMap: Readonly<Record<string, IntentType | undefined>>;
+
+// @public (undocumented)
 export function matchRoute(pathname: string, patterns: Iterable<string>): RouteMatch | null;
 
 // @public (undocumented)
@@ -370,9 +421,9 @@ export type Middleware = (req: IncomingMessage, res: ServerResponse, ctx: Reques
 // @public (undocumented)
 export interface NavigateOptions {
     // (undocumented)
-    readonly replace?: boolean;
+    readonly handle?: RouterHandle;
     // (undocumented)
-    readonly scroll?: 'top' | 'preserve';
+    readonly replace?: boolean;
 }
 
 // @public
@@ -489,7 +540,7 @@ export interface RateLimitResult {
 }
 
 // @public (undocumented)
-export function readBody(req: IncomingMessage, maxBytes?: number): Promise<string>;
+export function readBody(req: IncomingMessage, maxBytes?: number): ResultAsync<string, Error>;
 
 // @public (undocumented)
 export function renderLayout(config: LayoutConfig): string;
@@ -507,6 +558,9 @@ export interface RequestContext {
     // (undocumented)
     user?: AuthUser;
 }
+
+// @public (undocumented)
+export function resetIntent(slot: GlobalTelemetryIntent): void;
 
 // @public (undocumented)
 export function resolveConfig(partial?: RouterConfig): ResolvedRouterConfig;
@@ -636,7 +690,7 @@ export interface RouterError {
 }
 
 // @public (undocumented)
-export const RouterErrorCode: {
+export const RouterErrorCode: Readonly<{
     readonly FETCH_FAILED: "FETCH_FAILED";
     readonly PARSE_FAILED: "PARSE_FAILED";
     readonly SELECTOR_MISS: "SELECTOR_MISS";
@@ -647,7 +701,7 @@ export const RouterErrorCode: {
     readonly CACHE_STALE: "CACHE_STALE";
     readonly VERSION_MISMATCH: "VERSION_MISMATCH";
     readonly AUTH_REDIRECT: "AUTH_REDIRECT";
-};
+}>;
 
 // @public (undocumented)
 export type RouterErrorCode = typeof RouterErrorCode[keyof typeof RouterErrorCode];
@@ -673,14 +727,14 @@ export function routeUrl(path: string, params: Record<string, string>): string;
 export function safeRedirect(url: string, fallback?: string): string;
 
 // @public (undocumented)
-export function scheduleAutoFlush(buffer: TelemetryRingBuffer, endpointUrl: string, intervalMs?: number, onFlush?: (count: number) => void): FlushHandle;
+export function scheduleAutoFlush(buffer: TelemetryRingBuffer, endpointUrl: string, intervalMs?: number, onFlush?: (count: number) => void): Result<FlushHandle, TelemetryError>;
 
 // @public (undocumented)
 export interface ScrollRestoreHandle {
     // (undocumented)
     readonly destroy: () => void;
     // (undocumented)
-    readonly restorePosition: (state?: unknown) => void;
+    readonly restorePosition: (state?: HistoryStateShape | null) => void;
     // (undocumented)
     readonly saveCurrentPosition: () => void;
     // (undocumented)
@@ -706,7 +760,7 @@ export function sendHtml(res: ServerResponse, html: string, statusCode?: number,
 export function sendIslandHtml(res: ServerResponse, html: string, options?: IslandHtmlOptions): void;
 
 // @public (undocumented)
-export function sendJson(res: ServerResponse, data: unknown, statusCode?: number): void;
+export function sendJson(res: ServerResponse, data: JsonValue, statusCode?: number): void;
 
 // @public (undocumented)
 export function serializeForm(form: HTMLFormElement): URLSearchParams;
@@ -722,14 +776,14 @@ export interface ServerError {
 }
 
 // @public (undocumented)
-export const ServerErrorCode: {
+export const ServerErrorCode: Readonly<{
     readonly NOT_FOUND: "NOT_FOUND";
     readonly METHOD_NOT_ALLOWED: "METHOD_NOT_ALLOWED";
     readonly INTERNAL_ERROR: "INTERNAL_ERROR";
     readonly VALIDATION_ERROR: "VALIDATION_ERROR";
     readonly UNAUTHORIZED: "UNAUTHORIZED";
     readonly RATE_LIMITED: "RATE_LIMITED";
-};
+}>;
 
 // @public (undocumented)
 export type ServerErrorCode = typeof ServerErrorCode[keyof typeof ServerErrorCode];
@@ -791,16 +845,18 @@ export interface TelemetryError {
 }
 
 // @public (undocumented)
-export const TelemetryErrorCode: {
+export const TelemetryErrorCode: Readonly<{
     readonly BUFFER_FULL: "BUFFER_FULL";
     readonly POOL_EXHAUSTED: "POOL_EXHAUSTED";
     readonly FLUSH_EMPTY: "FLUSH_EMPTY";
     readonly FLUSH_DISPATCH_FAILED: "FLUSH_DISPATCH_FAILED";
     readonly FLUSH_CONSENT_DENIED: "FLUSH_CONSENT_DENIED";
+    readonly FLUSH_OVERFLOW: "FLUSH_OVERFLOW";
     readonly INVALID_CAPACITY: "INVALID_CAPACITY";
     readonly INVALID_INTENT_TYPE: "INVALID_INTENT_TYPE";
+    readonly INVALID_SLOT_INDEX: "INVALID_SLOT_INDEX";
     readonly NO_TELEMETRY_ATTRIBUTE: "NO_TELEMETRY_ATTRIBUTE";
-};
+}>;
 
 // @public (undocumented)
 export type TelemetryErrorCode = typeof TelemetryErrorCode[keyof typeof TelemetryErrorCode];
@@ -865,14 +921,14 @@ export interface TokenBucket {
 export const TRANSITION_PRESETS: Record<string, string>;
 
 // @public (undocumented)
-export const TransitionPreset: {
+export const TransitionPreset: Readonly<{
     readonly fade: "fade";
     readonly 'slide-left': "slide-left";
     readonly 'slide-right': "slide-right";
     readonly 'slide-up': "slide-up";
     readonly 'slide-down': "slide-down";
     readonly none: "none";
-};
+}>;
 
 // @public (undocumented)
 export type TransitionPreset = typeof TransitionPreset[keyof typeof TransitionPreset];

@@ -2,11 +2,23 @@
 // Full type safety with autocomplete is achieved when users import ValenceRoutes
 // from their generated .valence/routes.d.ts.
 
+import { ResultAsync } from '@valencets/resultkit'
 import { initRouter } from './push-state.js'
+import type { RouterHandle } from './push-state.js'
+import { resolveConfig } from './router-types.js'
 
 export interface NavigateOptions {
   readonly replace?: boolean
-  readonly scroll?: 'top' | 'preserve'
+  readonly handle?: RouterHandle
+}
+
+function getNavigatedUrl (event: Event): string | null {
+  if (!('detail' in event)) return null
+  const detail = Reflect.get(event, 'detail')
+  if (typeof detail !== 'object' || detail === null) return null
+
+  const toUrl = Reflect.get(detail, 'toUrl')
+  return typeof toUrl === 'string' ? toUrl : null
 }
 
 // Matches :paramName segments (colon followed by word chars, bounded by / . ? # or end)
@@ -19,7 +31,7 @@ const PARAM_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)(?=\/|\.|\?|#|$)/g
 export function routeUrl (path: string, params: Record<string, string>): string {
   return path.replace(PARAM_PATTERN, (_match, name: string) => {
     const value = params[name]
-    return value !== undefined ? value : `:${name}`
+    return value !== undefined ? encodeURIComponent(value) : `:${name}`
   })
 }
 
@@ -34,27 +46,54 @@ export function navigateTo (
   fetchFn: typeof fetch = globalThis.fetch
 ): void {
   const url = routeUrl(path, params)
+  const config = resolveConfig()
 
-  // We delegate to the router's click-based navigation event system.
-  // Dispatch valence:before-navigate so any existing router handles it,
-  // and initialise a minimal router handle to drive navigation.
-  const routerResult = initRouter(undefined, fetchFn)
-  if (routerResult.isErr()) return
+  const handle = opts?.handle ?? (() => {
+    const routerResult = initRouter(undefined, fetchFn)
+    return routerResult.isOk() ? routerResult.value : null
+  })()
+  if (handle === null) return
+  const activeHandle = handle
 
-  const handle = routerResult.value
+  const ownsHandle = opts?.handle === undefined
+  let navigationSettled = false
+  let cleanupTimeoutId: ReturnType<typeof setTimeout> | null = null
 
-  // For replace mode, we rewrite history after navigation completes
-  if (opts?.replace === true) {
-    const unlistenNav = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { toUrl: string } | undefined
-      if (detail?.toUrl === url) {
-        window.history.replaceState({ url }, '', url)
-        document.removeEventListener('valence:navigated', unlistenNav)
-      }
+  function cleanup (): void {
+    if (navigationSettled) return
+    navigationSettled = true
+    document.removeEventListener('valence:navigated', unlistenNav)
+    if (cleanupTimeoutId !== null) {
+      clearTimeout(cleanupTimeoutId)
+      cleanupTimeoutId = null
     }
+    if (ownsHandle) {
+      activeHandle.destroy()
+    }
+  }
+
+  const unlistenNav = (e: Event) => {
+    if (navigationSettled || opts?.replace !== true) return
+    if (getNavigatedUrl(e) === url) {
+      window.history.replaceState({ url }, '', url)
+      document.removeEventListener('valence:navigated', unlistenNav)
+    }
+  }
+
+  if (opts?.replace === true) {
     document.addEventListener('valence:navigated', unlistenNav)
   }
 
-  handle.navigate(url)
-  handle.destroy()
+  cleanupTimeoutId = setTimeout(cleanup, config.navigationTimeoutMs)
+
+  ResultAsync.fromPromise(
+    activeHandle.navigate(url).match(
+      () => undefined,
+      () => undefined
+    ),
+    () => null
+  ).match(
+    cleanup,
+    cleanup
+  )
 }

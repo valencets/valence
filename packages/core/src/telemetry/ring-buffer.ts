@@ -1,6 +1,6 @@
 import { ok, err } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
-import { TelemetryErrorCode } from './intent-types.js'
+import { TelemetryErrorCode, resetIntent } from './intent-types.js'
 import type { IntentType, GlobalTelemetryIntent, TelemetryError } from './intent-types.js'
 import { TelemetryObjectPool } from './object-pool.js'
 
@@ -8,6 +8,7 @@ export class TelemetryRingBuffer {
   readonly capacity: number
   private readonly pool: TelemetryObjectPool
   private readonly mask: number
+  private readonly _dirtyBuffer: GlobalTelemetryIntent[]
   private _head: number
   private _tail: number
   private _count: number
@@ -16,6 +17,7 @@ export class TelemetryRingBuffer {
     this.capacity = pool.capacity
     this.pool = pool
     this.mask = pool.capacity - 1
+    this._dirtyBuffer = new Array<GlobalTelemetryIntent>(pool.capacity)
     this._head = 0
     this._tail = 0
     this._count = 0
@@ -42,7 +44,16 @@ export class TelemetryRingBuffer {
       this._count--
     }
 
-    const slot = this.pool.getSlot(this._head)!
+    const slot = this.pool.getSlot(this._head)
+    if (!slot) {
+      return err({
+        code: TelemetryErrorCode.INVALID_SLOT_INDEX,
+        message: `Head index ${this._head} returned no slot`
+      })
+    }
+
+    // Reset slot to clear stale fields from previous occupant
+    resetIntent(slot)
     slot.timestamp = timestamp
     slot.type = type
     slot.targetDOMNode = targetDOMNode
@@ -57,28 +68,30 @@ export class TelemetryRingBuffer {
   }
 
   collectDirty (): ReadonlyArray<GlobalTelemetryIntent> {
-    const result: GlobalTelemetryIntent[] = []
+    let writeIdx = 0
     let cursor = this._tail
     for (let i = 0; i < this._count; i++) {
-      const slot = this.pool.getSlot(cursor)!
-      if (slot.isDirty) {
-        result.push(slot)
+      const slot = this.pool.getSlot(cursor)
+      if (slot && slot.isDirty) {
+        this._dirtyBuffer[writeIdx++] = slot
       }
       cursor = (cursor + 1) & this.mask
     }
-    return result
+    this._dirtyBuffer.length = writeIdx
+    return this._dirtyBuffer
   }
 
   markFlushed (count: number): Result<number, TelemetryError> {
     if (count > this._count) {
       return err({
-        code: TelemetryErrorCode.BUFFER_FULL,
+        code: TelemetryErrorCode.FLUSH_OVERFLOW,
         message: `Cannot flush ${count} entries, only ${this._count} active`
       })
     }
 
     for (let i = 0; i < count; i++) {
-      this.pool.resetSlot(this._tail)
+      const resetResult = this.pool.resetSlot(this._tail)
+      if (resetResult.isErr()) return err(resetResult.error)
       this._tail = (this._tail + 1) & this.mask
     }
     this._count -= count

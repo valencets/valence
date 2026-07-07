@@ -17,6 +17,19 @@ describe('resolveTimeoutConfig', () => {
     const config = resolveTimeoutConfig({ headersTimeout: 3000, requestTimeout: 15_000 })
     expect(config).toEqual({ headersTimeout: 3000, requestTimeout: 15_000 })
   })
+
+  it('falls back to defaults for zero or negative timeout values', () => {
+    const config = resolveTimeoutConfig({ headersTimeout: 0, requestTimeout: -1 })
+    expect(config).toEqual({ headersTimeout: 10_000, requestTimeout: 30_000 })
+  })
+
+  it('falls back to defaults for NaN timeout values', () => {
+    const config = resolveTimeoutConfig({
+      headersTimeout: Number.NaN,
+      requestTimeout: Number.NaN
+    })
+    expect(config).toEqual({ headersTimeout: 10_000, requestTimeout: 30_000 })
+  })
 })
 
 describe('applyTimeouts', () => {

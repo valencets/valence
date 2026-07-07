@@ -1,14 +1,14 @@
 // CSS view transition presets injected on demand via data-val-transition attribute.
 // Presets are CSS-only — no JS animation runtime required.
 
-export const TransitionPreset = {
+export const TransitionPreset = Object.freeze({
   fade: 'fade',
   'slide-left': 'slide-left',
   'slide-right': 'slide-right',
   'slide-up': 'slide-up',
   'slide-down': 'slide-down',
   none: 'none'
-} as const
+} as const)
 
 export type TransitionPreset = typeof TransitionPreset[keyof typeof TransitionPreset]
 

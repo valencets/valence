@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { initEventDelegation } from '../event-delegation.js'
+import { initEventDelegation, intentTypeMap, leadHrefMap } from '../event-delegation.js'
 import { TelemetryRingBuffer } from '../ring-buffer.js'
 import { IntentType } from '../intent-types.js'
 import type { EventDelegationHandle } from '../event-delegation.js'
@@ -222,5 +222,68 @@ describe('initEventDelegation', () => {
     const dirty = buffer.collectDirty()
     expect(dirty).toHaveLength(1)
     expect(dirty[0]!.type).toBe(IntentType.LEAD_EMAIL)
+  })
+
+  it('fires INTENT_LEAD for data-telemetry-type="INTENT_LEAD"', () => {
+    const result = initEventDelegation(buffer)
+    if (result.isOk()) handle = result.value
+
+    const el = createTrackedElement('INTENT_LEAD', 'lead-form')
+    clickElement(el)
+
+    expect(buffer.count).toBe(1)
+    const dirty = buffer.collectDirty()
+    expect(dirty[0]!.type).toBe(IntentType.INTENT_LEAD)
+  })
+
+  it('delegates from custom root element', () => {
+    const customRoot = document.createElement('div')
+    document.body.appendChild(customRoot)
+
+    const result = initEventDelegation(buffer, customRoot)
+    if (result.isOk()) handle = result.value
+
+    const el = document.createElement('button')
+    el.setAttribute('data-telemetry-type', 'CLICK')
+    el.setAttribute('data-telemetry-target', 'custom-btn')
+    customRoot.appendChild(el)
+    clickElement(el, 10, 20)
+
+    expect(buffer.count).toBe(1)
+    const dirty = buffer.collectDirty()
+    expect(dirty[0]!.targetDOMNode).toBe('custom-btn')
+  })
+
+  it('handles click on text node inside tracked element', () => {
+    const result = initEventDelegation(buffer)
+    if (result.isOk()) handle = result.value
+
+    const el = createTrackedElement('CLICK', 'text-target')
+    el.textContent = 'Click me'
+
+    // Dispatch click on the element (simulating text node click bubbling)
+    clickElement(el, 5, 5)
+
+    expect(buffer.count).toBe(1)
+    const dirty = buffer.collectDirty()
+    expect(dirty[0]!.targetDOMNode).toBe('text-target')
+  })
+
+  describe('map integrity', () => {
+    it('intentTypeMap is frozen', () => {
+      expect(Object.isFrozen(intentTypeMap)).toBe(true)
+    })
+
+    it('leadHrefMap is frozen', () => {
+      expect(Object.isFrozen(leadHrefMap)).toBe(true)
+    })
+
+    it('intentTypeMap contains INTENT_LEAD', () => {
+      expect(intentTypeMap.INTENT_LEAD).toBe(IntentType.INTENT_LEAD)
+    })
+
+    it('intentTypeMap contains PAGEVIEW', () => {
+      expect(intentTypeMap.PAGEVIEW).toBe(IntentType.PAGEVIEW)
+    })
   })
 })

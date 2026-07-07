@@ -1,39 +1,21 @@
 import neostandard, { plugins } from 'neostandard'
+import { opinionated as resultkitStrict } from '@valencets/resultkit/eslint'
 
 const tsPlugin = plugins['typescript-eslint'].plugin
 
 export default [
   { ignores: ['**/dist/', '**/public/js/', '**/storybook-static/'] },
   ...neostandard({ ts: true }),
+  // Railway-oriented error handling is enforced by resultkit's own preset.
+  // `opinionated` = strict Result rules (no throw/try/switch/enum/.catch/.finally/.unwrap)
+  // plus the named-exports rule this repo already requires.
+  ...resultkitStrict,
   {
     plugins: { '@typescript-eslint': tsPlugin },
     rules: {
       '@typescript-eslint/no-redeclare': 'off',
       complexity: ['error', 20],
-      '@typescript-eslint/no-explicit-any': 'error',
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'ThrowStatement',
-          message: 'Use Result/ResultAsync instead of throw'
-        },
-        {
-          selector: 'TryStatement',
-          message: 'Use Result/ResultAsync instead of try/catch'
-        },
-        {
-          selector: 'TSEnumDeclaration',
-          message: 'Use const unions instead of enum'
-        },
-        {
-          selector: 'SwitchStatement',
-          message: 'Use dictionary maps instead of switch'
-        },
-        {
-          selector: 'ExportDefaultDeclaration',
-          message: 'Use named exports instead of export default'
-        }
-      ]
+      '@typescript-eslint/no-explicit-any': 'error'
     }
   },
   // Tool config files require export default by convention
@@ -48,6 +30,7 @@ export default [
       '**/*.stories.ts',
       'lighthouserc.js',
       'tests/perf/**/*.js',
+      'tests/perf/**/*.mjs',
       'tests/e2e/server-start.mjs',
       '**/.storybook/**',
       'vitest.workspace.ts',

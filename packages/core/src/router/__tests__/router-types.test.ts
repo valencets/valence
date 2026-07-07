@@ -24,6 +24,11 @@ describe('RouterErrorCode', () => {
     expect(RouterErrorCode.NOT_HTML_RESPONSE).toBe('NOT_HTML_RESPONSE')
     expect(RouterErrorCode.CACHE_STALE).toBe('CACHE_STALE')
     expect(RouterErrorCode.VERSION_MISMATCH).toBe('VERSION_MISMATCH')
+    expect(RouterErrorCode.AUTH_REDIRECT).toBe('AUTH_REDIRECT')
+  })
+
+  it('is frozen and cannot be mutated', () => {
+    expect(Object.isFrozen(RouterErrorCode)).toBe(true)
   })
 
   it('all values are strings', () => {

@@ -132,6 +132,41 @@ describe('createOriginCheck', () => {
     expect(next).toHaveBeenCalledOnce()
   })
 
+  it('rejects spoofed localhost lookalike origins in dev mode', async () => {
+    const devMiddleware = createOriginCheck({ allowedOrigins: ['https://example.com'], isDev: true })
+    const req = mockReq('POST', { origin: 'http://localhost.evil.com' })
+    const res = mockRes()
+    const next = vi.fn(async () => {})
+
+    await devMiddleware(req, res, stubCtx(), next)
+
+    expect((res as unknown as MockRes).statusCode).toBe(403)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('rejects spoofed 127.0.0.1 lookalike origins in dev mode', async () => {
+    const devMiddleware = createOriginCheck({ allowedOrigins: ['https://example.com'], isDev: true })
+    const req = mockReq('POST', { origin: 'http://127.0.0.1.evil.com' })
+    const res = mockRes()
+    const next = vi.fn(async () => {})
+
+    await devMiddleware(req, res, stubCtx(), next)
+
+    expect((res as unknown as MockRes).statusCode).toBe(403)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('rejects malformed referer safely when Origin is absent', async () => {
+    const req = mockReq('POST', { referer: 'not a valid url' })
+    const res = mockRes()
+    const next = vi.fn(async () => {})
+
+    await middleware(req, res, stubCtx(), next)
+
+    expect((res as unknown as MockRes).statusCode).toBe(403)
+    expect(next).not.toHaveBeenCalled()
+  })
+
   it('handles Origin with port numbers correctly', async () => {
     const mw = createOriginCheck({ allowedOrigins: ['https://example.com:8443'] })
     const req = mockReq('POST', { origin: 'https://example.com:8443' })

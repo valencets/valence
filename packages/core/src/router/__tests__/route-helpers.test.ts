@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { routeUrl, navigateTo } from '../route-helpers.js'
 import type { NavigateOptions } from '../route-helpers.js'
+import { okAsync } from '@valencets/resultkit'
+import type { RouterHandle } from '../push-state.js'
 
 describe('routeUrl', () => {
   it('returns path unchanged when no params', () => {
@@ -39,10 +41,15 @@ describe('routeUrl', () => {
   it('preserves query string segments that look like params', () => {
     expect(routeUrl('/posts/:id?filter=:foo', { id: '3' })).toBe('/posts/3?filter=:foo')
   })
+
+  it('URL-encodes param values before interpolation', () => {
+    expect(routeUrl('/posts/:id', { id: 'a/b?x=1#y' })).toBe('/posts/a%2Fb%3Fx%3D1%23y')
+  })
 })
 
 describe('navigateTo', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     vi.spyOn(window.history, 'pushState').mockImplementation(() => undefined)
     const main = document.createElement('main')
     document.body.appendChild(main)
@@ -51,6 +58,7 @@ describe('navigateTo', () => {
   afterEach(() => {
     document.body.innerHTML = ''
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it('builds URL from path and params then dispatches valence:before-navigate', () => {
@@ -89,28 +97,131 @@ describe('navigateTo', () => {
     expect(detail.toUrl).toBe('/about')
   })
 
-  it('accepts NavigateOptions type without error', () => {
-    const opts: NavigateOptions = { replace: true, scroll: 'top' }
+  it('accepts replace NavigateOptions without error', () => {
+    const opts: NavigateOptions = { replace: true }
     const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('<html><body><main>ok</main></body></html>', { status: 200 })
+      new Response('<html><body><main>ok</main></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html', 'X-Valence-Fragment': '1' }
+      })
     )
     // Should not throw
     navigateTo('/about', {}, opts, mockFetch)
   })
 
-  it('scroll preserve option is accepted', () => {
+  it('reuses an existing router handle without destroying it', async () => {
+    const destroy = vi.fn()
+    const navigate = vi.fn(() => okAsync(undefined))
+    const handle: RouterHandle = {
+      destroy,
+      navigate,
+      prefetch: vi.fn(() => okAsync(undefined)),
+      clearPageCache: vi.fn(),
+      pageCacheSize: vi.fn(() => 0)
+    }
+
+    navigateTo('/about', {}, { handle })
+    await Promise.resolve()
+
+    expect(navigate).toHaveBeenCalledWith('/about')
+    expect(destroy).not.toHaveBeenCalled()
+  })
+
+  it('dispatches encoded navigation urls', () => {
     const events: CustomEvent[] = []
     const listener = (e: Event) => events.push(e as CustomEvent)
     document.addEventListener('valence:before-navigate', listener)
 
-    const opts: NavigateOptions = { scroll: 'preserve' }
     const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('<html><body><main>ok</main></body></html>', { status: 200 })
+      new Response('<html><body><main>ok</main></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html', 'X-Valence-Fragment': '1' }
+      })
     )
 
-    navigateTo('/contact', {}, opts, mockFetch)
+    navigateTo('/posts/:id', { id: 'a/b?x=1#y' }, undefined, mockFetch)
 
     document.removeEventListener('valence:before-navigate', listener)
     expect(events).toHaveLength(1)
+    const detail = events[0]?.detail as { toUrl: string }
+    expect(detail.toUrl).toBe('/posts/a%2Fb%3Fx%3D1%23y')
+  })
+
+  it('completes a content swap before tearing down navigation', async () => {
+    const main = document.querySelector('main') as HTMLElement
+    main.innerHTML = '<p>old</p>'
+
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('<html><body><main><p>new</p></main></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html', 'X-Valence-Fragment': '1' }
+      })
+    )
+
+    navigateTo('/posts/:id', { id: '7' }, undefined, mockFetch)
+
+    await vi.waitFor(() => {
+      expect(main.querySelector('p')?.textContent).toBe('new')
+    })
+  })
+
+  it('replace option rewrites history after successful navigation', async () => {
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    const main = document.querySelector('main') as HTMLElement
+    main.innerHTML = '<p>old</p>'
+
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('<html><body><main><p>new</p></main></body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html', 'X-Valence-Fragment': '1' }
+      })
+    )
+
+    navigateTo('/posts/:id', { id: '9' }, { replace: true }, mockFetch)
+
+    await vi.waitFor(() => {
+      expect(main.querySelector('p')?.textContent).toBe('new')
+    })
+
+    await vi.waitFor(() => {
+      expect(replaceStateSpy).toHaveBeenCalledWith({ url: '/posts/9' }, '', '/posts/9')
+    })
+  })
+
+  it('ignores malformed valence:navigated detail when replace handling is active', async () => {
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => new Promise(() => {}))
+
+    navigateTo('/posts/:id', { id: '12' }, { replace: true }, mockFetch)
+    replaceStateSpy.mockClear()
+
+    document.dispatchEvent(new CustomEvent('valence:navigated', {
+      detail: { toUrl: 12 }
+    }))
+
+    expect(replaceStateSpy).not.toHaveBeenCalled()
+  })
+
+  it('cleans up replace listener when navigation never settles', async () => {
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    const mockFetch = vi.fn<typeof fetch>().mockImplementation(() => new Promise(() => {}))
+    replaceStateSpy.mockClear()
+
+    navigateTo('/posts/:id', { id: '11' }, { replace: true }, mockFetch)
+
+    await vi.advanceTimersByTimeAsync(8000)
+
+    document.dispatchEvent(new CustomEvent('valence:navigated', {
+      detail: { toUrl: '/posts/11' }
+    }))
+
+    expect(replaceStateSpy.mock.calls.some((call) => call[2] === '/posts/11')).toBe(false)
+  })
+
+  it('does not use detail casts in navigateTo', async () => {
+    const { readFileSync } = await import('node:fs')
+    const source = readFileSync(`${process.cwd()}/src/router/route-helpers.ts`, 'utf-8')
+
+    expect(source).not.toContain('(e as CustomEvent).detail as { toUrl: string } | undefined')
   })
 })

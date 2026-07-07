@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { createServerRouter } from '../server-router.js'
+import { createServerRouter, ServerErrorCode } from '../server-router.js'
 import type { RouteHandler } from '../server-types.js'
 import type { Middleware } from '../middleware-types.js'
 
-function mockReq (url: string, method: string = 'GET'): IncomingMessage {
-  return { url, method, headers: { host: 'localhost' } } as unknown as IncomingMessage
+function mockReq (url: string, method: string = 'GET', host: string = 'localhost'): IncomingMessage {
+  return { url, method, headers: { host } } as unknown as IncomingMessage
 }
 
 function mockRes (): ServerResponse & { _body: string; _status: number; _headers: Record<string, string> } {
@@ -29,6 +29,12 @@ function mockRes (): ServerResponse & { _body: string; _status: number; _headers
   }
   return res as unknown as ServerResponse & { _body: string; _status: number; _headers: Record<string, string> }
 }
+
+describe('ServerErrorCode', () => {
+  it('is frozen and cannot be mutated', () => {
+    expect(Object.isFrozen(ServerErrorCode)).toBe(true)
+  })
+})
 
 describe('createServerRouter', () => {
   it('dispatches GET handler for registered route', async () => {
@@ -105,6 +111,20 @@ describe('createServerRouter', () => {
     expect(res._body).toContain('Not found')
   })
 
+  it('fails closed instead of throwing when Host header is malformed', async () => {
+    const router = createServerRouter()
+    const req = {
+      url: '/hello',
+      method: 'GET',
+      headers: { host: 'bad host' }
+    } as unknown as IncomingMessage
+    const res = mockRes()
+
+    await expect(router.handle(req, res)).resolves.toBeUndefined()
+    expect(res._status).toBe(400)
+    expect(res._body).toContain('Invalid request URL')
+  })
+
   it('returns 405 for wrong method', async () => {
     const router = createServerRouter()
     router.register('/only-get', { GET: async (_req, res) => { res.end('ok') } })
@@ -115,6 +135,18 @@ describe('createServerRouter', () => {
 
     expect(res._status).toBe(405)
     expect(res._body).toContain('not allowed')
+  })
+
+  it('returns 400 for malformed request urls', async () => {
+    const router = createServerRouter()
+    router.register('/hello', { GET: async (_req, res) => { res.end('ok') } })
+
+    const req = mockReq('/hello', 'GET', 'bad host')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(res._status).toBe(400)
+    expect(res._body).toContain('Invalid request URL')
   })
 
   it('calls 404 fallback handler when registered', async () => {
@@ -131,6 +163,74 @@ describe('createServerRouter', () => {
 
     expect(fallback).toHaveBeenCalledOnce()
     expect(res._body).toBe('custom 404')
+  })
+
+  it('runs global middleware for 404 fallback handlers', async () => {
+    const router = createServerRouter()
+    const order: string[] = []
+
+    router.use(async (_req, _res, _ctx, next) => {
+      order.push('mw')
+      await next()
+    })
+
+    router.register('/404', {
+      GET: async (_req, res) => {
+        order.push('404')
+        res.writeHead(404)
+        res.end('custom 404')
+      }
+    })
+
+    await router.handle(mockReq('/missing'), mockRes())
+
+    expect(order).toEqual(['mw', '404'])
+  })
+
+  it('uses router.onError for 404 fallback failures', async () => {
+    const router = createServerRouter()
+    const errorHandler = vi.fn(async (error: Error, _req: IncomingMessage, res: ServerResponse) => {
+      res.writeHead(500)
+      res.end(`custom 404 error: ${error.message}`)
+    })
+
+    router.onError(errorHandler)
+    router.register('/404', {
+      GET: async () => {
+        throw new Error('missing template')
+      }
+    })
+
+    const res = mockRes()
+    await router.handle(mockReq('/missing'), res)
+
+    expect(errorHandler).toHaveBeenCalledOnce()
+    expect(res._body).toBe('custom 404 error: missing template')
+  })
+
+  it('runs global middleware for automatic OPTIONS responses', async () => {
+    const router = createServerRouter()
+
+    router.use(async (_req, res, _ctx, next) => {
+      res.setHeader('Access-Control-Allow-Origin', 'https://example.com')
+      await next()
+    })
+
+    router.register('/resource', {
+      GET: async (_req, res) => {
+        res.writeHead(200)
+        res.end('ok')
+      }
+    })
+
+    const res = mockRes()
+    await router.handle(mockReq('/resource', 'OPTIONS'), res)
+
+    expect(res._status).toBe(204)
+    expect(res._headers['Access-Control-Allow-Origin']).toBe('https://example.com')
+    expect(res._headers.Allow).toContain('GET')
+    expect(res._headers.Allow).toContain('HEAD')
+    expect(res._headers.Allow).toContain('OPTIONS')
   })
 
   it('error boundary: handler that rejects returns 500, server stays alive', async () => {
@@ -406,6 +506,28 @@ describe('createServerRouter', () => {
     expect(res._body).toBe('custom: kaboom')
   })
 
+  it('contains thrown custom error handlers and falls back to the standard 500 response', async () => {
+    const router = createServerRouter()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    router.onError(async () => {
+      throw new Error('error handler exploded')
+    })
+    router.register('/boom', { GET: async () => { throw new Error('kaboom') } })
+
+    const res = mockRes()
+    await expect(router.handle(mockReq('/boom'), res)).resolves.toBeUndefined()
+
+    expect(res._status).toBe(500)
+    expect(res._body).toContain('Internal server error')
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[server-router] error handler failed on /boom:'),
+      'error handler exploded'
+    )
+
+    consoleSpy.mockRestore()
+  })
+
   it('middleware short-circuit returns 401 without calling handler', async () => {
     const router = createServerRouter()
     const handler = vi.fn<RouteHandler>(async (_req, res) => { res.end('ok') })
@@ -525,5 +647,30 @@ describe('createServerRouter', () => {
     expect(allow).toContain('POST')
     expect(allow).toContain('OPTIONS')
     expect(allow).not.toContain('HEAD')
+  })
+
+  it('OPTIONS auto-response still runs middleware', async () => {
+    const router = createServerRouter()
+    const order: string[] = []
+
+    router.use(async (_req, res, _ctx, next) => {
+      order.push('mw')
+      res.setHeader('X-Middleware', 'ran')
+      await next()
+    })
+
+    router.register('/items', {
+      GET: async (_req, res) => { order.push('get'); res.end('list') },
+      POST: async (_req, res) => { order.push('post'); res.end('create') }
+    })
+
+    const req = mockReq('/items', 'OPTIONS')
+    const res = mockRes()
+    await router.handle(req, res)
+
+    expect(res._status).toBe(204)
+    expect(res._headers['X-Middleware']).toBe('ran')
+    expect(res._headers.Allow).toContain('OPTIONS')
+    expect(order).toEqual(['mw'])
   })
 })

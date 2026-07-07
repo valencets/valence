@@ -1,9 +1,9 @@
 import { writeFile, mkdir } from 'node:fs/promises'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
-import { execSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { ResultAsync, fromThrowable } from '@valencets/resultkit'
@@ -14,6 +14,7 @@ import type { RestRouteEntry } from '@valencets/cms'
 import { readLearnProgress, writeLearnProgress, createInitialProgress } from './learn/index.js'
 import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
+import { parseInitFlags, askWithDefault, confirmWithDefault, createDbInvocations, migrationTargets, initSummary, createPromptQueue, scaffoldDependencies } from './init-steps.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
 import type { RouteHandler } from './define-config.js'
@@ -21,7 +22,7 @@ import { resolveCustomRoute } from './route-matcher.js'
 import { generateCollectionRoutes, buildGeneratedRouteMap, buildUserRouteMap } from './route-generator.js'
 import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash, setSecurityHeaders } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
-import { regenerateFromConfig } from './codegen/regenerate.js'
+import { regenerateFromConfig, ensureGeneratedModules } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { scaffoldFsd } from './scaffold/fsd-scaffold.js'
@@ -82,21 +83,27 @@ async function ask (rl: ReturnType<typeof createInterface>, question: string, fa
   return answer.trim() || fallback
 }
 
-async function confirm (rl: ReturnType<typeof createInterface>, question: string, defaultYes = true): Promise<boolean> {
-  const hint = defaultYes ? 'Y/n' : 'y/N'
-  const answer = await rl.question(`  ${question} (${hint}): `)
-  const normalized = answer.trim().toLowerCase()
-  if (normalized === '') return defaultYes
-  return normalized === 'y' || normalized === 'yes'
-}
-
 const safeExecSync = fromThrowable(
-  (cmd: string, cwd: string) => { execSync(cmd, { cwd, stdio: 'pipe' }) },
+  (cmd: string, cwd: string, env?: Readonly<{ [key: string]: string }>) => {
+    execSync(cmd, { cwd, stdio: 'pipe', ...(env !== undefined ? { env: { ...process.env, ...env } } : {}) })
+  },
   () => null
 )
 
-function exec (cmd: string, cwd: string): boolean {
-  return safeExecSync(cmd, cwd).isOk()
+function exec (cmd: string, cwd: string, env?: Readonly<{ [key: string]: string }>): boolean {
+  return safeExecSync(cmd, cwd, env).isOk()
+}
+
+// No shell: user-supplied answers reach the binary as argv entries.
+const safeExecFileSync = fromThrowable(
+  (file: string, args: readonly string[], cwd: string, env: Readonly<{ [key: string]: string }>) => {
+    execFileSync(file, [...args], { cwd, stdio: 'pipe', env: { ...process.env, ...env } })
+  },
+  () => null
+)
+
+function execFile (file: string, args: readonly string[], cwd: string, env: Readonly<{ [key: string]: string }>): boolean {
+  return safeExecFileSync(file, args, cwd, env).isOk()
 }
 
 // -- init --
@@ -104,18 +111,22 @@ function exec (cmd: string, cwd: string): boolean {
 // eslint-disable-next-line complexity
 async function runInit (args: ReadonlyArray<string>): Promise<void> {
   const nonFlagArgs = args.filter(a => !a.startsWith('--'))
-  const useDefaults = args.includes('--yes') || args.includes('-y')
-  const learnMode = args.includes('--learn')
+  const flags = parseInitFlags(args)
+  const useDefaults = flags.useDefaults
+  const learnMode = flags.learnMode
 
   console.log('\n  Welcome to Valence.\n')
 
-  const rl = useDefaults ? null : createInterface({ input: stdin, output: stdout })
+  const rlRaw = useDefaults ? null : createInterface({ input: stdin, output: stdout })
+  const rl = rlRaw === null ? null : createPromptQueue(rlRaw, (prompt) => { stdout.write(prompt) })
 
-  const projectName = useDefaults ? (nonFlagArgs[0] ?? 'my-valence-app') : await ask(rl!, 'Project name', nonFlagArgs[0] ?? 'my-valence-app')
-  const dbName = useDefaults ? projectName.replace(/[^a-z0-9_]/g, '_') : await ask(rl!, 'Database name', projectName.replace(/[^a-z0-9_]/g, '_'))
-  const dbUser = useDefaults ? 'postgres' : await ask(rl!, 'Database user', 'postgres')
-  const dbPassword = useDefaults ? 'postgres' : await ask(rl!, 'Database password', 'postgres')
-  const serverPort = useDefaults ? '3000' : await ask(rl!, 'Server port', '3000')
+  const projectName = useDefaults ? (nonFlagArgs[0] ?? 'my-valence-app') : await askWithDefault(rl!, 'Project name', nonFlagArgs[0] ?? 'my-valence-app')
+  const dbName = useDefaults ? projectName.replace(/[^a-z0-9_]/g, '_') : await askWithDefault(rl!, 'Database name', projectName.replace(/[^a-z0-9_]/g, '_'))
+  const dbHost = useDefaults ? 'localhost' : await askWithDefault(rl!, 'Database host', 'localhost')
+  const dbPort = useDefaults ? '5432' : await askWithDefault(rl!, 'Database port', '5432')
+  const dbUser = useDefaults ? 'postgres' : await askWithDefault(rl!, 'Database user', 'postgres')
+  const dbPassword = useDefaults ? 'postgres' : await askWithDefault(rl!, 'Database password', 'postgres')
+  const serverPort = useDefaults ? '3000' : await askWithDefault(rl!, 'Server port', '3000')
 
   if (!useDefaults) {
     console.log()
@@ -124,15 +135,18 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
     log('  2. Astro (recommended for static + islands)')
     log('  3. Bring your own')
   }
-  const frameworkChoice = useDefaults ? '1' : await ask(rl!, 'Choose', '1')
+  const frameworkChoice = useDefaults ? '1' : await askWithDefault(rl!, 'Choose', '1')
 
-  const installDeps = useDefaults ? true : await confirm(rl!, 'Install dependencies?')
-  const createDb = useDefaults ? true : await confirm(rl!, `Create database "${dbName}"?`)
-  const doMigrate = useDefaults ? true : await confirm(rl!, 'Run initial migrations?')
-  const doSeed = useDefaults ? true : await confirm(rl!, 'Insert sample seed data?')
-  const initGit = useDefaults ? true : await confirm(rl!, 'Initialize git repository?')
+  const installDeps = !flags.noInstall && (useDefaults ? true : await confirmWithDefault(rl!, 'Install dependencies?', true))
+  const createDb = !flags.noDb && (useDefaults ? true : await confirmWithDefault(rl!, `Create database "${dbName}"?`, true))
+  const doMigrate = !flags.noMigrate && (useDefaults ? true : await confirmWithDefault(rl!, 'Run initial migrations?', true))
+  const doSeed = !flags.noSeed && (useDefaults ? true : await confirmWithDefault(rl!, 'Insert sample seed data?', true))
+  const initGit = !flags.noGit && (useDefaults ? true : await confirmWithDefault(rl!, 'Initialize git repository?', true))
 
-  if (rl) rl.close()
+  if (rlRaw) rlRaw.close()
+
+  const dbAnswers = { dbName, dbHost, dbPort, dbUser, dbPassword }
+  const failures: string[] = []
 
   const dir = join(process.cwd(), projectName)
   console.log()
@@ -152,8 +166,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
   }
 
   const cliDir = dirname(fileURLToPath(import.meta.url))
-  const cliPkg = JSON.parse(readFileSync(join(cliDir, '..', 'package.json'), 'utf-8')) as { version: string }
-  const cliVersion = `^${cliPkg.version}`
+  const cliPkg = JSON.parse(readFileSync(join(cliDir, '..', 'package.json'), 'utf-8')) as { version: string, dependencies?: { [name: string]: string } }
 
   await writeFile(join(dir, 'package.json'), JSON.stringify({
     name: projectName,
@@ -167,10 +180,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
       start: 'node dist/server.js'
     },
     dependencies: {
-      '@valencets/valence': cliVersion,
-      '@valencets/cms': 'latest',
-      '@valencets/db': 'latest',
-      tsx: '^4.21.0',
+      ...scaffoldDependencies(cliPkg.version, cliPkg.dependencies ?? {}),
       ...extraDeps
     },
     devDependencies: {
@@ -199,8 +209,8 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
     include: ['*.ts', 'collections/**/*.ts']
   }, null, 2) + '\n')
 
-  const envContent = `DB_HOST=localhost
-DB_PORT=5432
+  const envContent = `DB_HOST=${dbHost}
+DB_PORT=${dbPort}
 DB_NAME=${dbName}
 DB_USER=${dbUser}
 DB_PASSWORD=${dbPassword}
@@ -208,8 +218,8 @@ PORT=${serverPort}
 CMS_SECRET=${generateSecret()}
 `
   await writeFile(join(dir, '.env'), envContent)
-  const envExampleContent = `DB_HOST=localhost
-DB_PORT=5432
+  const envExampleContent = `DB_HOST=${dbHost}
+DB_PORT=${dbPort}
 DB_NAME=${dbName}
 DB_USER=${dbUser}
 DB_PASSWORD=
@@ -371,6 +381,16 @@ CREATE TABLE IF NOT EXISTS "daily_summaries" (
   "created_at" TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE("site_id", "date")
 );
+
+-- Store tables (user-scoped store state persistence)
+CREATE TABLE IF NOT EXISTS "store_states" (
+  "store_slug" TEXT NOT NULL,
+  "state_key" TEXT NOT NULL,
+  "state" JSONB NOT NULL,
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "deleted_at" TIMESTAMPTZ,
+  PRIMARY KEY ("store_slug", "state_key")
+);
 `)
 
   // Scaffold FSD src/ directory from the collections we just wrote
@@ -414,39 +434,44 @@ CREATE TABLE IF NOT EXISTS "daily_summaries" (
     const pm = detectPackageManager()
     if (!exec(`${pm} install`, dir)) {
       log('Warning: dependency install failed. Run it manually.')
+      failures.push(`dependency install failed — run \`${pm} install\` in ${projectName}/`)
     } else {
       log('Dependencies installed.')
     }
   }
 
   if (createDb) {
-    log(`Creating database "${dbName}"...`)
-    if (exec(`createdb ${dbName}`, dir)) {
-      log('Database created.')
-    } else {
-      log('Warning: could not create database. It may already exist or createdb is not in PATH.')
+    // Both databases up front: valence dev works on the _dev sibling,
+    // valence start on the base — neither first run should trip.
+    for (const invocation of createDbInvocations(dbAnswers)) {
+      log(`Creating database: ${invocation.args[invocation.args.length - 1] ?? ''}...`)
+      if (execFile(invocation.file, invocation.args, dir, invocation.env)) {
+        log('Database created.')
+      } else {
+        log('Warning: could not create it — it may already exist, or the connection details are wrong.')
+      }
     }
   }
 
   if (doMigrate) {
-    log('Running migrations...')
-    const migrated = await runMigrationsForProject(dir, {
-      host: 'localhost',
-      port: 5432,
-      database: dbName,
-      username: dbUser,
-      password: dbPassword,
-      max: 5,
-      idle_timeout: 10,
-      connect_timeout: 10
-    })
-    if (migrated) {
-      log('Migrations applied.')
+    let baseMigrated = false
+    for (const target of migrationTargets(dbAnswers)) {
+      log(`Running migrations on "${target.database}"...`)
+      const migrated = await runMigrationsForProject(dir, target)
+      if (migrated) {
+        log('Migrations applied.')
+        if (target.database === dbName) baseMigrated = true
+      } else {
+        log('Warning: migrations failed. Run "valence migrate" after fixing your database connection.')
+        failures.push(`migrations failed on ${target.database} — run \`valence migrate\` after fixing the connection`)
+      }
+    }
+    if (baseMigrated) {
       if (doSeed) {
         log('Seeding initial data...')
         const seedPool = createPool({
-          host: 'localhost',
-          port: 5432,
+          host: dbHost,
+          port: Number(dbPort),
           database: dbName,
           username: dbUser,
           password: dbPassword,
@@ -464,27 +489,18 @@ CREATE TABLE IF NOT EXISTS "daily_summaries" (
           log('Warning: seed data insertion failed. The database may already have data.')
         }
       }
-    } else {
-      log('Warning: migrations failed. Run "valence migrate" after fixing your database connection.')
     }
   }
 
   if (initGit) {
     if (exec('git init', dir) && exec('git add -A', dir) && exec('git commit -m "Initial commit from valence init"', dir)) {
       log('Git repository initialized.')
+    } else {
+      failures.push('git initialization failed')
     }
   }
 
-  const learnUrl = learnMode ? `\n  Tutorial: http://localhost:${serverPort}/_learn` : ''
-  console.log(`
-  Done. Your project is ready.
-
-    cd ${projectName}
-    pnpm dev
-
-  Site:  http://localhost:${serverPort}
-  Admin: http://localhost:${serverPort}/admin${learnUrl}
-`)
+  console.log(initSummary(projectName, serverPort, failures, learnMode))
 }
 
 // -- dev --
@@ -520,9 +536,10 @@ async function runDev (): Promise<void> {
   log('Building CMS...')
   const pool = createPool(devConfig)
 
+  const devCmsSecret = process.env.CMS_SECRET ?? 'dev-secret'
   const cmsResult = buildCms({
     db: pool,
-    secret: process.env.CMS_SECRET ?? 'dev-secret',
+    secret: devCmsSecret,
     uploadDir: join(projectDir, 'uploads'),
     collections: userConfig,
     telemetryPool: telemetryEnabled ? pool : undefined,
@@ -562,18 +579,23 @@ async function runDev (): Promise<void> {
         configPath,
         onConfigChange: () => {
           markConfigChanged(learnSignals!)
-          // Reload config to get updated slug list + regenerate codegen
-          loadUserConfig().then(cfg => {
-            if (!cfg) return
-            currentConfigSlugs = cfg.collections.map(c => c.slug)
-            regenerateFromConfig(projectDir, cfg.collections).match(
-              (result) => {
-                const total = result.added.length + result.updated.length
-                if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
-              },
-              (e) => { log(`Regeneration error: ${e.message}`) }
-            )
-          }).catch((e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
+          // Reload config to get updated slug list + regenerate codegen.
+          // Body runs inside the fromPromise boundary so a malformed config
+          // (throwing in the handler) is contained, not an unhandled rejection.
+          ResultAsync.fromPromise(
+            loadUserConfig().then((cfg) => {
+              if (!cfg) return
+              currentConfigSlugs = cfg.collections.map(c => c.slug)
+              regenerateFromConfig(projectDir, cfg.collections, cfg.stores).match(
+                (result) => {
+                  const total = result.added.length + result.updated.length
+                  if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
+                },
+                (e) => { log(`Regeneration error: ${e.message}`) }
+              )
+            }),
+            (e) => e
+          ).match(() => undefined, (e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
         }
       })
     }
@@ -587,17 +609,22 @@ async function runDev (): Promise<void> {
     configWatcher = startConfigWatcher({
       configPath,
       onConfigChange: () => {
-        loadUserConfig().then(cfg => {
-          if (!cfg) return
-          currentConfigSlugs = cfg.collections.map(c => c.slug)
-          regenerateFromConfig(projectDir, cfg.collections).match(
-            (result) => {
-              const total = result.added.length + result.updated.length
-              if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
-            },
-            (e) => { log(`Regeneration error: ${e.message}`) }
-          )
-        }).catch((e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
+        // Body runs inside the fromPromise boundary so a malformed config
+        // (throwing in the handler) is contained, not an unhandled rejection.
+        ResultAsync.fromPromise(
+          loadUserConfig().then((cfg) => {
+            if (!cfg) return
+            currentConfigSlugs = cfg.collections.map(c => c.slug)
+            regenerateFromConfig(projectDir, cfg.collections, cfg.stores).match(
+              (result) => {
+                const total = result.added.length + result.updated.length
+                if (total > 0) log(`Regenerated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
+              },
+              (e) => { log(`Regeneration error: ${e.message}`) }
+            )
+          }),
+          (e) => e
+        ).match(() => undefined, (e) => { log('Config reload failed: ' + (e instanceof Error ? e.message : 'unknown')) })
       }
     })
   }
@@ -713,8 +740,13 @@ async function runDev (): Promise<void> {
     const publicDir = join(projectDir, 'public')
     const staticResult = resolveStaticPath(pathname, publicDir)
     if (staticResult.isOk()) {
-      const filePath = staticResult.value
-      if (existsSync(filePath) && statSync(filePath).isFile()) {
+      // The resolver already guarantees containment; re-asserting the
+      // resolve + startsWith barrier here keeps the guard visible on this
+      // exact dataflow path from req.url to the filesystem.
+      const publicRoot = resolve(publicDir)
+      const filePath = resolve(staticResult.value)
+      const contained = filePath === publicRoot || filePath.startsWith(publicRoot + sep)
+      if (contained && existsSync(filePath) && statSync(filePath).isFile()) {
         const mime = resolveMimeType(filePath)
         const rangeHeader = typeof req.headers['range'] === 'string' ? req.headers['range'] : undefined
         await serveStaticFile(filePath, mime, rangeHeader, res)
@@ -727,7 +759,8 @@ async function runDev (): Promise<void> {
     const pageHtmlPath = resolvePageRoute(pathname, srcDir)
     if (pageHtmlPath !== null && existsSync(pageHtmlPath)) {
       const pageContent = readFileSync(pageHtmlPath, 'utf-8')
-      sendHtml(res, pageContent)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, pageContent) : pageContent
+      sendHtml(res, hydrated)
       return
     }
 
@@ -769,12 +802,23 @@ async function runDev (): Promise<void> {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
 
+  // Generated modules must exist before the first bundle build — a fresh
+  // checkout works without touching the config first.
+  await ensureGeneratedModules(projectDir, loadedConfig.collections, loadedConfig.stores, log)
+
+  // Bundle and serve the client entry (no-op if the project ships none)
+  const clientBundleUrl = await setupClientBundle(projectDir, registerRoute, true, log)
+
+  // Register store routes (no-op if no stores defined)
+  const { maybeRegisterStores } = await import('./store-wiring.js')
+  const storeHydrator = maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool, devCmsSecret, clientBundleUrl)
+
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
-  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
+  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir, storeHydrator)
 
   // User-defined routes with loaders/actions
-  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
+  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms, storeHydrator)
 
   server.listen(port, async () => {
     // Fire plugin onReady hooks
@@ -802,6 +846,28 @@ async function runDev (): Promise<void> {
 }
 
 // -- start --
+
+async function setupClientBundle (
+  projectDir: string,
+  registerRoute: (method: string, path: string, handler: RouteHandler) => void,
+  watch: boolean,
+  logFn: (msg: string) => void
+): Promise<string | undefined> {
+  const { resolveClientEntry, createClientBundler, registerClientBundleRoute, CLIENT_BUNDLE_PATH } = await import('./client-bundler.js')
+  if (resolveClientEntry(projectDir) === null) return undefined
+
+  return await createClientBundler({ projectDir, watch, log: logFn }).match(
+    (bundler) => {
+      registerClientBundleRoute(registerRoute, bundler)
+      logFn(`Client bundle served at ${CLIENT_BUNDLE_PATH}`)
+      return CLIENT_BUNDLE_PATH
+    },
+    (e) => {
+      logFn(`Client bundler failed to start: ${e.message}`)
+      return undefined
+    }
+  )
+}
 
 export async function runStart (): Promise<void> {
   await registerTsxLoader()
@@ -948,8 +1014,13 @@ export async function runStart (): Promise<void> {
     const publicDir = join(projectDir, 'public')
     const staticResult = resolveStaticPath(pathname, publicDir)
     if (staticResult.isOk()) {
-      const filePath = staticResult.value
-      if (existsSync(filePath) && statSync(filePath).isFile()) {
+      // The resolver already guarantees containment; re-asserting the
+      // resolve + startsWith barrier here keeps the guard visible on this
+      // exact dataflow path from req.url to the filesystem.
+      const publicRoot = resolve(publicDir)
+      const filePath = resolve(staticResult.value)
+      const contained = filePath === publicRoot || filePath.startsWith(publicRoot + sep)
+      if (contained && existsSync(filePath) && statSync(filePath).isFile()) {
         const mime = resolveMimeType(filePath)
         const rangeHeader = typeof req.headers['range'] === 'string' ? req.headers['range'] : undefined
         await serveStaticFile(filePath, mime, rangeHeader, res)
@@ -962,7 +1033,8 @@ export async function runStart (): Promise<void> {
     const pageHtmlPath = resolvePageRoute(pathname, srcDir)
     if (pageHtmlPath !== null && existsSync(pageHtmlPath)) {
       const pageContent = readFileSync(pageHtmlPath, 'utf-8')
-      sendHtml(res, pageContent)
+      const hydrated = storeHydrator ? await storeHydrator(req, res, pageContent) : pageContent
+      sendHtml(res, hydrated)
       return
     }
 
@@ -987,12 +1059,22 @@ export async function runStart (): Promise<void> {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
 
+  // Generated modules must exist before the production bundle builds
+  await ensureGeneratedModules(projectDir, loadedConfig.collections, loadedConfig.stores, log)
+
+  // Bundle and serve the client entry (no-op if the project ships none)
+  const clientBundleUrl = await setupClientBundle(projectDir, registerRoute, false, log)
+
+  // Register store routes (no-op if no stores defined)
+  const { maybeRegisterStores: maybeRegisterStoresProd } = await import('./store-wiring.js')
+  const storeHydrator = maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool, cmsSecret, clientBundleUrl)
+
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
-  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir)
+  const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir, storeHydrator)
 
   // User-defined routes with loaders/actions
-  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms)
+  const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms, storeHydrator)
 
   server.listen(port, async () => {
     // Fire plugin onReady hooks

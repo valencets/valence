@@ -1,13 +1,15 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Middleware } from './middleware-types.js'
+import { readBody } from './http-helpers.js'
+import { ResultAsync, ok } from '@valencets/resultkit'
 
-export const ContentCategory = {
+export const ContentCategory = Object.freeze({
   JSON: 'json',
   FORM: 'form',
   MULTIPART: 'multipart',
   BEACON: 'beacon',
   RAW: 'raw'
-} as const
+} as const)
 
 export type ContentCategory = typeof ContentCategory[keyof typeof ContentCategory]
 
@@ -27,6 +29,11 @@ interface ResolvedLimits {
   readonly raw: number
 }
 
+interface ReadableBodyRequest extends IncomingMessage {
+  on(event: 'data', listener: (chunk: Buffer) => void): this
+  on(event: 'end' | 'error' | 'close', listener: () => void): this
+}
+
 const DEFAULT_LIMITS: ResolvedLimits = {
   json: 102_400,
   form: 102_400,
@@ -38,7 +45,8 @@ const DEFAULT_LIMITS: ResolvedLimits = {
 const BODY_METHODS: Record<string, true> = {
   POST: true,
   PUT: true,
-  PATCH: true
+  PATCH: true,
+  DELETE: true
 }
 
 const CONTENT_TYPE_MAP: Record<string, ContentCategory> = {
@@ -69,33 +77,12 @@ function send413 (res: ServerResponse): void {
   res.end(body)
 }
 
-function enforceStreamingLimit (req: IncomingMessage, limit: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    let received = 0
-    let aborted = false
+function canTrackStream (req: IncomingMessage): req is ReadableBodyRequest {
+  return typeof req.on === 'function'
+}
 
-    req.on('data', (chunk: Buffer) => {
-      if (aborted) return
-      received += chunk.length
-      if (received > limit) {
-        aborted = true
-        req.destroy()
-        resolve(false)
-      }
-    })
-
-    req.on('end', () => {
-      if (!aborted) resolve(true)
-    })
-
-    req.on('error', () => {
-      if (!aborted) resolve(false)
-    })
-
-    req.on('close', () => {
-      if (!aborted) resolve(true)
-    })
-  })
+function validateReadableBody (req: ReadableBodyRequest, limit: number): ResultAsync<void, Error> {
+  return readBody(req, limit).andThen(() => ok(undefined))
 }
 
 export function createBodyLimitMiddleware (config?: BodyLimitConfig): Middleware {
@@ -122,6 +109,11 @@ export function createBodyLimitMiddleware (config?: BodyLimitConfig): Middleware
     if (contentLength !== undefined) {
       const length = parseInt(contentLength, 10)
       if (Number.isNaN(length)) {
+        const result = await validateReadableBody(req, limit)
+        if (result.isErr()) {
+          send413(res)
+          return
+        }
         await next()
         return
       }
@@ -131,13 +123,29 @@ export function createBodyLimitMiddleware (config?: BodyLimitConfig): Middleware
         return
       }
 
+      if (!canTrackStream(req)) {
+        send413(res)
+        return
+      }
+
+      const result = await validateReadableBody(req, limit)
+      if (result.isErr()) {
+        send413(res)
+        return
+      }
+
       await next()
       return
     }
 
     // No Content-Length header — enforce limit via streaming byte counter
-    const withinLimit = await enforceStreamingLimit(req, limit)
-    if (!withinLimit) {
+    if (!canTrackStream(req)) {
+      send413(res)
+      return
+    }
+
+    const result = await validateReadableBody(req, limit)
+    if (result.isErr()) {
       send413(res)
       return
     }
