@@ -14,7 +14,7 @@ import type { RestRouteEntry } from '@valencets/cms'
 import { readLearnProgress, writeLearnProgress, createInitialProgress } from './learn/index.js'
 import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
-import { parseInitFlags, askWithDefault, confirmWithDefault, createDbInvocations, migrationTargets, initSummary, createPromptQueue } from './init-steps.js'
+import { parseInitFlags, askWithDefault, confirmWithDefault, createDbInvocations, migrationTargets, initSummary, createPromptQueue, scaffoldDependencies } from './init-steps.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
 import type { RouteHandler } from './define-config.js'
@@ -154,8 +154,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
   }
 
   const cliDir = dirname(fileURLToPath(import.meta.url))
-  const cliPkg = JSON.parse(readFileSync(join(cliDir, '..', 'package.json'), 'utf-8')) as { version: string }
-  const cliVersion = `^${cliPkg.version}`
+  const cliPkg = JSON.parse(readFileSync(join(cliDir, '..', 'package.json'), 'utf-8')) as { version: string, dependencies?: { [name: string]: string } }
 
   await writeFile(join(dir, 'package.json'), JSON.stringify({
     name: projectName,
@@ -169,10 +168,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
       start: 'node dist/server.js'
     },
     dependencies: {
-      '@valencets/valence': cliVersion,
-      '@valencets/cms': 'latest',
-      '@valencets/db': 'latest',
-      tsx: '^4.21.0',
+      ...scaffoldDependencies(cliPkg.version, cliPkg.dependencies ?? {}),
       ...extraDeps
     },
     devDependencies: {

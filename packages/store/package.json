@@ -1,6 +1,6 @@
 {
   "name": "@valencets/store",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Schema-driven shared state with server authority, optimistic mutations, and SSE reconciliation",
   "main": "dist/index.js",
@@ -34,7 +34,8 @@
     "vitest": "^4.0.18"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "license": "MIT",
   "repository": {
