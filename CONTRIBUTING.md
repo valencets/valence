@@ -8,7 +8,7 @@ cd valence
 pnpm install
 pnpm db:up   # Start local PostgreSQL on localhost:55432
 pnpm build   # Build all packages (required before first test run)
-pnpm test    # 1,306 tests across all packages
+pnpm test    # All unit tests across all packages
 pnpm lint    # Neostandard lint
 ```
 
@@ -28,18 +28,25 @@ pnpm dev
 
 ```
 packages/
-  core/        # Router, server, telemetry client (284 tests)
-  db/          # PostgreSQL connection, migrations (75 tests)
-  ui/          # Web Components + protocol base class (374 tests)
-  cms/         # Schema engine, admin, auth, REST API, analytics dashboard (364 tests)
-  telemetry/   # Beacon ingestion, daily summaries, event queries, aggregation (108 tests)
-  valence/     # CLI: init, dev, migrate, build, user:create, learn (101 tests)
+  valence/              # CLI (init, dev, start, migrate, build, user:create, learn), server, codegen
+  cms/                  # Schema engine, admin, auth, REST + Local API, media, analytics dashboard
+  store/                # Schema-driven shared state: scopes, mutations, SSE, optimistic rebase
+  core/                 # Client router, server primitives, telemetry client
+  ui/                   # 23 Web Components + ValElement protocol, tokens, themes
+  reactive/             # Signals + DOM bindings
+  db/                   # PostgreSQL connection, migrations
+  graphql/              # GraphQL derived from collections
+  telemetry/            # Beacon ingestion, daily summaries, aggregation
+  plugin-seo/           # SEO field injection
+  plugin-nested-docs/   # Tree structures + breadcrumbs
+  plugin-cloud-storage/ # S3-compatible media storage
 ```
 
 Each package has:
 - `src/` Source code
 - `src/__tests__/` Tests (co-located)
 - `src/index.ts` Barrel export
+- `AGENTS.md` Module map + package-specific rules (also see the root `AGENTS.md`)
 - `vitest.config.ts` Test configuration
 - `tsconfig.json` TypeScript configuration
 
@@ -213,16 +220,20 @@ The container uses `postgres:16-alpine` and creates the default `postgres` maint
 
 | Package | Can Import From |
 |---------|----------------|
+| `@valencets/ui` | Nothing (zero deps) |
+| `@valencets/reactive` | Nothing (zero deps) |
 | `@valencets/core` | `@valencets/resultkit` only |
 | `@valencets/db` | `@valencets/resultkit`, `postgres`, `zod` |
-| `@valencets/ui` | Nothing (zero deps) |
-| `@valencets/cms` | `@valencets/core`, `@valencets/db`, `@valencets/ui`, `zod`, `@valencets/resultkit`, `argon2` |
-| `@valencets/telemetry` | `@valencets/db`, `@valencets/core` |
-| `@valencets/valence` | `@valencets/cms`, `@valencets/core`, `@valencets/db`, `@valencets/telemetry`, `tsx`, `zod`, `@valencets/resultkit` |
+| `@valencets/store` | `@valencets/reactive`, `@valencets/resultkit`, `zod` |
+| `@valencets/telemetry` | `@valencets/core`, `@valencets/db`, `@valencets/resultkit`, `postgres` |
+| `@valencets/cms` | `@valencets/core`, `@valencets/db`, `@valencets/telemetry`, `@valencets/reactive`, `@valencets/ui`, `@valencets/resultkit`, `argon2`, `sharp`, `tiptap`, `zod` |
+| `@valencets/graphql` | `@valencets/cms`, `@valencets/resultkit`, `graphql` |
+| `@valencets/plugin-*` | `@valencets/cms` (peer), `@valencets/resultkit` |
+| `@valencets/valence` | Any workspace package + `esbuild`, `tsx`, `zod`, `@valencets/resultkit` |
 
 ## Working with the CMS Package
 
-The CMS is the largest package (~270 tests, ~55 source files). Key patterns:
+The CMS is the largest package (80+ source modules). Key patterns (full module map: `packages/cms/AGENTS.md`):
 
 ### Database Queries
 

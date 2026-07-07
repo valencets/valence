@@ -17,14 +17,17 @@ pnpm build --filter=@valencets/telemetry
 
 The dependency graph:
 ```
-core                (depends on neverthrow)
-db                  (depends on neverthrow, postgres, zod)
-telemetry           (depends on db, neverthrow, postgres)
-ui                  (standalone)
-cms                 (depends on core, db, ui, zod)
+reactive, ui        (zero deps)
+core                (@valencets/resultkit)
+db                  (@valencets/resultkit, postgres, zod)
+store               (reactive, @valencets/resultkit, zod)
+telemetry           (core, db, @valencets/resultkit, postgres)
+cms                 (core, db, telemetry, reactive, ui, argon2, sharp, tiptap, zod)
+graphql, plugin-*   (cms)
+valence             (everything above + esbuild, tsx)
 ```
 
-Build order (topological): core, db, ui (parallel) -> telemetry -> cms
+`pnpm build` resolves the topological order automatically.
 
 ## Pre-commit hook failures
 

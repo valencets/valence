@@ -8,7 +8,7 @@ Architectural reference for Valence. Read the section relevant to what you're wo
 2. [Package Dependency Graph](#package-dependency-graph)
 3. [Error Handling Patterns](#error-handling-patterns)
 4. [Telemetry Engine](#telemetry-engine)
-5. [Ingestion Pipeline (Design Reference)](#ingestion-pipeline)
+5. [Ingestion Pipeline](#ingestion-pipeline)
 6. [HTML-over-the-Wire Router](#html-over-the-wire-router)
 7. [View Transitions](#view-transitions)
 8. [Server Islands](#server-islands)
@@ -29,7 +29,7 @@ Four rules. Break one, fix it before you merge.
 GC pauses drop frames and stutter UI. Pre-allocate all structures at boot, mutate in-place, never create/destroy during runtime. The telemetry engine uses a ring buffer and object pool for exactly this reason.
 
 **No exceptions.**
-Exceptions create invisible control flow. Every fallible function returns `Result<Ok, Err>`. The compiler forces you to handle both branches. One `try/catch` exists in the entire codebase -- wrapping `JSON.parse`, because it throws by design.
+Exceptions create invisible control flow. Every fallible function returns `Result<Ok, Err>`. The compiler forces you to handle both branches. There is no literal `try/catch` in production source -- APIs that throw by design (`JSON.parse`, `decodeURIComponent`, child-process execs) are wrapped at the boundary with `fromThrowable` / `ResultAsync.fromPromise` from `@valencets/resultkit`.
 
 **Complexity < 20.**
 Every `if`, `for`, `while`, `&&`, `||` adds a decision path. Past 20, you can't exhaustively test it. Early returns, dictionary maps, small functions. No switch statements. No enums (const unions only).
@@ -41,35 +41,55 @@ TCP slow start gives you ~10 packets on the initial congestion window. At 1460 b
 
 ## Package Dependency Graph
 
-Five packages under `packages/`, connected by workspace dependencies. `@valencets/resultkit` is an npm dependency (not vendored):
+Twelve packages under `packages/`, connected by workspace dependencies. `@valencets/resultkit` is an external npm dependency used by nearly every package (not vendored, not shown below):
 
 ```
-@valencets/core                (depends on @valencets/resultkit)
-       |
-       v
-@valencets/db                  (depends on @valencets/resultkit, postgres, zod)
-       |
-       v
-@valencets/telemetry           (depends on db, @valencets/resultkit, postgres)
+@valencets/reactive   (zero deps)          @valencets/ui   (zero deps; optional tailwindcss peer)
+        |
+        v
+@valencets/store      (reactive, zod)
 
-@valencets/ui                  (zero deps)
-
-@valencets/cms                 (v0.1 complete, depends on db, @valencets/resultkit, zod, argon2)
+@valencets/core       (resultkit only)
+        |
+@valencets/db         (postgres, zod)
+        |
+        v
+@valencets/telemetry  (core, db, postgres)
+        |
+        v
+@valencets/cms        (core, db, telemetry, reactive, ui, argon2, sharp, tiptap, zod)
+        |
+        +-- @valencets/graphql              (cms, graphql)
+        +-- @valencets/plugin-seo           (peer: cms)
+        +-- @valencets/plugin-nested-docs   (peer: cms)
+        +-- @valencets/plugin-cloud-storage (peer: cms; @aws-sdk/client-s3)
+        |
+        v
+@valencets/valence    (cms, core, db, reactive, store, telemetry, ui, esbuild, tsx, zod)
 ```
 
-### Package Status
+### Package Roles
 
-| Package | Status | Tests | Description |
-|---|---|---|---|
-| `packages/core/` | Built | 243 | Telemetry engine, HTML-over-the-wire router, view transitions, server islands, server utilities. |
-| `packages/db/` | Built | 38 | PostgreSQL connection pool, config validation, migration runner, error mapping. |
-| `packages/telemetry/` | Built | 59 | Summary table queries, daily summary aggregation, fleet data types. |
-| `packages/ui/` | Built | 368 | ValElement protocol, 18 Web Component primitives, hydration directives, OKLCH tokens, Tailwind preset, theme contract. Zero deps. |
-| `packages/cms/` | v0.1 complete | 270 tests | Schema engine, admin UI, auth, REST API, media, query builder |
+| Package | Description |
+|---|---|
+| `packages/valence/` | CLI (`init`/`dev`/`start`/`migrate`/`build`/`user:create`/`learn`), application server, config loading, codegen, client bundling, store wiring. |
+| `packages/cms/` | Schema engine, admin UI, auth, REST + Local API, media, query builder, migration generator. |
+| `packages/store/` | Schema-driven shared state: scopes, mutations, SSE, optimistic rebase, declarative binding. |
+| `packages/core/` | Client telemetry engine, HTML-over-the-wire router, view transitions, server islands, server primitives. |
+| `packages/ui/` | ValElement protocol, 23 Web Components, hydration directives, OKLCH tokens, Tailwind preset, theme contract. |
+| `packages/reactive/` | Signals (`signal`/`computed`/`effect`/`batch`) and two-way DOM bindings. |
+| `packages/db/` | PostgreSQL connection pool, config validation, migration runner, error mapping. |
+| `packages/graphql/` | GraphQL schema + resolvers derived from CMS collections. |
+| `packages/telemetry/` | Beacon ingestion, daily aggregation, retention, dashboard queries. |
+| `packages/plugin-*` | CMS config transformers: SEO fields, nested docs, S3 media storage. |
+
+Live test counts come from `pnpm test` — they are deliberately not recorded here.
 
 ### Module Boundaries
 
-Each package owns its own types. Wiring happens at the application layer. `@valencets/db` never imports from `@valencets/core`. `@valencets/telemetry` depends on `@valencets/db` for `DbPool` and `mapPostgresError`, but never on `@valencets/core`.
+Each package owns its own types. Wiring happens at the top, in `@valencets/valence`. `@valencets/db` never imports from `@valencets/core`. `@valencets/telemetry` depends on `@valencets/db` for `DbPool` and `mapPostgresError` but never on `@valencets/cms`. `@valencets/ui` and `@valencets/reactive` import nothing internal. Plugins only transform `CmsConfig`.
+
+Per-package agent guides with full module maps live at `packages/*/AGENTS.md`. The store system is documented in [STORES.md](./STORES.md).
 
 ---
 
@@ -120,21 +140,18 @@ function closePool (pool: DbPool): ResultAsync<void, DbError>
 
 Chaining uses `.map()`, `.andThen()`, and `.match()`. Never `.unwrap()` or `.expect()`.
 
-### JSON.parse Boundary
+### Throwing-API Boundaries
 
-`safeJsonParse` is the single `try/catch` in the codebase. `JSON.parse` throws by design and there is no safer alternative:
+APIs that throw by design are converted to Results exactly once, at the boundary, via `fromThrowable`:
 
 ```typescript
-function safeJsonParse(raw: string): Result<unknown, ParseFailure> {
-  try {
-    return ok(JSON.parse(raw))
-  } catch {
-    return err({ code: 'PARSE_FAILURE', raw })
-  }
-}
+const safeJsonParse = fromThrowable(
+  (raw: string) => JSON.parse(raw),
+  () => null
+)
 ```
 
-Everything downstream of this boundary is pure monadic flow.
+Everything downstream of such a boundary is pure monadic flow. The server-side twin is `safeDispatch` in `core/src/server/server-router.ts`, which catches anything a route handler throws and answers 500 instead of crashing the process.
 
 ---
 
@@ -261,17 +278,17 @@ Old events in the immutable ledger remain valid forever. No migration. No rewrit
 
 ## Ingestion Pipeline
 
-Status: Design reference. The original `packages/ingestion/` has been removed. This pipeline will be rebuilt as part of `packages/cms/` or a dedicated package. The patterns documented here remain the architectural target.
+Location: `packages/telemetry/src/` (`handler.ts`, `beacon-validation.ts`, `ingestion.ts`). The server half of the analytics pipeline; the client half (capture + flush) lives in `packages/core/src/telemetry/`.
 
 ### Monadic Pipeline
 
-1. Receive raw request body as string
-2. `safeJsonParse(raw)` -- `Result<unknown, ParseFailure>` (the one permitted try/catch)
-3. Zod `.safeParse()` against version-discriminated schema -- `Result<T, ValidationFailure>`
+1. `createIngestionHandler` receives the raw `navigator.sendBeacon` request body as a string
+2. Safe JSON parse -- `Result<unknown, _>` (a `fromThrowable` boundary; `JSON.parse` throws by design)
+3. `validateBeaconPayload` -- structure, intent types, site id, `MAX_BEACON_EVENTS` cap
 4. Chain via @valencets/resultkit `.map()` / `.andThen()`
 5. Final `.match()`:
-   - `Ok`: append to PostgreSQL immutable ledger
-   - `Err`: log to internal audit stream, return HTTP 200 OK
+   - `Ok`: `ingestBeacon` batch-inserts sessions and events into PostgreSQL
+   - `Err`: drop the payload, return HTTP 200 OK anyway
 
 ### Silent Accept on Bad Data
 
@@ -442,7 +459,17 @@ Minimal route dispatcher built on `node:http`. `createServerRouter<TCtx>()` retu
 
 The dispatcher parses the URL, looks up the route in a `Map`, and dispatches to the method-specific handler. Unmatched routes fall through to a registered `/404` handler or return a default 404 response. Method mismatches return 405.
 
-All handler execution is wrapped in `ResultAsync.fromPromise` via `safeDispatch`. If a handler throws (despite the project-wide no-exceptions rule), the error is caught and logged, and a generic 500 response is sent if headers have not already been written. This is the server-side safety net, analogous to `safeJsonParse` on the ingestion side.
+All handler execution is wrapped in `ResultAsync.fromPromise` via `safeDispatch`. If a handler throws (despite the project-wide no-exceptions rule), the error is caught and logged, and a generic 500 response is sent if headers have not already been written. This is the server-side safety net, analogous to the `fromThrowable` boundaries on the parsing side.
+
+### Security & Middleware Modules
+
+Also in `packages/core/src/server/`, consumed by the application server in `@valencets/valence` and by the CMS:
+
+- `security-headers.ts` -- CSP (nonce-capable), HSTS, `X-Frame-Options: DENY`, COOP/CORP, Referrer-Policy, Permissions-Policy; applied to every response
+- `csrf.ts` / `csrf-middleware.ts` -- 64-hex-char tokens, timing-safe validation
+- `static-files.ts` -- `resolveStaticPath` traversal defense (null bytes, backslashes, control chars, `..`, resolved-path containment), MIME map, range requests
+- `rate-limit.ts`, `cors.ts`, `origin-check.ts`, `safe-redirect.ts`, `auth-guard.ts`, `body-limit.ts`, `timeout-config.ts`, `trailing-slash.ts`, `cache-control.ts`
+- `middleware-pipeline.ts` / `request-context.ts` -- composable typed middleware
 
 ### HTTP Helpers
 
@@ -527,7 +554,7 @@ Forward-only migration system. Migration files follow the naming convention `NNN
 Pipeline:
 
 1. `loadMigrations(directory)` -- reads a directory, parses filenames via `parseMigrationFilename`, reads SQL content, sorts by version number, validates for duplicate versions. Returns `ResultAsync<ReadonlyArray<MigrationFile>, DbError>`.
-2. `runMigrations(pool, migrations)` -- creates a `_migrations` tracking table if it does not exist, queries for already-applied versions, runs each unapplied migration in a transaction (`BEGIN` + `INSERT INTO _migrations`). Returns `ResultAsync<number, DbError>` with the count of newly applied migrations.
+2. `runMigrations(pool, migrations)` -- reserves one database session for the full run and takes a session-scoped advisory lock (concurrent boots don't race), creates a `_migrations` tracking table if it does not exist, queries for already-applied versions, runs each unapplied migration in its own transaction (`BEGIN` + `INSERT INTO _migrations`). Returns `ResultAsync<number, DbError>` with the count of newly applied migrations.
 3. `getMigrationStatus(pool)` -- returns the list of applied versions and their timestamps.
 
 ```typescript

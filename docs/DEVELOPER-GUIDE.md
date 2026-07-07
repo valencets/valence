@@ -7,15 +7,21 @@ Day-to-day patterns for working in the Valence codebase.
 ```
 valence/
 ├── packages/
-│   ├── core/           Telemetry engine, client router, server utilities (256 tests)
-│   ├── db/             PostgreSQL pool, config, migrations, error mapping (38 tests)
-│   ├── telemetry/      Summary queries, daily aggregation, fleet types (59 tests)
-│   ├── ui/             18 Web Components, OKLCH tokens, Tailwind preset, theme contract (368 tests)
-│   └── cms/            Content management engine (270 tests)
+│   ├── valence/        CLI, dev/prod server, codegen, client bundling, store wiring
+│   ├── cms/            Schema engine, admin UI, auth, REST + Local API, media
+│   ├── store/          Schema-driven shared state: scopes, mutations, SSE, optimistic rebase
+│   ├── core/           Telemetry engine (client), HTML-over-the-wire router, server primitives
+│   ├── ui/             23 Web Components, OKLCH tokens, Tailwind preset, theme contract
+│   ├── reactive/       Signals + DOM bindings (zero deps)
+│   ├── db/             PostgreSQL pool, config, migrations, error mapping
+│   ├── graphql/        GraphQL schema + resolvers derived from collections
+│   ├── telemetry/      Beacon ingestion, daily aggregation, dashboard queries
+│   └── plugin-*/       seo, nested-docs, cloud-storage (CMS config transformers)
+├── tests/              integration (real Postgres), e2e (Playwright), contracts, perf
 └── docs/               You are here
 ```
 
-Each package has its own `CLAUDE.md` with detailed rules and context.
+Each package has its own `AGENTS.md` with a module map and package-specific rules. The root `AGENTS.md` is the canonical quick reference.
 
 ## The Four Pillars
 
@@ -31,17 +37,17 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full rationale.
 ## Dependency Graph
 
 ```
+reactive, ui        (zero deps)
 core                (@valencets/resultkit)
 db                  (@valencets/resultkit, postgres, zod)
-    ^
-    |
-    +--- telemetry  (db, @valencets/resultkit, postgres)
-
-ui                  (standalone)
-cms                 (core, db, ui, zod)
+store               (reactive, @valencets/resultkit, zod)
+telemetry           (core, db, @valencets/resultkit, postgres)
+cms                 (core, db, telemetry, reactive, ui, argon2, sharp, tiptap, zod)
+graphql, plugin-*   (cms)
+valence             (everything above + esbuild, tsx)
 ```
 
-Build order (topological): core, db, ui (parallel) -> telemetry -> cms
+Build order is topological; `pnpm build` (`pnpm -r run build`) resolves it automatically.
 
 ## Database Migration Runner
 
@@ -159,7 +165,7 @@ These fail code review. The hook chain enforces staged linting, shell syntax che
 
 ## Working with @valencets/cms
 
-The CMS package is the largest in the monorepo (~55 source files, 270 tests). Here's how to navigate it.
+The CMS package is the largest in the monorepo (80+ source modules). Here's how to navigate it; the full module map lives in `packages/cms/AGENTS.md`.
 
 ### Module Map
 

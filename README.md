@@ -177,12 +177,13 @@ These constraints aren't ceremony. They're the reason a one-person team can hold
 
 ## Documentation
 
-- [Getting Started](GETTING-STARTED.md)
-- [Architecture](ARCHITECTURE.md)
+- [Getting Started](docs/GETTING-STARTED.md)
+- [Architecture](docs/ARCHITECTURE.md)
 - [Stores & shared state](docs/STORES.md)
-- [CMS Guide](CMS-GUIDE.md)
-- [Developer Guide](DEVELOPER-GUIDE.md)
-- [Troubleshooting](TROUBLESHOOTING.md)
+- [CMS Guide](packages/cms/docs/guide.md)
+- [Developer Guide](docs/DEVELOPER-GUIDE.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Agent guide](AGENTS.md) — orientation for coding agents (`packages/*/AGENTS.md` for per-package maps)
 
 ## Contributing
 

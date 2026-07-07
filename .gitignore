@@ -8,8 +8,10 @@ dist/
 .vscode/
 .idea/
 pnpm-store/
-CLAUDE.md
 !.env.test
+
+# Ephemeral agent-to-agent handoff notes — never commit
+HANDOFF-READ-ME-FIRST.md
 /test-results/
 /playwright-report/
 /playwright/.cache/

@@ -479,8 +479,6 @@ packages/cms/src/
 
 ## Testing
 
-270 tests across 34 test files.
-
 ```bash
-pnpm --filter=cms test
+pnpm --filter=@valencets/cms test
 ```

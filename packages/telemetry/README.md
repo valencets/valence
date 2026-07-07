@@ -5,7 +5,7 @@
 
 Server-side telemetry engine for the [Valence](https://github.com/valencets/valence) web framework. Ingests beacon payloads from the client, stores raw events in PostgreSQL, aggregates daily summaries, and exposes query functions for the CMS analytics dashboard.
 
-96 tests. [Full documentation on the wiki.](https://github.com/valencets/valence/wiki/Packages:-Telemetry)
+[Full documentation on the wiki.](https://github.com/valencets/valence/wiki/Packages:-Telemetry)
 
 ## What It Does
 

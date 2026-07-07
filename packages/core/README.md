@@ -1,8 +1,8 @@
 # @valencets/core
 
-Router and server for Valence applications. PushState navigation with fragment swaps, hover-intent prefetch for near-instant page transitions, and a ring buffer event capture system for debugging production issues. Zero dependencies besides @valencets/resultkit.
+Router and server primitives for Valence applications. PushState navigation with fragment swaps, hover-intent prefetch, view transitions, and server islands on the client; route dispatch, security headers, CSRF, static-file serving, and rate limiting on the server; plus the zero-allocation telemetry capture engine (ring buffer + event delegation + sendBeacon). Zero dependencies besides @valencets/resultkit.
 
-256 tests. [Full documentation on the wiki.](https://github.com/valencets/valence/wiki/Packages:-Core)
+[Full documentation on the wiki.](https://github.com/valencets/valence/wiki/Packages:-Core)
 
 ## Quick Start
 

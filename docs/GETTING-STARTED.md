@@ -28,13 +28,12 @@ This runs `tsc` in every package respecting topological dependency order. Each p
 ## Run Tests
 
 ```bash
-pnpm test              # all workspaces
-pnpm test --filter=@valencets/core       # core only
-pnpm test --filter=@valencets/db         # db only
-pnpm test --filter=@valencets/telemetry  # telemetry only
+pnpm test                                  # all workspaces (unit tests)
+pnpm --filter=@valencets/cms test          # one package
+npx vitest run tests/integration/          # integration tests (needs `pnpm db:up` first)
 ```
 
-Tests use Vitest with happy-dom. No database or network required. 315 tests across the monorepo, all passing.
+Unit tests use Vitest with happy-dom — no database or network required. Integration, E2E, and visual tests need the Docker Postgres from `pnpm db:up` (localhost:55432). See [TESTING.md](../TESTING.md) for the full test architecture.
 
 ## Lint
 
