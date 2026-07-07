@@ -556,3 +556,46 @@ describe('client script auto-injection', () => {
     expect(out).not.toContain('<script type="module"')
   })
 })
+
+describe('hydrator surface for fragment pages and custom routes', () => {
+  const SECRET = 'wiring-test-secret'
+
+  function pageReq (cookie: string): IncomingMessage {
+    const emitter = new EventEmitter()
+    return Object.assign(emitter, { headers: { cookie }, method: 'GET' }) as unknown as IncomingMessage
+  }
+
+  it('injects hydration on pages that only reference a store via data-fragment', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    const html = '<html><body><div data-fragment="counter"></div></body></html>'
+    const out = await hydrator!(pageReq(''), mockRes(), html)
+
+    expect(out).toContain('data-store-hydrate="counter"')
+  })
+
+  it('exposes readState so custom routes can serve store state', async () => {
+    const { mintSignedSessionId } = await import('../store-session.js')
+    const token = mintSignedSessionId(SECRET)
+
+    const { registerRoute, routes } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    await postMutation(routes, 'counter', 'increment', '{"args":{"amount":4}}', `session_id=${token}`)
+
+    const req = pageReq(`session_id=${token}`)
+    const state = await hydrator.readState('counter', req, mockRes())
+    expect(state).not.toBeNull()
+    expect(state!.count).toBe(4)
+  })
+
+  it('readState answers null for unknown stores and unauthorized callers', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore({ scope: 'user' })], registerRoute, { secret: SECRET })
+
+    expect(await hydrator.readState('nope', pageReq(''), mockRes())).toBeNull()
+    // anonymous caller on a user-scoped store
+    expect(await hydrator.readState('counter', pageReq(''), mockRes())).toBeNull()
+  })
+})
