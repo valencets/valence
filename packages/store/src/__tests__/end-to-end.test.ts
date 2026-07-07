@@ -153,11 +153,13 @@ describe('End-to-end: Fragment Mode cart store', () => {
 
     // 4. Client: set up fragment mode DOM
     const root = document.createElement('div')
+    const container = document.createElement('div')
+    container.setAttribute('data-store', 'cart')
     const storeEl = document.createElement('div')
-    storeEl.setAttribute('data-store', 'cart')
-    storeEl.setAttribute('data-store-mode', 'fragment')
+    storeEl.setAttribute('data-fragment', '')
     storeEl.innerHTML = fragment.html
-    root.appendChild(storeEl)
+    container.appendChild(storeEl)
+    root.appendChild(container)
     document.body.appendChild(root)
 
     // 5. Server: process mutation

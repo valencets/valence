@@ -2,6 +2,7 @@ import { err, fromThrowable } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 import type { StoreDefinition, StoreState, StoreError } from '../types.js'
 import { StoreErrorCode } from '../types.js'
+import { fragmentSelector } from '../fragment-selector.js'
 
 interface FragmentOutput {
   readonly selector: string
@@ -19,7 +20,7 @@ export function renderStoreFragment (
     })
   }
 
-  const selector = `[data-store="${config.slug}"]`
+  const selector = fragmentSelector(config.slug)
 
   const fragmentFn = config.fragment
   const safeRender = fromThrowable(

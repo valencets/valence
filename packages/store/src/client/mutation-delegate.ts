@@ -34,7 +34,10 @@ export function initMutationDelegation (
     const trigger = event.target.closest('[data-mutation]')
     if (!trigger) return
 
-    const storeSlug = trigger.getAttribute('data-store')
+    // The store comes from the trigger itself or the nearest data-store
+    // container — declare the slug once, not on every button.
+    const storeSlug = trigger.getAttribute('data-store') ??
+      trigger.closest('[data-store]')?.getAttribute('data-store') ?? null
     if (!storeSlug) return
 
     const store = stores[storeSlug]
