@@ -365,6 +365,9 @@ importers:
       '@valencets/db':
         specifier: workspace:*
         version: link:../db
+      '@valencets/reactive':
+        specifier: workspace:*
+        version: link:../reactive
       '@valencets/resultkit':
         specifier: ^0.5.0
         version: 0.5.0
@@ -374,6 +377,9 @@ importers:
       '@valencets/telemetry':
         specifier: workspace:*
         version: link:../telemetry
+      '@valencets/ui':
+        specifier: workspace:*
+        version: link:../ui
       esbuild:
         specifier: ^0.27.0
         version: 0.27.4

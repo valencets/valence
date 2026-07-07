@@ -193,3 +193,39 @@ export function createPromptQueue (input: LineSource, write: (prompt: string) =>
     }
   }
 }
+
+const PLATFORM_PACKAGES = [
+  '@valencets/cms',
+  '@valencets/db',
+  '@valencets/store',
+  '@valencets/reactive',
+  '@valencets/ui',
+  '@valencets/resultkit'
+] as const
+
+/**
+ * Scaffolded projects install the whole platform, pinned to the versions
+ * this CLI shipped with. The published package.json carries exact sibling
+ * versions (pnpm rewrites workspace links at publish), so the pins come
+ * from our own dependency map; unrewritten workspace links only occur in
+ * monorepo development, where `latest` is a harmless placeholder.
+ */
+export function scaffoldDependencies (
+  cliVersion: string,
+  ownDependencies: Readonly<{ [name: string]: string }>
+): { [name: string]: string } {
+  const pin = (declared: string | undefined): string => {
+    if (declared === undefined || declared.startsWith('workspace')) return 'latest'
+    if (declared.startsWith('^') || declared.startsWith('~')) return declared
+    return `^${declared}`
+  }
+
+  const deps: { [name: string]: string } = {
+    '@valencets/valence': `^${cliVersion}`
+  }
+  for (const name of PLATFORM_PACKAGES) {
+    deps[name] = pin(ownDependencies[name])
+  }
+  deps.tsx = pin(ownDependencies.tsx)
+  return deps
+}
