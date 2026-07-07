@@ -114,3 +114,37 @@ describe('reconcileFragment', () => {
     expect(target.querySelector('footer span')!.textContent).toBe('Author')
   })
 })
+
+describe('executable URL scheme stripping', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<div data-fragment="guard"></div>'
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('strips javascript:, data: and vbscript: hrefs', () => {
+    reconcileFragment({
+      selector: '[data-fragment="guard"]',
+      html: '<a href="javascript:alert(1)">a</a><a href=" DATA:text/html,x">b</a><a href="vbscript:msgbox">c</a><a href="/safe">d</a>'
+    })
+    const links = document.querySelectorAll('[data-fragment="guard"] a')
+    expect(links[0]!.hasAttribute('href')).toBe(false)
+    expect(links[1]!.hasAttribute('href')).toBe(false)
+    expect(links[2]!.hasAttribute('href')).toBe(false)
+    expect(links[3]!.getAttribute('href')).toBe('/safe')
+  })
+
+  it('strips javascript:, data: and vbscript: srcs', () => {
+    reconcileFragment({
+      selector: '[data-fragment="guard"]',
+      html: '<img src="javascript:alert(1)"><iframe src="data:text/html,<script>x</script>"></iframe><img src="VBScript:evil"><img src="/ok.png">'
+    })
+    const withSrc = document.querySelectorAll('[data-fragment="guard"] img, [data-fragment="guard"] iframe')
+    expect(withSrc[0]!.hasAttribute('src')).toBe(false)
+    expect(withSrc[1]!.hasAttribute('src')).toBe(false)
+    expect(withSrc[2]!.hasAttribute('src')).toBe(false)
+    expect(withSrc[3]!.getAttribute('src')).toBe('/ok.png')
+  })
+})
