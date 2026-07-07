@@ -60,6 +60,9 @@ importers:
       '@valencets/resultkit':
         specifier: ^0.5.0
         version: 0.5.0
+      '@valencets/store':
+        specifier: workspace:*
+        version: link:packages/store
       '@vitest/coverage-v8':
         specifier: ^4.0.18
         version: 4.0.18(vitest@4.0.18(@types/node@25.4.0)(happy-dom@20.8.3)(lightningcss@1.32.0)(msw@2.12.13(@types/node@25.4.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
@@ -96,6 +99,37 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.4.0)(happy-dom@20.8.3)(lightningcss@1.32.0)(msw@2.12.13(@types/node@25.4.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
+
+  apps/enshrouded-server-config:
+    dependencies:
+      '@valencets/cms':
+        specifier: workspace:*
+        version: link:../../packages/cms
+      '@valencets/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@valencets/reactive':
+        specifier: workspace:*
+        version: link:../../packages/reactive
+      '@valencets/resultkit':
+        specifier: ^0.5.0
+        version: 0.5.0
+      '@valencets/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      '@valencets/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@valencets/valence':
+        specifier: workspace:*
+        version: link:../../packages/valence
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   packages/cms:
     dependencies:
