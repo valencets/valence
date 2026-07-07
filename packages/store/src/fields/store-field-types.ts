@@ -18,6 +18,21 @@ export const StoreFieldType = Object.freeze({
 
 export type StoreFieldType = typeof StoreFieldType[keyof typeof StoreFieldType]
 
+/**
+ * Any JSON-safe value. State crosses the wire as JSON and is cloned via
+ * JSON round-trips, so binary values cannot survive. Readonly arrays are
+ * accepted so immutable app data plugs in without casts.
+ */
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | JsonValue[]
+  | readonly JsonValue[]
+  | { [key: string]: JsonValue }
+
 interface StoreFieldBase {
   readonly name: string
   readonly type: StoreFieldType
@@ -100,11 +115,13 @@ export interface CustomFieldConfig extends StoreFieldBase {
 
 export interface ArrayFieldConfig extends StoreFieldBase {
   readonly type: 'array'
+  readonly default?: JsonValue
   readonly fields: readonly StoreFieldConfig[]
 }
 
 export interface GroupFieldConfig extends StoreFieldBase {
   readonly type: 'group'
+  readonly default?: JsonValue
   readonly fields: readonly StoreFieldConfig[]
 }
 
