@@ -17,6 +17,7 @@ import type { Server } from 'node:http';
 import type { ServerResponse } from 'node:http';
 import type { StoreInput } from '@valencets/store';
 import type { StorePool } from '@valencets/store/server';
+import type { StoreState } from '@valencets/store';
 
 // @public (undocumented)
 export interface ActionContext {
@@ -254,7 +255,12 @@ export function serializeLoaderData(data: Record<string, JsonValue> | undefined)
 export function setOutletHeader(res: ServerResponse, outletName: string | undefined): void;
 
 // @public
-export type StoreHydrator = (req: IncomingMessage, res: ServerResponse, html: string) => Promise<string>;
+export interface StoreHydrator {
+    // (undocumented)
+    (req: IncomingMessage, res: ServerResponse, html: string): Promise<string>;
+    // (undocumented)
+    readonly readState: (slug: string, req: IncomingMessage, res: ServerResponse) => Promise<StoreState | null>;
+}
 
 // @public (undocumented)
 export interface StoreWiringOptions {
