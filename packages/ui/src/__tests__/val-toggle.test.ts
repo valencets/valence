@@ -139,3 +139,56 @@ describe('ValToggle', () => {
     })
   })
 })
+
+describe('change event contract', () => {
+  let container: HTMLDivElement
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+  })
+
+  afterEach(() => {
+    container.remove()
+  })
+
+  function create (): InstanceType<typeof ValToggle> {
+    const tag = defineTestElement('val-toggle', ValToggle)
+    const el = document.createElement(tag) as InstanceType<typeof ValToggle>
+    container.appendChild(el)
+    return el
+  }
+
+  it('exposes a public checked property that reflects toggling', () => {
+    const el = create() as InstanceType<typeof ValToggle> & { checked: boolean }
+    expect(el.checked).toBe(false)
+    el.click()
+    expect(el.checked).toBe(true)
+    el.checked = false
+    expect(el.checked).toBe(false)
+    expect(el.hasAttribute('checked')).toBe(false)
+  })
+
+  it('dispatches a composed bubbling change event on user toggle', () => {
+    const el = create()
+    const seen: Event[] = []
+    container.addEventListener('change', (event) => { seen.push(event) })
+
+    el.click()
+
+    expect(seen).toHaveLength(1)
+    expect(seen[0]!.bubbles).toBe(true)
+    expect(seen[0]!.composed).toBe(true)
+    expect(seen[0]!.target).toBe(el)
+  })
+
+  it('does not dispatch change for programmatic checked writes', () => {
+    const el = create() as InstanceType<typeof ValToggle> & { checked: boolean }
+    const seen: Event[] = []
+    container.addEventListener('change', (event) => { seen.push(event) })
+
+    el.checked = true
+
+    expect(seen).toHaveLength(0)
+  })
+})
