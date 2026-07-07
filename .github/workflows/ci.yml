@@ -236,24 +236,33 @@ jobs:
         with:
           fetch-depth: 0
       - name: Validate TDD commit sequence
+        env:
+          # Contexts reach the script as environment data, never by string
+          # interpolation into bash — a branch named `x"; cmd; "` stays a
+          # branch name instead of becoming code.
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ]; then
             # The checkout above is fetch-depth: 0 — a --depth=1 fetch here
             # would shallow the base ref and corrupt merge-base resolution,
             # making the check sweep unrelated history after base moves.
-            git fetch origin "${{ github.base_ref }}"
-            BASE="$(git merge-base HEAD "origin/${{ github.base_ref }}" || true)"
+            git fetch origin "$BASE_REF"
+            BASE="$(git merge-base HEAD "origin/$BASE_REF" || true)"
             if [ -z "$BASE" ]; then
-              echo "No merge base with origin/${{ github.base_ref }} — cannot scope the range" >&2
+              echo "No merge base with origin/$BASE_REF — cannot scope the range" >&2
               exit 1
             fi
-            if [ "${{ github.base_ref }}" = "master" ] && [ "${{ github.head_ref }}" = "development" ]; then
+            if [ "$BASE_REF" = "master" ] && [ "$HEAD_REF" = "development" ]; then
               TDD_SEQUENCE_START=f3aae193 bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
             else
               bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
             fi
-          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
-            bash scripts/check-tdd-commit-sequence.sh range "${{ github.event.before }}..${{ github.sha }}"
+          elif [ "$EVENT_BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            bash scripts/check-tdd-commit-sequence.sh range "$EVENT_BEFORE..$HEAD_SHA"
           elif git rev-parse HEAD^ >/dev/null 2>&1; then
             bash scripts/check-tdd-commit-sequence.sh range "HEAD^..HEAD"
           fi
