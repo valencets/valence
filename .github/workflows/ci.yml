@@ -575,6 +575,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-project
+      # Trusted publishing (OIDC) requires npm CLI >= 11.5.1; Node 22 ships npm 10.
+      # pnpm 10.x delegates `pnpm publish` to the system npm, so upgrade it here.
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11
       - run: pnpm build
       - name: Publish packages
         run: |
@@ -591,7 +595,6 @@ jobs:
             fi
           done
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
   release:
