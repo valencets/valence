@@ -4,9 +4,15 @@ interface FragmentEvent {
 }
 
 function parseFragment (html: string): DocumentFragment {
-  const template = document.createElement('template')
-  template.innerHTML = html
-  return template.content
+  // DOMParser builds an inert document: nothing executes during parsing,
+  // and the nodes only join the live document after sanitizeFragment has
+  // stripped scripts, handlers, and javascript: URLs.
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+  const fragment = document.createDocumentFragment()
+  for (const node of [...parsed.body.childNodes]) {
+    fragment.appendChild(document.importNode(node, true))
+  }
+  return fragment
 }
 
 /**

@@ -67,7 +67,8 @@ export interface DbConnectionAnswers {
 }
 
 export interface CommandInvocation {
-  readonly command: string
+  readonly file: string
+  readonly args: readonly string[]
   readonly env: Readonly<{ [key: string]: string }>
 }
 
@@ -75,14 +76,16 @@ export interface CommandInvocation {
  * `valence dev` works on `<name>_dev` and `valence start` on `<name>` —
  * init creates both so neither command's first run trips over a missing
  * database. Connection details come from the answers, not from whatever
- * OS user happens to be running init.
+ * OS user happens to be running init — and they travel as argv entries
+ * through execFile, never through a shell, so metacharacters in an
+ * answer are inert data instead of commands.
  */
 export function createDbInvocations (answers: DbConnectionAnswers): readonly CommandInvocation[] {
-  const flags = `-h ${answers.dbHost} -p ${answers.dbPort} -U ${answers.dbUser}`
+  const flags = ['-h', answers.dbHost, '-p', answers.dbPort, '-U', answers.dbUser]
   const env = Object.freeze({ PGPASSWORD: answers.dbPassword })
   return [
-    { command: `createdb ${flags} ${answers.dbName}`, env },
-    { command: `createdb ${flags} ${answers.dbName}_dev`, env }
+    { file: 'createdb', args: [...flags, answers.dbName], env },
+    { file: 'createdb', args: [...flags, `${answers.dbName}_dev`], env }
   ]
 }
 

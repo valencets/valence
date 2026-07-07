@@ -3,7 +3,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
-import { execSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { ResultAsync, fromThrowable } from '@valencets/resultkit'
@@ -92,6 +92,18 @@ const safeExecSync = fromThrowable(
 
 function exec (cmd: string, cwd: string, env?: Readonly<{ [key: string]: string }>): boolean {
   return safeExecSync(cmd, cwd, env).isOk()
+}
+
+// No shell: user-supplied answers reach the binary as argv entries.
+const safeExecFileSync = fromThrowable(
+  (file: string, args: readonly string[], cwd: string, env: Readonly<{ [key: string]: string }>) => {
+    execFileSync(file, [...args], { cwd, stdio: 'pipe', env: { ...process.env, ...env } })
+  },
+  () => null
+)
+
+function execFile (file: string, args: readonly string[], cwd: string, env: Readonly<{ [key: string]: string }>): boolean {
+  return safeExecFileSync(file, args, cwd, env).isOk()
 }
 
 // -- init --
@@ -432,8 +444,8 @@ CREATE TABLE IF NOT EXISTS "store_states" (
     // Both databases up front: valence dev works on the _dev sibling,
     // valence start on the base — neither first run should trip.
     for (const invocation of createDbInvocations(dbAnswers)) {
-      log(`Creating database: ${invocation.command.split(' ').pop() ?? ''}...`)
-      if (exec(invocation.command, dir, invocation.env)) {
+      log(`Creating database: ${invocation.args[invocation.args.length - 1] ?? ''}...`)
+      if (execFile(invocation.file, invocation.args, dir, invocation.env)) {
         log('Database created.')
       } else {
         log('Warning: could not create it — it may already exist, or the connection details are wrong.')

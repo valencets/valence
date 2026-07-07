@@ -599,3 +599,26 @@ describe('hydrator surface for fragment pages and custom routes', () => {
     expect(await hydrator.readState('counter', pageReq(''), mockRes())).toBeNull()
   })
 })
+
+describe('cookie flags from the transport', () => {
+  const SECRET = 'wiring-test-secret'
+
+  it('mints Secure cookies over TLS and plain cookies over http', async () => {
+    const { registerRoute } = collectRoutes()
+    const hydrator = registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: SECRET })
+
+    const tlsReq = Object.assign(new EventEmitter(), {
+      headers: {}, method: 'GET', socket: { encrypted: true }
+    }) as unknown as IncomingMessage
+    const tlsRes = mockRes()
+    await hydrator!(tlsReq, tlsRes, '<body><div data-store="counter"></div></body>')
+    expect(tlsRes._captured.headers['Set-Cookie']).toContain('; Secure')
+
+    const plainReq = Object.assign(new EventEmitter(), {
+      headers: {}, method: 'GET', socket: {}
+    }) as unknown as IncomingMessage
+    const plainRes = mockRes()
+    await hydrator!(plainReq, plainRes, '<body><div data-store="counter"></div></body>')
+    expect(plainRes._captured.headers['Set-Cookie']).not.toContain('Secure')
+  })
+})

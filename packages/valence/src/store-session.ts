@@ -35,6 +35,9 @@ export function verifySignedSessionId (secret: string, token: string): string | 
   return id
 }
 
-export function buildStoreSessionCookie (token: string): string {
-  return `session_id=${token}; Path=/; HttpOnly; SameSite=Lax`
+export function buildStoreSessionCookie (token: string, secure = false): string {
+  // Secure mirrors the cms session cookie: derived from the transport, so
+  // TLS deployments never leak the token over plaintext while local http
+  // development keeps working.
+  return `session_id=${token}; Path=/; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`
 }

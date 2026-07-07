@@ -107,7 +107,8 @@ async function resolveIdentity (
   }
 
   const minted = mintSignedSessionId(secret)
-  res.setHeader('Set-Cookie', buildStoreSessionCookie(minted))
+  const secureTransport = !!((req.socket as { encrypted?: boolean } | undefined)?.encrypted)
+  res.setHeader('Set-Cookie', buildStoreSessionCookie(minted, secureTransport))
   const dot = minted.indexOf('.')
   return { id: minted.slice(0, dot) }
 }
