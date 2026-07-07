@@ -1,8 +1,8 @@
 {
   "name": "@valencets/reactive",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
-  "description": "Zero-dependency signals layer for Valence admin UI — signal(), computed(), effect(), bind()",
+  "description": "Zero-dependency signals layer for Valence admin UI \u2014 signal(), computed(), effect(), bind()",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
