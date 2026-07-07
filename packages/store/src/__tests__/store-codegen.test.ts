@@ -145,3 +145,17 @@ describe('codegen barrel export', () => {
     expect(typeof (barrel as { generateStoreModule?: unknown }).generateStoreModule).toBe('function')
   })
 })
+
+describe('generated module imports', () => {
+  it('only imports type names the package barrel actually exports', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const moduleText = generateStoreModule(makeCounterConfig())
+    const importMatch = moduleText.match(/import type \{ ([^}]+) \} from '@valencets\/store'/)
+    expect(importMatch).not.toBeNull()
+
+    const barrelSource = await readFile(new URL('../index.ts', import.meta.url), 'utf-8')
+    for (const name of importMatch![1]!.split(',').map(n => n.trim())) {
+      expect(barrelSource.includes(name), `barrel must export ${name}`).toBe(true)
+    }
+  })
+})
