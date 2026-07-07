@@ -1,5 +1,5 @@
 import { writeFile, mkdir } from 'node:fs/promises'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
@@ -740,8 +740,13 @@ async function runDev (): Promise<void> {
     const publicDir = join(projectDir, 'public')
     const staticResult = resolveStaticPath(pathname, publicDir)
     if (staticResult.isOk()) {
-      const filePath = staticResult.value
-      if (existsSync(filePath) && statSync(filePath).isFile()) {
+      // The resolver already guarantees containment; re-asserting the
+      // resolve + startsWith barrier here keeps the guard visible on this
+      // exact dataflow path from req.url to the filesystem.
+      const publicRoot = resolve(publicDir)
+      const filePath = resolve(staticResult.value)
+      const contained = filePath === publicRoot || filePath.startsWith(publicRoot + sep)
+      if (contained && existsSync(filePath) && statSync(filePath).isFile()) {
         const mime = resolveMimeType(filePath)
         const rangeHeader = typeof req.headers['range'] === 'string' ? req.headers['range'] : undefined
         await serveStaticFile(filePath, mime, rangeHeader, res)
@@ -1009,8 +1014,13 @@ export async function runStart (): Promise<void> {
     const publicDir = join(projectDir, 'public')
     const staticResult = resolveStaticPath(pathname, publicDir)
     if (staticResult.isOk()) {
-      const filePath = staticResult.value
-      if (existsSync(filePath) && statSync(filePath).isFile()) {
+      // The resolver already guarantees containment; re-asserting the
+      // resolve + startsWith barrier here keeps the guard visible on this
+      // exact dataflow path from req.url to the filesystem.
+      const publicRoot = resolve(publicDir)
+      const filePath = resolve(staticResult.value)
+      const contained = filePath === publicRoot || filePath.startsWith(publicRoot + sep)
+      if (contained && existsSync(filePath) && statSync(filePath).isFile()) {
         const mime = resolveMimeType(filePath)
         const rangeHeader = typeof req.headers['range'] === 'string' ? req.headers['range'] : undefined
         await serveStaticFile(filePath, mime, rangeHeader, res)
