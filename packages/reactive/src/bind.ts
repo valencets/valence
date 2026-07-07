@@ -24,6 +24,17 @@ function isInputLike (el: Element): el is HTMLInputElement | HTMLTextAreaElement
     el instanceof HTMLSelectElement
 }
 
+// Form-associated custom elements (val-input, val-select, …) expose the
+// native contract as properties — duck-type them so the binding layer
+// binds the framework's own components, not just built-ins.
+function hasValueProperty (el: Element): el is Element & { value: string } {
+  return 'value' in el && typeof (el as Element & { value: unknown }).value === 'string'
+}
+
+function hasCheckedProperty (el: Element): el is Element & { checked: boolean } {
+  return 'checked' in el && typeof (el as Element & { checked: unknown }).checked === 'boolean'
+}
+
 export function bind (el: Element, bindings: BindingMap): () => void {
   const disposers: Array<() => void> = []
 
@@ -34,20 +45,26 @@ export function bind (el: Element, bindings: BindingMap): () => void {
     }))
   }
 
-  if (bindings.value !== undefined && isInputLike(el)) {
+  if (bindings.value !== undefined && (isInputLike(el) || hasValueProperty(el))) {
     const sig = bindings.value
-    const inp = el
+    const inp = el as Element & { value: string }
     disposers.push(effect(() => {
       inp.value = sig.value
     }))
-    const onInput = (): void => { sig.value = inp.value }
-    inp.addEventListener('input', onInput)
-    disposers.push(() => { inp.removeEventListener('input', onInput) })
+    // input for keystroke-carrying controls, change for commit-only ones
+    // (custom selects) — reading .value twice is harmless.
+    const onEdit = (): void => { sig.value = inp.value }
+    inp.addEventListener('input', onEdit)
+    inp.addEventListener('change', onEdit)
+    disposers.push(() => {
+      inp.removeEventListener('input', onEdit)
+      inp.removeEventListener('change', onEdit)
+    })
   }
 
-  if (bindings.checked !== undefined && el instanceof HTMLInputElement) {
+  if (bindings.checked !== undefined && (el instanceof HTMLInputElement || hasCheckedProperty(el))) {
     const sig = bindings.checked
-    const inp = el
+    const inp = el as Element & { checked: boolean }
     disposers.push(effect(() => {
       inp.checked = sig.value
     }))
