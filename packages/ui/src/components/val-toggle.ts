@@ -45,14 +45,27 @@ export class ValToggle extends ValFormElement {
   static observedAttributes = ['checked', 'disabled']
 
   private trackEl: HTMLElement | null = null
-  private checked = false
+  private _checked = false
+
+  /** Programmatic writes update state silently — only user toggles
+   *  dispatch change, matching native checkbox semantics. */
+  get checked (): boolean {
+    return this._checked
+  }
+
+  set checked (next: boolean) {
+    this._checked = next
+    if (next) this.setAttribute('checked', '')
+    else this.removeAttribute('checked')
+    this.syncState()
+  }
 
   protected createTemplate (): HTMLTemplateElement {
     return template
   }
 
   get value (): string {
-    return this.checked ? (this.getAttribute('value') ?? 'on') : ''
+    return this._checked ? (this.getAttribute('value') ?? 'on') : ''
   }
 
   set value (_v: string) {
@@ -64,7 +77,7 @@ export class ValToggle extends ValFormElement {
     if (this.trackEl === null) {
       this.trackEl = this.shadowRoot!.querySelector('.track')!
     }
-    this.checked = this.hasAttribute('checked')
+    this._checked = this.hasAttribute('checked')
     this.syncState()
     this.addEventListener('click', this.handleClick)
     this.addEventListener('keydown', this.handleKeydown)
@@ -78,7 +91,7 @@ export class ValToggle extends ValFormElement {
 
   attributeChangedCallback (name: string, old: string | null, val: string | null): void {
     if (name === 'checked') {
-      this.checked = val !== null
+      this._checked = val !== null
       this.syncState()
     } else if (name === 'disabled' && this.trackEl !== null) {
       this.trackEl.setAttribute('tabindex', val !== null ? '-1' : '0')
@@ -86,7 +99,7 @@ export class ValToggle extends ValFormElement {
   }
 
   formResetCallback (): void {
-    this.checked = false
+    this._checked = false
     this.syncState()
     this.setFormValue('')
     this.clearValidity()
@@ -100,15 +113,18 @@ export class ValToggle extends ValFormElement {
 
   private syncState (): void {
     if (this.trackEl === null) return
-    this.trackEl.setAttribute('aria-checked', String(this.checked))
-    this.setFormValue(this.checked ? (this.getAttribute('value') ?? 'on') : '')
+    this.trackEl.setAttribute('aria-checked', String(this._checked))
+    this.setFormValue(this._checked ? (this.getAttribute('value') ?? 'on') : '')
   }
 
   private toggle (): void {
     if (this.hasAttribute('disabled')) return
-    this.checked = !this.checked
+    this._checked = !this._checked
     this.syncState()
-    this.emitInteraction('change', { checked: this.checked })
+    // Standard event contract first (binding layers, plain listeners),
+    // telemetry second.
+    this.dispatchEvent(new Event('change', { bubbles: true, composed: true }))
+    this.emitInteraction('change', { checked: this._checked })
   }
 
   private handleClick = (): void => {
