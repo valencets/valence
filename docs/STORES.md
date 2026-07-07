@@ -17,7 +17,9 @@ queue, server reconciliation, and fragment swapping.
 Stores are declared in `valence.config.ts` alongside collections:
 
 ```ts
-import { defineConfig, store, field } from '@valencets/valence'
+import { defineConfig } from '@valencets/valence'
+import { field } from '@valencets/store'
+import type { StoreInput } from '@valencets/store'
 
 export default defineConfig({
   // ...
@@ -68,7 +70,9 @@ client and server via `safeParse`), typed signals, per-mutation POST
 endpoints, an SSE channel, hydration, and optional fragment rendering.
 
 Fields are optional in mutation input by default; set `required: true` to
-reject missing values. Zod strips unknown keys — only declared input fields
+reject missing values. Every field type takes a `default` — including
+`array` and `group` — and `toStoreValue()` widens typed app data
+(interfaces included) into store state without casts. Zod strips unknown keys — only declared input fields
 ever reach a `server` function, and mutations with an empty `input` ignore
 client args entirely.
 
@@ -139,22 +143,48 @@ Both modes work from the same store, on the same page.
 
 **Fragment mode** — the server re-renders the store's `fragment(state)`
 HTML. The mutating client receives the fragment in its POST response; other
-clients in the SSE audience receive it as an `event: fragment`. The swap
-targets `[data-store="<slug>"]` elements, sanitizes the HTML (scripts,
-`on*` attributes, `javascript:` URLs stripped), and uses `replaceChildren`
-so event delegation survives.
+clients in the SSE audience receive it as an `event: fragment`. Swaps land
+only in dedicated targets — a bare `data-fragment` inside the store's
+container, or `data-fragment="<slug>"` anywhere — never in the `data-store`
+container itself, so forms and triggers sitting next to the preview
+survive every update. The HTML is sanitized (scripts, `on*` attributes,
+`javascript:` URLs stripped) and applied with `replaceChildren` so event
+delegation survives. On first paint the runtime renders the fragment
+client-side from hydrated state, so the pane is never empty before the
+first mutation.
 
-Declarative triggers need no JavaScript wiring:
+## Declarative binding
+
+Declare the store once on a container; everything inside inherits it:
 
 ```html
-<button data-store="cart" data-mutation="addItem" data-args='{"sku":"abc","qty":1}'>
-  Add to cart
-</button>
+<section data-store="cart">
+  <fieldset data-commit="updateQuantity">
+    <input data-field="qty" type="number">
+  </fieldset>
+
+  <button data-mutation="addItem" data-args='{"sku":"abc","qty":1}'>
+    Add to cart
+  </button>
+
+  <div data-fragment></div>
+</section>
 ```
 
-The delegate applies `is-pending` on click and resolves it with the server
-response; failures mark the trigger `is-error` until the next attempt.
-Malformed `data-args` JSON is ignored rather than thrown.
+- `data-field="name"` binds a control to the store field both ways: state
+  repaints unfocused controls, edits commit through the nearest
+  `data-commit` mutation as `{ name: value }` — coerced by the field's
+  schema type (numbers become numbers, booleans read `checked`). Keystroke
+  input debounces; `change` commits immediately. A field with no
+  `data-commit` ancestor is read-only. Works with native controls and
+  ValElements alike.
+- `data-mutation` triggers resolve their store from the trigger itself or
+  the nearest `data-store` ancestor. The delegate applies `is-pending` on
+  click and resolves it with the server response; failures mark the
+  trigger `is-error` until the next attempt. Malformed `data-args` JSON is
+  ignored rather than thrown.
+- Anything richer — indexed array edits, multi-field payloads — uses the
+  programmatic API: `client.mutations.name(args)`.
 
 ## Client bootstrap
 
@@ -216,6 +246,12 @@ Per store (except `page` scope):
   session may hold many tabs).
 - `GET /store/:slug/hydration` — the hydration script tag for server
   templates that compose pages from fetched partials.
+
+Custom routes read a caller's bucket through the hydrator the wiring
+returns: `await hydrator.readState(slug, req, res)` resolves the same
+identity ladder the endpoints use and answers `null` for unknown stores or
+unauthorized callers — a download route can serve exactly what the page
+shows.
 
 ## Session identity
 
