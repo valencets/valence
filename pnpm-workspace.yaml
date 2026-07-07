@@ -1,2 +1,45 @@
 packages:
   - "packages/*"
+
+# pnpm >= 10.30 reads these here; the package.json "pnpm" field is no longer honored.
+onlyBuiltDependencies:
+  - sharp
+  - argon2
+  - msw
+
+# Security floors for transitive deps (advisory-driven; audit before removing).
+# Scoped selectors (pkg@major) avoid forcing cross-major upgrades on old chains.
+overrides:
+  flatted: ">=3.4.2"
+  fast-xml-parser: ">=5.7.0"
+  fast-xml-builder: ">=1.1.7"
+  linkify-it: ">=5.0.1"
+  picomatch: ">=4.0.4"
+  markdown-it: ">=14.2.0"
+  "protobufjs@7": ">=7.5.6 <8"
+  "@protobufjs/utf8": ">=1.1.1"
+  "vite@8": ">=8.0.16 <9"
+  "undici@7": ">=7.28.0 <8"
+  "form-data@4": ">=4.0.6 <5"
+  fast-uri: ">=3.1.2"
+  tmp: ">=0.2.6"
+  basic-ftp: ">=5.2.2"
+  "lodash@4": ">=4.18.0 <5"
+  "lodash-es@4": ">=4.18.0 <5"
+  "js-yaml@3": ">=3.15.0 <4"
+  "js-yaml@4": ">=4.2.0 <5"
+  "qs@6": ">=6.15.2 <7"
+  "uuid@11": ">=11.1.1 <12"
+  "postcss@8": ">=8.5.10 <9"
+  "ip-address@10": ">=10.1.1 <11"
+  "@grpc/grpc-js@1": ">=1.14.4 <2"
+  "ws@8": ">=8.21.0 <9"
+  "path-to-regexp@0.1": ">=0.1.13 <0.2"
+  "yaml@2": ">=2.8.3 <3"
+  "brace-expansion@1": ">=1.1.13 <2"
+  "brace-expansion@2": ">=2.0.3 <3"
+  "brace-expansion@5": ">=5.0.6 <6"
+  "@babel/core@7": ">=7.29.6 <8"
+  # Known remainders (dev-only, deliberate): uuid@8/10 and brace-expansion@4 (patched
+  # only cross-major), esbuild@0.27 pinned inside tsx (0.x minor bump not override-safe).
+  # Triage in the security audit.

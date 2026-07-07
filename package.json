@@ -52,7 +52,8 @@
     "@valencets/plugin-nested-docs": "workspace:*",
     "@valencets/plugin-seo": "workspace:*",
     "@valencets/resultkit": "^0.5.0",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@valencets/store": "workspace:*",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.22.0",
     "happy-dom": "^20.8.9",
     "husky": "^9.1.7",
@@ -63,26 +64,11 @@
     "supertest": "^7.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.0",
-    "@valencets/store": "workspace:*"
+    "vitest": "^4.1.0"
   },
   "packageManager": "pnpm@10.30.3",
   "engines": {
     "node": ">=22.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "sharp",
-      "argon2",
-      "msw"
-    ],
-    "overrides": {
-      "flatted": ">=3.4.2",
-      "fast-xml-parser": ">=5.5.7",
-      "fast-xml-builder": ">=1.1.7",
-      "linkify-it": ">=5.0.1",
-      "picomatch": ">=4.0.4"
-    }
   },
   "license": "MIT",
   "repository": {
