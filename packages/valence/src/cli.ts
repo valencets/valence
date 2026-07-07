@@ -21,7 +21,7 @@ import { resolveCustomRoute } from './route-matcher.js'
 import { generateCollectionRoutes, buildGeneratedRouteMap, buildUserRouteMap } from './route-generator.js'
 import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash, setSecurityHeaders } from '@valencets/core/server'
 import { resolvePageRoute } from './page-router.js'
-import { regenerateFromConfig } from './codegen/regenerate.js'
+import { regenerateFromConfig, ensureGeneratedModules } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { scaffoldFsd } from './scaffold/fsd-scaffold.js'
@@ -791,6 +791,10 @@ async function runDev (): Promise<void> {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
 
+  // Generated modules must exist before the first bundle build — a fresh
+  // checkout works without touching the config first.
+  await ensureGeneratedModules(projectDir, loadedConfig.collections, loadedConfig.stores, log)
+
   // Bundle and serve the client entry (no-op if the project ships none)
   const clientBundleUrl = await setupClientBundle(projectDir, registerRoute, true, log)
 
@@ -1038,6 +1042,9 @@ export async function runStart (): Promise<void> {
   if (loadedConfig.onServer) {
     await loadedConfig.onServer({ server, pool, cms, registerRoute })
   }
+
+  // Generated modules must exist before the production bundle builds
+  await ensureGeneratedModules(projectDir, loadedConfig.collections, loadedConfig.stores, log)
 
   // Bundle and serve the client entry (no-op if the project ships none)
   const clientBundleUrl = await setupClientBundle(projectDir, registerRoute, false, log)

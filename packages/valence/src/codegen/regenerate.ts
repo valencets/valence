@@ -46,6 +46,26 @@ async function writeIfGenerated (
   }
 }
 
+/**
+ * Boot-time and watch-time entry: regenerate everything the config implies
+ * and narrate the result. A fresh checkout gets working generated modules
+ * before the first request, not after the first config edit.
+ */
+export async function ensureGeneratedModules (
+  projectDir: string,
+  collections: readonly CollectionConfig[],
+  stores: readonly StoreInput[] | undefined,
+  log: (msg: string) => void
+): Promise<void> {
+  await regenerateFromConfig(projectDir, collections, stores).match(
+    (result) => {
+      const total = result.added.length + result.updated.length
+      if (total > 0) log(`Generated ${total} file(s). Skipped ${result.skipped.length} user-edited.`)
+    },
+    (e) => { log(`Code generation error: ${e.message}`) }
+  )
+}
+
 export function regenerateFromConfig (
   projectDir: string,
   collections: readonly CollectionConfig[],

@@ -14,6 +14,7 @@ const client = apiClient<${typeName}>('/api/${collection.slug}')
 
 export const ${varName} = {
   list: client.list,
+  listPaginated: client.listPaginated,
   get: client.get,
   create: client.create,
   update: client.update,

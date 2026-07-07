@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { StoreInput, SessionInfo } from '@valencets/store'
+import type { StoreInput, SessionInfo, StoreState } from '@valencets/store'
 import { store as createStore } from '@valencets/store'
 import { SessionStateHolder, PostgresStateHolder, SSEBroadcaster, registerStoreRoutes, renderStoreFragment, renderStoreHydration } from '@valencets/store/server'
 import type { StorePool, StateBackend } from '@valencets/store/server'
@@ -146,10 +146,15 @@ export interface StoreWiringOptions {
 
 /**
  * Injects <script data-store-hydrate> tags into a rendered page for every
- * registered store the page references via data-store attributes, so
- * first paint carries the caller's state without a fetch.
+ * registered store the page references via data-store or data-fragment
+ * attributes, so first paint carries the caller's state without a fetch.
+ * readState gives custom routes the same identity-checked access to a
+ * caller's bucket that hydration uses.
  */
-export type StoreHydrator = (req: IncomingMessage, res: ServerResponse, html: string) => Promise<string>
+export interface StoreHydrator {
+  (req: IncomingMessage, res: ServerResponse, html: string): Promise<string>
+  readonly readState: (slug: string, req: IncomingMessage, res: ServerResponse) => Promise<StoreState | null>
+}
 
 export function registerStoreRoutesOnServer (
   storeInputs: readonly StoreInput[],
@@ -296,10 +301,20 @@ export function registerStoreRoutesOnServer (
     })
   }
 
-  return async (req, res, html) => {
+  const readState = async (slug: string, req: IncomingMessage, res: ServerResponse): Promise<StoreState | null> => {
+    const entry = hydratable.find(candidate => candidate.slug === slug)
+    if (entry === undefined) return null
+    const identity = await resolveIdentity(req, res, options)
+    if (identity === null) return null
+    if (entry.scope === 'user' && identity.userId === undefined) return null
+    return await entry.getState(identity)
+  }
+
+  const hydrate = async (req: IncomingMessage, res: ServerResponse, html: string): Promise<string> => {
     // Only pages that actually bind a registered store get tags — and only
     // those resolve an identity, so plain pages never mint session cookies.
-    const referenced = hydratable.filter(entry => html.includes(`data-store="${entry.slug}"`))
+    const referenced = hydratable.filter(entry =>
+      html.includes(`data-store="${entry.slug}"`) || html.includes(`data-fragment="${entry.slug}"`))
     if (referenced.length === 0) return html
 
     let tags = ''
@@ -326,6 +341,8 @@ export function registerStoreRoutesOnServer (
     }
     return html + tags
   }
+
+  return Object.assign(hydrate, { readState })
 }
 
 export function maybeRegisterStores (

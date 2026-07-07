@@ -186,7 +186,7 @@ describe('registerStoreRoutesOnServer', () => {
     const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":3},"mutationId":1}')
     const parsed = JSON.parse(captured.body)
     expect(parsed.fragment).toBeDefined()
-    expect(parsed.fragment.selector).toBe('[data-store="counter"]')
+    expect(parsed.fragment.selector).toBe('[data-fragment="counter"], [data-store="counter"] [data-fragment=""]')
     expect(parsed.fragment.html).toContain('<span>3</span>')
   })
 
