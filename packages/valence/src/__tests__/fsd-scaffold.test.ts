@@ -74,11 +74,20 @@ describe('FSD scaffold during init', () => {
     expect(html).toContain('--val-')
   })
 
-  it('writes src/app/styles.css with Valence design tokens', async () => {
+  it('writes public/styles.css where the server actually serves it', async () => {
     await run(['init', 'test-app', '-y'])
-    const css = getWrittenFile('styles.css')
-    expect(css).toBeDefined()
-    expect(css).toContain('--val-')
+    const writeCall = mockedWriteFile.mock.calls.find(c => String(c[0]).endsWith('styles.css'))
+    expect(writeCall).toBeDefined()
+    expect(String(writeCall![0])).toContain('public')
+    expect(String(writeCall![0])).not.toContain('src')
+    expect(String(writeCall![1])).toContain('--val-')
+  })
+
+  it('scaffolded pages link the served stylesheet path', async () => {
+    await run(['init', 'test-app', '-y'])
+    const html = getWrittenFile('index.html')
+    expect(html).toContain('href="/styles.css"')
+    expect(html).not.toContain('/src/app/styles.css')
   })
 
   it('writes src/shared/api/base-client.ts', async () => {
