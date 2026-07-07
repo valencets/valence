@@ -21,6 +21,8 @@ function parseFragment (html: string): DocumentFragment {
  * Developers should use escapeHtml() in their fragment functions,
  * but this catches cases where they forget.
  */
+const EXECUTABLE_SCHEMES = ['javascript:', 'data:', 'vbscript:'] as const
+
 function sanitizeFragment (fragment: DocumentFragment): void {
   const scripts = fragment.querySelectorAll('script')
   for (const script of scripts) {
@@ -34,17 +36,13 @@ function sanitizeFragment (fragment: DocumentFragment): void {
         el.removeAttribute(attr)
       }
     }
-    // Remove javascript: hrefs
-    if (el.hasAttribute('href')) {
-      const href = el.getAttribute('href') ?? ''
-      if (href.trimStart().toLowerCase().startsWith('javascript:')) {
-        el.removeAttribute('href')
-      }
-    }
-    if (el.hasAttribute('src')) {
-      const src = el.getAttribute('src') ?? ''
-      if (src.trimStart().toLowerCase().startsWith('javascript:')) {
-        el.removeAttribute('src')
+    // Remove URLs whose scheme encodes executable content — javascript:
+    // alone is an incomplete check; data: and vbscript: execute the same way.
+    for (const urlAttr of ['href', 'src']) {
+      if (!el.hasAttribute(urlAttr)) continue
+      const value = (el.getAttribute(urlAttr) ?? '').trimStart().toLowerCase()
+      if (EXECUTABLE_SCHEMES.some(scheme => value.startsWith(scheme))) {
+        el.removeAttribute(urlAttr)
       }
     }
   }
