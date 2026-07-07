@@ -157,3 +157,41 @@ describe('createPromptQueue', () => {
     expect(await pending).toBe('typed-later')
   })
 })
+
+describe('scaffoldDependencies', () => {
+  it('installs the full platform pinned to the released versions', async () => {
+    const { scaffoldDependencies } = await import('../init-steps.js')
+    const deps = scaffoldDependencies('0.18.0', {
+      '@valencets/cms': '0.13.0',
+      '@valencets/core': '0.6.0',
+      '@valencets/db': '0.3.0',
+      '@valencets/store': '0.2.0',
+      '@valencets/reactive': '0.3.0',
+      '@valencets/ui': '0.4.0',
+      '@valencets/resultkit': '^0.5.0',
+      tsx: '^4.21.0'
+    })
+
+    expect(deps['@valencets/valence']).toBe('^0.18.0')
+    expect(deps['@valencets/cms']).toBe('^0.13.0')
+    expect(deps['@valencets/db']).toBe('^0.3.0')
+    expect(deps['@valencets/store']).toBe('^0.2.0')
+    expect(deps['@valencets/reactive']).toBe('^0.3.0')
+    expect(deps['@valencets/ui']).toBe('^0.4.0')
+    expect(deps['@valencets/resultkit']).toBe('^0.5.0')
+    expect(deps.tsx).toBe('^4.21.0')
+    expect(Object.values(deps)).not.toContain('latest')
+  })
+
+  it('falls back to latest only for unrewritten workspace links (monorepo dev)', async () => {
+    const { scaffoldDependencies } = await import('../init-steps.js')
+    const deps = scaffoldDependencies('0.18.0', {
+      '@valencets/cms': 'workspace:*',
+      '@valencets/store': 'workspace:*'
+    })
+
+    expect(deps['@valencets/cms']).toBe('latest')
+    expect(deps['@valencets/store']).toBe('latest')
+    expect(deps['@valencets/valence']).toBe('^0.18.0')
+  })
+})
