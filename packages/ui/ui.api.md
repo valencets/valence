@@ -540,6 +540,8 @@ export class ValTextarea extends ValFormElement {
 export class ValToggle extends ValFormElement {
     // (undocumented)
     attributeChangedCallback(name: string, old: string | null, val: string | null): void;
+    get checked(): boolean;
+    set checked(next: boolean);
     // (undocumented)
     connectedCallback(): void;
     // (undocumented)

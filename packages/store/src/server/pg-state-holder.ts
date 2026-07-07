@@ -5,8 +5,13 @@ import type { StorePool } from './store-routes.js'
 
 const SELECT_STATE = 'SELECT state FROM store_states WHERE store_slug = $1 AND state_key = $2 AND deleted_at IS NULL'
 
+// The state travels as a JSON text parameter. Drivers that infer json for
+// the parameter (postgres.js) deliver it as a jsonb *string*; drivers that
+// send plain text deliver an object after the cast. `#>> '{}'` unwraps the
+// string case and round-trips the object case, so both land as real jsonb
+// objects — queryable, never double-encoded.
 const UPSERT_STATE = `INSERT INTO store_states (store_slug, state_key, state, updated_at)
-VALUES ($1, $2, $3::jsonb, NOW())
+VALUES ($1, $2, ($3::jsonb #>> '{}')::jsonb, NOW())
 ON CONFLICT (store_slug, state_key)
 DO UPDATE SET state = EXCLUDED.state, updated_at = NOW(), deleted_at = NULL`
 

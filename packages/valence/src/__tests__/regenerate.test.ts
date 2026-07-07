@@ -173,3 +173,31 @@ describe('store module regeneration', () => {
     expect(storeWrite).toBeUndefined()
   })
 })
+
+describe('ensureGeneratedModules', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('regenerates collections and stores at boot, reporting through the log', async () => {
+    const { ensureGeneratedModules } = await import('../codegen/regenerate.js')
+    const logged: string[] = []
+    const collections = [
+      collection({ slug: 'posts', fields: [field.text({ name: 'title', required: true })] })
+    ]
+    const stores = [{
+      slug: 'cart',
+      scope: 'session' as const,
+      fields: [storeField.number({ name: 'count', default: 0 })],
+      mutations: {}
+    }]
+
+    await ensureGeneratedModules('/tmp/project', collections, stores, (msg) => { logged.push(msg) })
+
+    const storeWrite = mockedWriteFile.mock.calls.find(
+      c => String(c[0]).includes(join('shared', 'stores', 'cart.ts'))
+    )
+    expect(storeWrite).toBeDefined()
+    expect(logged.some(msg => msg.includes('Generated'))).toBe(true)
+  })
+})

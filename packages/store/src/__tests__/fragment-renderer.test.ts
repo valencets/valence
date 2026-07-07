@@ -44,7 +44,7 @@ describe('renderStoreFragment', () => {
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
       expect(result.value.html).toBe('<p>Count: <span>42</span></p>')
-      expect(result.value.selector).toBe('[data-store="counter"]')
+      expect(result.value.selector).toBe('[data-fragment="counter"], [data-store="counter"] [data-fragment=""]')
     }
   })
 
@@ -100,7 +100,7 @@ describe('renderStoreFragment', () => {
     const config = makeCounterStore()
     const result = renderStoreFragment(config, { count: 0 })
     if (result.isOk()) {
-      expect(result.value.selector).toBe('[data-store="counter"]')
+      expect(result.value.selector).toBe('[data-fragment="counter"], [data-store="counter"] [data-fragment=""]')
     }
   })
 

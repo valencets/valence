@@ -82,9 +82,13 @@ export type {
 export { StoreScope, StoreErrorCode } from './types.js'
 export { generateStoreSchema } from './validation/index.js'
 export type {
+  JsonCompatible,
   StoreDefinition,
   StoreInput,
   StoreError,
+  StoreState,
+  StoreValue,
+  MutationInput,
   SessionInfo,
   MutationDefinition,
   MutationServerFn,
@@ -95,4 +99,5 @@ export type {
   DerivedFn
 } from './types.js'
 export { escapeHtml } from './escape.js'
+export { toStoreValue } from './types.js'
 export { generateStoreModule } from './codegen/store-generator.js'

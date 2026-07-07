@@ -8,6 +8,9 @@ import { readHydrationState } from './hydration.js'
 import { reconcileFragment } from './fragment-reconciler.js'
 import { SSEListener } from './sse-listener.js'
 import { initMutationDelegation } from './mutation-delegate.js'
+import { initFieldBinding } from './field-binding.js'
+import { fragmentSelector } from '../fragment-selector.js'
+import type { StoreState } from '../types.js'
 
 export interface InitStoresOptions {
   /** Delegation root — defaults to document.body */
@@ -37,11 +40,24 @@ function acceptDefinition (input: StoreInput | StoreDefinition): StoreDefinition
  *    state events into signal reconciliation and fragment events into swaps.
  * 4. Delegate [data-mutation] clicks at the root.
  */
+function renderInitialFragment (config: StoreDefinition, client: StoreClient): void {
+  const fragmentFn = config.fragment
+  if (fragmentFn === undefined) return
+  const selector = fragmentSelector(config.slug)
+  if (document.querySelector(selector) === null) return
+  const state: StoreState = {}
+  for (const f of config.fields) {
+    state[f.name] = client.signals[f.name]?.value
+  }
+  reconcileFragment({ selector, html: fragmentFn(state) })
+}
+
 export function initStores (
   definitions: ReadonlyArray<StoreInput | StoreDefinition>,
   options?: InitStoresOptions
 ): StoresHandle {
   const stores: { [slug: string]: StoreClient } = {}
+  const configs: { [slug: string]: StoreDefinition } = {}
   const listeners: SSEListener[] = []
   const postMutation = options?.postMutation ?? createPostMutation()
 
@@ -54,10 +70,16 @@ export function initStores (
       onFragment: (fragment) => { reconcileFragment(fragment) }
     })
     stores[config.slug] = client
+    configs[config.slug] = config
+
+    // Fragment mode paints on first load too, not only after a mutation —
+    // the fragment fn is client-safe by contract.
+    renderInitialFragment(config, client)
 
     // Page scope never talks to a server; other scopes only hold a connection
     // while the page actually renders something bound to the store.
-    const bound = document.querySelector(`[data-store="${config.slug}"]`) !== null
+    const bound = document.querySelector(`[data-store="${config.slug}"]`) !== null ||
+      document.querySelector(`[data-fragment="${config.slug}"]`) !== null
     if (config.scope !== 'page' && bound) {
       const listener = SSEListener.create(`/store/${config.slug}/events`)
       listener.onState((state) => { client.applyServerState(state) })
@@ -66,11 +88,14 @@ export function initStores (
     }
   }
 
-  const delegation = initMutationDelegation(options?.root ?? document.body, stores)
+  const root = options?.root ?? document.body
+  const delegation = initMutationDelegation(root, stores)
+  const fieldBinding = initFieldBinding(root, stores, configs)
 
   return {
     stores,
     dispose () {
+      fieldBinding.destroy()
       delegation.destroy()
       for (const listener of listeners) {
         listener.disconnect()

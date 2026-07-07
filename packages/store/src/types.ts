@@ -35,14 +35,25 @@ export interface StoreError {
  * objects/arrays. Restricted to JSON-safe values: state crosses the wire as
  * JSON and is cloned via JSON round-trips, so binary values cannot survive.
  */
-export type StoreValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | StoreValue[]
-  | { [key: string]: StoreValue }
+export type StoreValue = import('./fields/store-field-types.js').JsonValue
+
+/**
+ * Compile-time proof that a user type is JSON-shaped. Interfaces are not
+ * assignable to index-signature types even when every property fits, so
+ * app data would otherwise need casts the framework itself bans.
+ */
+export type JsonCompatible<T> =
+  T extends string | number | boolean | null | undefined ? T
+    : T extends (infer U)[] ? Array<JsonCompatible<U>>
+      : T extends readonly (infer U)[] ? ReadonlyArray<JsonCompatible<U>>
+        : T extends object ? { [K in keyof T]: JsonCompatible<T[K]> }
+          : never
+
+/** Widen JSON-shaped app data (interfaces included) to StoreValue — an
+ *  identity at runtime, a structural proof at compile time. */
+export function toStoreValue<T> (value: T & JsonCompatible<T>): StoreValue {
+  return value as T & JsonCompatible<T> & StoreValue
+}
 
 /** Mutable state object — shape determined by store field definitions at runtime */
 export interface StoreState {

@@ -31,3 +31,24 @@ describe('generateApiClient', () => {
     expect(output).toContain("apiClient<ChatMessage>('/api/chat-messages')")
   })
 })
+
+describe('generated base client REST envelope', () => {
+  it('list() unwraps the paginated docs envelope so Promise<T[]> is honest', async () => {
+    const { generateBaseClient } = await import('../codegen/base-client-generator.js')
+    const output = generateBaseClient()
+    expect(output).toContain('export interface Paginated<T>')
+    expect(output).toContain('readonly docs: readonly T[]')
+    // list() must reach through the envelope, not hand it back as T[]
+    expect(output).toMatch(/list \(\): Promise<T\[\]>[\s\S]*?\.docs/)
+    expect(output).toContain('listPaginated (): Promise<Paginated<T>>')
+  })
+
+  it('entity clients expose the paginated variant', () => {
+    const col = collection({
+      slug: 'presets',
+      fields: [field.text({ name: 'title', required: true })]
+    })
+    const output = generateApiClient(col)
+    expect(output).toContain('listPaginated: client.listPaginated')
+  })
+})

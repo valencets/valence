@@ -64,6 +64,8 @@ function getDarkMatcher (): DarkMatcher {
 
 class ThemeManagerImpl {
   private _mode: ThemeMode = ThemeMode.Light
+  private _explicit = false
+  private _documentChecked = false
   private readonly _roots = new Set<ShadowRoot>()
   private _overrideSheet: CSSStyleSheet | null = null
   private _activeSheet: CSSStyleSheet = lightTokenSheet
@@ -83,6 +85,7 @@ class ThemeManagerImpl {
   }
 
   setTheme (mode: ThemeMode): void {
+    this._explicit = true
     this._mode = mode
     if (mode === ThemeMode.System) {
       this._darkMatcher.addEventListener('change', this._systemHandler)
@@ -99,7 +102,27 @@ class ThemeManagerImpl {
     return this._activeSheet
   }
 
+  /** Pages declare their theme in markup: <html data-theme="dark">.
+   *  Checked once, on first subscription; explicit setTheme wins. */
+  private _applyDocumentTheme (): void {
+    if (this._documentChecked || this._explicit) return
+    this._documentChecked = true
+    const declared = document.documentElement.getAttribute('data-theme')
+    if (declared === 'dark') this._applyMode(ThemeMode.Dark)
+    else if (declared === 'light') this._applyMode(ThemeMode.Light)
+    else if (declared === 'system') this._applyMode(ThemeMode.System)
+  }
+
+  private _applyMode (mode: ThemeMode): void {
+    this._mode = mode
+    if (mode === ThemeMode.System) {
+      this._darkMatcher.addEventListener('change', this._systemHandler)
+    }
+    this._applyResolved(this.resolveTheme())
+  }
+
   subscribe (root: ShadowRoot): void {
+    this._applyDocumentTheme()
     this._roots.add(root)
     root.adoptedStyleSheets = [...root.adoptedStyleSheets, this._activeSheet]
   }
@@ -129,6 +152,8 @@ class ThemeManagerImpl {
     this._roots.clear()
     this._overrideSheet = null
     this._mode = ThemeMode.Light
+    this._explicit = false
+    this._documentChecked = false
     this._activeSheet = lightTokenSheet
     this._darkMatcher = getDarkMatcher()
   }

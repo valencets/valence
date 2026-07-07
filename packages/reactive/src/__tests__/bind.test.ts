@@ -193,3 +193,82 @@ describe('bind()', () => {
     })
   })
 })
+
+describe('form-associated custom elements (duck-typed)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  function valLike (): HTMLElement & { value: string } {
+    const host = document.createElement('fake-input') as HTMLElement & { value: string }
+    let current = ''
+    Object.defineProperty(host, 'value', {
+      get: () => current,
+      set: (v: string) => { current = v },
+      configurable: true
+    })
+    document.body.appendChild(host)
+    return host
+  }
+
+  function toggleLike (): HTMLElement & { checked: boolean } {
+    const host = document.createElement('fake-toggle') as HTMLElement & { checked: boolean }
+    let current = false
+    Object.defineProperty(host, 'checked', {
+      get: () => current,
+      set: (v: boolean) => { current = v },
+      configurable: true
+    })
+    document.body.appendChild(host)
+    return host
+  }
+
+  it('binds value two-way on elements exposing a value property', () => {
+    const s = signal('init')
+    const host = valLike()
+    bind(host, { value: s })
+    expect(host.value).toBe('init')
+
+    s.value = 'from-signal'
+    expect(host.value).toBe('from-signal')
+
+    host.value = 'typed'
+    host.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(s.value).toBe('typed')
+  })
+
+  it('accepts change events as the commit signal for custom selects', () => {
+    const s = signal('red')
+    const host = valLike()
+    bind(host, { value: s })
+
+    host.value = 'green'
+    host.dispatchEvent(new Event('change', { bubbles: true }))
+    expect(s.value).toBe('green')
+  })
+
+  it('binds checked two-way on elements exposing a checked property', () => {
+    const s = signal(false)
+    const host = toggleLike()
+    bind(host, { checked: s })
+    expect(host.checked).toBe(false)
+
+    s.value = true
+    expect(host.checked).toBe(true)
+
+    host.checked = false
+    host.dispatchEvent(new Event('change', { bubbles: true }))
+    expect(s.value).toBe(false)
+  })
+
+  it('disposes custom-element listeners', () => {
+    const s = signal('a')
+    const host = valLike()
+    const dispose = bind(host, { value: s })
+    dispose()
+
+    host.value = 'after-dispose'
+    host.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(s.value).toBe('a')
+  })
+})

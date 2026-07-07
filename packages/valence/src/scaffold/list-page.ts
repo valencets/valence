@@ -12,7 +12,7 @@ export function generateListPage (collection: CollectionConfig): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${label}</title>
-  <link rel="stylesheet" href="/src/app/styles.css">
+  <link rel="stylesheet" href="/styles.css">
   <style>
     .page { max-width: 720px; margin: 0 auto; padding: var(--val-space-8) var(--val-space-4); }
     .page h1 {

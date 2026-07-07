@@ -238,8 +238,15 @@ jobs:
       - name: Validate TDD commit sequence
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin "${{ github.base_ref }}" --depth=1
-            BASE="$(git merge-base HEAD "origin/${{ github.base_ref }}")"
+            # The checkout above is fetch-depth: 0 — a --depth=1 fetch here
+            # would shallow the base ref and corrupt merge-base resolution,
+            # making the check sweep unrelated history after base moves.
+            git fetch origin "${{ github.base_ref }}"
+            BASE="$(git merge-base HEAD "origin/${{ github.base_ref }}" || true)"
+            if [ -z "$BASE" ]; then
+              echo "No merge base with origin/${{ github.base_ref }} — cannot scope the range" >&2
+              exit 1
+            fi
             if [ "${{ github.base_ref }}" = "master" ] && [ "${{ github.head_ref }}" = "development" ]; then
               TDD_SEQUENCE_START=f3aae193 bash scripts/check-tdd-commit-sequence.sh range "$BASE..HEAD"
             else
