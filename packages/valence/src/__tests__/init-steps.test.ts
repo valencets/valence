@@ -85,11 +85,26 @@ describe('createDbInvocations', () => {
     })
 
     expect(invocations).toHaveLength(2)
-    expect(invocations[0]!.command).toBe('createdb -h db.internal -p 5433 -U app shop')
-    expect(invocations[1]!.command).toBe('createdb -h db.internal -p 5433 -U app shop_dev')
+    expect(invocations[0]!.file).toBe('createdb')
+    expect(invocations[0]!.args).toEqual(['-h', 'db.internal', '-p', '5433', '-U', 'app', 'shop'])
+    expect(invocations[1]!.args).toEqual(['-h', 'db.internal', '-p', '5433', '-U', 'app', 'shop_dev'])
     for (const invocation of invocations) {
       expect(invocation.env.PGPASSWORD).toBe('sekret')
     }
+  })
+
+  it('passes hostile answers as argv entries, never through a shell', () => {
+    const invocations = createDbInvocations({
+      dbName: 'x; rm -rf /', dbHost: '$(whoami)', dbPort: '5432', dbUser: 'a b', dbPassword: 'p'
+    })
+
+    // Argv arrays reach execFile verbatim — nothing is ever interpolated
+    // into a shell string, so metacharacters are inert data.
+    expect(invocations[0]!.args).toContain('x; rm -rf /')
+    expect(invocations[0]!.args).toContain('$(whoami)')
+    const flattened = [invocations[0]!.file, ...invocations[0]!.args].join(' ')
+    expect(invocations[0]!).not.toHaveProperty('command')
+    expect(flattened).toContain('$(whoami)')
   })
 })
 

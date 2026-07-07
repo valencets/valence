@@ -45,3 +45,18 @@ describe('signed store sessions', () => {
     expect(cookie).toContain('Path=/')
   })
 })
+
+describe('cookie security flags', () => {
+  it('marks the session cookie Secure on encrypted connections', async () => {
+    const { buildStoreSessionCookie } = await import('../store-session.js')
+    const cookie = buildStoreSessionCookie('abc.def', true)
+    expect(cookie).toContain('; Secure')
+    expect(cookie).toContain('HttpOnly')
+  })
+
+  it('omits Secure over plain http so local development keeps working', async () => {
+    const { buildStoreSessionCookie } = await import('../store-session.js')
+    const cookie = buildStoreSessionCookie('abc.def', false)
+    expect(cookie).not.toContain('Secure')
+  })
+})
