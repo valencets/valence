@@ -118,3 +118,42 @@ describe('initSummary', () => {
     expect(summary).toContain('migrations failed')
   })
 })
+
+describe('createPromptQueue', () => {
+  it('serves buffered piped lines even after the input stream closes', async () => {
+    const { createPromptQueue } = await import('../init-steps.js')
+    const input = new EventEmitter()
+    const queue = createPromptQueue(input, () => {})
+
+    // Piped stdin delivers everything instantly, then EOF
+    input.emit('line', 'first')
+    input.emit('line', 'second')
+    input.emit('close')
+
+    expect(await queue.question('A?')).toBe('first')
+    expect(await queue.question('B?')).toBe('second')
+  })
+
+  it('falls back to rejection semantics when the buffer runs dry after close', async () => {
+    const { createPromptQueue } = await import('../init-steps.js')
+    const input = new EventEmitter()
+    const queue = createPromptQueue(input, () => {})
+
+    input.emit('line', 'only-one')
+    input.emit('close')
+
+    expect(await queue.question('A?')).toBe('only-one')
+    const dry = await askWithDefault(queue, 'B', 'fallback')
+    expect(dry).toBe('fallback')
+  })
+
+  it('waits for lines that have not arrived yet (interactive mode)', async () => {
+    const { createPromptQueue } = await import('../init-steps.js')
+    const input = new EventEmitter()
+    const queue = createPromptQueue(input, () => {})
+
+    const pending = queue.question('A?')
+    input.emit('line', 'typed-later')
+    expect(await pending).toBe('typed-later')
+  })
+})
