@@ -14,7 +14,7 @@ import type { RestRouteEntry } from '@valencets/cms'
 import { readLearnProgress, writeLearnProgress, createInitialProgress } from './learn/index.js'
 import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
-import { parseInitFlags, askWithDefault, confirmWithDefault, createDbInvocations, migrationTargets, initSummary } from './init-steps.js'
+import { parseInitFlags, askWithDefault, confirmWithDefault, createDbInvocations, migrationTargets, initSummary, createPromptQueue } from './init-steps.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
 import type { RouteHandler } from './define-config.js'
@@ -105,7 +105,8 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
 
   console.log('\n  Welcome to Valence.\n')
 
-  const rl = useDefaults ? null : createInterface({ input: stdin, output: stdout })
+  const rlRaw = useDefaults ? null : createInterface({ input: stdin, output: stdout })
+  const rl = rlRaw === null ? null : createPromptQueue(rlRaw, (prompt) => { stdout.write(prompt) })
 
   const projectName = useDefaults ? (nonFlagArgs[0] ?? 'my-valence-app') : await askWithDefault(rl!, 'Project name', nonFlagArgs[0] ?? 'my-valence-app')
   const dbName = useDefaults ? projectName.replace(/[^a-z0-9_]/g, '_') : await askWithDefault(rl!, 'Database name', projectName.replace(/[^a-z0-9_]/g, '_'))
@@ -130,7 +131,7 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
   const doSeed = !flags.noSeed && (useDefaults ? true : await confirmWithDefault(rl!, 'Insert sample seed data?', true))
   const initGit = !flags.noGit && (useDefaults ? true : await confirmWithDefault(rl!, 'Initialize git repository?', true))
 
-  if (rl) rl.close()
+  if (rlRaw) rlRaw.close()
 
   const dbAnswers = { dbName, dbHost, dbPort, dbUser, dbPassword }
   const failures: string[] = []

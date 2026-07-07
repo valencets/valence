@@ -143,3 +143,53 @@ ${list}
   Admin: http://localhost:${serverPort}/admin${learnUrl}
 `
 }
+
+interface LineSource {
+  on (event: 'line', fn: (line: string) => void): unknown
+  on (event: 'close', fn: () => void): unknown
+}
+
+export interface PromptQueue {
+  question (prompt: string): Promise<string>
+  once (event: string, fn: () => void): void
+}
+
+/**
+ * readline consumes piped stdin instantly and fires 'close' before later
+ * questions ever run — buffered lines would be lost and every remaining
+ * prompt would fall back to its default. This queue owns the lines:
+ * buffered input answers questions in order regardless of when EOF
+ * arrived; a dry buffer after close rejects so askWithDefault falls back.
+ */
+export function createPromptQueue (input: LineSource, write: (prompt: string) => void): PromptQueue {
+  const lines: string[] = []
+  const waiters: Array<{ resolve: (value: string) => void; reject: (cause: Error) => void }> = []
+  const closeCallbacks: Array<() => void> = []
+  let closed = false
+
+  input.on('line', (line: string) => {
+    const waiter = waiters.shift()
+    if (waiter !== undefined) waiter.resolve(line)
+    else lines.push(line)
+  })
+
+  input.on('close', () => {
+    closed = true
+    for (const waiter of waiters.splice(0)) waiter.reject(new Error('input closed'))
+    for (const callback of closeCallbacks.splice(0)) callback()
+  })
+
+  return {
+    question (prompt: string): Promise<string> {
+      write(prompt)
+      const buffered = lines.shift()
+      if (buffered !== undefined) return Promise.resolve(buffered)
+      if (closed) return Promise.reject(new Error('input closed'))
+      return new Promise((resolve, reject) => { waiters.push({ resolve, reject }) })
+    },
+    once (event: string, fn: () => void): void {
+      if (event !== 'close' || closed) return
+      closeCallbacks.push(fn)
+    }
+  }
+}
