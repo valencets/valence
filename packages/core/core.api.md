@@ -164,6 +164,9 @@ export function createCsrfMiddleware(): Middleware;
 export function createEmptyIntent(id: string): GlobalTelemetryIntent;
 
 // @public (undocumented)
+export function createLogger(options?: LoggerOptions): Logger;
+
+// @public (undocumented)
 export function createOriginCheck(config: OriginCheckConfig): Middleware;
 
 // @public (undocumented)
@@ -411,6 +414,57 @@ export interface LayoutConfig {
 export const leadHrefMap: Readonly<Record<string, IntentType | undefined>>;
 
 // @public (undocumented)
+export interface LogFields {
+    // (undocumented)
+    readonly [key: string]: LogFieldValue | undefined;
+}
+
+// @public (undocumented)
+export type LogFieldValue = string | number | boolean | null;
+
+// @public (undocumented)
+export interface Logger {
+    // (undocumented)
+    readonly child: (bindings: LogFields) => Logger;
+    // (undocumented)
+    readonly debug: (msg: string, fields?: LogFields) => void;
+    // (undocumented)
+    readonly error: (msg: string, fields?: LogFields) => void;
+    // (undocumented)
+    readonly info: (msg: string, fields?: LogFields) => void;
+    // (undocumented)
+    readonly level: LogLevel;
+    // (undocumented)
+    readonly warn: (msg: string, fields?: LogFields) => void;
+}
+
+// @public (undocumented)
+export interface LoggerOptions {
+    // (undocumented)
+    readonly base?: LogFields;
+    // (undocumented)
+    readonly level?: LogLevel;
+    // (undocumented)
+    readonly now?: () => string;
+    // (undocumented)
+    readonly sink?: LogSink;
+}
+
+// @public (undocumented)
+export const LogLevel: Readonly<{
+    readonly DEBUG: "debug";
+    readonly INFO: "info";
+    readonly WARN: "warn";
+    readonly ERROR: "error";
+}>;
+
+// @public (undocumented)
+export type LogLevel = typeof LogLevel[keyof typeof LogLevel];
+
+// @public (undocumented)
+export type LogSink = (level: LogLevel, line: string) => void;
+
+// @public (undocumented)
 export function matchRoute(pathname: string, patterns: Iterable<string>): RouteMatch | null;
 
 // @public (undocumented)
@@ -490,6 +544,9 @@ export interface PageCacheHandle {
 // @public (undocumented)
 export function parseHtml(html: string): Result<Document, RouterError>;
 
+// @public (undocumented)
+export function parseLogLevel(value: string | undefined): LogLevel;
+
 // @public
 export function parseRangeHeader(rangeHeader: string | undefined, fileSize: number): Result<ByteRange | null, ServerError>;
 
@@ -564,6 +621,9 @@ export interface RequestContext {
     // (undocumented)
     user?: AuthUser;
 }
+
+// @public (undocumented)
+export type RequestLogHandler = (req: IncomingMessage, res: ServerResponse) => Promise<void>;
 
 // @public (undocumented)
 export function resetIntent(slot: GlobalTelemetryIntent): void;
@@ -953,6 +1013,9 @@ export class ValOutlet extends HTMLElement {
 
 // @public (undocumented)
 export function versionedUrl(url: string, version: string): string;
+
+// @public (undocumented)
+export function withRequestLogging(logger: Logger, handler: RequestLogHandler): RequestLogHandler;
 
 // @public (undocumented)
 export function wrapInTransition(doSwap: () => void, liveContainer: Element): void;
