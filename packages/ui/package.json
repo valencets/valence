@@ -9,6 +9,10 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./component": {
+      "import": "./dist/component/index.js",
+      "types": "./dist/component/index.d.ts"
+    },
     "./tokens/primitives.css": "./dist/tokens/primitives.css",
     "./tokens/semantic.css": "./dist/tokens/semantic.css",
     "./tailwind": {
@@ -19,6 +23,9 @@
   "files": [
     "dist"
   ],
+  "dependencies": {
+    "@valencets/reactive": "workspace:*"
+  },
   "scripts": {
     "build": "tsc && cp src/tokens/*.css dist/tokens/",
     "test": "vitest run",

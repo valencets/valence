@@ -322,6 +322,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@valencets/reactive':
+        specifier: workspace:*
+        version: link:../reactive
       tailwindcss:
         specifier: '>=3.4.0'
         version: 4.2.2
