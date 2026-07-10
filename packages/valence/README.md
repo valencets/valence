@@ -1,9 +1,8 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/valencets/valence/master/assets/logo-dark-animated.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/valencets/valence/master/assets/logo-light-animated.png">
-    <img alt="Valence" src="https://raw.githubusercontent.com/valencets/valence/master/assets/logo-light-animated.png" width="280">
-  </picture>
+  <!-- Transparent, theme-neutral: one asset adapts to light and dark on
+       GitHub AND npm (npm strips <picture> sources, so baked-background
+       fallbacks always clashed with one theme). -->
+  <img alt="Valence" src="https://raw.githubusercontent.com/valencets/valence/master/assets/logo.svg" width="280">
 </p>
 
 <p align="center"><strong>Schema-driven full-stack framework for Node.js and PostgreSQL.</strong></p>
