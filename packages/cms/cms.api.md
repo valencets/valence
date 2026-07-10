@@ -1265,7 +1265,7 @@ export interface PaginatedResult<T> {
     readonly totalPages: number;
 }
 
-// @public (undocumented)
+// @public
 export function parseCookie(cookieHeader: string, name: string): string | null;
 
 // @public (undocumented)

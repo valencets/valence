@@ -2,6 +2,9 @@ import { ok, err } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 import { RouterErrorCode } from './router-types.js'
 import type { RouterError } from './router-types.js'
+// The cookie parser is isomorphic — its only node import is a type, erased at
+// build — so the client bundle stays free of server runtime.
+import { getCookie } from '../server/cookies.js'
 
 function hasMoveBefore (target: Element): target is Element & { moveBefore (node: Node, ref: Node | null): void } {
   return typeof (target as { moveBefore?: Function }).moveBefore === 'function'
@@ -121,12 +124,5 @@ export function stripScripts (doc: Document, nonce?: string): void {
 }
 
 export function getCsrfToken (): string | undefined {
-  const cookies = document.cookie.split(';')
-  for (const raw of cookies) {
-    const trimmed = raw.trim()
-    if (trimmed.startsWith('__val_csrf=')) {
-      return trimmed.slice('__val_csrf='.length)
-    }
-  }
-  return undefined
+  return getCookie(document.cookie, '__val_csrf')
 }

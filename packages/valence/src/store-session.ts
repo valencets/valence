@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { serializeCookie } from '@valencets/core/server'
 
 /**
  * Signed anonymous store sessions. The server mints `id.signature` tokens
@@ -39,5 +40,5 @@ export function buildStoreSessionCookie (token: string, secure = false): string 
   // Secure mirrors the cms session cookie: derived from the transport, so
   // TLS deployments never leak the token over plaintext while local http
   // development keeps working.
-  return `session_id=${token}; Path=/; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`
+  return serializeCookie('session_id', token, { path: '/', httpOnly: true, sameSite: 'Lax', secure })
 }
