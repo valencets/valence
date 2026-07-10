@@ -70,10 +70,12 @@ describe('cli wiring', () => {
     const fnStart = source.indexOf('async function runMigrationsForProject')
     const fnBody = source.slice(fnStart, source.indexOf('export async function seedDatabase'))
     const validateAt = fnBody.indexOf('validateColumnNaming(')
-    const closeAt = fnBody.indexOf('closePool(pool)')
+    // The error branch closes the pool early and legitimately skips the
+    // lint; the success path's close is the LAST one in the function.
+    const successCloseAt = fnBody.lastIndexOf('closePool(pool)')
 
     expect(validateAt).toBeGreaterThan(-1)
-    expect(closeAt).toBeGreaterThan(-1)
-    expect(validateAt).toBeLessThan(closeAt)
+    expect(successCloseAt).toBeGreaterThan(-1)
+    expect(validateAt).toBeLessThan(successCloseAt)
   })
 })
