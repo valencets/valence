@@ -50,6 +50,11 @@ describe('parseInitFlags', () => {
     expect(flags.noSeed).toBe(true)
     expect(flags.useDefaults).toBe(false)
   })
+
+  it('recognizes --minimal for a CMS-less scaffold', () => {
+    expect(parseInitFlags(['--minimal']).minimal).toBe(true)
+    expect(parseInitFlags(['my-app', '-y']).minimal).toBe(false)
+  })
 })
 
 describe('EOF-safe prompts', () => {
@@ -131,6 +136,22 @@ describe('initSummary', () => {
     expect(summary).not.toContain('Your project is ready')
     expect(summary).toContain('database creation failed')
     expect(summary).toContain('migrations failed')
+  })
+
+  it('omits the admin URL for CMS-less projects', () => {
+    const summary = initSummary('my-site', 3000, [], false, { includeCms: false })
+    expect(summary).not.toContain('Admin:')
+    expect(summary).toContain('Site:')
+  })
+
+  it('prints minted admin credentials exactly once when init created the user', () => {
+    const summary = initSummary('my-app', 3000, [], false, {
+      includeCms: true,
+      adminCredentials: { email: 'admin@localhost', password: 'generated-pw-123' }
+    })
+    expect(summary).toContain('admin@localhost')
+    expect(summary).toContain('generated-pw-123')
+    expect(summary).toContain('Admin:')
   })
 })
 

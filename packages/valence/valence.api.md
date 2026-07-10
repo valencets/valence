@@ -23,12 +23,10 @@ import type { StoreState } from '@valencets/store';
 export interface ActionContext {
     // (undocumented)
     readonly body: URLSearchParams;
-    // (undocumented)
-    readonly cms: CmsInstance;
+    readonly cms: CmsInstance | null;
     // (undocumented)
     readonly params: Record<string, string>;
-    // (undocumented)
-    readonly pool: DbPool;
+    readonly pool: DbPool | null;
     // (undocumented)
     readonly req: IncomingMessage;
 }
@@ -57,7 +55,7 @@ export interface ActionResult {
 export function buildGeneratedRouteMap(routes: readonly GeneratedRoute[], projectDir: string, storeHydrator?: StoreHydrator): Map<string, Map<string, RouteHandler>>;
 
 // @public (undocumented)
-export function buildUserRouteMap(routes: readonly RouteConfig[] | undefined, projectDir: string, pool: DbPool, cms: CmsInstance, storeHydrator?: StoreHydrator): Map<string, Map<string, RouteHandler>>;
+export function buildUserRouteMap(routes: readonly RouteConfig[] | undefined, projectDir: string, pool: DbPool | null, cms: CmsInstance | null, storeHydrator?: StoreHydrator): Map<string, Map<string, RouteHandler>>;
 
 export { collection }
 
@@ -125,12 +123,10 @@ export type JsonValue = JsonPrimitive | JsonArray | JsonObject;
 
 // @public (undocumented)
 export interface LoaderContext {
-    // (undocumented)
-    readonly cms: CmsInstance;
+    readonly cms: CmsInstance | null;
     // (undocumented)
     readonly params: Record<string, string>;
-    // (undocumented)
-    readonly pool: DbPool;
+    readonly pool: DbPool | null;
     // (undocumented)
     readonly query: URLSearchParams;
     // (undocumented)
@@ -159,10 +155,8 @@ export interface LoaderResult {
 
 // @public (undocumented)
 export interface OnServerContext {
-    // (undocumented)
-    readonly cms: CmsInstance;
-    // (undocumented)
-    readonly pool: DbPool;
+    readonly cms: CmsInstance | null;
+    readonly pool: DbPool | null;
     // (undocumented)
     readonly registerRoute: (method: string, path: string, handler: RouteHandler) => void;
     // (undocumented)
@@ -182,7 +176,7 @@ export interface ResolvedValenceConfig {
     // (undocumented)
     readonly collections: ReadonlyArray<CollectionConfig>;
     // (undocumented)
-    readonly db: {
+    readonly db?: {
         readonly host: string;
         readonly port: number;
         readonly database: string;
@@ -194,7 +188,7 @@ export interface ResolvedValenceConfig {
         readonly query_timeout?: number | undefined;
         readonly sslmode: 'disable' | 'require' | 'verify-ca' | 'verify-full';
         readonly sslrootcert?: string | undefined;
-    };
+    } | undefined;
     // (undocumented)
     readonly graphql?: boolean | undefined;
     // (undocumented)
@@ -281,9 +275,9 @@ export interface ValenceConfig {
         readonly requireAuth?: boolean | undefined;
     } | undefined;
     // (undocumented)
-    readonly collections: ReadonlyArray<CollectionConfig>;
+    readonly collections?: ReadonlyArray<CollectionConfig> | undefined;
     // (undocumented)
-    readonly db: {
+    readonly db?: {
         readonly host: string;
         readonly port: number;
         readonly database: string;
@@ -295,7 +289,7 @@ export interface ValenceConfig {
         readonly query_timeout?: number | undefined;
         readonly sslmode?: 'disable' | 'require' | 'verify-ca' | 'verify-full' | undefined;
         readonly sslrootcert?: string | undefined;
-    };
+    } | undefined;
     // (undocumented)
     readonly graphql?: boolean | undefined;
     // (undocumented)
@@ -308,10 +302,10 @@ export interface ValenceConfig {
     // (undocumented)
     readonly routes?: readonly RouteConfig[] | undefined;
     // (undocumented)
-    readonly server: {
-        readonly port: number;
+    readonly server?: {
+        readonly port?: number | undefined;
         readonly host?: string | undefined;
-    };
+    } | undefined;
     // (undocumented)
     readonly stores?: readonly StoreInput[] | undefined;
     // (undocumented)

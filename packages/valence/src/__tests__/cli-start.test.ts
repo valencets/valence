@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('../config-loader.js', () => ({
   registerTsxLoader: vi.fn(async () => {}),
-  loadEnvConfig: vi.fn(() => ({
-    host: 'localhost',
-    port: 5432,
-    database: 'test',
-    user: 'test',
-    password: 'test'
-  })),
-  loadUserConfig: vi.fn(async () => null)
+  // No database anywhere: tests that pass the secret guard stop at the
+  // db-refusal gate instead of touching real infrastructure.
+  loadEnvConfig: vi.fn(() => null),
+  // Collections make the boot plan require a secret — the guard must run
+  // before anything resolves a database.
+  loadUserConfig: vi.fn(async () => ({
+    collections: [{ slug: 'posts', fields: [], timestamps: true }]
+  }))
 }))
 
 class ExitError extends Error {
@@ -103,7 +103,7 @@ describe('runStart CMS_SECRET guard', () => {
     expect(errors.some((e) => e.includes('CMS_SECRET'))).toBe(true)
   })
 
-  it('boots past the secret guard with a strong secret (fails later on config, not CMS_SECRET)', async () => {
+  it('boots past the secret guard with a strong secret (fails later on the CMS, not CMS_SECRET)', async () => {
     process.env.CMS_SECRET = 'f'.repeat(64)
     const errors: string[] = []
     const originalError = console.error
@@ -124,6 +124,6 @@ describe('runStart CMS_SECRET guard', () => {
 
     expect(exitCode).toBe(1)
     expect(errors.some((e) => e.includes('CMS_SECRET'))).toBe(false)
-    expect(errors.some((e) => e.includes('valence.config.ts'))).toBe(true)
+    expect(errors.some((e) => e.includes('database'))).toBe(true)
   })
 })

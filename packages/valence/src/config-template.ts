@@ -6,10 +6,13 @@ export interface ConfigTemplateOptions {
   readonly dbPassword: string
   readonly serverPort: string
   readonly learnMode: boolean
+  /** Omit the admin section for headless CMS projects. Defaults true. */
+  readonly includeAdmin?: boolean
 }
 
 export function generateConfigTemplate (opts: ConfigTemplateOptions): string {
   const { dbName, dbUser, dbPassword, serverPort, learnMode } = opts
+  const includeAdmin = opts.includeAdmin ?? true
 
   const learnComment = (text: string) => learnMode ? `// ${text}\n    ` : ''
   const dbSslModeExpression = `process.env.DB_SSLMODE === 'disable' ||
@@ -80,15 +83,46 @@ export default defineConfig({
       ]
     })${tagsCollection}
   ],
-  admin: {
+${includeAdmin
+    ? `  admin: {
     pathPrefix: '/admin',
     requireAuth: true
   },
-  telemetry: {
+`
+    : ''}  telemetry: {
     enabled: true,
     endpoint: '/api/telemetry',
     siteId: process.env.SITE_ID ?? '${dbName}'
   }
+})
+`
+}
+
+/**
+ * The CMS-less scaffold: a Valence app is routes + pages by default.
+ * No database, no collections, no admin — add them later by extending
+ * this config; every capability is derived from what the config declares.
+ */
+export function generateMinimalConfigTemplate (serverPort: string): string {
+  return `import { defineConfig } from '@valencets/valence'
+
+// A Valence app is routes + pages by default. Everything else is opt-in:
+// add \`collections\` (with a \`db\` section or DB_* env vars) for the CMS,
+// \`admin\` for the panel, \`stores\` for live shared state, \`telemetry\`
+// for first-party analytics — the server derives what to mount from what
+// this file declares.
+export default defineConfig({
+  server: {
+    port: Number(process.env.PORT ?? ${serverPort})
+  },
+  routes: [
+    {
+      path: '/api/hello/:name',
+      loader: async ({ params }) => ({
+        data: { greeting: \`Hello, \${params.name}!\` }
+      })
+    }
+  ]
 })
 `
 }
