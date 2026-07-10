@@ -10,6 +10,8 @@ export interface InitFlags {
   readonly noMigrate: boolean
   readonly noSeed: boolean
   readonly noGit: boolean
+  /** CMS-less scaffold: routes + pages only, no database, no admin. */
+  readonly minimal: boolean
 }
 
 export function parseInitFlags (args: ReadonlyArray<string>): InitFlags {
@@ -20,7 +22,8 @@ export function parseInitFlags (args: ReadonlyArray<string>): InitFlags {
     noDb: args.includes('--no-db'),
     noMigrate: args.includes('--no-migrate'),
     noSeed: args.includes('--no-seed'),
-    noGit: args.includes('--no-git')
+    noGit: args.includes('--no-git'),
+    minimal: args.includes('--minimal')
   }
 }
 
@@ -116,10 +119,29 @@ export function migrationTargets (answers: DbConnectionAnswers): readonly Migrat
   ]
 }
 
+export interface InitSummaryOptions {
+  /** false → CMS-less project: no admin URL to advertise. Defaults true. */
+  readonly includeCms?: boolean
+  /** Credentials init minted — printed exactly once, here. */
+  readonly adminCredentials?: { readonly email: string, readonly password: string } | undefined
+}
+
 /** The closing message earns its optimism: any failed step turns it into
  *  an honest checklist instead of "your project is ready". */
-export function initSummary (projectName: string, serverPort: number | string, failures: readonly string[], learnMode: boolean): string {
+export function initSummary (
+  projectName: string,
+  serverPort: number | string,
+  failures: readonly string[],
+  learnMode: boolean,
+  options?: InitSummaryOptions
+): string {
+  const includeCms = options?.includeCms ?? true
   const learnUrl = learnMode ? `\n  Tutorial: http://localhost:${serverPort}/_learn` : ''
+  const adminUrl = includeCms ? `\n  Admin: http://localhost:${serverPort}/admin` : ''
+  const credentials = options?.adminCredentials !== undefined
+    ? `\n  Admin login — shown once, change it after first sign-in:\n    email:    ${options.adminCredentials.email}\n    password: ${options.adminCredentials.password}\n`
+    : ''
+
   if (failures.length === 0) {
     return `
   Done. Your project is ready.
@@ -127,9 +149,8 @@ export function initSummary (projectName: string, serverPort: number | string, f
     cd ${projectName}
     pnpm dev
 
-  Site:  http://localhost:${serverPort}
-  Admin: http://localhost:${serverPort}/admin${learnUrl}
-`
+  Site:  http://localhost:${serverPort}${adminUrl}${learnUrl}
+${credentials}`
   }
   const list = failures.map(f => `    - ${f}`).join('\n')
   return `
@@ -142,9 +163,8 @@ ${list}
     cd ${projectName}
     pnpm dev
 
-  Site:  http://localhost:${serverPort}
-  Admin: http://localhost:${serverPort}/admin${learnUrl}
-`
+  Site:  http://localhost:${serverPort}${adminUrl}${learnUrl}
+${credentials}`
 }
 
 interface LineSource {

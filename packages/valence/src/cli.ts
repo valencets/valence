@@ -13,7 +13,8 @@ import { buildCms, validateSession } from '@valencets/cms'
 import type { RestRouteEntry } from '@valencets/cms'
 import { readLearnProgress, writeLearnProgress, createInitialProgress } from './learn/index.js'
 import { log } from './cli-utils.js'
-import { generateConfigTemplate, generateSecret } from './config-template.js'
+import { generateConfigTemplate, generateMinimalConfigTemplate, generateSecret } from './config-template.js'
+import { generateDockerCompose, verifyDatabaseConnection, createAdminUser } from './postgres-setup.js'
 import { validateProductionSecret } from './secret-guard.js'
 import { validateColumnNaming } from './migration-checks.js'
 import { maybeRegisterTelemetry } from './telemetry-wiring.js'
@@ -125,26 +126,34 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
   const rl = rlRaw === null ? null : createPromptQueue(rlRaw, (prompt) => { stdout.write(prompt) })
 
   const projectName = useDefaults ? (nonFlagArgs[0] ?? 'my-valence-app') : await askWithDefault(rl!, 'Project name', nonFlagArgs[0] ?? 'my-valence-app')
-  const dbName = useDefaults ? projectName.replace(/[^a-z0-9_]/g, '_') : await askWithDefault(rl!, 'Database name', projectName.replace(/[^a-z0-9_]/g, '_'))
-  const dbHost = useDefaults ? 'localhost' : await askWithDefault(rl!, 'Database host', 'localhost')
-  const dbPort = useDefaults ? '5432' : await askWithDefault(rl!, 'Database port', '5432')
-  const dbUser = useDefaults ? 'postgres' : await askWithDefault(rl!, 'Database user', 'postgres')
-  const dbPassword = useDefaults ? 'postgres' : await askWithDefault(rl!, 'Database password', 'postgres')
+
+  // Everything is opt-in: a Valence app is routes + pages by default.
+  // The CMS brings the database, collections, and REST; the admin panel
+  // rides on top of the CMS. --minimal skips all of it.
+  const includeCms = flags.minimal
+    ? false
+    : (useDefaults ? true : await confirmWithDefault(rl!, 'Include the CMS (database, collections, REST API)?', true))
+
+  const defaultDbName = projectName.replace(/[^a-z0-9_]/g, '_')
+  const dbName = includeCms ? (useDefaults ? defaultDbName : await askWithDefault(rl!, 'Database name', defaultDbName)) : defaultDbName
+  const dbHost = includeCms && !useDefaults ? await askWithDefault(rl!, 'Database host', 'localhost') : 'localhost'
+  const dbPort = includeCms && !useDefaults ? await askWithDefault(rl!, 'Database port', '5432') : '5432'
+  const dbUser = includeCms && !useDefaults ? await askWithDefault(rl!, 'Database user', 'postgres') : 'postgres'
+  const dbPassword = includeCms && !useDefaults ? await askWithDefault(rl!, 'Database password', 'postgres') : 'postgres'
+
+  const includeAdmin = includeCms && (useDefaults ? true : await confirmWithDefault(rl!, 'Include the admin panel?', true))
+  const adminEmail = includeAdmin && !useDefaults ? await askWithDefault(rl!, 'Admin email', 'admin@localhost') : 'admin@localhost'
+  const generatedAdminPassword = generateSecret().slice(0, 16)
+  const adminPassword = includeAdmin && !useDefaults
+    ? await askWithDefault(rl!, 'Admin password', generatedAdminPassword)
+    : generatedAdminPassword
+
   const serverPort = useDefaults ? '3000' : await askWithDefault(rl!, 'Server port', '3000')
 
-  if (!useDefaults) {
-    console.log()
-    log('Frontend framework:')
-    log('  1. None (plain HTML templates)')
-    log('  2. Astro (recommended for static + islands)')
-    log('  3. Bring your own')
-  }
-  const frameworkChoice = useDefaults ? '1' : await askWithDefault(rl!, 'Choose', '1')
-
   const installDeps = !flags.noInstall && (useDefaults ? true : await confirmWithDefault(rl!, 'Install dependencies?', true))
-  const createDb = !flags.noDb && (useDefaults ? true : await confirmWithDefault(rl!, `Create database "${dbName}"?`, true))
-  const doMigrate = !flags.noMigrate && (useDefaults ? true : await confirmWithDefault(rl!, 'Run initial migrations?', true))
-  const doSeed = !flags.noSeed && (useDefaults ? true : await confirmWithDefault(rl!, 'Insert sample seed data?', true))
+  const createDb = includeCms && !flags.noDb && (useDefaults ? true : await confirmWithDefault(rl!, `Create database "${dbName}"?`, true))
+  const doMigrate = includeCms && !flags.noMigrate && (useDefaults ? true : await confirmWithDefault(rl!, 'Run initial migrations?', true))
+  const doSeed = includeCms && !flags.noSeed && (useDefaults ? true : await confirmWithDefault(rl!, 'Insert sample seed data?', true))
   const initGit = !flags.noGit && (useDefaults ? true : await confirmWithDefault(rl!, 'Initialize git repository?', true))
 
   if (rlRaw) rlRaw.close()
@@ -157,16 +166,11 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
   log(`Creating ${projectName}...`)
 
   await mkdir(dir, { recursive: true })
-  await mkdir(join(dir, 'collections'), { recursive: true })
-  await mkdir(join(dir, 'migrations'), { recursive: true })
   await mkdir(join(dir, 'public'), { recursive: true })
-  await mkdir(join(dir, 'uploads'), { recursive: true })
-
-  const extraDeps: Record<string, string> = {}
-  const frameworkMap: Record<string, string> = { 2: 'astro' }
-  const framework = frameworkMap[frameworkChoice]
-  if (framework === 'astro') {
-    extraDeps.astro = '^5.0.0'
+  if (includeCms) {
+    await mkdir(join(dir, 'collections'), { recursive: true })
+    await mkdir(join(dir, 'migrations'), { recursive: true })
+    await mkdir(join(dir, 'uploads'), { recursive: true })
   }
 
   const cliDir = dirname(fileURLToPath(import.meta.url))
@@ -183,16 +187,18 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
       'user:create': 'valence user:create',
       start: 'node dist/server.js'
     },
-    dependencies: {
-      ...scaffoldDependencies(cliPkg.version, cliPkg.dependencies ?? {}),
-      ...extraDeps
-    },
+    dependencies: scaffoldDependencies(cliPkg.version, cliPkg.dependencies ?? {}),
     devDependencies: {
       typescript: '^5.9.3'
     }
   }, null, 2) + '\n')
 
-  await writeFile(join(dir, 'valence.config.ts'), generateConfigTemplate({ dbName, dbUser, dbPassword, serverPort, learnMode }))
+  await writeFile(
+    join(dir, 'valence.config.ts'),
+    includeCms
+      ? generateConfigTemplate({ dbName, dbUser, dbPassword, serverPort, learnMode, includeAdmin })
+      : generateMinimalConfigTemplate(serverPort)
+  )
 
   await writeFile(join(dir, 'tsconfig.json'), JSON.stringify({
     compilerOptions: {
@@ -213,29 +219,20 @@ async function runInit (args: ReadonlyArray<string>): Promise<void> {
     include: ['*.ts', 'collections/**/*.ts']
   }, null, 2) + '\n')
 
-  const envContent = `DB_HOST=${dbHost}
-DB_PORT=${dbPort}
-DB_NAME=${dbName}
-DB_USER=${dbUser}
-DB_PASSWORD=${dbPassword}
-PORT=${serverPort}
-CMS_SECRET=${generateSecret()}
-`
-  await writeFile(join(dir, '.env'), envContent)
-  const envExampleContent = `DB_HOST=${dbHost}
-DB_PORT=${dbPort}
-DB_NAME=${dbName}
-DB_USER=${dbUser}
-DB_PASSWORD=
-PORT=${serverPort}
-CMS_SECRET=change-me
-`
-  await writeFile(join(dir, '.env.example'), envExampleContent)
+  const dbEnvLines = includeCms
+    ? `DB_HOST=${dbHost}\nDB_PORT=${dbPort}\nDB_NAME=${dbName}\nDB_USER=${dbUser}\nDB_PASSWORD=${dbPassword}\n`
+    : ''
+  const dbEnvExampleLines = includeCms
+    ? `DB_HOST=${dbHost}\nDB_PORT=${dbPort}\nDB_NAME=${dbName}\nDB_USER=${dbUser}\nDB_PASSWORD=\n`
+    : ''
+  await writeFile(join(dir, '.env'), `${dbEnvLines}PORT=${serverPort}\nCMS_SECRET=${generateSecret()}\n`)
+  await writeFile(join(dir, '.env.example'), `${dbEnvExampleLines}PORT=${serverPort}\nCMS_SECRET=change-me\n`)
 
   const gitignoreLines = ['node_modules/', 'dist/', '.env', 'uploads/', '*.log']
   if (learnMode) gitignoreLines.push('.valence/')
   await writeFile(join(dir, '.gitignore'), gitignoreLines.join('\n') + '\n')
 
+  const adminReadmeLine = includeCms ? `\nAdmin: http://localhost:${serverPort}/admin` : ''
   await writeFile(join(dir, 'README.md'), `# ${projectName}
 
 Built with [Valence](https://valence.build).
@@ -246,11 +243,17 @@ Built with [Valence](https://valence.build).
 pnpm dev
 \`\`\`
 
-Site: http://localhost:${serverPort}
-Admin: http://localhost:${serverPort}/admin
+Site: http://localhost:${serverPort}${adminReadmeLine}
 `)
 
-  await writeFile(join(dir, 'migrations', '001-init.sql'), `CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+  if (includeCms) {
+    // postgres 16 wired to the answers — `docker compose up -d` stands the
+    // database up when none is installed locally.
+    await writeFile(join(dir, 'docker-compose.yml'), generateDockerCompose(dbAnswers))
+  }
+
+  if (includeCms) {
+    await writeFile(join(dir, 'migrations', '001-init.sql'), `CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Valence column naming rules:
 -- System columns use snake_case:  id, created_at, updated_at, deleted_at
@@ -396,32 +399,56 @@ CREATE TABLE IF NOT EXISTS "store_states" (
   PRIMARY KEY ("store_slug", "state_key")
 );
 `)
+  }
 
-  // Scaffold FSD src/ directory from the collections we just wrote
-  const { collection: col, field: f } = await import('@valencets/cms')
-  const initCollections = [
-    col({
-      slug: 'posts',
-      labels: { singular: 'Post', plural: 'Posts' },
-      fields: [
-        f.text({ name: 'title', required: true }),
-        f.slug({ name: 'slug', required: true, unique: true, slugFrom: 'title' }),
-        f.richtext({ name: 'body' }),
-        f.boolean({ name: 'published' }),
-        f.date({ name: 'publishedAt' })
-      ]
-    }),
-    col({
-      slug: 'users',
-      auth: true,
-      fields: [
-        f.text({ name: 'name', required: true }),
-        f.select({ name: 'role', defaultValue: 'editor', options: [{ label: 'Admin', value: 'admin' }, { label: 'Editor', value: 'editor' }] })
-      ]
-    })
-  ]
-  await scaffoldFsd({ projectDir: dir, collections: initCollections })
-  log('FSD source directory scaffolded.')
+  if (includeCms) {
+    // Scaffold FSD src/ directory from the collections we just wrote
+    const { collection: col, field: f } = await import('@valencets/cms')
+    const initCollections = [
+      col({
+        slug: 'posts',
+        labels: { singular: 'Post', plural: 'Posts' },
+        fields: [
+          f.text({ name: 'title', required: true }),
+          f.slug({ name: 'slug', required: true, unique: true, slugFrom: 'title' }),
+          f.richtext({ name: 'body' }),
+          f.boolean({ name: 'published' }),
+          f.date({ name: 'publishedAt' })
+        ]
+      }),
+      col({
+        slug: 'users',
+        auth: true,
+        fields: [
+          f.text({ name: 'name', required: true }),
+          f.select({ name: 'role', defaultValue: 'editor', options: [{ label: 'Admin', value: 'admin' }, { label: 'Editor', value: 'editor' }] })
+        ]
+      })
+    ]
+    await scaffoldFsd({ projectDir: dir, collections: initCollections })
+    log('FSD source directory scaffolded.')
+  } else {
+    // A starter page — routes + pages are the whole app until the config
+    // opts into more.
+    await mkdir(join(dir, 'src', 'pages', 'home', 'ui'), { recursive: true })
+    await writeFile(join(dir, 'src', 'pages', 'home', 'ui', 'index.html'), `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${projectName}</title>
+</head>
+<body>
+  <main>
+    <h1>${projectName}</h1>
+    <p>This page lives at <code>src/pages/home/ui/index.html</code>.</p>
+    <p>Try the example route: <a href="/api/hello/world">/api/hello/world</a></p>
+  </main>
+</body>
+</html>
+`)
+    log('Starter page scaffolded.')
+  }
 
   log('Project scaffolded.')
 
@@ -457,8 +484,30 @@ CREATE TABLE IF NOT EXISTS "store_states" (
     }
   }
 
-  if (doMigrate) {
-    let baseMigrated = false
+  // Success is earned: verify the database actually answers before
+  // migrating, and point at the scaffolded compose file when it does not.
+  let databaseReachable = false
+  if (includeCms && (createDb || doMigrate)) {
+    const verification = await verifyDatabaseConnection({
+      host: dbHost,
+      port: Number(dbPort),
+      database: dbName,
+      username: dbUser,
+      password: dbPassword,
+      max: 1,
+      idle_timeout: 5,
+      connect_timeout: 5
+    })
+    databaseReachable = verification.isOk()
+    if (verification.isErr()) {
+      log(`Warning: postgres is not reachable at ${dbHost}:${dbPort} (${verification.error.message}).`)
+      log('  Stand one up with: docker compose up -d   (docker-compose.yml is scaffolded)')
+      failures.push(`postgres unreachable at ${dbHost}:${dbPort} — run \`docker compose up -d\` in ${projectName}/, then \`valence migrate\` and \`valence user:create\``)
+    }
+  }
+
+  let baseMigrated = false
+  if (doMigrate && databaseReachable) {
     for (const target of migrationTargets(dbAnswers)) {
       log(`Running migrations on "${target.database}"...`)
       const migrated = await runMigrationsForProject(dir, target)
@@ -470,30 +519,54 @@ CREATE TABLE IF NOT EXISTS "store_states" (
         failures.push(`migrations failed on ${target.database} — run \`valence migrate\` after fixing the connection`)
       }
     }
-    if (baseMigrated) {
-      if (doSeed) {
-        log('Seeding initial data...')
-        const seedPool = createPool({
-          host: dbHost,
-          port: Number(dbPort),
-          database: dbName,
-          username: dbUser,
-          password: dbPassword,
-          max: 5,
-          idle_timeout: 10,
-          connect_timeout: 10
-        })
-        const seedResult = await ResultAsync.fromPromise(
-          (async () => { await seedDatabase(seedPool); await closePool(seedPool) })(),
-          () => null
-        )
-        if (seedResult.isOk()) {
-          log('Seed data inserted.')
-        } else {
-          log('Warning: seed data insertion failed. The database may already have data.')
-        }
+    if (baseMigrated && doSeed) {
+      log('Seeding initial data...')
+      const seedPool = createPool({
+        host: dbHost,
+        port: Number(dbPort),
+        database: dbName,
+        username: dbUser,
+        password: dbPassword,
+        max: 5,
+        idle_timeout: 10,
+        connect_timeout: 10
+      })
+      const seedResult = await ResultAsync.fromPromise(
+        (async () => { await seedDatabase(seedPool); await closePool(seedPool) })(),
+        () => null
+      )
+      if (seedResult.isOk()) {
+        log('Seed data inserted.')
+      } else {
+        log('Warning: seed data insertion failed. The database may already have data.')
       }
     }
+  }
+
+  // Mint the admin during init so the panel is usable on first boot.
+  let mintedAdmin: { email: string, password: string } | undefined
+  if (includeAdmin && baseMigrated) {
+    const adminPool = createPool({
+      host: dbHost,
+      port: Number(dbPort),
+      database: dbName,
+      username: dbUser,
+      password: dbPassword,
+      max: 1,
+      idle_timeout: 5,
+      connect_timeout: 5
+    })
+    const created = await createAdminUser(adminPool, { email: adminEmail, password: adminPassword, name: 'Admin' })
+    await closePool(adminPool)
+    if (created.isOk()) {
+      log(`Admin user "${adminEmail}" created.`)
+      mintedAdmin = { email: adminEmail, password: adminPassword }
+    } else {
+      log(`Warning: admin user creation failed: ${created.error.message}`)
+      failures.push('admin user creation failed — run `valence user:create` once the database is reachable')
+    }
+  } else if (includeAdmin && includeCms) {
+    failures.push('admin user not created — run `valence user:create` once the database is migrated')
   }
 
   if (initGit) {
@@ -504,7 +577,7 @@ CREATE TABLE IF NOT EXISTS "store_states" (
     }
   }
 
-  console.log(initSummary(projectName, serverPort, failures, learnMode))
+  console.log(initSummary(projectName, serverPort, failures, learnMode, { includeCms, adminCredentials: mintedAdmin }))
 }
 
 // -- dev --
