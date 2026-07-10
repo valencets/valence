@@ -124,9 +124,20 @@ LRU pressure — the durable-anonymous-draft case (config generators,
 carts) that in-memory session state cannot cover. A persisted global
 store keys one row as `__global__` and survives restarts too.
 `persist: true` on `page` scope is a definition error: page stores have
-no server state to persist. Anonymous rows are never expired
-automatically — prune `store_states` by `updated_at` on whatever
-schedule fits the app.
+no server state to persist.
+
+Anonymous persisted rows opt in to automatic expiry with `retentionDays`:
+
+```ts
+{ slug: 'drafts', scope: 'session', persist: true, retentionDays: 30, fields: [...] }
+```
+
+The sweeper hard-deletes rows whose `updated_at` is older than the window
+— once at boot, then every 6 hours. `user:*` keys and `__global__` are
+never pruned; `retentionDays` is only valid on persisted `session` stores
+(user and global state must never expire, and in-memory stores already
+expire via LRU). Without `retentionDays`, anonymous rows grow unbounded —
+prune `store_states` by `updated_at` yourself.
 
 ## The mutation lifecycle
 
@@ -262,7 +273,9 @@ Per store (except `page` scope):
   the request host, 404 on unknown mutation, 413 over 256 KB.
 - `GET /store/:slug/state` — current state as JSON.
 - `GET /store/:slug/events` — SSE channel (heartbeat every 30 s; one
-  session may hold many tabs).
+  session may hold many tabs, capped at 8 connections per store — at the
+  cap the oldest connection of that session is closed so the newest tab
+  wins).
 - `GET /store/:slug/hydration` — the hydration script tag for server
   templates that compose pages from fetched partials.
 

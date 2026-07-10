@@ -163,6 +163,37 @@ const ERROR_STATUS: Readonly<Record<string, number>> = Object.freeze({
   STORE_NOT_FOUND: 404
 })
 
+/**
+ * #341 — persisted session stores with retentionDays get their expired
+ * anonymous rows swept: once at registration, then every 6 hours.
+ * Failures degrade loudly through the log fn, never crash the server.
+ * store() validation already restricts retentionDays to persisted session
+ * stores; the scope guard here is belt to that suspenders.
+ */
+function scheduleRetentionSweeps (
+  config: { readonly slug: string, readonly scope: string, readonly retentionDays?: number | undefined },
+  pool: StorePool | undefined,
+  tableReady: Promise<void>,
+  log: (msg: string) => void
+): void {
+  const retentionDays = config.retentionDays
+  if (retentionDays === undefined || config.scope !== 'session' || pool === undefined) return
+
+  const sweep = (): void => {
+    tableReady.then(() =>
+      pruneExpiredStates(pool, config.slug, retentionDays).match(
+        () => undefined,
+        (e) => { log(e.message) }
+      )
+    ).then(() => undefined, () => undefined)
+  }
+  sweep()
+  const timer = setInterval(sweep, RETENTION_SWEEP_INTERVAL_MS)
+  if (typeof timer === 'object' && 'unref' in timer) {
+    timer.unref()
+  }
+}
+
 export interface StoreWiringOptions {
   readonly pool?: StorePool
   readonly log?: (msg: string) => void
@@ -251,26 +282,7 @@ export function registerStoreRoutesOnServer (
     const routes = registerStoreRoutes(config, holder, broadcaster, options?.pool)
     hydratable.push({ slug: config.slug, scope: config.scope, getState: (session) => routes.getState(session) })
 
-    // #341 — persisted session stores with retentionDays get their expired
-    // anonymous rows swept: once at registration, then every 6 hours.
-    // Failures degrade loudly through the log fn, never crash the server.
-    if (config.retentionDays !== undefined && config.scope === 'session' && isPersisted(config) && options?.pool) {
-      const retentionPool = options.pool
-      const retentionDays = config.retentionDays
-      const sweep = (): void => {
-        tableReady.then(() =>
-          pruneExpiredStates(retentionPool, config.slug, retentionDays).match(
-            () => undefined,
-            (e) => { log(e.message) }
-          )
-        ).then(() => undefined, () => undefined)
-      }
-      sweep()
-      const timer = setInterval(sweep, RETENTION_SWEEP_INTERVAL_MS)
-      if (typeof timer === 'object' && 'unref' in timer) {
-        timer.unref()
-      }
-    }
+    scheduleRetentionSweeps(config, options?.pool, tableReady, log)
 
     const requireIdentity = async (req: IncomingMessage, res: ServerResponse): Promise<SessionInfo | null> => {
       const identity = await resolveIdentity(req, res, options)
