@@ -37,7 +37,7 @@ Valence makes one bet instead: **describe the application once, and derive every
 ```typescript
 // valence.config.ts
 import { defineConfig, collection, field } from '@valencets/valence'
-import { field as storeField } from '@valencets/store'
+import { storeField } from '@valencets/store'
 
 export default defineConfig({
   db: { /* postgres connection */ },

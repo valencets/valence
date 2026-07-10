@@ -288,3 +288,12 @@ pnpm test:ci                  # CI mode (limited concurrency)
 
 - **Safe to edit**: `packages/`, `docs/`
 - **Never touch**: `node_modules/`, `.husky/` (edit via config only), any `dist/` output
+
+## API Surface Freeze (#337)
+
+The public API surface of every published package is **frozen as of the 1.0 RC**. Mechanics:
+
+- Every package has an API Extractor config; `packages/*/*.api.md` reports are the committed baselines. `pnpm api:check` fails when the surface drifts, and the **API Review job is required by the CI Gate** — a surface change cannot merge silently.
+- Changing a report is deliberate: run `pnpm api:update`, commit the diff, and justify it in the PR. After 1.0, **additive** changes ride minor releases; **breaking** changes (removals, renames, signature changes) require a major bump and a deprecation cycle.
+- Types referenced by public signatures must be exported (`ae-forgotten-export` warnings in a report are treated as bugs).
+- Known aliases from the pre-freeze collision cleanup: `createTelemetrySession` is the primary name for the analytics session creator (`createSession` in `@valencets/telemetry` is deprecated, removed in 2.0); `@valencets/store` ships `storeField` as a first-class alias of `field` for configs that import both cms and store factories.

@@ -19,6 +19,8 @@ Stores are declared in `valence.config.ts` alongside collections:
 ```ts
 import { defineConfig } from '@valencets/valence'
 import { field } from '@valencets/store'
+// Configs that also define collections can use the collision-free alias:
+// import { storeField } from '@valencets/store'
 import type { StoreInput } from '@valencets/store'
 
 export default defineConfig({
