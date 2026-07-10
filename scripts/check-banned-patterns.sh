@@ -93,6 +93,17 @@ else
 fi
 
 echo ""
+echo "--- 7. template interpolation into pool.query ---"
+# The store mutation pool contract is query(text, params) — values bind as
+# $n parameters. Interpolating into the SQL text is an injection footgun.
+result=$(grep_prod -E 'pool\.query\(`[^`]*\$\{')
+if [[ -n "$result" ]]; then
+  fail "template interpolation into pool.query is banned — bind values via the params array: pool.query(text, [values])" "$result"
+else
+  ok "no template interpolation into pool.query found"
+fi
+
+echo ""
 echo "==========================="
 if [[ $ERRORS -eq 0 ]]; then
   echo "All banned-pattern checks passed."
