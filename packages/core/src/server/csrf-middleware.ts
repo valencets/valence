@@ -1,5 +1,6 @@
 import type { Middleware } from './middleware-types.js'
 import { generateCsrfToken, validateCsrfToken } from './csrf.js'
+import { getCookie, serializeCookie } from './cookies.js'
 import { sendJson, readBody } from './http-helpers.js'
 import { fromThrowable } from '@valencets/resultkit'
 
@@ -17,19 +18,6 @@ const safeDecodeFormComponent = fromThrowable(
   (value: string) => decodeURIComponent(value.replace(/\+/g, ' ')),
   () => undefined
 )
-
-function parseCookieValue (cookieHeader: string | undefined, name: string): string | undefined {
-  if (cookieHeader === undefined) return undefined
-  const prefix = `${name}=`
-  const cookies = cookieHeader.split(';')
-  for (const raw of cookies) {
-    const trimmed = raw.trim()
-    if (trimmed.startsWith(prefix)) {
-      return trimmed.slice(prefix.length)
-    }
-  }
-  return undefined
-}
 
 function extractBodyField (body: string, field: string): string | undefined {
   const pairs = body.split('&')
@@ -50,11 +38,11 @@ function extractBodyField (body: string, field: string): string | undefined {
 export function createCsrfMiddleware (): Middleware {
   return async (req, res, ctx, next) => {
     const cookieHeader = req.headers.cookie
-    const existingToken = parseCookieValue(cookieHeader, COOKIE_NAME)
+    const existingToken = getCookie(cookieHeader, COOKIE_NAME)
 
     if (existingToken === undefined) {
       const newToken = generateCsrfToken()
-      res.setHeader('Set-Cookie', `${COOKIE_NAME}=${newToken}; SameSite=Strict; Path=/`)
+      res.setHeader('Set-Cookie', serializeCookie(COOKIE_NAME, newToken, { path: '/', sameSite: 'Strict' }))
     }
 
     const method = req.method ?? 'GET'

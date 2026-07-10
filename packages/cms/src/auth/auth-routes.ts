@@ -3,21 +3,17 @@ import type { CmsError } from '../schema/types.js'
 import type { DbPool } from '@valencets/db'
 import type { CollectionRegistry } from '../schema/registry.js'
 import type { RestRouteEntry } from '../api/rest-api.js'
-import type { IncomingMessage } from 'node:http'
 import type { DocumentData } from '../db/query-builder.js'
 import { z } from 'zod'
 import { sendApiJson, sendErrorJson, safeReadBody, safeJsonParse } from '../api/http-utils.js'
 import { verifyPassword } from './password.js'
 import { createRateLimiter } from './rate-limit.js'
 import { parseCookie } from './cookie.js'
+import { serializeCookie, isSecureTransport } from '@valencets/core/server'
 import { safeQuery } from '../db/safe-query.js'
 import { createSession, validateSession, destroySession, destroyUserSessions, buildSessionCookie, buildExpiredSessionCookie } from './session.js'
 import { sanitizeIdentifier, isValidIdentifier } from '../db/sql-sanitize.js'
 import { isAuthEnabled } from './auth-config.js'
-
-function isEncrypted (req: IncomingMessage): boolean {
-  return !!(req.socket as { encrypted?: boolean }).encrypted
-}
 
 interface UserRow {
   readonly id: string
@@ -101,11 +97,10 @@ export function createAuthRoutes (
       const sessionResult = await createSession(user.id, pool)
       if (sessionResult.isErr()) { sendErrorJson(res, 'Login failed', 500); return }
 
-      const secure = isEncrypted(req)
+      const secure = isSecureTransport(req)
       const sessionCookie = buildSessionCookie(sessionResult.value, 7200, secure)
       // Set both the HttpOnly session cookie and a JS-readable indicator cookie
-      const secureFlag = secure ? '; Secure' : ''
-      const indicatorCookie = `cms_authed=1; Path=/; SameSite=Lax${secureFlag}; Max-Age=7200`
+      const indicatorCookie = serializeCookie('cms_authed', '1', { path: '/', sameSite: 'Lax', secure, maxAge: 7200 })
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
         'Set-Cookie': [sessionCookie, indicatorCookie]
@@ -125,10 +120,10 @@ export function createAuthRoutes (
       if (sessionId) {
         await destroySession(sessionId, pool)
       }
-      const secure = isEncrypted(req)
+      const secure = isSecureTransport(req)
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
-        'Set-Cookie': [buildExpiredSessionCookie(secure), `cms_authed=; Path=/; SameSite=Lax${secure ? '; Secure' : ''}; Max-Age=0`]
+        'Set-Cookie': [buildExpiredSessionCookie(secure), serializeCookie('cms_authed', '', { path: '/', sameSite: 'Lax', secure, maxAge: 0 })]
       })
       res.end(JSON.stringify({ message: 'Logged out' }))
     }

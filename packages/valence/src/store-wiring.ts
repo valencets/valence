@@ -6,6 +6,7 @@ import type { StorePool, StateBackend } from '@valencets/store/server'
 import type { MutationPool } from '@valencets/store'
 import type { DbPool } from '@valencets/db'
 import { validateSession } from '@valencets/cms'
+import { getCookie, isSecureTransport } from '@valencets/core/server'
 import type { RouteHandler } from './define-config.js'
 import { mintSignedSessionId, verifySignedSessionId, buildStoreSessionCookie } from './store-session.js'
 import { fromThrowable, ok, err } from '@valencets/resultkit'
@@ -53,10 +54,11 @@ function readJsonBody (req: IncomingMessage): Promise<Result<string, BodyError>>
   })
 }
 
+// Delegates to the framework's one cookie parser (#342): literal matching,
+// no regex construction from the (caller-fixed) name. Keeps the null-return
+// contract the identity resolution below relies on.
 function readCookie (req: IncomingMessage, name: string): string | null {
-  const cookie = req.headers.cookie ?? ''
-  const match = cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`))
-  return match && match[1] ? match[1] : null
+  return getCookie(req.headers.cookie, name) ?? null
 }
 
 function readSessionToken (req: IncomingMessage): string | null {
@@ -109,7 +111,7 @@ async function resolveIdentity (
   }
 
   const minted = mintSignedSessionId(secret)
-  const secureTransport = !!((req.socket as { encrypted?: boolean } | undefined)?.encrypted)
+  const secureTransport = isSecureTransport(req)
   res.setHeader('Set-Cookie', buildStoreSessionCookie(minted, secureTransport))
   const dot = minted.indexOf('.')
   return { id: minted.slice(0, dot) }

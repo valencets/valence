@@ -1,5 +1,6 @@
 import type { ServerResponse } from 'node:http'
 import { fromThrowable } from '@valencets/resultkit'
+import { serializeCookie } from '@valencets/core/server'
 import { parseCookie } from '../auth/cookie.js'
 
 interface FlashMessage {
@@ -29,11 +30,11 @@ function parseFlash (encoded: string): FlashMessage | null {
 
 function setFlashCookie (res: ServerResponse, msg: FlashMessage): void {
   const value = serializeFlash(msg)
-  res.setHeader('Set-Cookie', `cms_flash=${value}; Path=/admin; HttpOnly; SameSite=Lax; Secure; Max-Age=30`)
+  res.setHeader('Set-Cookie', serializeCookie('cms_flash', value, { path: '/admin', httpOnly: true, sameSite: 'Lax', secure: true, maxAge: 30 }))
 }
 
 function clearFlashCookie (res: ServerResponse): void {
-  res.setHeader('Set-Cookie', 'cms_flash=; Path=/admin; HttpOnly; SameSite=Lax; Secure; Max-Age=0')
+  res.setHeader('Set-Cookie', serializeCookie('cms_flash', '', { path: '/admin', httpOnly: true, sameSite: 'Lax', secure: true, maxAge: 0 }))
 }
 
 function readFlash (cookieHeader: string): FlashMessage | null {

@@ -33,7 +33,7 @@ import { generateConditionalSchema, generateConditionalPartialSchema } from '../
 import { setFlashCookie, readFlash, clearFlashCookie } from './flash.js'
 import { readFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
-import { generateNonce, setSecurityHeaders, CSP_NONCE_PLACEHOLDER, generateCsrfToken, validateCsrfToken } from '@valencets/core/server'
+import { generateNonce, setSecurityHeaders, CSP_NONCE_PLACEHOLDER, generateCsrfToken, validateCsrfToken, isSecureTransport } from '@valencets/core/server'
 import { fileURLToPath } from 'node:url'
 
 export type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
@@ -308,7 +308,7 @@ export function createAdminRoutes (
         return
       }
       loginLimiter.reset(ip)
-      const secure = !!(req.socket as { encrypted?: boolean }).encrypted
+      const secure = isSecureTransport(req)
       res.setHeader('Set-Cookie', buildSessionCookie(sessionResult.value, sessionMaxAge, secure))
       res.writeHead(302, { Location: '/admin' })
       res.end()
@@ -326,7 +326,7 @@ export function createAdminRoutes (
       if (sessionId) {
         await destroySession(sessionId, pool)
       }
-      const secure = !!(req.socket as { encrypted?: boolean }).encrypted
+      const secure = isSecureTransport(req)
       res.setHeader('Set-Cookie', buildExpiredSessionCookie(secure))
       res.writeHead(302, { Location: '/admin/login' })
       res.end()

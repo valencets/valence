@@ -1,5 +1,6 @@
 import { errAsync, okAsync } from '@valencets/resultkit'
 import type { ResultAsync } from '@valencets/resultkit'
+import { serializeCookie } from '@valencets/core/server'
 import type { DbPool } from '@valencets/db'
 import { CmsErrorCode } from '../schema/types.js'
 import type { CmsError } from '../schema/types.js'
@@ -53,13 +54,11 @@ export function validateSession (sessionId: string, pool: DbPool): ResultAsync<s
 }
 
 export function buildSessionCookie (sessionId: string, maxAgeSeconds = DEFAULT_SESSION_MAX_AGE, secure = true): string {
-  const secureFlag = secure ? '; Secure' : ''
-  return `cms_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax${secureFlag}; Max-Age=${maxAgeSeconds}`
+  return serializeCookie('cms_session', sessionId, { path: '/', httpOnly: true, sameSite: 'Lax', secure, maxAge: maxAgeSeconds })
 }
 
 export function buildExpiredSessionCookie (secure = true): string {
-  const secureFlag = secure ? '; Secure' : ''
-  return `cms_session=; Path=/; HttpOnly; SameSite=Lax${secureFlag}; Max-Age=0`
+  return serializeCookie('cms_session', '', { path: '/', httpOnly: true, sameSite: 'Lax', secure, maxAge: 0 })
 }
 
 export function destroyUserSessions (userId: string, pool: DbPool): ResultAsync<void, CmsError> {
