@@ -14,6 +14,7 @@ import type { RestRouteEntry } from '@valencets/cms'
 import { readLearnProgress, writeLearnProgress, createInitialProgress } from './learn/index.js'
 import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
+import { validateProductionSecret } from './secret-guard.js'
 import { parseInitFlags, askWithDefault, confirmWithDefault, createDbInvocations, migrationTargets, initSummary, createPromptQueue, scaffoldDependencies } from './init-steps.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
@@ -884,11 +885,14 @@ export async function runStart (): Promise<void> {
     process.exit(1)
   }
 
-  const cmsSecret = process.env.CMS_SECRET
-  if (!cmsSecret) {
-    console.error('  Error: CMS_SECRET must be set in .env for production.')
+  // #339 — the secret signs anonymous store sessions; missing, default,
+  // or short values must refuse to boot rather than run forgeable.
+  const secretResult = validateProductionSecret(process.env.CMS_SECRET)
+  if (secretResult.isErr()) {
+    console.error(`  Error: ${secretResult.error.message}`)
     process.exit(1)
   }
+  const cmsSecret = secretResult.value
 
   const projectDir = process.cwd()
 

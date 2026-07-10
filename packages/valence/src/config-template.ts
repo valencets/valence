@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto'
+
 export interface ConfigTemplateOptions {
   readonly dbName: string
   readonly dbUser: string
@@ -91,11 +93,11 @@ export default defineConfig({
 `
 }
 
+/**
+ * Mint a CMS_SECRET for the scaffolded .env — 32 bytes of CSPRNG output as
+ * 64 hex chars. Math.random is banned here: the secret keys the HMAC that
+ * signs anonymous store sessions, so it must be unpredictable.
+ */
 export function generateSecret (): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let result = ''
-  for (let i = 0; i < 32; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return result
+  return randomBytes(32).toString('hex')
 }
