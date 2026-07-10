@@ -657,6 +657,42 @@ describe('cookie flags from the transport', () => {
   })
 })
 
+// #336 — persisted buckets must survive multi-node deployments: the
+// adapter maybeRegisterStores builds exposes transaction(), backed by
+// sql.begin, so PostgresStateHolder can lock the bucket row with
+// SELECT … FOR UPDATE around the whole read-modify-write.
+describe('row-locked persistence wiring', () => {
+  const SECRET = 'wiring-test-secret'
+
+  it('runs persisted mutations inside sql.begin with a FOR UPDATE row lock', async () => {
+    const txUnsafe = vi.fn(async (text: string, _params: readonly unknown[] = []) => {
+      if (text.includes('FOR UPDATE')) return [{ state: { count: 3 } }]
+      return []
+    })
+    const begin = vi.fn(async (fn: (tx: { unsafe: typeof txUnsafe }) => Promise<unknown>) => {
+      return await fn({ unsafe: txUnsafe })
+    })
+    const unsafe = vi.fn(async () => [])
+    const dbPool = { sql: { unsafe, begin } } as unknown as DbPool
+
+    const { registerRoute, routes } = collectRoutes()
+    maybeRegisterStores([counterStore({ scope: 'session', persist: true })], registerRoute, undefined, dbPool, SECRET)
+
+    const { mintSignedSessionId } = await import('../store-session.js')
+    const token = mintSignedSessionId(SECRET)
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":2}}', `session_id=${token}`)
+
+    expect(captured.statusCode).toBe(200)
+    // Locked read saw count 3; the mutation added 2 on top
+    expect(JSON.parse(captured.body).state.count).toBe(5)
+
+    expect(begin).toHaveBeenCalled()
+    const txTexts = txUnsafe.mock.calls.map(call => String(call[0]))
+    expect(txTexts.some(text => text.includes('FOR UPDATE'))).toBe(true)
+    expect(txTexts.some(text => text.startsWith('UPDATE store_states'))).toBe(true)
+  })
+})
+
 // #340 — cookie-authenticated mutation POSTs get Origin defense in depth:
 // a declared browser origin that does not match the request host is
 // rejected before identity resolution. Requests declaring no origin at all

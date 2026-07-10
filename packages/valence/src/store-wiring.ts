@@ -3,6 +3,7 @@ import type { StoreInput, SessionInfo, StoreState } from '@valencets/store'
 import { store as createStore } from '@valencets/store'
 import { SessionStateHolder, PostgresStateHolder, SSEBroadcaster, registerStoreRoutes, renderStoreFragment, renderStoreHydration } from '@valencets/store/server'
 import type { StorePool, StateBackend } from '@valencets/store/server'
+import type { MutationPool } from '@valencets/store'
 import type { DbPool } from '@valencets/db'
 import { validateSession } from '@valencets/cms'
 import type { RouteHandler } from './define-config.js'
@@ -227,11 +228,22 @@ export function registerStoreRoutesOnServer (
 
     let holder: StateBackend = SessionStateHolder.create(config.fields)
     if (isPersisted(config) && options?.pool) {
+      const poolTransaction = options.pool.transaction
       const gatedPool: StorePool = {
         query: async (text, params) => {
           await tableReady
           return await options.pool!.query(text, params)
-        }
+        },
+        // Forward the locking primitive — dropping it here would silently
+        // downgrade persisted buckets to single-node semantics (#336).
+        ...(poolTransaction !== undefined
+          ? {
+              transaction: async <T>(fn: (tx: MutationPool) => Promise<T>): Promise<T> => {
+                await tableReady
+                return await poolTransaction(fn)
+              }
+            }
+          : {})
       }
       holder = PostgresStateHolder.create({ pool: gatedPool, slug: config.slug, fields: config.fields })
     }
@@ -395,6 +407,14 @@ export function maybeRegisterStores (
             // params bind as $n placeholders, never as interpolated text.
             query: async (text, params) => {
               return await dbPool.sql.unsafe(text, params === undefined ? [] : [...params])
+            },
+            // One connection inside BEGIN/COMMIT — the row-locking primitive
+            // persisted store buckets serialize on across nodes (#336).
+            transaction: async <T>(fn: (tx: MutationPool) => Promise<T>): Promise<T> => {
+              const result = await dbPool.sql.begin(async (tx) => await fn({
+                query: async (text, params) => await tx.unsafe(text, params === undefined ? [] : [...params])
+              }))
+              return result as T
             }
           },
           validateCmsSession: (sessionId: string) =>

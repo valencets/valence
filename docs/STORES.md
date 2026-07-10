@@ -325,9 +325,20 @@ user-scoped store and a database pool are configured.
   requests never mint session cookies. Requests declaring neither header
   (curl, server-to-server) pass: they carry no ambient browser credentials
   to launder.
-- The per-bucket mutation lock is in-process. Multi-process or multi-node
-  deployments sharing one database need row-level locking on
-  `store_states` before serving the same user-scoped store from several
-  instances.
+- Persisted buckets (`user` scope, or `persist: true`) run every mutation
+  as a row-locked read-modify-write: one transaction takes
+  `SELECT … FOR UPDATE` on the bucket's `store_states` row around the
+  `server` fn, so multi-node deployments sharing one database serialize on
+  the row instead of losing writes — and a failing `server` fn rolls the
+  bucket back. The in-process per-bucket lock remains as the fast-path
+  serializer within each node.
+- **Supported topologies:** in-memory stores (`session`/`global` without
+  `persist`) are single-node — each node holds its own state, and the
+  in-process lock is the only serializer. Persisted stores are safe across
+  any number of nodes sharing one postgres database.
+- Custom `StorePool` implementations without a `transaction` primitive
+  degrade persisted buckets to single-node semantics (in-process lock
+  only). The pool `valence` wires from your database config always
+  provides `transaction`.
 - Signed anonymous sessions are not stored server-side, so they cannot be
   revoked individually — rotate `CMS_SECRET` to invalidate all of them.
