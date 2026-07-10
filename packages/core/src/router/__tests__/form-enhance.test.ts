@@ -297,7 +297,9 @@ describe('initFormEnhancement', () => {
 
   it('does not use a raw promise catch in form enhancement', async () => {
     const { readFileSync } = await import('node:fs')
-    const source = readFileSync(`${process.cwd()}/src/router/form-enhance.ts`, 'utf-8')
+    // Normalize CRLF → LF so the multi-line substring assertion below is
+    // host-independent on Windows checkouts (#352).
+    const source = readFileSync(`${process.cwd()}/src/router/form-enhance.ts`, 'utf-8').replace(/\r\n/g, '\n')
     expect(source).toContain('ResultAsync.fromPromise(\n    submitEnhancedForm')
     expect(source).not.toMatch(/fetchFn\(url, \{ method, headers, body \}\)\s*\.then/)
     expect(source).not.toMatch(/\.catch\(/)

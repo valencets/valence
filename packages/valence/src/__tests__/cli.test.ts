@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
+import { fileURLToPath } from 'node:url'
 import { run } from '../cli.js'
+
+// Resolve a sibling source file cross-platform: URL.pathname yields
+// "/C:/..." on Windows, which fs cannot open — fileURLToPath fixes it (#352).
+const sourcePath = (relative: string): string => fileURLToPath(new URL(relative, import.meta.url))
 
 describe('CLI', () => {
   it('prints usage when no command given', async () => {
@@ -62,7 +67,7 @@ describe('CLI path normalization', () => {
 
   it('does not keep a request-derived redirect sink in the CLI server', async () => {
     const { readFileSync } = await import('node:fs')
-    const cliSource = readFileSync(new URL('../cli.ts', import.meta.url).pathname.replace('/dist/', '/src/'), 'utf-8')
+    const cliSource = readFileSync(sourcePath('../cli.ts'), 'utf-8')
     expect(cliSource).not.toContain('resolveSafeLocalRedirectTarget')
     expect(cliSource).not.toMatch(/Location:\s*redirectTarget/)
   })
@@ -71,8 +76,8 @@ describe('CLI path normalization', () => {
 describe('CLI security', () => {
   it('does not use execSync with string concatenation for tsx script execution', async () => {
     const { readFileSync } = await import('node:fs')
-    const cliSource = readFileSync(new URL('../cli.ts', import.meta.url).pathname.replace('/dist/', '/src/'), 'utf-8')
-    const loaderSource = readFileSync(new URL('../config-loader.ts', import.meta.url).pathname.replace('/dist/', '/src/'), 'utf-8')
+    const cliSource = readFileSync(sourcePath('../cli.ts'), 'utf-8')
+    const loaderSource = readFileSync(sourcePath('../config-loader.ts'), 'utf-8')
     // Should use execFileSync (array args, no shell) instead of execSync with template literal
     expect(cliSource).not.toMatch(/execSync\s*\(\s*`/)
     expect(loaderSource).not.toMatch(/execSync\s*\(\s*`/)
