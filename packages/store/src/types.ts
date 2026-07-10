@@ -70,13 +70,30 @@ export interface SessionInfo {
   readonly userId?: string
 }
 
+/**
+ * Scalar values that may bind as SQL parameters through the mutation pool.
+ * Matches what postgres drivers serialize natively — wider values (dates,
+ * buffers) must be converted by the caller before binding.
+ */
+export type StoreSqlValue = string | number | boolean | null
+
+/**
+ * The database handle mutation `server` fns receive. Values ALWAYS travel
+ * as `params` — never interpolate user input into `text`:
+ *
+ *   pool.query('SELECT price FROM products WHERE sku = $1', [input.sku])
+ */
+export interface MutationPool {
+  readonly query: (text: string, params?: readonly StoreSqlValue[]) => Promise<readonly unknown[]>
+}
+
 export interface MutationContext {
   readonly state: StoreState
   readonly input: MutationInput
 }
 
 export interface MutationServerContext extends MutationContext {
-  readonly pool: { readonly query: (...args: readonly string[]) => Promise<readonly unknown[]> }
+  readonly pool: MutationPool
   readonly session: SessionInfo
 }
 

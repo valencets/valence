@@ -56,12 +56,11 @@ beforeAll(async () => {
   pool = createPool({ ...getTestDbConfig(TEST_DB), max: 5 })
   await pool.sql.unsafe(STORE_STATES_DDL)
 
-  // The exact adapter shape valence's maybeRegisterStores builds — string
-  // params through sql.unsafe against the real driver.
+  // The exact adapter shape valence's maybeRegisterStores builds — a flat
+  // params array through sql.unsafe against the real driver (#333).
   storePool = {
-    query: async (...args: readonly string[]) => {
-      const [text, ...params] = args
-      return await pool.sql.unsafe(text ?? '', [...params])
+    query: async (text, params = []) => {
+      return await pool.sql.unsafe(text, [...params])
     }
   }
 }, 60_000)
@@ -116,7 +115,7 @@ describe('PostgresStateHolder against a real driver', () => {
     await pool.sql.unsafe('CREATE TABLE IF NOT EXISTS lookup (slug TEXT PRIMARY KEY, payload JSONB)')
     await pool.sql.unsafe("INSERT INTO lookup VALUES ('hard', '{\"factor\": 2}') ON CONFLICT (slug) DO NOTHING")
 
-    const rows = await storePool.query('SELECT payload FROM lookup WHERE slug = $1', 'hard')
+    const rows = await storePool.query('SELECT payload FROM lookup WHERE slug = $1', ['hard'])
     const first = rows[0] as { payload?: { factor?: number } }
     expect(first.payload?.factor).toBe(2)
   })

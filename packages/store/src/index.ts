@@ -95,6 +95,8 @@ export type {
   MutationClientFn,
   MutationContext,
   MutationServerContext,
+  MutationPool,
+  StoreSqlValue,
   FragmentRenderFn,
   DerivedFn
 } from './types.js'

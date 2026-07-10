@@ -1,5 +1,5 @@
 import type { Result } from '@valencets/resultkit'
-import type { StoreDefinition, StoreState, StoreError, SessionInfo } from '../types.js'
+import type { StoreDefinition, StoreState, StoreError, SessionInfo, MutationPool } from '../types.js'
 import type { StateBackend } from './state-backend.js'
 import type { SSEBroadcaster } from './sse-broadcaster.js'
 import { handleMutation } from './mutation-handler.js'
@@ -21,9 +21,11 @@ interface StoreRouteHandlers {
   readonly getState: (session: SessionInfo) => StoreState | Promise<StoreState>
 }
 
-export interface StorePool {
-  readonly query: (...args: readonly string[]) => Promise<readonly unknown[]>
-}
+/**
+ * Parameterized query contract for store persistence and mutation server
+ * fns — `query(text, params?)`, values always bound as `$n` parameters.
+ */
+export type StorePool = MutationPool
 
 const defaultPool: StorePool = { query: async () => [] }
 

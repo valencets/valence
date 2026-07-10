@@ -44,7 +44,7 @@ export default defineConfig({
             field.number({ name: 'qty', required: true })
           ],
           server: async ({ state, input, pool }) => {
-            const rows = await pool.query(`SELECT price FROM products WHERE sku = '${String(input.sku)}'`)
+            const rows = await pool.query('SELECT price FROM products WHERE sku = $1', [String(input.sku)])
             if (rows.length === 0) return
             const items = (state.items ?? []) as Array<{ sku: string; qty: number; price: number }>
             items.push({ sku: String(input.sku), qty: Number(input.qty), price: (rows[0] as { price: number }).price })
@@ -68,6 +68,24 @@ export default defineConfig({
 From one definition the framework derives Zod validators (enforced on both
 client and server via `safeParse`), typed signals, per-mutation POST
 endpoints, an SSE channel, hydration, and optional fragment rendering.
+
+### The pool contract
+
+Mutation `server` fns receive a database handle with one method:
+`pool.query(text, params?)`. Values ALWAYS travel in the `params` array —
+they bind as `$n` placeholders in the driver, so user input never touches
+the SQL text. Never interpolate values into `text`:
+
+```ts
+// ✓ parameterized — input binds server-side
+const rows = await pool.query('SELECT price FROM products WHERE sku = $1', [String(input.sku)])
+
+// ✗ never do this — SQL injection
+const rows = await pool.query(`SELECT price FROM products WHERE sku = '${String(input.sku)}'`)
+```
+
+Params are scalars (`string | number | boolean | null`); convert wider
+values (dates, arrays) to strings or JSON before binding.
 
 Fields are optional in mutation input by default; set `required: true` to
 reject missing values. Every field type takes a `default` — including
