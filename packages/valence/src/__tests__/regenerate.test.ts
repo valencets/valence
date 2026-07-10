@@ -17,8 +17,9 @@ vi.mock('node:fs/promises', () => ({
 
 vi.mock('node:fs', () => ({
   existsSync: vi.fn((path: string) => {
-    // Simulate that entity dirs already exist for 'posts'
-    return String(path).includes('entities/posts')
+    // Simulate that entity dirs already exist for 'posts'. Normalize
+    // separators so the match holds on Windows `join` paths (#352).
+    return String(path).replace(/\\/g, '/').includes('entities/posts')
   })
 }))
 

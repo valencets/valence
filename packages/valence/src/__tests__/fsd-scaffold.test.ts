@@ -15,14 +15,18 @@ vi.mock('node:child_process', () => ({
 const mockedWriteFile = vi.mocked(writeFile)
 const mockedMkdir = vi.mocked(mkdir)
 
+// Normalize path separators so `endsWith('a/b')`-style assertions hold on
+// Windows, where the CLI builds paths with `join` (backslashes) (#352).
+const toPosix = (p: unknown): string => String(p).replace(/\\/g, '/')
+
 function getWrittenFile (filename: string): string | undefined {
-  const call = mockedWriteFile.mock.calls.find(c => String(c[0]).endsWith(filename))
+  const call = mockedWriteFile.mock.calls.find(c => toPosix(c[0]).endsWith(filename))
   if (!call) return undefined
   return String(call[1])
 }
 
 function getDirsCreated (): string[] {
-  return mockedMkdir.mock.calls.map(c => String(c[0]))
+  return mockedMkdir.mock.calls.map(c => toPosix(c[0]))
 }
 
 describe('FSD scaffold during init', () => {
@@ -109,7 +113,7 @@ describe('FSD scaffold during init', () => {
   it('writes src/entities/posts/api/client.ts', async () => {
     await run(['init', 'test-app', '-y'])
     const client = mockedWriteFile.mock.calls.find(
-      c => String(c[0]).includes('entities/posts/api/client.ts')
+      c => toPosix(c[0]).includes('entities/posts/api/client.ts')
     )
     expect(client).toBeDefined()
     const content = String(client![1])
