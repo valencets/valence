@@ -298,6 +298,44 @@ const server = createServer(async (req, res) => {
 server.listen(3000)
 ```
 
+### REST query surface
+
+Every collection's list endpoint (`GET /api/:slug`) accepts the same query
+parameters — discovered by the dogfood build, documented here, and mirrored
+by the OpenAPI spec at `GET /api/docs` (#344):
+
+| Parameter | Meaning | Constraints |
+|---|---|---|
+| `page` | Page number | integer, min 1, default 1 |
+| `limit` | Items per page | integer, 1–100, default 25 |
+| `search` | Full-text search across the collection | tsvector-backed |
+| `sort` | Field to sort by | **allow-listed**: schema fields + `id`/`created_at`/`updated_at`/`deleted_at`; anything else is 400 |
+| `dir` | Sort direction | `asc` (default) or `desc` |
+| `draft` | Include drafts | `true` on versioned collections |
+| `locale` | Locale for localized fields | must exist in the localization config, else 400 |
+| `<field>` | Equality filter, one per schema field | allow-listed; unknown fields are 400; `'true'`/`'false'` coerce to booleans |
+
+Examples:
+
+```
+GET /api/posts?published=true&sort=created_at&dir=desc&page=2&limit=10
+GET /api/posts?slug=hello-world
+GET /api/posts?search=valence&draft=true
+```
+
+Responses are paginated: `{ docs, totalDocs, page, totalPages, limit, hasNextPage, hasPrevPage }`.
+
+Richer operators (`not_equals`, `greater_than`, `less_than`, `like`, `in`,
+`exists`, and/or clauses) are available server-side through the Local API's
+`whereClause` — the HTTP surface deliberately stays equality-only.
+
+Related endpoints: `POST /api/:slug?draft=true` (create as draft),
+`PATCH /api/:slug/:id?publish=true` (publish on update),
+`POST /api/:slug/:id/unpublish`, and `POST /api/:slug/bulk` with
+`{ action: 'delete' | 'publish' | 'unpublish', ids: […] }` (max 100 ids).
+All endpoints require a `cms_session` cookie unless the collection defines
+its own `access` rules.
+
 ## 4. Using the Local API
 
 The local API is for server-side code that needs direct database access without going through HTTP:
