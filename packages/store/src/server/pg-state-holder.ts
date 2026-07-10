@@ -39,8 +39,8 @@ interface PostgresStateHolderConfig {
 /**
  * Postgres-backed state for user-scoped stores: one row per (store, state
  * key) in the store_states table, so state follows the user across
- * sessions, devices, and server restarts. All values travel as
- * parameterized strings — keys and state never interpolate into SQL.
+ * sessions, devices, and server restarts. All values travel in the
+ * `params` array — keys and state never interpolate into SQL.
  *
  * Serialization note: the in-process mutation lock covers a single node;
  * multi-process deployments need row-level locking before sharing a store
@@ -62,7 +62,7 @@ export class PostgresStateHolder implements StateBackend {
   }
 
   async getState (key: string): Promise<StoreState> {
-    const rows = await this._pool.query(SELECT_STATE, this._slug, key)
+    const rows = await this._pool.query(SELECT_STATE, [this._slug, key])
     const first = rows[0]
     if (first !== null && typeof first === 'object' && 'state' in first) {
       const stored = (first as { state: StoreValue }).state
@@ -74,6 +74,6 @@ export class PostgresStateHolder implements StateBackend {
   }
 
   async setState (key: string, state: StoreState): Promise<void> {
-    await this._pool.query(UPSERT_STATE, this._slug, key, JSON.stringify(state))
+    await this._pool.query(UPSERT_STATE, [this._slug, key, JSON.stringify(state)])
   }
 }

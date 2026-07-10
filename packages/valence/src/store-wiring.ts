@@ -200,9 +200,9 @@ export function registerStoreRoutesOnServer (
     let holder: StateBackend = SessionStateHolder.create(config.fields)
     if (isPersisted(config) && options?.pool) {
       const gatedPool: StorePool = {
-        query: async (...args: readonly string[]) => {
+        query: async (text, params) => {
           await tableReady
-          return await options.pool!.query(...args)
+          return await options.pool!.query(text, params)
         }
       }
       holder = PostgresStateHolder.create({ pool: gatedPool, slug: config.slug, fields: config.fields })
@@ -362,9 +362,10 @@ export function maybeRegisterStores (
     ...(dbPool
       ? {
           pool: {
-            query: async (...args: readonly string[]) => {
-              const [text, ...params] = args
-              return await dbPool.sql.unsafe(text ?? '', [...params])
+            // Forward the parameterized contract straight to the driver —
+            // params bind as $n placeholders, never as interpolated text.
+            query: async (text, params) => {
+              return await dbPool.sql.unsafe(text, params === undefined ? [] : [...params])
             }
           },
           validateCmsSession: (sessionId: string) =>
