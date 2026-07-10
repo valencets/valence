@@ -119,4 +119,33 @@ describe('PostgresStateHolder against a real driver', () => {
     const first = rows[0] as { payload?: { factor?: number } }
     expect(first.payload?.factor).toBe(2)
   })
+
+  // #336 — two holder instances simulate two nodes sharing one database.
+  // Row locking must serialize their read-modify-write cycles: 20
+  // interleaved increments may lose no updates. Calling update() directly
+  // bypasses the in-process mutation lock, so only the database lock
+  // stands between this test and a lost-update race.
+  it('concurrent update() calls from two holders lose no updates under row locking', async () => {
+    const lockingPool: StorePool = {
+      query: async (text, params = []) => await pool.sql.unsafe(text, [...params]),
+      transaction: async (fn) => await pool.sql.begin(async (tx) => await fn({
+        query: async (text, params = []) => await tx.unsafe(text, [...params])
+      }))
+    }
+    const config = counterConfig()
+    const holderA = PostgresStateHolder.create({ pool: lockingPool, slug: 'race', fields: config.fields })
+    const holderB = PostgresStateHolder.create({ pool: lockingPool, slug: 'race', fields: config.fields })
+
+    expect(holderA.update).toBeDefined()
+
+    await Promise.all(Array.from({ length: 20 }, (_, i) =>
+      (i % 2 === 0 ? holderA : holderB).update!('user:race', async (state) => {
+        state.count = Number(state.count ?? 0) + 1
+        return state
+      })
+    ))
+
+    const final = await holderA.getState('user:race')
+    expect(final.count).toBe(20)
+  })
 })
