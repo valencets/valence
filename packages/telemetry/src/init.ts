@@ -1,13 +1,16 @@
 import { ok, err } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
+// The engine subpath is import-safe in DOM-less runtimes — the full
+// /client barrel evaluates Web Component classes at import time and
+// crashes plain node (which imports this barrel via the CLI aggregator).
 import {
   TelemetryRingBuffer,
   initEventDelegation,
   scheduleAutoFlush,
   IntentType,
   shouldTrack
-} from '@valencets/core/client'
-import type { TelemetryError } from '@valencets/core/client'
+} from '@valencets/core/telemetry'
+import type { TelemetryError } from '@valencets/core/telemetry'
 
 export interface TelemetryConfig {
   readonly endpoint: string

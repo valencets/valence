@@ -1,7 +1,26 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createIngestionHandler } from '../handler.js'
+import type { DbPool } from '@valencets/db'
 
 import { makeMockPool } from '@valencets/db/test'
+
+// A pool whose every entry point counts invocations — lets tests assert
+// the database was never touched.
+function countingPool (): { pool: DbPool; touched: () => number } {
+  const tagged = vi.fn(async () => Object.assign([{ session_id: 's1' }], { count: 1 }))
+  const sql = Object.assign(
+    tagged,
+    {
+      unsafe: vi.fn(async () => []),
+      json: (v: unknown) => v,
+      begin: vi.fn(async () => undefined)
+    }
+  )
+  return {
+    pool: { sql } as unknown as DbPool,
+    touched: () => tagged.mock.calls.length + sql.unsafe.mock.calls.length
+  }
+}
 
 function mockReq (body: string, method = 'POST', headers?: Record<string, string>): import('node:http').IncomingMessage {
   const req = {
@@ -66,6 +85,39 @@ describe('createIngestionHandler', () => {
     await handler(mockReq(payload), res as never)
     expect(res._status).toBe(200)
   })
+
+  // #349 audit — the beacon endpoint buffered request bodies without any
+  // size cap and waited for 'end' forever. Once the cap is exceeded the
+  // handler must answer immediately (silent-accept 200, nothing stored)
+  // instead of buffering an attacker's unbounded stream.
+  it('answers oversized bodies at the cap without waiting for the stream to end', async () => {
+    const { pool, touched } = countingPool()
+    const handler = createIngestionHandler({ pool })
+
+    // A stream that pushes 300 KB and never emits 'end'
+    const { EventEmitter } = await import('node:events')
+    const emitter = new EventEmitter()
+    const req = Object.assign(emitter, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      url: '/api/telemetry'
+    })
+    setTimeout(() => {
+      for (let i = 0; i < 30; i++) {
+        emitter.emit('data', Buffer.alloc(10_000, 120))
+      }
+      // no 'end' — the handler must have already answered
+    }, 0)
+
+    const res = mockRes()
+    await handler(req as never, res as never)
+
+    expect(res._status).toBe(200)
+    const body = JSON.parse(res._body) as { ok: boolean; ingested: number }
+    expect(body.ok).toBe(true)
+    expect(body.ingested).toBe(0)
+    expect(touched()).toBe(0)
+  }, 4000)
 
   it('returns 200 on invalid payload (silent accept)', async () => {
     const pool = makeMockPool([])

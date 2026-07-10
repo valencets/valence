@@ -11,7 +11,16 @@ export const supportsMoveBefore: boolean =
   typeof Element !== 'undefined' &&
   hasMoveBefore(Element.prototype)
 
-const parser = new DOMParser()
+// Lazy — constructing at module scope crashed every transitive import in
+// DOM-less runtimes (node CLIs importing @valencets/telemetry → core/client).
+let parser: DOMParser | null = null
+
+function getParser (): DOMParser {
+  if (parser === null) {
+    parser = new DOMParser()
+  }
+  return parser
+}
 
 export function parseHtml (html: string): Result<Document, RouterError> {
   if (html === '') {
@@ -21,7 +30,7 @@ export function parseHtml (html: string): Result<Document, RouterError> {
     })
   }
 
-  const doc = parser.parseFromString(html, 'text/html')
+  const doc = getParser().parseFromString(html, 'text/html')
   return ok(doc)
 }
 
