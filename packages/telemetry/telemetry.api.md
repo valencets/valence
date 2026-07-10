@@ -10,7 +10,7 @@ import type { IncomingMessage } from 'node:http';
 import type { Result } from '@valencets/resultkit';
 import { ResultAsync } from '@valencets/resultkit';
 import type { ServerResponse } from 'node:http';
-import type { TelemetryError } from '@valencets/core/client';
+import type { TelemetryError } from '@valencets/core/telemetry';
 
 // @public (undocumented)
 export function aggregateConversionSummary(pool: DbPool, period: SummaryPeriod): ResultAsync<ReadonlyArray<ConversionSummaryRow>, DbError>;
