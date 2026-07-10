@@ -28,20 +28,20 @@ export interface FindArgs {
   readonly locale?: string | undefined
 }
 
-interface FindByIDArgs {
+export interface FindByIDArgs {
   readonly collection: string
   readonly id: string
   readonly whereClause?: WhereClause | undefined
 }
 
-interface CreateArgs {
+export interface CreateArgs {
   readonly collection: string
   readonly data: DocumentData
   readonly draft?: boolean | undefined
   readonly locale?: string | undefined
 }
 
-interface UpdateArgs {
+export interface UpdateArgs {
   readonly collection: string
   readonly id: string
   readonly data: DocumentData
@@ -50,26 +50,26 @@ interface UpdateArgs {
   readonly locale?: string | undefined
 }
 
-interface DeleteArgs {
+export interface DeleteArgs {
   readonly collection: string
   readonly id: string
 }
 
-interface CountArgs {
+export interface CountArgs {
   readonly collection: string
   readonly where?: Record<string, string | number | boolean | null> | undefined
 }
 
-interface FindGlobalArgs {
+export interface FindGlobalArgs {
   readonly slug: string
 }
 
-interface UpdateGlobalArgs {
+export interface UpdateGlobalArgs {
   readonly slug: string
   readonly data: DocumentData
 }
 
-interface UnpublishArgs {
+export interface UnpublishArgs {
   readonly collection: string
   readonly id: string
 }

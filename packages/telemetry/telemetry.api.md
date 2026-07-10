@@ -135,7 +135,9 @@ export function createIngestionHandler(config: IngestionHandlerConfig): (req: In
 export function createServerEventLogger(pool: DbPool): ServerEventLogger;
 
 // @public (undocumented)
-export function createSession(pool: DbPool, session: InsertableSession): ResultAsync<SessionRow, DbError>;
+function createSession(pool: DbPool, session: InsertableSession): ResultAsync<SessionRow, DbError>;
+export { createSession }
+export { createSession as createTelemetrySession }
 
 // @public (undocumented)
 export interface DailyBreakdowns {

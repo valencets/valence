@@ -5,7 +5,7 @@ import { escapeHtml } from './escape.js'
 import { renderToast } from './toast.js'
 import { getCriticalCss } from './km-theme.js'
 
-interface LayoutArgs {
+export interface LayoutArgs {
   readonly title: string
   readonly content: string
   readonly collections: readonly CollectionConfig[]

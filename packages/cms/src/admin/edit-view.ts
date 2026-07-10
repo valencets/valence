@@ -6,7 +6,7 @@ import { renderFieldInput } from './field-renderers.js'
 import type { RelationContext } from './field-renderers.js'
 import { escapeHtml } from './escape.js'
 
-interface DocRow {
+export interface DocRow {
   readonly id?: string | undefined
   readonly [key: string]: string | number | boolean | Date | null | undefined
 }

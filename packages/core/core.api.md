@@ -166,8 +166,6 @@ export function createEmptyIntent(id: string): GlobalTelemetryIntent;
 // @public (undocumented)
 export function createOriginCheck(config: OriginCheckConfig): Middleware;
 
-// Warning: (ae-forgotten-export) The symbol "RateLimitMiddlewareHandle" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function createRateLimitMiddleware(config: RateLimitMiddlewareConfig): RateLimitMiddlewareHandle;
 
@@ -525,6 +523,14 @@ export interface RateLimitMiddlewareConfig {
     readonly trustProxy?: boolean;
     // (undocumented)
     readonly windowMs: number;
+}
+
+// @public (undocumented)
+export interface RateLimitMiddlewareHandle {
+    // (undocumented)
+    readonly destroy: () => void;
+    // (undocumented)
+    readonly middleware: Middleware;
 }
 
 // @public (undocumented)

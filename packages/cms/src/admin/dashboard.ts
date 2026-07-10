@@ -1,6 +1,6 @@
 import { escapeHtml } from './escape.js'
 
-interface RecentItem {
+export interface RecentItem {
   readonly id: string
   readonly [key: string]: string | number | boolean | null
 }

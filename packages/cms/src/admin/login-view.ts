@@ -2,7 +2,7 @@ import { escapeHtml } from './escape.js'
 import { getAdminStyles } from './admin-styles.js'
 import { CSP_NONCE_PLACEHOLDER } from '@valencets/core/server'
 
-interface LoginPageArgs {
+export interface LoginPageArgs {
   readonly error?: string | undefined
   readonly csrfToken: string
 }

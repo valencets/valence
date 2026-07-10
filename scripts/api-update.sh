@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-PACKAGES=(core db cms telemetry ui valence graphql)
+PACKAGES=(core db cms store telemetry ui valence graphql)
 
 for pkg in "${PACKAGES[@]}"; do
   echo "Updating API report: packages/$pkg"

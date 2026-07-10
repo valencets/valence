@@ -47,6 +47,40 @@ export interface AdminConfig {
 }
 
 // @public (undocumented)
+export interface AdminOptions {
+    // (undocumented)
+    readonly headTags?: readonly string[] | undefined;
+    // (undocumented)
+    readonly requireAuth?: boolean | undefined;
+    // (undocumented)
+    readonly sessionMaxAge?: number | undefined;
+    // (undocumented)
+    readonly telemetryPool?: DbPool | undefined;
+    // (undocumented)
+    readonly telemetrySiteId?: string | undefined;
+}
+
+// @public (undocumented)
+export interface AnalyticsData {
+    // (undocumented)
+    readonly conversionCount: number;
+    // (undocumented)
+    readonly dailyEvents?: ReadonlyArray<DailyEventEntry>;
+    // (undocumented)
+    readonly eventCategories?: ReadonlyArray<EventCategoryEntry>;
+    // (undocumented)
+    readonly pageviewCount: number;
+    // (undocumented)
+    readonly pageviewsByPath?: ReadonlyArray<PageviewEntry>;
+    // (undocumented)
+    readonly sessionCount: number;
+    // (undocumented)
+    readonly topPages: ReadonlyArray<TopPageEntry>;
+    // (undocumented)
+    readonly topReferrers: ReadonlyArray<TopReferrerEntry>;
+}
+
+// @public (undocumented)
 export interface ArrayFieldConfig extends FieldBaseConfig {
     // (undocumented)
     readonly fields: readonly FieldConfig[];
@@ -203,8 +237,6 @@ export interface CollapsibleFieldConfig extends FieldBaseConfig {
     readonly type: 'collapsible';
 }
 
-// Warning: (ae-forgotten-export) The symbol "CollectionInput" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function collection(input: CollectionInput): CollectionConfig;
 
@@ -236,8 +268,6 @@ export interface CollectionConfig {
     readonly hooks?: CollectionHooks | undefined;
     // (undocumented)
     readonly labels?: CollectionLabels | undefined;
-    // Warning: (ae-forgotten-export) The symbol "SearchConfig" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     readonly search?: SearchConfig | undefined;
     // (undocumented)
@@ -275,6 +305,11 @@ export interface CollectionHooks {
     // (undocumented)
     readonly beforeValidate?: readonly HookFunction[] | undefined;
 }
+
+// @public (undocumented)
+export type CollectionInput = Omit<CollectionConfig, 'timestamps'> & {
+    readonly timestamps?: boolean | undefined;
+};
 
 // @public (undocumented)
 export interface CollectionLabels {
@@ -335,15 +370,47 @@ export interface CollectionRegistry {
 }
 
 // @public (undocumented)
+export interface CollectionStat {
+    // (undocumented)
+    readonly count: number;
+    // (undocumented)
+    readonly hidden?: boolean | undefined;
+    // (undocumented)
+    readonly label: string;
+    // (undocumented)
+    readonly recent: readonly RecentItem[];
+    // (undocumented)
+    readonly slug: string;
+}
+
+// @public (undocumented)
 export interface ColorFieldConfig extends FieldBaseConfig {
     // (undocumented)
     readonly type: 'color';
 }
 
-// Warning: (ae-forgotten-export) The symbol "AdminOptions" needs to be exported by the entry point index.d.ts
-//
+// @public (undocumented)
+export interface CountArgs {
+    // (undocumented)
+    readonly collection: string;
+    // (undocumented)
+    readonly where?: Record<string, string | number | boolean | null> | undefined;
+}
+
 // @public (undocumented)
 export function createAdminRoutes(pool: DbPool, collections: CollectionRegistry, options?: AdminOptions): Map<string, RestRouteEntry>;
+
+// @public (undocumented)
+export interface CreateArgs {
+    // (undocumented)
+    readonly collection: string;
+    // (undocumented)
+    readonly data: DocumentData;
+    // (undocumented)
+    readonly draft?: boolean | undefined;
+    // (undocumented)
+    readonly locale?: string | undefined;
+}
 
 // @public (undocumented)
 export function createAuthMiddleware(pool: DbPool): AuthMiddleware;
@@ -378,13 +445,9 @@ export function createLocalStorage(uploadDir: string): StorageAdapter;
 // @public (undocumented)
 export function createQueryBuilder(pool: DbPool, registry: CollectionRegistry, defaultLocale?: string): QueryBuilderFactory;
 
-// Warning: (ae-forgotten-export) The symbol "RateLimitConfig" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function createRateLimiter(config: RateLimitConfig): RateLimiter;
 
-// Warning: (ae-forgotten-export) The symbol "LocalizationParam" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function createRestRoutes(pool: DbPool, collections: CollectionRegistry, globals: GlobalRegistry, localization?: LocalizationParam): Map<string, RestRouteEntry>;
 
@@ -398,6 +461,24 @@ export function createSession(userId: string, pool: DbPool, maxAgeSeconds?: numb
 export function createUploadHandler(uploadDir: string, storage?: StorageAdapter, uploadConfig?: UploadConfig): (req: IncomingMessage, res: ServerResponse) => Promise<void>;
 
 // @public (undocumented)
+export interface DailyEventEntry {
+    // (undocumented)
+    readonly count: number;
+    // (undocumented)
+    readonly day: string;
+    // (undocumented)
+    readonly dom_target: string | null;
+    // (undocumented)
+    readonly event_category: string;
+}
+
+// @public (undocumented)
+export interface DashboardData {
+    // (undocumented)
+    readonly stats: readonly CollectionStat[];
+}
+
+// @public (undocumented)
 export interface DateFieldConfig extends FieldBaseConfig {
     // (undocumented)
     readonly type: 'date';
@@ -405,6 +486,14 @@ export interface DateFieldConfig extends FieldBaseConfig {
 
 // @public
 export const DEFAULT_SESSION_MAX_AGE = 7200;
+
+// @public (undocumented)
+export interface DeleteArgs {
+    // (undocumented)
+    readonly collection: string;
+    // (undocumented)
+    readonly id: string;
+}
 
 // @public
 export function destroyCustomSession(pool: DbPool, tableName: string, sessionId: string): ResultAsync<void, SessionError>;
@@ -414,6 +503,14 @@ export function destroySession(sessionId: string, pool: DbPool): ResultAsync<voi
 
 // @public (undocumented)
 export function destroyUserSessions(userId: string, pool: DbPool): ResultAsync<void, CmsError>;
+
+// @public (undocumented)
+export interface DocRow {
+    // (undocumented)
+    readonly [key: string]: string | number | boolean | Date | null | undefined;
+    // (undocumented)
+    readonly id?: string | undefined;
+}
 
 // @public (undocumented)
 export interface DocumentData {
@@ -436,6 +533,19 @@ export interface DocumentRow {
 }
 
 // @public (undocumented)
+export interface EditViewLocaleConfig {
+    // (undocumented)
+    readonly currentLocale: string;
+    // (undocumented)
+    readonly defaultLocale: string;
+    // (undocumented)
+    readonly locales: readonly {
+        readonly code: string;
+        readonly label: string;
+    }[];
+}
+
+// @public (undocumented)
 export interface EmailFieldConfig extends FieldBaseConfig {
     // (undocumented)
     readonly type: 'email';
@@ -443,6 +553,14 @@ export interface EmailFieldConfig extends FieldBaseConfig {
 
 // @public (undocumented)
 export function escapeHtml(str: string): string;
+
+// @public (undocumented)
+export interface EventCategoryEntry {
+    // (undocumented)
+    readonly count: number;
+    // (undocumented)
+    readonly event_category: string;
+}
 
 // @public (undocumented)
 export const field: {
@@ -551,6 +669,95 @@ export const FieldType: {
 export type FieldType = typeof FieldType[keyof typeof FieldType];
 
 // @public (undocumented)
+export interface FieldValueMap {
+    // (undocumented)
+    boolean: boolean;
+    // (undocumented)
+    color: string;
+    // (undocumented)
+    date: string;
+    // (undocumented)
+    email: string;
+    // (undocumented)
+    json: string;
+    // (undocumented)
+    media: string;
+    // (undocumented)
+    multiselect: string[];
+    // (undocumented)
+    number: number;
+    // (undocumented)
+    password: string;
+    // (undocumented)
+    relation: string;
+    // (undocumented)
+    richtext: string;
+    // (undocumented)
+    select: string;
+    // (undocumented)
+    slug: string;
+    // (undocumented)
+    text: string;
+    // (undocumented)
+    textarea: string;
+    // (undocumented)
+    url: string;
+}
+
+// @public (undocumented)
+export interface FindArgs {
+    // (undocumented)
+    readonly collection: string;
+    // (undocumented)
+    readonly filters?: Record<string, string> | undefined;
+    // (undocumented)
+    readonly includeDrafts?: boolean | undefined;
+    // (undocumented)
+    readonly limit?: number | undefined;
+    // (undocumented)
+    readonly locale?: string | undefined;
+    // (undocumented)
+    readonly orderBy?: {
+        field: string;
+        direction: 'asc' | 'desc';
+    } | undefined;
+    // (undocumented)
+    readonly page?: number | undefined;
+    // (undocumented)
+    readonly perPage?: number | undefined;
+    // (undocumented)
+    readonly search?: string | undefined;
+    // (undocumented)
+    readonly where?: Record<string, string | number | boolean | null> | undefined;
+    // (undocumented)
+    readonly whereClause?: WhereClause | undefined;
+}
+
+// @public (undocumented)
+export interface FindByIDArgs {
+    // (undocumented)
+    readonly collection: string;
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly whereClause?: WhereClause | undefined;
+}
+
+// @public (undocumented)
+export interface FindGlobalArgs {
+    // (undocumented)
+    readonly slug: string;
+}
+
+// @public (undocumented)
+export interface FlashMessage {
+    // (undocumented)
+    readonly text: string;
+    // (undocumented)
+    readonly type: 'success' | 'error' | 'info';
+}
+
+// @public (undocumented)
 export function flattenFields(fields: readonly FieldConfig[]): FieldConfig[];
 
 // @public (undocumented)
@@ -578,8 +785,6 @@ export function generateDraftSchema(fields: readonly FieldConfig[]): ZodObject;
 // @public (undocumented)
 export function generateLocalizedSchema(fields: readonly FieldConfig[]): ZodObject;
 
-// Warning: (ae-forgotten-export) The symbol "OpenApiSpec" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function generateOpenApiSpec(collections: CollectionRegistry): OpenApiSpec;
 
@@ -685,13 +890,15 @@ export interface ImageSize {
 }
 
 // @public (undocumented)
+export type InferBlockType<B extends BlockDefinition> = {
+    readonly blockType: B['slug'];
+} & InferFieldsType<B['fields']>;
+
+// @public (undocumented)
 export type InferFieldsType<Fields extends readonly FieldConfig[]> = {
     [K in Fields[number] as K['name']]: InferFieldType<K>;
 };
 
-// Warning: (ae-forgotten-export) The symbol "InferBlockType" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "FieldValueMap" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export type InferFieldType<F extends FieldConfig> = F extends BlocksFieldConfig ? Array<InferBlockType<F['blocks'][number]>> : F extends GroupFieldConfig ? InferFieldsType<F['fields']> : F extends ArrayFieldConfig ? InferFieldsType<F['fields']>[] : F extends {
     readonly type: infer T extends keyof FieldValueMap;
@@ -725,41 +932,116 @@ export interface JsonFieldConfig extends FieldBaseConfig {
 }
 
 // @public (undocumented)
+export interface JsonSchemaProperty {
+    // (undocumented)
+    readonly additionalProperties?: boolean;
+    // (undocumented)
+    readonly description?: string;
+    // (undocumented)
+    readonly enum?: readonly string[];
+    // (undocumented)
+    readonly format?: string;
+    // (undocumented)
+    readonly items?: JsonSchemaProperty | SchemaRef;
+    // (undocumented)
+    readonly nullable?: boolean;
+    // (undocumented)
+    readonly properties?: Record<string, JsonSchemaProperty | SchemaRef>;
+    // (undocumented)
+    readonly type?: string;
+}
+
+// @public (undocumented)
+export interface LayoutArgs {
+    // (undocumented)
+    readonly collections: readonly CollectionConfig[];
+    // (undocumented)
+    readonly content: string;
+    // (undocumented)
+    readonly headTags?: readonly string[] | undefined;
+    // (undocumented)
+    readonly nonce?: string | undefined;
+    // (undocumented)
+    readonly title: string;
+    // (undocumented)
+    readonly toast?: FlashMessage | undefined;
+}
+
+// @public (undocumented)
+export interface ListViewArgs {
+    // (undocumented)
+    readonly col: CollectionConfig;
+    // (undocumented)
+    readonly csrfToken?: string | undefined;
+    // (undocumented)
+    readonly dir?: 'asc' | 'desc' | undefined;
+    // (undocumented)
+    readonly docs: readonly ListViewDocumentRow[];
+    // (undocumented)
+    readonly filters?: Record<string, string> | undefined;
+    // (undocumented)
+    readonly localeConfig?: ListViewLocaleConfig | undefined;
+    // (undocumented)
+    readonly pagination?: ListViewPagination | undefined;
+    // (undocumented)
+    readonly query?: string | undefined;
+    // (undocumented)
+    readonly sort?: string | undefined;
+    // (undocumented)
+    readonly viewMode?: 'table' | 'grid' | undefined;
+}
+
+// @public (undocumented)
+export interface ListViewDocumentRow {
+    // (undocumented)
+    readonly [key: string]: string | number | boolean | null;
+    // (undocumented)
+    readonly id: string;
+}
+
+// @public (undocumented)
+export interface ListViewLocaleConfig {
+    // (undocumented)
+    readonly currentLocale: string;
+    // (undocumented)
+    readonly locales: readonly {
+        readonly code: string;
+        readonly label: string;
+    }[];
+}
+
+// @public (undocumented)
+export interface ListViewPagination {
+    // (undocumented)
+    readonly hasNextPage: boolean;
+    // (undocumented)
+    readonly hasPrevPage: boolean;
+    // (undocumented)
+    readonly page: number;
+    // (undocumented)
+    readonly totalDocs: number;
+    // (undocumented)
+    readonly totalPages: number;
+}
+
+// @public (undocumented)
 export interface LocalApi {
-    // Warning: (ae-forgotten-export) The symbol "CountArgs" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     count(args: CountArgs): ResultAsync<number, CmsError>;
-    // Warning: (ae-forgotten-export) The symbol "CreateArgs" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     create(args: CreateArgs): ResultAsync<DocumentRow, CmsError>;
-    // Warning: (ae-forgotten-export) The symbol "DeleteArgs" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     delete(args: DeleteArgs): ResultAsync<DocumentRow, CmsError>;
-    // Warning: (ae-forgotten-export) The symbol "FindArgs" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     find(args: FindArgs): ResultAsync<DocumentRow[] | PaginatedResult<DocumentRow>, CmsError>;
-    // Warning: (ae-forgotten-export) The symbol "FindByIDArgs" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     findByID(args: FindByIDArgs): ResultAsync<DocumentRow | null, CmsError>;
-    // Warning: (ae-forgotten-export) The symbol "FindGlobalArgs" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     findGlobal(args: FindGlobalArgs): ResultAsync<DocumentRow | null, CmsError>;
-    // Warning: (ae-forgotten-export) The symbol "UnpublishArgs" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     unpublish(args: UnpublishArgs): ResultAsync<DocumentRow, CmsError>;
-    // Warning: (ae-forgotten-export) The symbol "UpdateArgs" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     update(args: UpdateArgs): ResultAsync<DocumentRow, CmsError>;
-    // Warning: (ae-forgotten-export) The symbol "UpdateGlobalArgs" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     updateGlobal(args: UpdateGlobalArgs): ResultAsync<DocumentRow, CmsError>;
 }
@@ -780,6 +1062,24 @@ export interface LocalizationConfig {
     readonly fallback?: boolean | undefined;
     // (undocumented)
     readonly locales: readonly LocaleConfig[];
+}
+
+// @public (undocumented)
+export interface LocalizationParam {
+    // (undocumented)
+    readonly defaultLocale: string;
+    // (undocumented)
+    readonly locales: readonly {
+        readonly code: string;
+    }[];
+}
+
+// @public (undocumented)
+export interface LoginPageArgs {
+    // (undocumented)
+    readonly csrfToken: string;
+    // (undocumented)
+    readonly error?: string | undefined;
 }
 
 // @public (undocumented)
@@ -821,11 +1121,130 @@ export interface NumberFieldConfig extends FieldBaseConfig {
 }
 
 // @public (undocumented)
+export interface OpenApiOperation {
+    // (undocumented)
+    readonly parameters?: readonly OpenApiParameter[];
+    // (undocumented)
+    readonly requestBody?: OpenApiRequestBody;
+    // (undocumented)
+    readonly responses: Record<string, OpenApiResponse>;
+    // (undocumented)
+    readonly security: readonly Record<string, readonly string[]>[];
+    // (undocumented)
+    readonly summary: string;
+    // (undocumented)
+    readonly tags: readonly string[];
+}
+
+// @public (undocumented)
+export interface OpenApiParameter {
+    // (undocumented)
+    readonly description?: string;
+    // (undocumented)
+    readonly in: string;
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly required?: boolean;
+    // (undocumented)
+    readonly schema: {
+        readonly type: string;
+        readonly format?: string;
+        readonly default?: number | string;
+        readonly minimum?: number;
+        readonly maximum?: number;
+        readonly enum?: readonly string[];
+    };
+}
+
+// @public (undocumented)
+export interface OpenApiPathItem {
+    // (undocumented)
+    readonly delete?: OpenApiOperation;
+    // (undocumented)
+    readonly get?: OpenApiOperation;
+    // (undocumented)
+    readonly patch?: OpenApiOperation;
+    // (undocumented)
+    readonly post?: OpenApiOperation;
+}
+
+// @public (undocumented)
+export interface OpenApiRequestBody {
+    // (undocumented)
+    readonly content: {
+        readonly 'application/json': {
+            readonly schema: OpenApiSchema | SchemaRef;
+        };
+    };
+    // (undocumented)
+    readonly required: boolean;
+}
+
+// @public (undocumented)
+export interface OpenApiResponse {
+    // (undocumented)
+    readonly content?: {
+        readonly 'application/json': {
+            readonly schema: OpenApiSchema | {
+                readonly $ref: string;
+            };
+        };
+    };
+    // (undocumented)
+    readonly description: string;
+}
+
+// @public (undocumented)
+export interface OpenApiSchema {
+    // (undocumented)
+    readonly allOf?: readonly OpenApiSchema[];
+    // (undocumented)
+    readonly items?: JsonSchemaProperty | SchemaRef;
+    // (undocumented)
+    readonly properties?: Record<string, JsonSchemaProperty | SchemaRef>;
+    // (undocumented)
+    readonly required?: readonly string[];
+    // (undocumented)
+    readonly type?: string;
+}
+
+// @public (undocumented)
+export interface OpenApiSpec {
+    // (undocumented)
+    readonly components: {
+        readonly securitySchemes: Record<string, {
+            readonly type: string;
+            readonly in: string;
+            readonly name: string;
+        }>;
+        readonly schemas: Record<string, OpenApiSchema>;
+    };
+    // (undocumented)
+    readonly info: {
+        readonly title: string;
+        readonly version: string;
+    };
+    // (undocumented)
+    readonly openapi: string;
+    // (undocumented)
+    readonly paths: Record<string, OpenApiPathItem>;
+}
+
+// @public (undocumented)
 export interface OrderByClause {
     // (undocumented)
     readonly direction: 'asc' | 'desc';
     // (undocumented)
     readonly field: string;
+}
+
+// @public (undocumented)
+export interface PageviewEntry {
+    // (undocumented)
+    readonly path: string;
+    // (undocumented)
+    readonly views: number;
 }
 
 // @public (undocumented)
@@ -913,6 +1332,14 @@ export interface QueryBuilderFactory {
 }
 
 // @public (undocumented)
+export interface RateLimitConfig {
+    // (undocumented)
+    readonly maxAttempts: number;
+    // (undocumented)
+    readonly windowMs: number;
+}
+
+// @public (undocumented)
 export interface RateLimiter {
     // (undocumented)
     check(key: string): boolean;
@@ -920,6 +1347,20 @@ export interface RateLimiter {
     remaining(key: string): number;
     // (undocumented)
     reset(key: string): void;
+}
+
+// @public (undocumented)
+export interface RecentItem {
+    // (undocumented)
+    readonly [key: string]: string | number | boolean | null;
+    // (undocumented)
+    readonly id: string;
+}
+
+// @public (undocumented)
+export interface RelationContext {
+    // (undocumented)
+    readonly [fieldName: string]: readonly RelationOption[];
 }
 
 // @public (undocumented)
@@ -932,40 +1373,32 @@ export interface RelationFieldConfig extends FieldBaseConfig {
     readonly type: 'relation';
 }
 
-// Warning: (ae-forgotten-export) The symbol "LayoutArgs" needs to be exported by the entry point index.d.ts
-//
+// @public (undocumented)
+export interface RelationOption {
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly label: string;
+}
+
 // @public (undocumented)
 export function renderAdminLayout(args: LayoutArgs): string;
 
-// Warning: (ae-forgotten-export) The symbol "AnalyticsData" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function renderAnalyticsView(data: AnalyticsData | null): string;
 
-// Warning: (ae-forgotten-export) The symbol "DashboardData" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function renderDashboard(data: DashboardData): string;
 
-// Warning: (ae-forgotten-export) The symbol "DocRow" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "RelationContext" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "EditViewLocaleConfig" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function renderEditView(col: CollectionConfig, doc: DocRow | null, csrfToken?: string, relationContext?: RelationContext, nonce?: string, localeConfig?: EditViewLocaleConfig): string;
 
-// Warning: (ae-forgotten-export) The symbol "UploadContext" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function renderFieldInput(f: FieldConfig, value: string, context?: RelationContext, uploadContext?: UploadContext, formData?: Record<string, string>): string;
 
-// Warning: (ae-forgotten-export) The symbol "ListViewArgs" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function renderListView(args: ListViewArgs): string;
 
-// Warning: (ae-forgotten-export) The symbol "LoginPageArgs" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export function renderLoginPage(args: LoginPageArgs): string;
 
@@ -1037,6 +1470,20 @@ export interface SchemaChanges {
 }
 
 // @public (undocumented)
+export interface SchemaRef {
+    // (undocumented)
+    readonly $ref: string;
+}
+
+// @public (undocumented)
+export interface SearchConfig {
+    // (undocumented)
+    readonly fields?: readonly string[] | undefined;
+    // (undocumented)
+    readonly language?: string | undefined;
+}
+
+// @public (undocumented)
 export interface SelectFieldConfig extends FieldBaseConfig {
     // (undocumented)
     readonly hasMany?: boolean | undefined;
@@ -1088,6 +1535,16 @@ export interface SizeMetadata {
     readonly height: number;
     // (undocumented)
     readonly mimeType: string;
+    // (undocumented)
+    readonly width: number;
+}
+
+// @public (undocumented)
+export interface SizeVariant {
+    // (undocumented)
+    readonly filename: string;
+    // (undocumented)
+    readonly height: number;
     // (undocumented)
     readonly width: number;
 }
@@ -1181,6 +1638,54 @@ export const TokenErrorCode: Readonly<{
 export type TokenErrorCode = typeof TokenErrorCode[keyof typeof TokenErrorCode];
 
 // @public (undocumented)
+export interface TopPageEntry {
+    // (undocumented)
+    readonly count: number;
+    // (undocumented)
+    readonly path: string;
+}
+
+// @public (undocumented)
+export interface TopReferrerEntry {
+    // (undocumented)
+    readonly count: number;
+    // (undocumented)
+    readonly referrer: string;
+}
+
+// @public (undocumented)
+export interface UnpublishArgs {
+    // (undocumented)
+    readonly collection: string;
+    // (undocumented)
+    readonly id: string;
+}
+
+// @public (undocumented)
+export interface UpdateArgs {
+    // (undocumented)
+    readonly collection: string;
+    // (undocumented)
+    readonly data: DocumentData;
+    // (undocumented)
+    readonly draft?: boolean | undefined;
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly locale?: string | undefined;
+    // (undocumented)
+    readonly publish?: boolean | undefined;
+}
+
+// @public (undocumented)
+export interface UpdateGlobalArgs {
+    // (undocumented)
+    readonly data: DocumentData;
+    // (undocumented)
+    readonly slug: string;
+}
+
+// @public (undocumented)
 export interface UploadConfig {
     // (undocumented)
     readonly focalPoint?: boolean | undefined;
@@ -1192,6 +1697,20 @@ export interface UploadConfig {
     readonly maxFileSize?: number | undefined;
     // (undocumented)
     readonly mimeTypes?: readonly string[] | undefined;
+}
+
+// @public (undocumented)
+export interface UploadContext {
+    // (undocumented)
+    readonly focalPoint?: boolean | undefined;
+    // (undocumented)
+    readonly focalX?: number | undefined;
+    // (undocumented)
+    readonly focalY?: number | undefined;
+    // (undocumented)
+    readonly sizes?: Record<string, SizeVariant> | undefined;
+    // (undocumented)
+    readonly storedPath?: string | undefined;
 }
 
 // @public (undocumented)

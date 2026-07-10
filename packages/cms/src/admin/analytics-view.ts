@@ -1,33 +1,33 @@
 import { escapeHtml } from './escape.js'
 
-interface TopPageEntry {
+export interface TopPageEntry {
   readonly path: string
   readonly count: number
 }
 
-interface TopReferrerEntry {
+export interface TopReferrerEntry {
   readonly referrer: string
   readonly count: number
 }
 
-interface EventCategoryEntry {
+export interface EventCategoryEntry {
   readonly event_category: string
   readonly count: number
 }
 
-interface PageviewEntry {
+export interface PageviewEntry {
   readonly path: string
   readonly views: number
 }
 
-interface DailyEventEntry {
+export interface DailyEventEntry {
   readonly day: string
   readonly event_category: string
   readonly dom_target: string | null
   readonly count: number
 }
 
-interface AnalyticsData {
+export interface AnalyticsData {
   readonly sessionCount: number
   readonly pageviewCount: number
   readonly conversionCount: number

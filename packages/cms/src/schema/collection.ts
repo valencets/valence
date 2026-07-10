@@ -37,7 +37,7 @@ export interface CollectionConfig {
   readonly access?: CollectionAccess | undefined
 }
 
-type CollectionInput = Omit<CollectionConfig, 'timestamps'> & {
+export type CollectionInput = Omit<CollectionConfig, 'timestamps'> & {
   readonly timestamps?: boolean | undefined
 }
 

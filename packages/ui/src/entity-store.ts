@@ -4,7 +4,7 @@
 
 export type EntityData = Record<string, string | number | boolean | null>
 
-type EntityCallback = (entity: EntityData) => void
+export type EntityCallback = (entity: EntityData) => void
 
 interface EntityEntry {
   readonly subscribers: Set<EntityCallback>

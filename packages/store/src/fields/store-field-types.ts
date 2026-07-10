@@ -33,7 +33,7 @@ export type JsonValue =
   | readonly JsonValue[]
   | { [key: string]: JsonValue }
 
-interface StoreFieldBase {
+export interface StoreFieldBase {
   readonly name: string
   readonly type: StoreFieldType
   /** Required fields must be present in mutation input; fields are optional by default */

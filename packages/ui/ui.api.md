@@ -5,6 +5,17 @@
 ```ts
 
 // @public (undocumented)
+export const AUTOSAVE_STATES: {
+    readonly saved: "Saved";
+    readonly unsaved: "Unsaved changes";
+    readonly saving: "Saving…";
+    readonly error: "Save failed";
+};
+
+// @public (undocumented)
+export type AutosaveState = keyof typeof AUTOSAVE_STATES;
+
+// @public (undocumented)
 export const COMPONENT_REGISTRY: Readonly<Record<string, CustomElementConstructor>>;
 
 // @public (undocumented)
@@ -20,6 +31,9 @@ export const darkTokenSheet: CSSStyleSheet;
 export function emitInteraction(element: HTMLElement, action: string, detail?: Record<string, string | number | boolean>): void;
 
 // @public (undocumented)
+export type EntityCallback = (entity: EntityData) => void;
+
+// @public (undocumented)
 export type EntityData = Record<string, string | number | boolean | null>;
 
 // @public (undocumented)
@@ -32,8 +46,6 @@ export interface EntityStore {
     patch(id: string, partial: EntityData): void;
     // (undocumented)
     set(id: string, data: EntityData): void;
-    // Warning: (ae-forgotten-export) The symbol "EntityCallback" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     subscribe(id: string, callback: EntityCallback): () => void;
 }
@@ -54,10 +66,19 @@ export type InteractionDetail = InteractionBase & Record<string, string | number
 // @public
 export const lightTokenSheet: CSSStyleSheet;
 
-// Warning: (ae-forgotten-export) The symbol "LocaleObserverImpl" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export const localeObserver: LocaleObserverImpl;
+
+// @public (undocumented)
+export class LocaleObserverImpl {
+    // (undocumented)
+    get locale(): string;
+    _reset(): void;
+    // (undocumented)
+    subscribe(sub: LocaleSubscriber): void;
+    // (undocumented)
+    unsubscribe(sub: LocaleSubscriber): void;
+}
 
 // @public (undocumented)
 export interface LocaleSubscriber {
@@ -72,12 +93,32 @@ export function mergeTokenSheets(...sheets: ReadonlyArray<CSSStyleSheet>): CSSSt
 export function registerAll(): void;
 
 // @public (undocumented)
+export type ResolvedTheme = 'light' | 'dark';
+
+// @public (undocumented)
 export function resolveSpace(value: string | null): string;
 
-// Warning: (ae-forgotten-export) The symbol "ThemeManagerImpl" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export const themeManager: ThemeManagerImpl;
+
+// @public (undocumented)
+export class ThemeManagerImpl {
+    // (undocumented)
+    applyOverrides(sheet: CSSStyleSheet): void;
+    // (undocumented)
+    clearOverrides(): void;
+    // (undocumented)
+    getActiveSheet(): CSSStyleSheet;
+    _reset(): void;
+    // (undocumented)
+    resolveTheme(): ResolvedTheme;
+    // (undocumented)
+    setTheme(mode: ThemeMode): void;
+    // (undocumented)
+    subscribe(root: ShadowRoot): void;
+    // (undocumented)
+    unsubscribe(root: ShadowRoot): void;
+}
 
 // @public (undocumented)
 export const ThemeMode: {
@@ -108,8 +149,6 @@ export class ValAutosave extends ValElement {
     get endpoint(): string;
     // (undocumented)
     static observedAttributes: string[];
-    // Warning: (ae-forgotten-export) The symbol "AutosaveState" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     get state(): AutosaveState;
 }

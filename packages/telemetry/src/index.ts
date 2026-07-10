@@ -69,13 +69,21 @@ export type { SessionRow, EventRow, InsertableSession, InsertableEvent } from '.
 
 // Event queries (migrated from @valencets/db)
 export {
-  createSession,
   getSessionById,
   insertEvent,
   insertEvents,
   getEventsBySession,
   getEventsByTimeRange
 } from './event-queries.js'
+
+// #337 — `createSession` collides with @valencets/cms's auth-session
+// export (same name, unrelated semantics). The analytics session creator
+// carries an unambiguous primary name.
+export { createSession as createTelemetrySession } from './event-queries.js'
+
+/** @deprecated Use `createTelemetrySession` — this name collides with the
+ *  cms auth-session export and will be removed in 2.0. */
+export { createSession } from './event-queries.js'
 
 // Client initialization
 export { initTelemetry } from './init.js'

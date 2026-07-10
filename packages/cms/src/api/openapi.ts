@@ -3,11 +3,11 @@ import type { CollectionConfig } from '../schema/collection.js'
 import type { FieldConfig } from '../schema/field-types.js'
 import { flattenFields } from '../schema/field-utils.js'
 
-interface SchemaRef {
+export interface SchemaRef {
   readonly $ref: string
 }
 
-interface JsonSchemaProperty {
+export interface JsonSchemaProperty {
   readonly type?: string
   readonly format?: string
   readonly description?: string
@@ -18,7 +18,7 @@ interface JsonSchemaProperty {
   readonly nullable?: boolean
 }
 
-interface OpenApiSchema {
+export interface OpenApiSchema {
   readonly type?: string
   readonly properties?: Record<string, JsonSchemaProperty | SchemaRef>
   readonly required?: readonly string[]
@@ -26,7 +26,7 @@ interface OpenApiSchema {
   readonly items?: JsonSchemaProperty | SchemaRef
 }
 
-interface OpenApiResponse {
+export interface OpenApiResponse {
   readonly description: string
   readonly content?: {
     readonly 'application/json': {
@@ -35,7 +35,7 @@ interface OpenApiResponse {
   }
 }
 
-interface OpenApiRequestBody {
+export interface OpenApiRequestBody {
   readonly required: boolean
   readonly content: {
     readonly 'application/json': {
@@ -44,7 +44,7 @@ interface OpenApiRequestBody {
   }
 }
 
-interface OpenApiParameter {
+export interface OpenApiParameter {
   readonly name: string
   readonly in: string
   readonly required?: boolean
@@ -52,7 +52,7 @@ interface OpenApiParameter {
   readonly schema: { readonly type: string; readonly format?: string; readonly default?: number | string; readonly minimum?: number; readonly maximum?: number; readonly enum?: readonly string[] }
 }
 
-interface OpenApiOperation {
+export interface OpenApiOperation {
   readonly summary: string
   readonly tags: readonly string[]
   readonly security: readonly Record<string, readonly string[]>[]
@@ -61,14 +61,14 @@ interface OpenApiOperation {
   readonly responses: Record<string, OpenApiResponse>
 }
 
-interface OpenApiPathItem {
+export interface OpenApiPathItem {
   readonly get?: OpenApiOperation
   readonly post?: OpenApiOperation
   readonly patch?: OpenApiOperation
   readonly delete?: OpenApiOperation
 }
 
-interface OpenApiSpec {
+export interface OpenApiSpec {
   readonly openapi: string
   readonly info: {
     readonly title: string

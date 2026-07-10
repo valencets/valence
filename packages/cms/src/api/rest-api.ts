@@ -25,7 +25,7 @@ export interface RestRouteEntry {
   readonly DELETE?: RestRouteHandler | undefined
 }
 
-interface LocalizationParam {
+export interface LocalizationParam {
   readonly defaultLocale: string
   readonly locales: readonly { readonly code: string }[]
 }
