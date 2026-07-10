@@ -258,7 +258,8 @@ next file change) and the last good bundle keeps serving.
 Per store (except `page` scope):
 
 - `POST /store/:slug/:mutation` — body `{ args, mutationId }`; 400 on
-  validation failure, 404 on unknown mutation, 413 over 256 KB.
+  validation failure, 403 when a declared `Origin`/`Referer` does not match
+  the request host, 404 on unknown mutation, 413 over 256 KB.
 - `GET /store/:slug/state` — current state as JSON.
 - `GET /store/:slug/events` — SSE channel (heartbeat every 30 s; one
   session may hold many tabs).
@@ -317,6 +318,13 @@ user-scoped store and a database pool are configured.
 - Anonymous session ids are HMAC-signed and verified timing-safely;
   authenticated identity is validated against the CMS sessions table with
   its expiry and soft-delete checks.
+- Mutation POSTs carry Origin defense in depth on top of `SameSite=Lax`
+  cookies: a declared `Origin` (or `Referer` when no Origin is present)
+  whose host differs from the request host — including the opaque `null`
+  origin — is rejected with 403 before identity resolution, so rejected
+  requests never mint session cookies. Requests declaring neither header
+  (curl, server-to-server) pass: they carry no ambient browser credentials
+  to launder.
 - The per-bucket mutation lock is in-process. Multi-process or multi-node
   deployments sharing one database need row-level locking on
   `store_states` before serving the same user-scoped store from several

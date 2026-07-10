@@ -127,6 +127,34 @@ function rejectAnonymous (res: ServerResponse): void {
   sendJson(res, 403, { error: { code: 'FORBIDDEN', message: 'User-scoped stores require an authenticated session' } })
 }
 
+const safeParseUrl = fromThrowable((value: string) => new URL(value), () => null)
+
+/**
+ * Origin defense in depth for cookie-authenticated mutation POSTs (#340).
+ * SameSite=Lax already blocks most cross-site POSTs; this rejects the rest
+ * whenever the browser declares a foreign origin — including the opaque
+ * "null" origin from sandboxed frames. Requests declaring neither Origin
+ * nor Referer (curl, server-to-server) pass: they carry no ambient browser
+ * credentials to launder. Runs before identity resolution so rejected
+ * requests never mint session cookies.
+ */
+function rejectsCrossOrigin (req: IncomingMessage, res: ServerResponse): boolean {
+  const origin = req.headers.origin
+  const referer = req.headers.referer
+  const declared = (typeof origin === 'string' && origin !== '')
+    ? origin
+    : (typeof referer === 'string' && referer !== '') ? referer : null
+  if (declared === null) return false
+
+  const host = req.headers.host
+  const parsed = safeParseUrl(declared)
+  const declaredHost = (parsed.isOk() && parsed.value !== null) ? parsed.value.host : null
+  if (host !== undefined && declaredHost !== null && declaredHost === host) return false
+
+  sendJson(res, 403, { error: { code: 'FORBIDDEN', message: 'Cross-origin request rejected' } })
+  return true
+}
+
 const ERROR_STATUS: Readonly<Record<string, number>> = Object.freeze({
   VALIDATION_FAILED: 400,
   INVALID_MUTATION: 404,
@@ -225,6 +253,7 @@ export function registerStoreRoutesOnServer (
 
     // POST /store/:slug/:mutation — execute mutation
     registerRoute('POST', `/store/${config.slug}/:mutation`, async (req: IncomingMessage, res: ServerResponse, params: Record<string, string>) => {
+      if (rejectsCrossOrigin(req, res)) return
       const identity = await requireIdentity(req, res)
       if (identity === null) return
       const mutationName = params.mutation ?? ''
