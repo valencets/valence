@@ -426,6 +426,42 @@ const cms = buildCms({
 
 Hooks run at specific lifecycle points during CRUD operations. They execute sequentially and can transform data.
 
+### Definitive firing order
+
+Every entry path (REST, Local API, admin, GraphQL, bulk operations) delegates to the Local API, so one order holds everywhere:
+
+**Writes (create / update):**
+
+```
+beforeValidate (collection)   ─ may transform data, runs before the transaction
+beforeValidate (field)
+┌─ transaction begins ─────────────────────────────────────┐
+beforeChange (collection)     ─ may transform data
+beforeChange (field)
+[beforePublish (collection)]  ─ publish updates only
+INSERT / UPDATE
+[afterPublish (collection)]   ─ publish updates only
+afterChange (field)           ─ may transform the returned document
+afterChange (collection)      ─ side effects only; return value ignored
+└─ transaction commits ────────────────────────────────────┘
+```
+
+A hook that throws inside the transaction rolls the write back — no partial state survives.
+
+**Reads (find / findByID):**
+
+```
+beforeRead (collection)       ─ runs before the query
+SELECT
+afterRead (field)             ─ per document, may transform
+afterRead (collection)        ─ per document, may transform
+field-level access filtering  ─ protected fields removed last
+```
+
+**Deletes:** `beforeDelete → DELETE → afterDelete`. **Unpublish:** `beforeUnpublish → UPDATE → afterUnpublish`.
+
+Known limitation: localized-merge updates (`update` with a `locale` on a collection with localized fields) currently bypass change hooks — the jsonb merge semantics predate the hook wiring. Tracked with the transactional-integrity work in #334.
+
 ### Auto-generating slugs
 
 ```typescript
