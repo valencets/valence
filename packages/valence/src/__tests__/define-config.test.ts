@@ -25,10 +25,10 @@ describe('defineConfig', () => {
   it('resolved config has db pool settings with defaults', () => {
     const result = defineConfig(minimalConfig)
     const resolved = result.unwrap()
-    expect(resolved.db.max).toBe(10)
-    expect(resolved.db.idle_timeout).toBe(30)
-    expect(resolved.db.connect_timeout).toBe(10)
-    expect(resolved.db.sslmode).toBe('disable')
+    expect(resolved.db?.max).toBe(10)
+    expect(resolved.db?.idle_timeout).toBe(30)
+    expect(resolved.db?.connect_timeout).toBe(10)
+    expect(resolved.db?.sslmode).toBe('disable')
   })
 
   it('resolved config has server host defaulting to 0.0.0.0', () => {
@@ -37,17 +37,49 @@ describe('defineConfig', () => {
     expect(resolved.server.host).toBe('0.0.0.0')
   })
 
-  it('returns Err for missing db', () => {
-    const result = defineConfig({ server: { port: 3000 }, collections: [] } as never)
-    expect(result.isErr()).toBe(true)
-  })
+  // The optional-everything contract: a Valence app is routes + pages by
+  // default. db, server, and collections are all optional — database
+  // features enforce their requirement at boot, with named reasons.
+  describe('optional-everything', () => {
+    it('accepts a completely empty config', () => {
+      const result = defineConfig({})
+      expect(result.isOk()).toBe(true)
+      const resolved = result.unwrap()
+      expect(resolved.db).toBeUndefined()
+      expect(resolved.collections).toEqual([])
+      expect(resolved.server.port).toBe(3000)
+      expect(resolved.server.host).toBe('0.0.0.0')
+    })
 
-  it('returns Err for missing server', () => {
-    const result = defineConfig({
-      db: { host: 'localhost', port: 5432, database: 'x', username: 'x', password: 'x' },
-      collections: []
-    } as never)
-    expect(result.isErr()).toBe(true)
+    it('accepts a routes-only config with no db, server, or collections', () => {
+      const result = defineConfig({
+        routes: [{ path: '/hello', loader: async () => ({ data: { ok: true } }) }]
+      })
+      expect(result.isOk()).toBe(true)
+      const resolved = result.unwrap()
+      expect(resolved.routes).toHaveLength(1)
+      expect(resolved.db).toBeUndefined()
+    })
+
+    it('accepts collections without a db section — the database may come from .env at boot', () => {
+      const result = defineConfig({
+        collections: [{ slug: 'posts', fields: [{ type: 'text', name: 'title' }], timestamps: true } as never]
+      })
+      expect(result.isOk()).toBe(true)
+    })
+
+    it('accepts a server section with only a host', () => {
+      const result = defineConfig({ server: { host: '127.0.0.1' } })
+      expect(result.isOk()).toBe(true)
+      const resolved = result.unwrap()
+      expect(resolved.server.port).toBe(3000)
+      expect(resolved.server.host).toBe('127.0.0.1')
+    })
+
+    it('still validates the db section when present', () => {
+      const result = defineConfig({ db: { host: '', port: 5432, database: 'x', username: 'x', password: 'x' } })
+      expect(result.isErr()).toBe(true)
+    })
   })
 
   it('accepts optional telemetry config', () => {
