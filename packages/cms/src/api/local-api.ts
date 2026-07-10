@@ -11,6 +11,7 @@ import { createQueryBuilder } from '../db/query-builder.js'
 import { CmsErrorCode, StatusCode } from '../schema/types.js'
 import { isValidIdentifier } from '../db/sql-sanitize.js'
 import { safeQuery } from '../db/safe-query.js'
+import { saveRevision } from '../db/revision-queries.js'
 import { runHooks } from '../hooks/hook-runner.js'
 import { runFieldHooks } from '../hooks/field-hook-runner.js'
 
@@ -48,6 +49,11 @@ export interface UpdateArgs {
   readonly publish?: boolean | undefined
   readonly draft?: boolean | undefined
   readonly locale?: string | undefined
+  // Snapshot the written row into document_revisions inside the same
+  // transaction (#334). The admin panel opts in; a failed revision insert
+  // rolls the document write back rather than leaving history and state
+  // divergent. REST/GraphQL leave this unset and write no revision.
+  readonly createRevision?: boolean | undefined
 }
 
 export interface DeleteArgs {
@@ -510,7 +516,16 @@ export function createLocalApi (
             await unwrapTx(
               runCollectionHookList(colHooks?.afterChange, afterResult as DocumentData, args.id, args.collection)
             )
-            return applyReadFilter(afterResult as DocumentRow, args.collection)
+            const finalDoc = applyReadFilter(afterResult as DocumentRow, args.collection)
+            // Revision snapshot rides the write transaction: the document row
+            // is already locked by the UPDATE above, so revision numbering is
+            // serialized per document and the two commit or roll back as one.
+            if (args.createRevision) {
+              await unwrapTx(
+                saveRevision(txPool, col.value.slug, args.id, finalDoc as Record<string, string | number | boolean | null>)
+              )
+            }
+            return finalDoc
           }),
           mapTxError
         )
