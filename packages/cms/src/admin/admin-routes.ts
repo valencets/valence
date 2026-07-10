@@ -23,7 +23,7 @@ import { parseCookie } from '../auth/cookie.js'
 import { renderLoginPage } from './login-view.js'
 import { renderAnalyticsView } from './analytics-view.js'
 import { renderRevisionList, renderRevisionDiff } from './revision-view.js'
-import { saveRevision, getRevisions, getRevision } from '../db/revision-queries.js'
+import { getRevisions, getRevision } from '../db/revision-queries.js'
 import { safeQuery } from '../db/safe-query.js'
 import { getValidFieldNames, isAllowedField } from '../db/sql-sanitize.js'
 import type { PaginatedResult } from '../db/query-types.js'
@@ -709,11 +709,11 @@ export function createAdminRoutes (
           return
         }
         const shouldPublish = String(_action ?? '') === 'publish'
-        const result = await api.update({ collection: col.slug, id, data: stripUndefined(validation.data as DocumentData), publish: shouldPublish || undefined })
+        // createRevision writes the history row inside the update transaction
+        // (#334) — atomic with the document write, no post-commit orphan.
+        const result = await api.update({ collection: col.slug, id, data: stripUndefined(validation.data as DocumentData), publish: shouldPublish || undefined, createRevision: true })
         result.match(
-          (updated) => {
-            // Save revision on successful update
-            saveRevision(pool, col.slug, id, updated as Record<string, string | number | boolean | null>)
+          (_updated) => {
             setFlashCookie(res, { type: 'success', text: `${col.labels?.singular ?? col.slug} updated successfully` })
             res.writeHead(302, { Location: `/admin/${col.slug}` })
             res.end()

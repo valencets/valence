@@ -1666,6 +1666,8 @@ export interface UpdateArgs {
     // (undocumented)
     readonly collection: string;
     // (undocumented)
+    readonly createRevision?: boolean | undefined;
+    // (undocumented)
     readonly data: DocumentData;
     // (undocumented)
     readonly draft?: boolean | undefined;

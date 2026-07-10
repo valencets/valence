@@ -481,10 +481,11 @@ INSERT / UPDATE
 [afterPublish (collection)]   ─ publish updates only
 afterChange (field)           ─ may transform the returned document
 afterChange (collection)      ─ side effects only; return value ignored
+[revision snapshot]           ─ admin edits only; INSERT into document_revisions
 └─ transaction commits ────────────────────────────────────┘
 ```
 
-A hook that throws inside the transaction rolls the write back — no partial state survives.
+A hook that throws inside the transaction rolls the write back — no partial state survives. The revision snapshot (written for admin edits) rides the same transaction (#334): if the history insert fails, the document write is rolled back too, so state and history never diverge. Because `afterChange` runs *before* commit, an `afterChange` side effect that must not happen on a rolled-back write (sending mail, calling a third-party API) should be made idempotent or moved to a post-commit queue — the framework guarantees the row is authoritative, not that external effects are transactional.
 
 **Reads (find / findByID):**
 
