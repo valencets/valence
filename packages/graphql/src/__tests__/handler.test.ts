@@ -139,6 +139,34 @@ describe('createGraphQLHandler', () => {
     })
   })
 
+  // #350 audit — the handler buffered request bodies without a cap and
+  // waited for 'end' forever. Once the cap is exceeded it must answer 413
+  // immediately instead of buffering an attacker's unbounded stream.
+  describe('body size cap', () => {
+    it('answers oversized bodies at the cap without waiting for the stream to end', async () => {
+      const schema = makeSimpleSchema()
+      const handler = createGraphQLHandler(schema)
+
+      const emitter = new EventEmitter() as IncomingMessage
+      emitter.method = 'POST'
+      emitter.headers = {}
+      emitter.url = '/graphql'
+      setTimeout(() => {
+        for (let i = 0; i < 30; i++) {
+          emitter.emit('data', Buffer.alloc(10_000, 120))
+        }
+        // no 'end' — the handler must have already answered
+      }, 0)
+
+      const { res, capture } = makeResponse()
+      await handler(emitter, res)
+
+      expect(capture.status).toBe(413)
+      const parsed = JSON.parse(capture.body) as { errors: Array<{ message: string }> }
+      expect(parsed.errors[0]!.message).toContain('too large')
+    }, 4000)
+  })
+
   describe('JSON body parsing', () => {
     it('returns 400 for non-JSON body', async () => {
       const schema = makeSimpleSchema()
