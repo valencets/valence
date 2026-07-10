@@ -135,7 +135,7 @@ describe('PostgresStateHolder', () => {
 
     expect(state.count).toBe(7)
     expect(state.theme).toBeUndefined()
-    const [sql, ...params] = query.mock.calls[0]! as unknown as [string, ...string[]]
+    const [sql, params] = query.mock.calls[0]! as unknown as [string, readonly string[]]
     expect(sql).toContain('store_states')
     expect(sql).toContain('$1')
     expect(params).toEqual(['prefs', 'user:u1'])
@@ -157,7 +157,7 @@ describe('PostgresStateHolder', () => {
 
     await holder.setState('user:u1', { count: 3, theme: 'light' })
 
-    const [sql, ...params] = query.mock.calls[0]! as unknown as [string, ...string[]]
+    const [sql, params] = query.mock.calls[0]! as unknown as [string, readonly string[]]
     expect(sql).toContain('INSERT INTO')
     expect(sql).toContain('ON CONFLICT')
     expect(sql).not.toContain('user:u1')
@@ -168,7 +168,7 @@ describe('PostgresStateHolder', () => {
 
   it('round-trips through registerStoreRoutes for a user-scoped store', async () => {
     const rows = new Map<string, StoreState>()
-    const query = vi.fn(async (sql: string, ...params: string[]) => {
+    const query = vi.fn(async (sql: string, params: readonly string[] = []) => {
       if (sql.startsWith('INSERT')) {
         rows.set(`${params[0]}|${params[1]}`, JSON.parse(params[2]!) as StoreState)
         return []

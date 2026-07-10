@@ -3,7 +3,8 @@ import { EventEmitter } from 'node:events'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { field } from '@valencets/store'
 import type { StoreInput } from '@valencets/store'
-import { registerStoreRoutesOnServer } from '../store-wiring.js'
+import type { DbPool } from '@valencets/db'
+import { registerStoreRoutesOnServer, maybeRegisterStores } from '../store-wiring.js'
 import type { RouteHandler } from '../define-config.js'
 
 interface CapturedResponse {
@@ -158,6 +159,38 @@ describe('registerStoreRoutesOnServer', () => {
     expect(JSON.parse(captured.body).state.count).toBe(9.99)
   })
 
+  // #333 — the adapter maybeRegisterStores builds must forward
+  // query(text, params) to sql.unsafe(text, params) as a flat array, so
+  // mutation server fns bind values instead of interpolating them into SQL.
+  it('maybeRegisterStores adapter forwards query(text, params) to sql.unsafe without nesting', async () => {
+    const unsafe = vi.fn(async () => [{ price: 9.99 }])
+    const dbPool = { sql: { unsafe } } as unknown as DbPool
+    const { registerRoute, routes } = collectRoutes()
+    const SECRET = 'wiring-test-secret'
+
+    const storeInput = counterStore({
+      mutations: {
+        lookup: {
+          input: [field.text({ name: 'sku', required: true })],
+          server: async ({ state, input, pool }) => {
+            const rows = await pool.query('SELECT price FROM products WHERE sku = $1', [String(input.sku)])
+            state.count = (rows[0] as { price: number }).price
+          }
+        }
+      }
+    })
+
+    maybeRegisterStores([storeInput], registerRoute, undefined, dbPool, SECRET)
+
+    const { mintSignedSessionId } = await import('../store-session.js')
+    const token = mintSignedSessionId(SECRET)
+    const captured = await postMutation(routes, 'counter', 'lookup', '{"args":{"sku":"abc"}}', `session_id=${token}`)
+
+    expect(captured.statusCode).toBe(200)
+    expect(unsafe).toHaveBeenCalledWith('SELECT price FROM products WHERE sku = $1', ['abc'])
+    expect(JSON.parse(captured.body).state.count).toBe(9.99)
+  })
+
   it('registers no server routes for page-scoped stores', () => {
     const { registerRoute, routes } = collectRoutes()
     registerStoreRoutesOnServer([counterStore({ scope: 'page' })], registerRoute)
@@ -309,7 +342,7 @@ describe('user-scope postgres persistence wiring', () => {
 
   it('ensures the store_states table and persists user state through the pool', async () => {
     const rows = new Map<string, { [key: string]: unknown }>()
-    const query = vi.fn(async (sql: string, ...params: string[]) => {
+    const query = vi.fn(async (sql: string, params: readonly string[] = []) => {
       if (sql.startsWith('CREATE TABLE')) return []
       if (sql.startsWith('INSERT')) {
         rows.set(`${params[0]}|${params[1]}`, JSON.parse(params[2]!) as { [key: string]: unknown })
@@ -431,7 +464,7 @@ describe('persist option wiring', () => {
 
   function persistPool (): { query: ReturnType<typeof vi.fn>; rows: Map<string, { [key: string]: unknown }> } {
     const rows = new Map<string, { [key: string]: unknown }>()
-    const query = vi.fn(async (sql: string, ...params: string[]) => {
+    const query = vi.fn(async (sql: string, params: readonly string[] = []) => {
       if (sql.startsWith('CREATE TABLE')) return []
       if (sql.startsWith('INSERT')) {
         rows.set(`${params[0]}|${params[1]}`, JSON.parse(params[2]!) as { [key: string]: unknown })
