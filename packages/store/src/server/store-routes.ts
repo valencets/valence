@@ -24,8 +24,14 @@ interface StoreRouteHandlers {
 /**
  * Parameterized query contract for store persistence and mutation server
  * fns — `query(text, params?)`, values always bound as `$n` parameters.
+ * Pools that can open transactions expose `transaction`, which runs the
+ * callback on ONE connection inside BEGIN/COMMIT — required for the
+ * row-locked persisted-bucket path (#336). Pools without it fall back to
+ * the in-process mutation lock only (single-node semantics).
  */
-export type StorePool = MutationPool
+export interface StorePool extends MutationPool {
+  readonly transaction?: <T>(fn: (tx: MutationPool) => Promise<T>) => Promise<T>
+}
 
 const defaultPool: StorePool = { query: async () => [] }
 
