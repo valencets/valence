@@ -71,7 +71,9 @@ export interface OnServerContext {
 }
 
 export interface ValenceConfig {
-  readonly db: {
+  // Optional — only database-backed features (collections, telemetry,
+  // persisted stores) need it, and it may come from .env at boot instead.
+  readonly db?: {
     readonly host: string
     readonly port: number
     readonly database: string
@@ -83,12 +85,15 @@ export interface ValenceConfig {
     readonly query_timeout?: number | undefined
     readonly sslmode?: 'disable' | 'require' | 'verify-ca' | 'verify-full' | undefined
     readonly sslrootcert?: string | undefined
-  }
-  readonly server: {
-    readonly port: number
+  } | undefined
+  // Optional — defaults to port 3000 on 0.0.0.0.
+  readonly server?: {
+    readonly port?: number | undefined
     readonly host?: string | undefined
-  }
-  readonly collections: ReadonlyArray<CollectionConfig>
+  } | undefined
+  // Optional — a Valence app is routes + pages by default; collections
+  // opt in to the CMS (database, REST, Local API).
+  readonly collections?: ReadonlyArray<CollectionConfig> | undefined
   readonly telemetry?: {
     readonly enabled: boolean
     readonly endpoint: string
@@ -121,7 +126,7 @@ export interface ValenceConfig {
 }
 
 export interface ResolvedValenceConfig {
-  readonly db: {
+  readonly db?: {
     readonly host: string
     readonly port: number
     readonly database: string
@@ -133,7 +138,7 @@ export interface ResolvedValenceConfig {
     readonly query_timeout?: number | undefined
     readonly sslmode: 'disable' | 'require' | 'verify-ca' | 'verify-full'
     readonly sslrootcert?: string | undefined
-  }
+  } | undefined
   readonly server: {
     readonly port: number
     readonly host: string
@@ -198,12 +203,12 @@ const dbSchema = z.object({
 })
 
 const configSchema = z.object({
-  db: dbSchema,
+  db: dbSchema.optional(),
   server: z.object({
-    port: z.number().int().min(1).max(65535),
+    port: z.number().int().min(1).max(65535).optional(),
     host: z.string().min(1).optional()
-  }),
-  collections: z.array(collectionSchema),
+  }).optional(),
+  collections: z.array(collectionSchema).optional(),
   telemetry: z.object({
     enabled: z.boolean(),
     endpoint: z.string().min(1),
@@ -221,6 +226,25 @@ const configSchema = z.object({
   }).optional()
 })
 
+type ParsedDbSection = NonNullable<z.infer<typeof configSchema>['db']>
+
+function resolveDbSection (db: ParsedDbSection | undefined): ResolvedValenceConfig['db'] {
+  if (!db) return undefined
+  return {
+    host: db.host,
+    port: db.port,
+    database: db.database,
+    username: db.username,
+    password: db.password,
+    max: db.max ?? 10,
+    idle_timeout: db.idle_timeout ?? 30,
+    connect_timeout: db.connect_timeout ?? 10,
+    query_timeout: db.query_timeout,
+    sslmode: db.sslmode ?? 'disable',
+    sslrootcert: db.sslrootcert
+  }
+}
+
 export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConfig, ConfigError> {
   // Strip onServer, routes, and stores before Zod validation — all contain function
   // values that Zod cannot validate. Preserve them and re-attach after resolution.
@@ -237,7 +261,7 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
     })
   }
 
-  const collectionValidation = validateCollections(config.collections)
+  const collectionValidation = validateCollections(config.collections ?? [])
   if (collectionValidation.isErr()) {
     const errors = collectionValidation.error
     const firstError = errors[0]
@@ -255,24 +279,12 @@ export function defineConfig (config: ValenceConfig): Result<ResolvedValenceConf
   const data = parsed.data
 
   const resolved: ResolvedValenceConfig = {
-    db: {
-      host: data.db.host,
-      port: data.db.port,
-      database: data.db.database,
-      username: data.db.username,
-      password: data.db.password,
-      max: data.db.max ?? 10,
-      idle_timeout: data.db.idle_timeout ?? 30,
-      connect_timeout: data.db.connect_timeout ?? 10,
-      query_timeout: data.db.query_timeout,
-      sslmode: data.db.sslmode ?? 'disable',
-      sslrootcert: data.db.sslrootcert
-    },
+    db: resolveDbSection(data.db),
     server: {
-      port: data.server.port,
-      host: data.server.host ?? '0.0.0.0'
+      port: data.server?.port ?? 3000,
+      host: data.server?.host ?? '0.0.0.0'
     },
-    collections: config.collections,
+    collections: config.collections ?? [],
     telemetry: data.telemetry
       ? {
           enabled: data.telemetry.enabled,
