@@ -27,7 +27,8 @@ import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loade
 import type { RouteHandler } from './define-config.js'
 import { resolveCustomRoute } from './route-matcher.js'
 import { generateCollectionRoutes, buildGeneratedRouteMap, buildUserRouteMap } from './route-generator.js'
-import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash, setSecurityHeaders } from '@valencets/core/server'
+import { resolveStaticPath, resolveMimeType, sendHtml, serveStaticFile, stripTrailingSlash, setSecurityHeaders, withRequestLogging } from '@valencets/core/server'
+import { buildRequestLogger } from './server-logging.js'
 import { resolvePageRoute } from './page-router.js'
 import { regenerateFromConfig, ensureGeneratedModules } from './codegen/regenerate.js'
 import { startConfigWatcher } from './learn/watcher.js'
@@ -749,8 +750,9 @@ async function runDev (): Promise<void> {
     })
   }
 
+  const requestLogger = buildRequestLogger(process.env.LOG_LEVEL)
   // eslint-disable-next-line complexity
-  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  const server = createServer(withRequestLogging(requestLogger, async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
     const pathname = normalizeRequestPathname(url.pathname)
     const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
@@ -900,7 +902,7 @@ async function runDev (): Promise<void> {
 
     res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
     res.end('<h1>404</h1><p>Not found</p>')
-  })
+  }))
 
   const learnLine = learnActive ? `\n  Tutorial: http://localhost:${port}/_learn` : ''
 
@@ -1031,8 +1033,9 @@ export async function runStart (): Promise<void> {
   const pool = await provisionDatabase(boot, projectDir, 'start')
   const cms = await buildCmsIfPlanned(boot, pool, cmsSecret, projectDir)
 
+  const requestLogger = buildRequestLogger(process.env.LOG_LEVEL)
   // eslint-disable-next-line complexity
-  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  const server = createServer(withRequestLogging(requestLogger, async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`)
     const pathname = normalizeRequestPathname(url.pathname)
     const method = (req.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
@@ -1137,7 +1140,7 @@ export async function runStart (): Promise<void> {
 
     res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
     res.end('<h1>404</h1><p>Not found</p>')
-  })
+  }))
 
   // Custom route map: path → method → handler
   const customRoutes = new Map<string, Map<string, RouteHandler>>()
