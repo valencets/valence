@@ -1,13 +1,13 @@
 import { ValElement } from '../core/val-element.js'
 
-const AUTOSAVE_STATES = {
+export const AUTOSAVE_STATES = {
   saved: 'Saved',
   unsaved: 'Unsaved changes',
   saving: 'Saving\u2026',
   error: 'Save failed'
 } as const
 
-type AutosaveState = keyof typeof AUTOSAVE_STATES
+export type AutosaveState = keyof typeof AUTOSAVE_STATES
 
 const template = document.createElement('template')
 template.innerHTML = `

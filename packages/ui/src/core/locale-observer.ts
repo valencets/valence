@@ -10,7 +10,7 @@ function resolveLocale (): string {
   return document.documentElement.lang || 'en'
 }
 
-class LocaleObserverImpl {
+export class LocaleObserverImpl {
   private readonly subscribers = new Set<LocaleSubscriber>()
   private observer: MutationObserver | null = null
   private lastLocale: string = resolveLocale()

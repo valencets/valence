@@ -83,6 +83,10 @@ export { field, StoreFieldType } from './fields/index.js'
 // documented alias saves every consumer the manual rename.
 export { field as storeField } from './fields/index.js'
 export type {
+  // #337 — referenced by every public field config; unreachable types are
+  // API gaps the extractor flags as ae-forgotten-export.
+  StoreFieldBase,
+  JsonValue,
   StoreFieldConfig,
   TextFieldConfig,
   TextareaFieldConfig,

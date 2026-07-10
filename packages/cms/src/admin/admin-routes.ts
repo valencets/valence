@@ -38,7 +38,7 @@ import { fileURLToPath } from 'node:url'
 
 export type AdminRouteHandler = (req: IncomingMessage, res: ServerResponse, ctx: Record<string, string>) => Promise<void>
 
-interface AdminOptions {
+export interface AdminOptions {
   readonly requireAuth?: boolean | undefined
   readonly telemetryPool?: DbPool | undefined
   readonly telemetrySiteId?: string | undefined

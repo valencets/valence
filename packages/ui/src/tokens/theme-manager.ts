@@ -47,7 +47,7 @@ export const ThemeMode = {
 
 export type ThemeMode = typeof ThemeMode[keyof typeof ThemeMode]
 
-type ResolvedTheme = 'light' | 'dark'
+export type ResolvedTheme = 'light' | 'dark'
 
 interface DarkMatcher {
   matches: boolean
@@ -62,7 +62,7 @@ function getDarkMatcher (): DarkMatcher {
   return { matches: false, addEventListener () {}, removeEventListener () {} }
 }
 
-class ThemeManagerImpl {
+export class ThemeManagerImpl {
   private _mode: ThemeMode = ThemeMode.Light
   private _explicit = false
   private _documentChecked = false

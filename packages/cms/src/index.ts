@@ -50,7 +50,10 @@ export type {
   CollectionRegistry,
   GlobalRegistry,
   InferFieldType,
-  InferFieldsType
+  InferFieldsType,
+  InferBlockType,
+  FieldValueMap,
+  CollectionInput
 } from './schema/index.js'
 
 export {
@@ -84,7 +87,8 @@ export type {
   SchemaChanges,
   SqlValue,
   DocumentRow,
-  DocumentData
+  DocumentData,
+  SearchConfig
 } from './db/index.js'
 
 export { resolveAccess } from './access/index.js'
@@ -127,10 +131,33 @@ export {
 } from './auth/index.js'
 export type { AuthConfig, AuthContext, AuthMiddleware, CmsAuthGuardOptions } from './auth/index.js'
 export { createRateLimiter, parseCookie } from './auth/index.js'
-export type { RateLimiter } from './auth/index.js'
+export type { RateLimiter, RateLimitConfig } from './auth/index.js'
 
 export { createLocalApi, createRestRoutes, sendApiJson, sendErrorJson, safeReadBody, safeJsonParse, generateOpenApiSpec } from './api/index.js'
 export type { LocalApi, RestRouteHandler, RestRouteEntry } from './api/index.js'
+// #337 — types referenced by public signatures must be reachable from the
+// entry point; unreachable ones are ae-forgotten-export API gaps.
+export type {
+  FindArgs,
+  FindByIDArgs,
+  CreateArgs,
+  UpdateArgs,
+  DeleteArgs,
+  CountArgs,
+  FindGlobalArgs,
+  UpdateGlobalArgs,
+  UnpublishArgs,
+  LocalizationParam,
+  OpenApiSpec,
+  OpenApiSchema,
+  OpenApiPathItem,
+  OpenApiOperation,
+  OpenApiParameter,
+  OpenApiRequestBody,
+  OpenApiResponse,
+  JsonSchemaProperty,
+  SchemaRef
+} from './api/index.js'
 
 export {
   renderAdminLayout,
@@ -142,6 +169,31 @@ export {
   renderAnalyticsView,
   createAdminRoutes,
   escapeHtml
+} from './admin/index.js'
+export type {
+  LayoutArgs,
+  DashboardData,
+  ListViewArgs,
+  DocRow,
+  EditViewLocaleConfig,
+  RelationContext,
+  UploadContext,
+  AdminOptions,
+  LoginPageArgs,
+  AnalyticsData,
+  CollectionStat,
+  ListViewPagination,
+  ListViewLocaleConfig,
+  ListViewDocumentRow,
+  RelationOption,
+  SizeVariant,
+  FlashMessage,
+  TopPageEntry,
+  TopReferrerEntry,
+  EventCategoryEntry,
+  PageviewEntry,
+  DailyEventEntry,
+  RecentItem
 } from './admin/index.js'
 
 export { isUploadEnabled, getMediaFields, getMimeType, getUploadConfig, createServeHandler, buildMediaUrl, createUploadHandler, createLocalStorage, processImageSizes } from './media/index.js'

@@ -6,7 +6,7 @@ import type {
   BlockDefinition
 } from './field-types.js'
 
-interface FieldValueMap {
+export interface FieldValueMap {
   text: string
   textarea: string
   richtext: string
@@ -25,7 +25,7 @@ interface FieldValueMap {
   multiselect: string[]
 }
 
-type InferBlockType<B extends BlockDefinition> = { readonly blockType: B['slug'] } & InferFieldsType<B['fields']>
+export type InferBlockType<B extends BlockDefinition> = { readonly blockType: B['slug'] } & InferFieldsType<B['fields']>
 
 export type InferFieldType<F extends FieldConfig> =
     F extends BlocksFieldConfig

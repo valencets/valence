@@ -46,3 +46,6 @@ export { createCollectionRegistry, createGlobalRegistry } from './registry.js'
 export type { CollectionRegistry, GlobalRegistry } from './registry.js'
 
 export type { InferFieldType, InferFieldsType } from './infer.js'
+// #337 — referenced by collection() and the inference surface
+export type { CollectionInput } from './collection.js'
+export type { InferBlockType, FieldValueMap } from './infer.js'

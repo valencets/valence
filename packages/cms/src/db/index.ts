@@ -21,3 +21,4 @@ export { safeQuery } from './safe-query.js'
 
 export { saveRevision, getRevisions, getRevision } from './revision-queries.js'
 export type { RevisionRow } from './revision-queries.js'
+export type { SearchConfig } from './query-types.js'

@@ -4,3 +4,5 @@ export * from './components/index.js'
 export { TOKEN_PREFIX, createTokenSheet, mergeTokenSheets, lightTokenSheet, darkTokenSheet, ThemeMode } from './tokens/index.js'
 export { createEntityStore } from './entity-store.js'
 export type { EntityStore, EntityData } from './entity-store.js'
+// #337 — types referenced by public signatures must be reachable
+export type { EntityCallback } from './entity-store.js'

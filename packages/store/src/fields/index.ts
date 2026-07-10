@@ -1,6 +1,8 @@
 export { field } from './store-fields.js'
 export { StoreFieldType } from './store-field-types.js'
 export type {
+  StoreFieldBase,
+  JsonValue,
   StoreFieldConfig,
   TextFieldConfig,
   TextareaFieldConfig,

@@ -21,3 +21,5 @@ export type { TokenError } from './token-utils.js'
 
 export { createCustomSession, validateCustomSession, destroyCustomSession, SessionErrorCode } from './custom-session.js'
 export type { SessionError } from './custom-session.js'
+// #337 — referenced by createRateLimiter's signature
+export type { RateLimitConfig } from './rate-limit.js'

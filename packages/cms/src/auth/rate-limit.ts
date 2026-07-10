@@ -4,7 +4,7 @@ interface RateLimitEntry {
   firstAttempt: number
 }
 
-interface RateLimitConfig {
+export interface RateLimitConfig {
   readonly maxAttempts: number
   readonly windowMs: number
 }

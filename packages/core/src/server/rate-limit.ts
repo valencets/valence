@@ -105,7 +105,7 @@ export interface RateLimitMiddlewareConfig {
   readonly trustProxy?: boolean
 }
 
-interface RateLimitMiddlewareHandle {
+export interface RateLimitMiddlewareHandle {
   readonly middleware: Middleware
   readonly destroy: () => void
 }
