@@ -61,6 +61,31 @@ Zero-padded 3-digit sequence number. The runner creates a `_migrations` tracking
 - The migration runner uses Result monads -- migrations that fail return `Err`, not exceptions
 - Consuming applications call `runMigrations()` from `@valencets/db` at boot time
 
+## Structured Logging
+
+The dev and production servers emit one JSON object per line so log aggregators (Loki, CloudWatch, Datadog, `jq`) can parse server output without a third-party logger. Every request is logged on completion:
+
+```json
+{"level":"info","time":"2026-07-10T18:04:11.912Z","msg":"request","service":"valence","requestId":"5f5b…","method":"GET","path":"/blog/hello","status":200,"durationMs":3.412}
+```
+
+- **Request IDs.** Each request gets a generated id, echoed to the client as the `X-Request-Id` response header and carried on that request's log lines. The id is minted server-side, never trusted from the client, so it cannot be used for log injection or trace forging.
+- **Levels.** `debug`, `info`, `warn`, `error`. The threshold defaults to `info`; set `LOG_LEVEL` in the environment (`debug`/`info`/`warn`/`error`) to change it. An unrecognized value falls back to `info` so a typo never silences the server. Warnings and errors go to `stderr`, everything else to `stdout`.
+- **Error boundary.** An unexpected rejection in a request handler is logged as a `request failed` line and answered with a 500, instead of crashing the process.
+
+The primitives are exported from `@valencets/core/server` for custom `onServer` routes:
+
+```ts
+import { createLogger, withRequestLogging, parseLogLevel } from '@valencets/core/server'
+
+const logger = createLogger({ level: parseLogLevel(process.env.LOG_LEVEL), base: { service: 'my-app' } })
+logger.info('worker started', { queue: 'emails' })
+
+const child = logger.child({ requestId })   // bindings ride every line
+```
+
+Field values are constrained to JSON scalars (`string | number | boolean | null`), so a line can never contain a circular reference and `createLogger` never throws.
+
 ## Testing Patterns
 
 Tests use **Vitest** with **happy-dom** environment. No database or network required.
