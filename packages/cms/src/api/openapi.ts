@@ -49,7 +49,7 @@ interface OpenApiParameter {
   readonly in: string
   readonly required?: boolean
   readonly description?: string
-  readonly schema: { readonly type: string; readonly format?: string; readonly default?: number; readonly minimum?: number; readonly maximum?: number }
+  readonly schema: { readonly type: string; readonly format?: string; readonly default?: number | string; readonly minimum?: number; readonly maximum?: number; readonly enum?: readonly string[] }
 }
 
 interface OpenApiOperation {
@@ -245,13 +245,33 @@ function buildCollectionPaths (config: CollectionConfig): Record<string, OpenApi
   const listPath = `/api/${config.slug}`
   const itemPath = `/api/${config.slug}/{id}`
 
+  // #344 — /api/docs must reflect the full query surface the REST layer
+  // accepts: pagination, search, allow-listed sort, drafts, locale, and one
+  // equality filter per schema field (values coerce: 'true'/'false' → bool).
+  const filterParams: OpenApiParameter[] = flattenFields(config.fields).map((f) => ({
+    name: f.name,
+    in: 'query',
+    description: `Filter by ${f.name} (equality; 'true'/'false' coerce to booleans)`,
+    schema: { type: 'string' }
+  }))
+
+  const draftParam: OpenApiParameter[] = config.versions?.drafts === true
+    ? [{ name: 'draft', in: 'query', description: 'Include draft documents', schema: { type: 'string', enum: ['true', 'false'] } }]
+    : []
+
   const listOp: OpenApiOperation = {
     summary: `List ${label}`,
     tags: [tag],
     security,
     parameters: [
       { name: 'page', in: 'query', description: 'Page number', schema: { type: 'integer', default: 1, minimum: 1 } },
-      { name: 'limit', in: 'query', description: 'Items per page', schema: { type: 'integer', default: 25, minimum: 1, maximum: 100 } }
+      { name: 'limit', in: 'query', description: 'Items per page', schema: { type: 'integer', default: 25, minimum: 1, maximum: 100 } },
+      { name: 'search', in: 'query', description: 'Full-text search across the collection', schema: { type: 'string' } },
+      { name: 'sort', in: 'query', description: 'Field to sort by (schema fields and system columns only)', schema: { type: 'string' } },
+      { name: 'dir', in: 'query', description: 'Sort direction', schema: { type: 'string', enum: ['asc', 'desc'], default: 'asc' } },
+      { name: 'locale', in: 'query', description: 'Locale for localized fields (requires localization config)', schema: { type: 'string' } },
+      ...draftParam,
+      ...filterParams
     ],
     responses: {
       200: {
