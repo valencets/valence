@@ -9,6 +9,13 @@ interface SSEClient {
 const SAFE_EVENT_NAME = /^[a-zA-Z][a-zA-Z0-9_-]*$/
 const HEARTBEAT_INTERVAL_MS = 30_000
 
+/**
+ * #341 — per-(store, session) connection cap. One visitor holding
+ * unbounded EventSource connections is a trivial DoS; at the cap the
+ * OLDEST connection of that session is evicted so the newest tab wins.
+ */
+export const MAX_CONNECTIONS_PER_SESSION = 8
+
 function formatSSE (event: string, data: { readonly [key: string]: unknown }): string {
   if (!SAFE_EVENT_NAME.test(event)) {
     return ''
@@ -46,6 +53,8 @@ export class SSEBroadcaster {
       clients = new Map()
       this._stores.set(storeSlug, clients)
     }
+
+    this._evictOldestAtCap(storeSlug, clients, sessionId)
 
     res.setHeader('content-type', 'text/event-stream')
     res.setHeader('cache-control', 'no-cache')
@@ -121,6 +130,25 @@ export class SSEBroadcaster {
         client.res.write(message)
       }
     }
+  }
+
+  // Map iteration order is insertion order, so the first match for a
+  // session is its oldest live connection.
+  private _evictOldestAtCap (storeSlug: string, clients: Map<number, SSEClient>, sessionId: string): void {
+    let count = 0
+    let oldestId: number | null = null
+    let oldest: SSEClient | null = null
+    for (const [connectionId, client] of clients) {
+      if (client.sessionId !== sessionId) continue
+      count++
+      if (oldestId === null) {
+        oldestId = connectionId
+        oldest = client
+      }
+    }
+    if (count < MAX_CONNECTIONS_PER_SESSION || oldestId === null || oldest === null) return
+    oldest.res.end()
+    this.removeClient(storeSlug, oldestId)
   }
 
   // Periodic comment frames keep intermediary proxies from reaping idle

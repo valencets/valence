@@ -693,6 +693,57 @@ describe('row-locked persistence wiring', () => {
   })
 })
 
+// #341 — persisted session stores with retentionDays get their expired
+// anonymous rows swept: once at registration, then on an interval.
+describe('retention sweep wiring', () => {
+  async function flushAsync (): Promise<void> {
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+  }
+
+  it('sweeps on registration and again on the interval', async () => {
+    vi.useFakeTimers()
+    const query = vi.fn(async () => [])
+    const { registerRoute } = collectRoutes()
+
+    registerStoreRoutesOnServer(
+      [counterStore({ scope: 'session', persist: true, retentionDays: 7 })],
+      registerRoute,
+      { pool: { query } }
+    )
+    await flushAsync()
+
+    const deletes = () => query.mock.calls.filter(call => String(call[0]).includes('DELETE FROM store_states'))
+    expect(deletes()).toHaveLength(1)
+    expect(deletes()[0]![1]).toEqual(['counter', 7])
+
+    await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000)
+    expect(deletes()).toHaveLength(2)
+
+    vi.useRealTimers()
+  })
+
+  it('schedules no sweeps for stores without retentionDays', async () => {
+    vi.useFakeTimers()
+    const query = vi.fn(async () => [])
+    const { registerRoute } = collectRoutes()
+
+    registerStoreRoutesOnServer(
+      [counterStore({ scope: 'session', persist: true })],
+      registerRoute,
+      { pool: { query } }
+    )
+    await flushAsync()
+    await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000)
+
+    const deletes = query.mock.calls.filter(call => String(call[0]).includes('DELETE FROM store_states'))
+    expect(deletes).toHaveLength(0)
+
+    vi.useRealTimers()
+  })
+})
+
 // #340 — cookie-authenticated mutation POSTs get Origin defense in depth:
 // a declared browser origin that does not match the request host is
 // rejected before identity resolution. Requests declaring no origin at all

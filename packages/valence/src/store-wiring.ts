@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { StoreInput, SessionInfo, StoreState } from '@valencets/store'
 import { store as createStore } from '@valencets/store'
-import { SessionStateHolder, PostgresStateHolder, SSEBroadcaster, registerStoreRoutes, renderStoreFragment, renderStoreHydration } from '@valencets/store/server'
+import { SessionStateHolder, PostgresStateHolder, SSEBroadcaster, registerStoreRoutes, renderStoreFragment, renderStoreHydration, pruneExpiredStates } from '@valencets/store/server'
 import type { StorePool, StateBackend } from '@valencets/store/server'
 import type { MutationPool } from '@valencets/store'
 import type { DbPool } from '@valencets/db'
@@ -12,6 +12,7 @@ import { fromThrowable, ok, err } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 
 const MAX_BODY_BYTES = 256 * 1024
+const RETENTION_SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000
 
 export const STORE_STATES_DDL = `CREATE TABLE IF NOT EXISTS store_states (
   store_slug TEXT NOT NULL,
@@ -162,6 +163,37 @@ const ERROR_STATUS: Readonly<Record<string, number>> = Object.freeze({
   STORE_NOT_FOUND: 404
 })
 
+/**
+ * #341 — persisted session stores with retentionDays get their expired
+ * anonymous rows swept: once at registration, then every 6 hours.
+ * Failures degrade loudly through the log fn, never crash the server.
+ * store() validation already restricts retentionDays to persisted session
+ * stores; the scope guard here is belt to that suspenders.
+ */
+function scheduleRetentionSweeps (
+  config: { readonly slug: string, readonly scope: string, readonly retentionDays?: number | undefined },
+  pool: StorePool | undefined,
+  tableReady: Promise<void>,
+  log: (msg: string) => void
+): void {
+  const retentionDays = config.retentionDays
+  if (retentionDays === undefined || config.scope !== 'session' || pool === undefined) return
+
+  const sweep = (): void => {
+    tableReady.then(() =>
+      pruneExpiredStates(pool, config.slug, retentionDays).match(
+        () => undefined,
+        (e) => { log(e.message) }
+      )
+    ).then(() => undefined, () => undefined)
+  }
+  sweep()
+  const timer = setInterval(sweep, RETENTION_SWEEP_INTERVAL_MS)
+  if (typeof timer === 'object' && 'unref' in timer) {
+    timer.unref()
+  }
+}
+
 export interface StoreWiringOptions {
   readonly pool?: StorePool
   readonly log?: (msg: string) => void
@@ -249,6 +281,8 @@ export function registerStoreRoutesOnServer (
     }
     const routes = registerStoreRoutes(config, holder, broadcaster, options?.pool)
     hydratable.push({ slug: config.slug, scope: config.scope, getState: (session) => routes.getState(session) })
+
+    scheduleRetentionSweeps(config, options?.pool, tableReady, log)
 
     const requireIdentity = async (req: IncomingMessage, res: ServerResponse): Promise<SessionInfo | null> => {
       const identity = await resolveIdentity(req, res, options)

@@ -187,4 +187,57 @@ describe('SSEBroadcaster', () => {
     expect(res._written.some(chunk => chunk.startsWith(':'))).toBe(true)
     vi.useRealTimers()
   })
+
+  // #341 — one visitor holding hundreds of EventSource connections is a
+  // trivial DoS. Connections are capped per (store, session); the OLDEST
+  // connection of that session is evicted so the newest tab always wins.
+  describe('per-session connection caps', () => {
+    it('exposes the cap as a constant', async () => {
+      const mod = await import('../server/sse-broadcaster.js')
+      expect(mod.MAX_CONNECTIONS_PER_SESSION).toBe(8)
+    })
+
+    it('evicts the oldest connection of a session at the cap', async () => {
+      const { MAX_CONNECTIONS_PER_SESSION } = await import('../server/sse-broadcaster.js')
+      const connections = Array.from({ length: MAX_CONNECTIONS_PER_SESSION }, () => mockRes())
+      for (const res of connections) {
+        broadcaster.addClient('counter', 'greedy', res as ServerResponse)
+      }
+      expect(broadcaster.connectionCount('counter')).toBe(MAX_CONNECTIONS_PER_SESSION)
+
+      const extra = mockRes()
+      broadcaster.addClient('counter', 'greedy', extra as ServerResponse)
+
+      expect(broadcaster.connectionCount('counter')).toBe(MAX_CONNECTIONS_PER_SESSION)
+      expect(connections[0]!._ended).toBe(true)
+      expect(extra._ended).toBe(false)
+    })
+
+    it('caps per session — other sessions keep their connections', async () => {
+      const { MAX_CONNECTIONS_PER_SESSION } = await import('../server/sse-broadcaster.js')
+      const other = mockRes()
+      broadcaster.addClient('counter', 'polite', other as ServerResponse)
+
+      for (let i = 0; i < MAX_CONNECTIONS_PER_SESSION + 3; i++) {
+        broadcaster.addClient('counter', 'greedy', mockRes() as ServerResponse)
+      }
+
+      expect(other._ended).toBe(false)
+      expect(broadcaster.connectionCount('counter')).toBe(MAX_CONNECTIONS_PER_SESSION + 1)
+    })
+
+    it('evicted connections stop receiving broadcasts', async () => {
+      const { MAX_CONNECTIONS_PER_SESSION } = await import('../server/sse-broadcaster.js')
+      const first = mockRes()
+      broadcaster.addClient('counter', 'greedy', first as ServerResponse)
+      for (let i = 0; i < MAX_CONNECTIONS_PER_SESSION; i++) {
+        broadcaster.addClient('counter', 'greedy', mockRes() as ServerResponse)
+      }
+
+      broadcaster.broadcast('counter', 'state', { count: 1 })
+
+      expect(first._ended).toBe(true)
+      expect(first._written).toHaveLength(0)
+    })
+  })
 })
