@@ -1,9 +1,8 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-dark-animated.png">
-    <source media="(prefers-color-scheme: light)" srcset="./assets/logo-light-animated.png">
-    <img alt="Valence" src="./assets/logo-light-animated.png" width="280">
-  </picture>
+  <!-- Transparent, theme-neutral: one asset adapts to light and dark on
+       GitHub AND npm (npm strips <picture> sources, so baked-background
+       fallbacks always clashed with one theme). -->
+  <img alt="Valence" src="./assets/logo.svg" width="280">
 </p>
 
 <p align="center"><strong>The schema-driven web framework. One TypeScript config. The whole stack derived.</strong></p>

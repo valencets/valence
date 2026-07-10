@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 80" fill="none" role="img" aria-label="Valence">
+  <!-- Theme-neutral wordmark: transparent background, mid-tone fills that
+       pass contrast on both light (#ffffff) and dark (#0d1117) surfaces,
+       so one asset serves GitHub, npm, and any system theme. -->
+  <defs>
+    <linearGradient id="orbital" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4f8df7" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#4f8df7" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#4f8df7" stop-opacity="0.75"/>
+    </linearGradient>
+    <path id="orbit-path" d="M351.3,25.0 L350.9,27.8 L349.2,30.8 L346.2,33.8 L342.0,36.8 L336.5,39.9 L329.8,43.0 L322.0,46.0 L313.1,49.0 L303.1,51.9 L292.3,54.8 L280.6,57.5 L268.1,60.1 L254.9,62.6 L241.2,64.8 L227.0,66.9 L212.5,68.8 L197.7,70.5 L182.8,71.9 L167.8,73.1 L153.0,74.0 L138.3,74.7 L124.0,75.1 L110.1,75.2 L96.7,75.1 L84.0,74.7 L72.0,74.1 L60.8,73.1 L50.5,72.0 L41.2,70.6 L33.0,68.9 L25.9,67.1 L19.9,65.0 L15.2,62.7 L11.7,60.3 L9.5,57.7 L8.7,55.0 L9.1,52.2 L10.8,49.2 L13.8,46.2 L18.0,43.2 L23.5,40.1 L30.2,37.0 L38.0,34.0 L46.9,31.0 L56.9,28.1 L67.7,25.2 L79.4,22.5 L91.9,19.9 L105.1,17.4 L118.8,15.2 L133.0,13.1 L147.5,11.2 L162.3,9.5 L177.2,8.1 L192.2,6.9 L207.0,6.0 L221.7,5.3 L236.0,4.9 L249.9,4.8 L263.3,4.9 L276.0,5.3 L288.0,5.9 L299.2,6.9 L309.5,8.0 L318.8,9.4 L327.0,11.1 L334.1,12.9 L340.1,15.0 L344.8,17.3 L348.3,19.7 L350.5,22.3 L351.3,25.0 Z" fill="none"/>
+  </defs>
+  <ellipse cx="180" cy="40" rx="172" ry="32"
+    stroke="url(#orbital)" stroke-width="1.5" fill="none"
+    transform="rotate(-5, 180, 40)"/>
+  <circle r="4" fill="#4f8df7">
+    <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
+      values="1;0.7;0.25;0;0;0;0.25;0.7;1;1" keyTimes="0;0.1;0.2;0.3;0.4;0.6;0.7;0.8;0.9;1"/>
+    <animateMotion dur="6s" repeatCount="indefinite">
+      <mpath href="#orbit-path"/>
+    </animateMotion>
+  </circle>
+  <text x="180" y="44" text-anchor="middle"
+    font-family="'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif"
+    font-size="46" letter-spacing="0.1em" fill="#768aa3">
+    <tspan font-weight="600" fill="#4f8df7">v</tspan><tspan font-weight="400">alence</tspan>
+  </text>
+</svg>
