@@ -13,6 +13,7 @@ export const StoreErrorCode = Object.freeze({
   INVALID_SLUG: 'INVALID_SLUG',
   INVALID_FIELDS: 'INVALID_FIELDS',
   INVALID_PERSIST: 'INVALID_PERSIST',
+  INVALID_RETENTION: 'INVALID_RETENTION',
   DUPLICATE_FIELD: 'DUPLICATE_FIELD',
   INVALID_MUTATION: 'INVALID_MUTATION',
   MUTATION_FAILED: 'MUTATION_FAILED',
@@ -115,6 +116,10 @@ export interface StoreDefinition {
   /** Durable state: back this store with postgres instead of process memory.
    *  Implied for `user` scope; opt-in for `session` and `global`. */
   readonly persist?: boolean
+  /** Days to keep expired anonymous rows before the sweeper hard-deletes
+   *  them (#341). Valid only on persisted `session` stores — `user:*` keys
+   *  and `__global__` are never pruned. */
+  readonly retentionDays?: number
   readonly fields: readonly StoreFieldConfig[]
   readonly mutations: Readonly<Record<string, MutationDefinition>>
   readonly fragment?: FragmentRenderFn
@@ -125,6 +130,7 @@ export interface StoreInput {
   readonly slug: string
   readonly scope: StoreScope
   readonly persist?: boolean
+  readonly retentionDays?: number
   readonly fields: readonly StoreFieldConfig[]
   readonly mutations: Record<string, {
     readonly input: readonly StoreFieldConfig[]

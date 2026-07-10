@@ -21,6 +21,21 @@ export function store (input: StoreInput): Result<StoreDefinition, StoreError> {
     })
   }
 
+  if (input.retentionDays !== undefined) {
+    if (input.scope !== 'session' || input.persist !== true) {
+      return err({
+        code: StoreErrorCode.INVALID_RETENTION,
+        message: 'retentionDays is valid only on persisted session stores — user and global state must never expire, and in-memory stores already expire via LRU'
+      })
+    }
+    if (!Number.isInteger(input.retentionDays) || input.retentionDays < 1) {
+      return err({
+        code: StoreErrorCode.INVALID_RETENTION,
+        message: `retentionDays must be a positive integer, got: ${input.retentionDays}`
+      })
+    }
+  }
+
   if (input.fields.length === 0) {
     return err({
       code: StoreErrorCode.INVALID_FIELDS,
@@ -52,6 +67,7 @@ export function store (input: StoreInput): Result<StoreDefinition, StoreError> {
     slug: input.slug,
     scope: input.scope,
     ...(input.persist !== undefined ? { persist: input.persist } : {}),
+    ...(input.retentionDays !== undefined ? { retentionDays: input.retentionDays } : {}),
     fields: input.fields,
     mutations: input.mutations,
     ...(input.fragment ? { fragment: input.fragment } : {}),

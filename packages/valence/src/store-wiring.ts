@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { StoreInput, SessionInfo, StoreState } from '@valencets/store'
 import { store as createStore } from '@valencets/store'
-import { SessionStateHolder, PostgresStateHolder, SSEBroadcaster, registerStoreRoutes, renderStoreFragment, renderStoreHydration } from '@valencets/store/server'
+import { SessionStateHolder, PostgresStateHolder, SSEBroadcaster, registerStoreRoutes, renderStoreFragment, renderStoreHydration, pruneExpiredStates } from '@valencets/store/server'
 import type { StorePool, StateBackend } from '@valencets/store/server'
 import type { MutationPool } from '@valencets/store'
 import type { DbPool } from '@valencets/db'
@@ -12,6 +12,7 @@ import { fromThrowable, ok, err } from '@valencets/resultkit'
 import type { Result } from '@valencets/resultkit'
 
 const MAX_BODY_BYTES = 256 * 1024
+const RETENTION_SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000
 
 export const STORE_STATES_DDL = `CREATE TABLE IF NOT EXISTS store_states (
   store_slug TEXT NOT NULL,
@@ -249,6 +250,27 @@ export function registerStoreRoutesOnServer (
     }
     const routes = registerStoreRoutes(config, holder, broadcaster, options?.pool)
     hydratable.push({ slug: config.slug, scope: config.scope, getState: (session) => routes.getState(session) })
+
+    // #341 — persisted session stores with retentionDays get their expired
+    // anonymous rows swept: once at registration, then every 6 hours.
+    // Failures degrade loudly through the log fn, never crash the server.
+    if (config.retentionDays !== undefined && config.scope === 'session' && isPersisted(config) && options?.pool) {
+      const retentionPool = options.pool
+      const retentionDays = config.retentionDays
+      const sweep = (): void => {
+        tableReady.then(() =>
+          pruneExpiredStates(retentionPool, config.slug, retentionDays).match(
+            () => undefined,
+            (e) => { log(e.message) }
+          )
+        ).then(() => undefined, () => undefined)
+      }
+      sweep()
+      const timer = setInterval(sweep, RETENTION_SWEEP_INTERVAL_MS)
+      if (typeof timer === 'object' && 'unref' in timer) {
+        timer.unref()
+      }
+    }
 
     const requireIdentity = async (req: IncomingMessage, res: ServerResponse): Promise<SessionInfo | null> => {
       const identity = await resolveIdentity(req, res, options)
