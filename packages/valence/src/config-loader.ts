@@ -41,6 +41,8 @@ export interface UserConfig {
   readonly routes?: readonly RouteConfig[] | undefined
   // Store definitions — contain mutation server/client functions, only via direct import.
   readonly stores?: readonly import('@valencets/store').StoreInput[] | undefined
+  // Whether the GraphQL endpoint is enabled (#350).
+  readonly graphql?: boolean | undefined
 }
 
 export function loadEnvConfig (): DbConfig | null {
@@ -126,7 +128,8 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
         // preserved via direct import — serialisation through the tsx subprocess would lose them.
         onServer: result.value?.onServer,
         routes: result.value?.routes,
-        stores: result.value?.stores
+        stores: result.value?.stores,
+        graphql: result.value?.graphql
       }
     }
     return null
@@ -150,7 +153,8 @@ async function loadViaSubprocess (configPath: string): Promise<UserConfig | null
     '        timestamps: c.timestamps, fields: c.fields',
     '      })),',
     '      admin: r.value.admin,',
-    '      telemetry: r.value.telemetry',
+    '      telemetry: r.value.telemetry,',
+    '      graphql: r.value.graphql',
     '    }));',
     '  }',
     '})',
@@ -178,11 +182,11 @@ async function loadViaSubprocess (configPath: string): Promise<UserConfig | null
 
   const parseResult = safeJsonParseConfig(output)
   if (parseResult.isErr() || parseResult.value === null) return null
-  const parsed = parseResult.value as { collections: import('@valencets/cms').CollectionConfig[]; admin?: UserConfig['admin']; telemetry?: UserConfig['telemetry'] }
+  const parsed = parseResult.value as { collections: import('@valencets/cms').CollectionConfig[]; admin?: UserConfig['admin']; telemetry?: UserConfig['telemetry']; graphql?: boolean }
 
   // Re-hydrate through collection() to get proper CollectionConfig objects.
   // onServer and routes cannot be recovered from the subprocess — functions are not serialisable.
   const { collection: col } = await import('@valencets/cms')
   const collections = parsed.collections.map((c) => col(c))
-  return { collections, admin: parsed.admin, telemetry: parsed.telemetry }
+  return { collections, admin: parsed.admin, telemetry: parsed.telemetry, graphql: parsed.graphql }
 }

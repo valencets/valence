@@ -9,7 +9,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { ResultAsync, fromThrowable } from '@valencets/resultkit'
 import { createPool, closePool, loadMigrations, runMigrations } from '@valencets/db'
 import type { DbConfig, DbPool } from '@valencets/db'
-import { buildCms } from '@valencets/cms'
+import { buildCms, validateSession } from '@valencets/cms'
 import type { RestRouteEntry } from '@valencets/cms'
 import { readLearnProgress, writeLearnProgress, createInitialProgress } from './learn/index.js'
 import { log } from './cli-utils.js'
@@ -17,6 +17,7 @@ import { generateConfigTemplate, generateSecret } from './config-template.js'
 import { validateProductionSecret } from './secret-guard.js'
 import { validateColumnNaming } from './migration-checks.js'
 import { maybeRegisterTelemetry } from './telemetry-wiring.js'
+import { maybeRegisterGraphQL } from './graphql-wiring.js'
 import { parseInitFlags, askWithDefault, confirmWithDefault, createDbInvocations, migrationTargets, initSummary, createPromptQueue, scaffoldDependencies } from './init-steps.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
@@ -819,6 +820,10 @@ async function runDev (): Promise<void> {
   // Mount beacon ingestion at the configured endpoint (#349)
   maybeRegisterTelemetry(loadedConfig.telemetry, registerRoute, pool, log)
 
+  // Mount the GraphQL endpoint when enabled (#350) — cms_session gated
+  await maybeRegisterGraphQL(loadedConfig.graphql, registerRoute, cms, (sessionId) =>
+    validateSession(sessionId, pool).match((userId) => userId, () => null), log)
+
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
   const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir, storeHydrator)
@@ -1080,6 +1085,10 @@ export async function runStart (): Promise<void> {
 
   // Mount beacon ingestion at the configured endpoint (#349)
   maybeRegisterTelemetry(loadedConfig.telemetry, registerRoute, pool, log)
+
+  // Mount the GraphQL endpoint when enabled (#350) — cms_session gated
+  await maybeRegisterGraphQL(loadedConfig.graphql, registerRoute, cms, (sessionId) =>
+    validateSession(sessionId, pool).match((userId) => userId, () => null), log)
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)

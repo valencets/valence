@@ -11,11 +11,37 @@ interface JsonErrorResponse {
 
 type JsonResponse = ExecutionResult | JsonErrorResponse
 
-function readBody (req: IncomingMessage): Promise<string> {
+// #350 audit — GraphQL documents are small; anything past this is hostile.
+// At the cap the read settles immediately so nothing buffers an
+// attacker's unbounded stream.
+const MAX_BODY_BYTES = 256 * 1024
+
+interface BodyRead {
+  readonly body: string
+  readonly tooLarge: boolean
+}
+
+function readBody (req: IncomingMessage): Promise<BodyRead> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => { chunks.push(chunk) })
-    req.on('end', () => { resolve(Buffer.concat(chunks).toString('utf-8')) })
+    let total = 0
+    let settled = false
+    const settle = (result: BodyRead): void => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
+    req.on('data', (chunk: Buffer) => {
+      if (settled) return
+      total += chunk.length
+      if (total > MAX_BODY_BYTES) {
+        chunks.length = 0
+        settle({ body: '', tooLarge: true })
+        return
+      }
+      chunks.push(chunk)
+    })
+    req.on('end', () => { settle({ body: Buffer.concat(chunks).toString('utf-8'), tooLarge: false }) })
     req.on('error', reject)
   })
 }
@@ -44,7 +70,14 @@ export function createGraphQLHandler (schema: GraphQLSchema): (req: IncomingMess
       return
     }
 
-    const rawBody = await readBody(req)
+    const bodyRead = await readBody(req)
+
+    if (bodyRead.tooLarge) {
+      sendJson(res, 413, { errors: [{ message: 'Request body too large.' }] })
+      return
+    }
+
+    const rawBody = bodyRead.body
 
     if (rawBody.trim() === '') {
       sendJson(res, 400, { errors: [{ message: 'Request body is required.' }] })

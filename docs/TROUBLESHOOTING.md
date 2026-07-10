@@ -140,3 +140,9 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 `valence init` already writes a CSPRNG-minted secret into the scaffolded `.env`; the `.env.example` placeholder `change-me` is rejected by design so it can never be promoted to production unchanged.
 
 **Rotation semantics**: rotating `CMS_SECRET` invalidates every signed anonymous store session immediately — anonymous visitors get fresh (empty) session-scoped store buckets on next contact. This is by design: signed anonymous sessions are stateless and cannot be revoked individually (see `docs/STORES.md`). Authenticated `cms_session` logins are stored server-side and survive rotation. Rotate during a low-traffic window if anonymous carts/drafts matter to you.
+
+## GraphQL endpoint returns 401 or 404
+
+**404**: `graphql: true` must be set in `valence.config.ts`. The endpoint mounts at `POST /graphql` in both `valence dev` and `valence start`.
+
+**401**: the endpoint requires a validated `cms_session` cookie. The derived resolvers do not yet run per-collection access functions, so the whole endpoint inherits REST's auth-by-default posture — log in through the admin (or `POST /api/auth/login`) first and send the cookie with your requests. Request bodies are capped at 256 KB (413 beyond).
