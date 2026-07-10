@@ -727,3 +727,127 @@ This single definition gives you:
 - Media file upload and serving
 - Zod validation on all writes
 - Soft delete on all tables
+
+## 9. Adding Auth to Your App (non-admin)
+
+The admin panel's auth primitives are a public, collection-agnostic toolkit — the same Argon2id hashing, timing-safe tokens, table-backed sessions, and rate limiting the framework trusts for itself (#338). Never hand-roll PBKDF2, SHA-256 session tokens, or localStorage sessions: everything below imports from `@valencets/cms` and returns `Result`/`ResultAsync`.
+
+```ts
+import {
+  hashPassword, verifyPassword,               // Argon2id
+  createCustomSession, validateCustomSession, // any sessions table
+  destroyCustomSession,
+  generateToken, hashToken, verifyToken,      // CSPRNG + timing-safe compare
+  createRateLimiter
+} from '@valencets/cms'
+```
+
+### Schema
+
+Your app owns its tables — a migration like:
+
+```sql
+CREATE TABLE IF NOT EXISTS "app_users" (
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "email" TEXT NOT NULL UNIQUE,
+  "password_hash" TEXT NOT NULL,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS "app_sessions" (
+  "id" TEXT PRIMARY KEY,          -- 64-char hex from createCustomSession
+  "user_id" UUID NOT NULL REFERENCES "app_users"("id"),
+  "expires_at" TIMESTAMPTZ NOT NULL
+);
+```
+
+### Signup and login as route actions
+
+```ts
+// valence.config.ts routes
+{
+  path: '/signup',
+  action: async ({ body, pool }) => {
+    if (!pool) return { status: 500, errors: { db: ['database required'] } }
+    const hash = await hashPassword(String(body.get('password') ?? ''))
+    if (hash.isErr()) return { status: 500, errors: { password: [hash.error.message] } }
+    // parameterized insert with YOUR table
+    await pool.sql.unsafe(
+      'INSERT INTO "app_users" ("email", "password_hash") VALUES ($1, $2)',
+      [String(body.get('email') ?? ''), hash.value]
+    )
+    return { redirect: '/login' }
+  }
+}
+```
+
+```ts
+const loginLimiter = createRateLimiter({ maxAttempts: 5, windowMs: 60_000 })
+
+{
+  path: '/login',
+  action: async ({ body, req, pool }) => {
+    if (!pool) return { status: 500, errors: { db: ['database required'] } }
+    const key = `ip:${req.socket.remoteAddress ?? 'unknown'}`
+    if (!loginLimiter.check(key)) return { status: 429, errors: { form: ['Too many attempts'] } }
+
+    const email = String(body.get('email') ?? '')
+    const rows = await pool.sql.unsafe('SELECT "id", "password_hash" FROM "app_users" WHERE "email" = $1', [email])
+    const user = rows[0] as { id: string, password_hash: string } | undefined
+    // Verify against a dummy hash when the user is unknown — uniform timing
+    const ok = user
+      ? (await verifyPassword(String(body.get('password') ?? ''), user.password_hash)).unwrapOr(false)
+      : false
+    if (!ok || !user) return { status: 401, errors: { form: ['Invalid credentials'] } }
+
+    const session = await createCustomSession(pool, 'app_sessions', user.id)
+    if (session.isErr()) return { status: 500, errors: { form: [session.error.message] } }
+
+    return {
+      redirect: '/account',
+      // Secure derives from your transport; HttpOnly + SameSite always
+      headers: { 'Set-Cookie': `app_session=${session.value.sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7200` }
+    }
+  }
+}
+```
+
+### Guarding routes in loaders
+
+```ts
+{
+  path: '/account',
+  loader: async ({ req, pool }) => {
+    if (!pool) return { status: 500 }
+    const cookie = req.headers.cookie ?? ''
+    const token = cookie.match(/(?:^|;\s*)app_session=([^;]+)/)?.[1]
+    if (!token) return { redirect: '/login' }
+
+    const session = await validateCustomSession(pool, 'app_sessions', token)
+    if (session.isErr()) return { redirect: '/login' }
+
+    return { data: { userId: session.value.userId } }
+  }
+}
+```
+
+### Logout
+
+```ts
+{
+  path: '/logout',
+  action: async ({ req, pool }) => {
+    const token = (req.headers.cookie ?? '').match(/(?:^|;\s*)app_session=([^;]+)/)?.[1]
+    if (pool && token) await destroyCustomSession(pool, 'app_sessions', token)
+    return { redirect: '/', headers: { 'Set-Cookie': 'app_session=; Path=/; HttpOnly; Max-Age=0' } }
+  }
+}
+```
+
+### Rules the toolkit enforces for you
+
+- `createCustomSession` mints 32-byte CSPRNG hex ids and computes expiry in SQL — sessions live in **your** table, validated with parameterized queries and identifier allow-listing.
+- `verifyToken` compares SHA-256 digests with `timingSafeEqual` — store `hashToken(raw)`, never the raw token (API keys, magic links, password resets).
+- The rate limiter is bounded (10k entries, LRU-evicted) — safe against key-flooding.
+- Composition is covered by `custom-auth-composition.test.ts` on the public surface: if a primitive stops being importable or a signature drifts, CI fails.
+
+Everything above also works inside `onServer` handlers — the same `pool` arrives in `OnServerContext`.
