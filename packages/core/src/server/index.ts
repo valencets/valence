@@ -24,6 +24,8 @@ export { createBodyLimitMiddleware, ContentCategory, resolveContentCategory } fr
 export type { BodyLimitConfig } from './body-limit.js'
 export { resolveTimeoutConfig, applyTimeouts } from './timeout-config.js'
 export type { TimeoutConfig, ResolvedTimeoutConfig } from './timeout-config.js'
+export { parseCookies, getCookie, serializeCookie, isSecureTransport } from './cookies.js'
+export type { CookieOptions, SameSite } from './cookies.js'
 export { generateCsrfToken, validateCsrfToken } from './csrf.js'
 export { createCsrfMiddleware } from './csrf-middleware.js'
 export { createOriginCheck } from './origin-check.js'

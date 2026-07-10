@@ -132,6 +132,20 @@ export const ContentCategory: Readonly<{
 export type ContentCategory = typeof ContentCategory[keyof typeof ContentCategory];
 
 // @public (undocumented)
+export interface CookieOptions {
+    // (undocumented)
+    readonly domain?: string;
+    // (undocumented)
+    readonly httpOnly?: boolean;
+    readonly maxAge?: number;
+    // (undocumented)
+    readonly path?: string;
+    // (undocumented)
+    readonly sameSite?: SameSite;
+    readonly secure?: boolean;
+}
+
+// @public (undocumented)
 export interface CorsConfig {
     // (undocumented)
     readonly credentials?: boolean;
@@ -255,6 +269,9 @@ export function generateCsrfToken(): string;
 // @public (undocumented)
 export function generateNonce(): string;
 
+// @public
+export function getCookie(header: string | undefined, name: string): string | undefined;
+
 // @public (undocumented)
 export function getCsrfToken(): string | undefined;
 
@@ -376,6 +393,9 @@ export interface IslandHtmlOptions {
     // (undocumented)
     readonly maxAge?: number;
 }
+
+// @public
+export function isSecureTransport(req: IncomingMessage): boolean;
 
 // @public (undocumented)
 export function isValidBeaconUrl(url: string): boolean;
@@ -540,6 +560,9 @@ export interface PageCacheHandle {
     // (undocumented)
     readonly size: () => number;
 }
+
+// @public
+export function parseCookies(header: string | undefined): Readonly<Record<string, string>>;
 
 // @public (undocumented)
 export function parseHtml(html: string): Result<Document, RouterError>;
@@ -792,6 +815,9 @@ export function routeUrl(path: string, params: Record<string, string>): string;
 // @public
 export function safeRedirect(url: string, fallback?: string): string;
 
+// @public
+export type SameSite = 'Strict' | 'Lax' | 'None';
+
 // @public (undocumented)
 export function scheduleAutoFlush(buffer: TelemetryRingBuffer, endpointUrl: string, intervalMs?: number, onFlush?: (count: number) => void): Result<FlushHandle, TelemetryError>;
 
@@ -827,6 +853,9 @@ export function sendIslandHtml(res: ServerResponse, html: string, options?: Isla
 
 // @public (undocumented)
 export function sendJson(res: ServerResponse, data: JsonValue, statusCode?: number): void;
+
+// @public
+export function serializeCookie(name: string, value: string, options?: CookieOptions): string;
 
 // @public (undocumented)
 export function serializeForm(form: HTMLFormElement): URLSearchParams;
