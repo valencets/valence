@@ -53,10 +53,32 @@ export function createIngestionHandler (
   }
 }
 
+// #349 audit — sendBeacon payloads are tiny (browsers cap around 64 KB);
+// anything past this is hostile. At the cap the promise settles
+// immediately with an empty body — downstream validation fails it into the
+// silent-accept 200 path and nothing buffers past the limit.
+const MAX_BEACON_BYTES = 256 * 1024
+
 function readRequestBody (req: IncomingMessage): Promise<string> {
   return new Promise((resolve) => {
     const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => { chunks.push(chunk) })
-    req.on('end', () => { resolve(Buffer.concat(chunks).toString()) })
+    let total = 0
+    let settled = false
+    const settle = (body: string): void => {
+      if (settled) return
+      settled = true
+      resolve(body)
+    }
+    req.on('data', (chunk: Buffer) => {
+      if (settled) return
+      total += chunk.length
+      if (total > MAX_BEACON_BYTES) {
+        chunks.length = 0
+        settle('')
+        return
+      }
+      chunks.push(chunk)
+    })
+    req.on('end', () => { settle(Buffer.concat(chunks).toString()) })
   })
 }
