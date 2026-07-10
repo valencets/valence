@@ -14,10 +14,10 @@ interface CapturedResponse {
   written: string[]
 }
 
-function mockReq (options?: { cookie?: string; body?: string }): IncomingMessage {
+function mockReq (options?: { cookie?: string; body?: string; headers?: { [key: string]: string } }): IncomingMessage {
   const emitter = new EventEmitter()
   const req = Object.assign(emitter, {
-    headers: { cookie: options?.cookie ?? 'session_id=sess-a' },
+    headers: { cookie: options?.cookie ?? 'session_id=sess-a', ...(options?.headers ?? {}) },
     method: 'POST'
   })
   if (options?.body !== undefined) {
@@ -81,10 +81,11 @@ async function postMutation (
   slug: string,
   mutation: string,
   body: string,
-  cookie?: string
+  cookie?: string,
+  headers?: { [key: string]: string }
 ): Promise<CapturedResponse> {
   const handler = routes.get(`POST /store/${slug}/:mutation`)!
-  const req = mockReq({ body, ...(cookie !== undefined ? { cookie } : {}) })
+  const req = mockReq({ body, ...(cookie !== undefined ? { cookie } : {}), ...(headers !== undefined ? { headers } : {}) })
   const res = mockRes()
   await handler(req, res, { mutation })
   return res._captured
@@ -653,5 +654,119 @@ describe('cookie flags from the transport', () => {
     const plainRes = mockRes()
     await hydrator!(plainReq, plainRes, '<body><div data-store="counter"></div></body>')
     expect(plainRes._captured.headers['Set-Cookie']).not.toContain('Secure')
+  })
+})
+
+// #340 — cookie-authenticated mutation POSTs get Origin defense in depth:
+// a declared browser origin that does not match the request host is
+// rejected before identity resolution. Requests declaring no origin at all
+// (curl, server-to-server) pass — they carry no ambient browser
+// credentials to launder.
+describe('cross-origin mutation rejection', () => {
+  const HOST = 'localhost:3000'
+
+  async function getState (
+    routes: Map<string, RouteHandler>,
+    slug: string,
+    cookie: string,
+    headers?: { [key: string]: string }
+  ): Promise<CapturedResponse> {
+    const handler = routes.get(`GET /store/${slug}/state`)!
+    const emitter = new EventEmitter()
+    const req = Object.assign(emitter, {
+      headers: { cookie, ...(headers ?? {}) },
+      method: 'GET'
+    }) as unknown as IncomingMessage
+    const res = mockRes()
+    await handler(req, res, {})
+    return res._captured
+  }
+
+  it('rejects a POST whose Origin does not match the request host', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute)
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":5}}', undefined,
+      { host: HOST, origin: 'https://evil.example' })
+
+    expect(captured.statusCode).toBe(403)
+
+    // The rejected mutation must not have touched state
+    const state = await getState(routes, 'counter', 'session_id=sess-a')
+    expect(JSON.parse(state.body).count).toBe(0)
+  })
+
+  it('rejects a POST whose Referer (no Origin) does not match the request host', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute)
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":5}}', undefined,
+      { host: HOST, referer: 'https://evil.example/attack-page' })
+
+    expect(captured.statusCode).toBe(403)
+  })
+
+  it('rejects a POST with an opaque "null" Origin', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute)
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":5}}', undefined,
+      { host: HOST, origin: 'null' })
+
+    expect(captured.statusCode).toBe(403)
+  })
+
+  it('allows a same-origin POST (Origin host matches the Host header)', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute)
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":2}}', undefined,
+      { host: HOST, origin: `http://${HOST}` })
+
+    expect(captured.statusCode).toBe(200)
+    expect(JSON.parse(captured.body).state.count).toBe(2)
+  })
+
+  it('allows a same-origin POST identified via Referer', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute)
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":3}}', undefined,
+      { host: HOST, referer: `http://${HOST}/cart` })
+
+    expect(captured.statusCode).toBe(200)
+    expect(JSON.parse(captured.body).state.count).toBe(3)
+  })
+
+  it('allows a POST declaring neither Origin nor Referer (curl / server-to-server)', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute)
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":1}}', undefined,
+      { host: HOST })
+
+    expect(captured.statusCode).toBe(200)
+  })
+
+  it('leaves GET /state untouched by foreign Origins', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute)
+
+    const state = await getState(routes, 'counter', 'session_id=sess-a',
+      { host: HOST, origin: 'https://evil.example' })
+
+    expect(state.statusCode).toBe(200)
+  })
+
+  it('rejects cross-origin requests before minting any session cookie', async () => {
+    const { registerRoute, routes } = collectRoutes()
+    registerStoreRoutesOnServer([counterStore()], registerRoute, { secret: 'wiring-test-secret' })
+
+    const captured = await postMutation(routes, 'counter', 'increment', '{"args":{"amount":1}}', '',
+      { host: HOST, origin: 'https://evil.example' })
+
+    expect(captured.statusCode).toBe(403)
+    expect(captured.headers['Set-Cookie']).toBeUndefined()
+    expect(captured.headers['set-cookie']).toBeUndefined()
   })
 })
