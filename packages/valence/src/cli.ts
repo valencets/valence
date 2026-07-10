@@ -15,6 +15,7 @@ import { readLearnProgress, writeLearnProgress, createInitialProgress } from './
 import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
 import { validateProductionSecret } from './secret-guard.js'
+import { validateColumnNaming } from './migration-checks.js'
 import { parseInitFlags, askWithDefault, confirmWithDefault, createDbInvocations, migrationTargets, initSummary, createPromptQueue, scaffoldDependencies } from './init-steps.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
@@ -1326,42 +1327,17 @@ async function runMigrationsForProject (projectDir: string, config: DbConfig): P
   }
 
   const result = await runMigrations(pool, migrations)
-  await closePool(pool)
 
   if (result.isErr()) {
+    await closePool(pool)
     log(`Migration error: ${result.error.message}`)
     return false
   }
 
-  // Validate column naming conventions on all tables (best-effort, non-fatal)
-  await ResultAsync.fromPromise(
-    (async () => {
-      const tables = await pool.sql.unsafe(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
-      )
-      for (const t of tables) {
-        const tableName = String(Reflect.get(t, 'table_name') ?? '')
-        const cols = await pool.sql.unsafe(
-          "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
-          [tableName]
-        )
-        const colNames = Array.from(cols).map(c => String(Reflect.get(c, 'column_name') ?? ''))
-        // Check for camelCase system columns (common mistake)
-        const camelCaseSystemCols = ['createdAt', 'updatedAt', 'deletedAt']
-        for (const bad of camelCaseSystemCols) {
-          if (colNames.includes(bad)) {
-            const snakeVersion = bad.replace(/([A-Z])/g, '_$1').toLowerCase()
-            log(`  ⚠ Table "${tableName}" has "${bad}" — CMS expects "${snakeVersion}". Run: ALTER TABLE "${tableName}" RENAME COLUMN "${bad}" TO ${snakeVersion};`)
-          }
-        }
-        // Check if CMS system columns are missing
-        if (!colNames.includes('deleted_at') && colNames.includes('created_at')) {
-          log(`  ⚠ Table "${tableName}" is missing "deleted_at" column — CMS soft-delete will not work.`)
-        }
-      }
-    })(),
-    () => null
-  )
+  // #351 — the naming lint must see a LIVE pool; it used to run after
+  // closePool, where every query rejected and the warnings never fired.
+  await validateColumnNaming(pool, log)
+  await closePool(pool)
 
   log(`Applied ${result.value} migration(s).`)
   return true
