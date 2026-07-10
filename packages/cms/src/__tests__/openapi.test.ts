@@ -121,6 +121,53 @@ describe('generateOpenApiSpec()', () => {
     expect(limitParam?.schema.maximum).toBe(100)
   })
 
+  // #344 — the REST list endpoint accepts search/sort/dir/draft/locale and
+  // per-field equality filters; /api/docs must reflect the same surface.
+  describe('query surface parameters (#344)', () => {
+    function listParams (versioned = false) {
+      const registry = makeRegistry(
+        collection({
+          slug: 'posts',
+          fields: [
+            field.text({ name: 'title', required: true }),
+            field.boolean({ name: 'published' })
+          ],
+          ...(versioned ? { versions: { drafts: true } } : {})
+        })
+      )
+      const spec = generateOpenApiSpec(registry)
+      return spec.paths['/api/posts']!.get!.parameters ?? []
+    }
+
+    it('documents search, sort, dir, and locale on the list endpoint', () => {
+      const names = listParams().map(p => p.name)
+      expect(names).toContain('search')
+      expect(names).toContain('sort')
+      expect(names).toContain('dir')
+      expect(names).toContain('locale')
+    })
+
+    it('documents dir as an asc/desc enum', () => {
+      const dir = listParams().find(p => p.name === 'dir')
+      expect(dir).toBeDefined()
+      expect(dir!.schema.enum).toEqual(['asc', 'desc'])
+    })
+
+    it('documents one equality filter parameter per schema field', () => {
+      const params = listParams()
+      const title = params.find(p => p.name === 'title')
+      const published = params.find(p => p.name === 'published')
+      expect(title).toBeDefined()
+      expect(title!.in).toBe('query')
+      expect(published).toBeDefined()
+    })
+
+    it('documents draft only for versioned collections', () => {
+      expect(listParams(false).map(p => p.name)).not.toContain('draft')
+      expect(listParams(true).map(p => p.name)).toContain('draft')
+    })
+  })
+
   it('generates paginated response schema', () => {
     const registry = makeRegistry(
       collection({ slug: 'posts', fields: [field.text({ name: 'title' })] })
