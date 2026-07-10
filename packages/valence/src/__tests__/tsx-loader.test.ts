@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+// Resolve a sibling source file cross-platform: URL.pathname yields
+// "/C:/..." on Windows, which fs cannot open — fileURLToPath fixes it (#352).
+const sourcePath = (relative: string): string => fileURLToPath(new URL(relative, import.meta.url))
 
 describe('registerTsxLoader', () => {
   afterEach(() => {
@@ -25,10 +30,7 @@ describe('registerTsxLoader', () => {
   })
 
   it('source uses tsx/esm/api register, not node:module register', () => {
-    const source = readFileSync(
-      new URL('../config-loader.ts', import.meta.url).pathname.replace('/dist/', '/src/'),
-      'utf-8'
-    )
+    const source = readFileSync(sourcePath('../config-loader.ts'), 'utf-8')
     // Must dynamically import tsx/esm/api
     expect(source).toContain('tsx/esm/api')
     // Must call register() from the tsx API
@@ -38,10 +40,7 @@ describe('registerTsxLoader', () => {
   })
 
   it('source has idempotency guard', () => {
-    const source = readFileSync(
-      new URL('../config-loader.ts', import.meta.url).pathname.replace('/dist/', '/src/'),
-      'utf-8'
-    )
+    const source = readFileSync(sourcePath('../config-loader.ts'), 'utf-8')
     // Must have a guard variable and early return
     expect(source).toContain('tsxRegistered')
     expect(source).toMatch(/if\s*\(\s*tsxRegistered\s*\)\s*return/)
@@ -50,18 +49,12 @@ describe('registerTsxLoader', () => {
 
 describe('runDev registers tsx loader', () => {
   it('cli.ts imports registerTsxLoader from config-loader', () => {
-    const cliSource = readFileSync(
-      new URL('../cli.ts', import.meta.url).pathname.replace('/dist/', '/src/'),
-      'utf-8'
-    )
+    const cliSource = readFileSync(sourcePath('../cli.ts'), 'utf-8')
     expect(cliSource).toMatch(/import\s+\{[^}]*registerTsxLoader[^}]*\}\s+from\s+['"].\/config-loader\.js['"]/)
   })
 
   it('cli.ts awaits registerTsxLoader before loadUserConfig in runDev', () => {
-    const cliSource = readFileSync(
-      new URL('../cli.ts', import.meta.url).pathname.replace('/dist/', '/src/'),
-      'utf-8'
-    )
+    const cliSource = readFileSync(sourcePath('../cli.ts'), 'utf-8')
     // Must await the call
     const awaitIdx = cliSource.indexOf('await registerTsxLoader()')
     expect(awaitIdx).toBeGreaterThan(-1)

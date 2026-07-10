@@ -1228,7 +1228,9 @@ describe('auth redirect handling', () => {
 
   it('does not use a raw promise catch in background revalidation', async () => {
     const { readFileSync } = await import('node:fs')
-    const source = readFileSync('src/router/push-state.ts', 'utf-8')
+    // Normalize CRLF → LF so the multi-line substring assertion below is
+    // host-independent on Windows checkouts (#352).
+    const source = readFileSync('src/router/push-state.ts', 'utf-8').replace(/\r\n/g, '\n')
     expect(source).not.toMatch(/function revalidateInBackground[\s\S]*?\.catch\(/)
     expect(source).toContain('ResultAsync.fromPromise(\n    runBackgroundRevalidation')
   })

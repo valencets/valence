@@ -31,8 +31,13 @@ describe('resolveMimeType', () => {
   })
 })
 
+// The containment check joins with POSIX '/', so the Ok-path output is
+// POSIX-shaped; assert exact output only on POSIX hosts (CI runs it). The
+// traversal/rejection cases below are platform-agnostic and always run (#352).
+const isWindows = process.platform === 'win32'
+
 describe('resolveStaticPath', () => {
-  it('returns Ok for valid path within root', () => {
+  it.skipIf(isWindows)('returns Ok for valid path within root', () => {
     const result = resolveStaticPath('/styles.css', '/srv/public')
     expect(result.isOk()).toBe(true)
     expect(result.unwrap()).toBe('/srv/public/styles.css')
@@ -48,7 +53,7 @@ describe('resolveStaticPath', () => {
     expect(result.isErr()).toBe(true)
   })
 
-  it('normalizes slashes', () => {
+  it.skipIf(isWindows)('normalizes slashes', () => {
     const result = resolveStaticPath('/assets/css/main.css', '/srv/public')
     expect(result.isOk()).toBe(true)
     expect(result.unwrap()).toBe('/srv/public/assets/css/main.css')

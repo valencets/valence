@@ -301,9 +301,13 @@ describe('buildUserRouteMap', () => {
     expect(res.end).toHaveBeenCalledWith(expect.stringContaining('data-val-loader'))
   })
 
+  // Normalize separators so template path matching holds on Windows `join`
+  // paths (backslashes), keeping these assertions host-independent (#352).
+  const toPosix = (p: unknown): string => typeof p === 'string' ? p.replace(/\\/g, '/') : ''
+
   it('resolves multi-segment static routes to nested index templates', async () => {
     existsSyncMock.mockImplementation((path: unknown) =>
-      typeof path === 'string' && path.endsWith('/src/pages/blog/archive/ui/index.html')
+      toPosix(path).endsWith('/src/pages/blog/archive/ui/index.html')
     )
     readFileSyncMock.mockReturnValue('<html><body>archive</body></html>')
 
@@ -317,13 +321,14 @@ describe('buildUserRouteMap', () => {
     const res = makeRes()
     await h?.(req, res, {})
 
-    expect(readFileSyncMock).toHaveBeenCalledWith('/project/src/pages/blog/archive/ui/index.html', 'utf-8')
+    expect(toPosix(readFileSyncMock.mock.calls[0]?.[0])).toBe('/project/src/pages/blog/archive/ui/index.html')
+    expect(readFileSyncMock.mock.calls[0]?.[1]).toBe('utf-8')
     expect(res.end).toHaveBeenCalledWith(expect.stringContaining('archive'))
   })
 
   it('resolves mixed static and param routes to nested detail templates', async () => {
     existsSyncMock.mockImplementation((path: unknown) =>
-      typeof path === 'string' && path.endsWith('/src/pages/docs/history/ui/detail.html')
+      toPosix(path).endsWith('/src/pages/docs/history/ui/detail.html')
     )
     readFileSyncMock.mockReturnValue('<html><body>history</body></html>')
 
@@ -337,7 +342,8 @@ describe('buildUserRouteMap', () => {
     const res = makeRes()
     await h?.(req, res, { id: '42' })
 
-    expect(readFileSyncMock).toHaveBeenCalledWith('/project/src/pages/docs/history/ui/detail.html', 'utf-8')
+    expect(toPosix(readFileSyncMock.mock.calls[0]?.[0])).toBe('/project/src/pages/docs/history/ui/detail.html')
+    expect(readFileSyncMock.mock.calls[0]?.[1]).toBe('utf-8')
     expect(res.end).toHaveBeenCalledWith(expect.stringContaining('history'))
   })
 })

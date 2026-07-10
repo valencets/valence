@@ -14,10 +14,14 @@ vi.mock('node:child_process', () => ({
 
 const mockedWriteFile = vi.mocked(writeFile)
 
+// Normalize path separators so `includes('a/b')` patterns hold on Windows,
+// where the CLI builds paths with `join` (backslashes) (#352).
+const toPosix = (p: unknown): string => String(p).replace(/\\/g, '/')
+
 function getWrittenFiles (pattern: string): Array<{ path: string; content: string }> {
   return mockedWriteFile.mock.calls
-    .filter(c => String(c[0]).includes(pattern))
-    .map(c => ({ path: String(c[0]), content: String(c[1]) }))
+    .filter(c => toPosix(c[0]).includes(pattern))
+    .map(c => ({ path: toPosix(c[0]), content: String(c[1]) }))
 }
 
 describe('page scaffold from collections', () => {

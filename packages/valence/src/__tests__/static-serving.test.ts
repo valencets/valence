@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { resolveStaticPath, resolveMimeType } from '@valencets/core/server'
 
+// resolveStaticPath's containment check joins with POSIX '/', so the Ok-path
+// output is POSIX-shaped; assert it only on POSIX hosts (CI runs it). The
+// rejection cases below are platform-agnostic and always run (#352).
+const isWindows = process.platform === 'win32'
+
 describe('static file serving reuse from core', () => {
-  it('resolveStaticPath resolves a valid path within root', () => {
+  it.skipIf(isWindows)('resolveStaticPath resolves a valid path within root', () => {
     const result = resolveStaticPath('/styles.css', '/tmp/public')
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
