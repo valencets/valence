@@ -146,3 +146,22 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 **404**: `graphql: true` must be set in `valence.config.ts`. The endpoint mounts at `POST /graphql` in both `valence dev` and `valence start`.
 
 **401**: the endpoint requires a validated `cms_session` cookie. The derived resolvers do not yet run per-collection access functions, so the whole endpoint inherits REST's auth-by-default posture — log in through the admin (or `POST /api/auth/login`) first and send the cookie with your requests. Request bodies are capped at 256 KB (413 beyond).
+
+## What does `valence dev` / `valence start` actually need?
+
+Nothing you didn't ask for. A Valence app is routes + pages by default; the boot derives every mount from `valence.config.ts`:
+
+| Config declares | What boots | Needs a database? | Needs CMS_SECRET in prod? |
+|---|---|---|---|
+| nothing / `routes` / `src/pages` | routes, pages, static files | no | no |
+| `stores` (page scope) | typed client signals | no | no |
+| `stores` (session/global, in-memory) | store endpoints + SSE | no | yes |
+| `stores` (persist / user scope) | postgres-backed stores | **yes** | yes |
+| `collections` | Local API + REST | **yes** | yes |
+| `collections` + `admin` | + admin panel | **yes** | yes |
+| `graphql: true` (+ collections) | POST /graphql | **yes** | yes |
+| `telemetry.enabled` | beacon ingestion + analytics | **yes** | — |
+
+When a feature needs a database and none is configured, the boot refuses and **names the feature**: `collections + telemetry need a database — add a db section to valence.config.ts or DB_* variables to .env.` The config file's `db` section wins over `DB_*` env vars; both are optional for database-less apps.
+
+`valence init` mirrors this: answer "no" to the CMS prompt (or pass `--minimal`) for a routes-and-pages scaffold with no database, migrations, or admin. CMS projects get a `docker-compose.yml` wired to your answers, connectivity is verified before migrations run, and choosing the admin panel mints your first admin user during init (credentials printed once).
