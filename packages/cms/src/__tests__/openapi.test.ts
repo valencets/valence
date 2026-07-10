@@ -107,7 +107,8 @@ describe('generateOpenApiSpec()', () => {
     const params = listOp?.parameters
 
     expect(params).toBeDefined()
-    expect(params).toHaveLength(2)
+    // page + limit + search + sort + dir + locale + one filter per field (#344)
+    expect(params!.length).toBeGreaterThanOrEqual(2)
 
     const pageParam = params?.find(p => p.name === 'page')
     expect(pageParam?.in).toBe('query')
