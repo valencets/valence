@@ -113,7 +113,10 @@ export interface ValenceConfig {
   // Schema-driven public routes. Handlers are not Zod-serializable, so
   // routes are extracted before validation and re-attached after resolution.
   readonly routes?: readonly RouteConfig[] | undefined
-  // Enable the GraphQL endpoint at POST /graphql. Requires @valencets/graphql installed.
+  // Enable the GraphQL endpoint at POST /graphql (#350). The endpoint is
+  // gated behind a validated cms_session — resolvers perform no
+  // per-collection access checks yet, so it inherits REST's
+  // auth-by-default posture.
   readonly graphql?: boolean | undefined
 }
 
