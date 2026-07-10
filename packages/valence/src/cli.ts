@@ -16,6 +16,7 @@ import { log } from './cli-utils.js'
 import { generateConfigTemplate, generateSecret } from './config-template.js'
 import { validateProductionSecret } from './secret-guard.js'
 import { validateColumnNaming } from './migration-checks.js'
+import { maybeRegisterTelemetry } from './telemetry-wiring.js'
 import { parseInitFlags, askWithDefault, confirmWithDefault, createDbInvocations, migrationTargets, initSummary, createPromptQueue, scaffoldDependencies } from './init-steps.js'
 import { landingPage } from './landing-page.js'
 import { loadEnvConfig, loadUserConfig, registerTsxLoader } from './config-loader.js'
@@ -815,6 +816,9 @@ async function runDev (): Promise<void> {
   const { maybeRegisterStores } = await import('./store-wiring.js')
   const storeHydrator = maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool, devCmsSecret, clientBundleUrl)
 
+  // Mount beacon ingestion at the configured endpoint (#349)
+  maybeRegisterTelemetry(loadedConfig.telemetry, registerRoute, pool, log)
+
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
   const generatedRouteMap = buildGeneratedRouteMap(generatedRoutes, projectDir, storeHydrator)
@@ -1073,6 +1077,9 @@ export async function runStart (): Promise<void> {
   // Register store routes (no-op if no stores defined)
   const { maybeRegisterStores: maybeRegisterStoresProd } = await import('./store-wiring.js')
   const storeHydrator = maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool, cmsSecret, clientBundleUrl)
+
+  // Mount beacon ingestion at the configured endpoint (#349)
+  maybeRegisterTelemetry(loadedConfig.telemetry, registerRoute, pool, log)
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
