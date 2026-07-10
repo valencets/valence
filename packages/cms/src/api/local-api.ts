@@ -99,6 +99,36 @@ function runAfterHooks (
   return okAsync(result)
 }
 
+/** Run a collection hook list as a data transform; empty lists pass data through. */
+function runCollectionHookList (
+  hooks: readonly HookFunction[] | undefined,
+  data: DocumentData,
+  id: string | undefined,
+  collectionSlug: string
+): ResultAsync<DocumentData, CmsError> {
+  if (!hooks || hooks.length === 0) return okAsync(data)
+  return runHooks(hooks, { data, id, collection: collectionSlug })
+    .map((hookData) => hookData as DocumentData)
+}
+
+/** Collection afterRead runs once per returned document and may transform it. */
+function applyCollectionAfterRead (
+  hooks: readonly HookFunction[] | undefined,
+  rows: readonly DocumentRow[],
+  collectionSlug: string
+): ResultAsync<DocumentRow[], CmsError> {
+  if (!hooks || hooks.length === 0) return okAsync([...rows])
+
+  let result = okAsync<DocumentRow[], CmsError>([])
+  for (const row of rows) {
+    result = result.andThen((acc) =>
+      runHooks(hooks, { data: row, id: row.id as string | undefined, collection: collectionSlug })
+        .map((transformed) => [...acc, transformed as DocumentRow])
+    )
+  }
+  return result
+}
+
 function executeWithHooks (
   beforeHooks: readonly HookFunction[] | undefined,
   afterHooks: readonly HookFunction[] | undefined,
@@ -305,9 +335,12 @@ export function createLocalApi (
         }
         if (args.search) builder = builder.search(args.search)
         if (args.orderBy) builder = builder.orderBy(args.orderBy.field, args.orderBy.direction)
+        // Read order (#335): afterRead(field) → afterRead(col), once per
+        // document, before field-level access filtering.
         if (args.page !== undefined && args.perPage !== undefined) {
           return builder.page(args.page, args.perPage).andThen((paginated) =>
             applyFieldAfterRead(col.value.fields, paginated.docs, args.collection)
+              .andThen((docs) => applyCollectionAfterRead(col.value.hooks?.afterRead, docs, args.collection))
               .map((docs) => ({
                 ...paginated,
                 docs: docs.map((d) => applyReadFilter(d, args.collection))
@@ -317,6 +350,7 @@ export function createLocalApi (
         if (args.limit) builder = builder.limit(args.limit)
         return builder.all().andThen((rows) =>
           applyFieldAfterRead(col.value.fields, rows, args.collection)
+            .andThen((docs) => applyCollectionAfterRead(col.value.hooks?.afterRead, docs, args.collection))
             .map((docs) => docs.map((r) => applyReadFilter(r, args.collection)))
         )
       }
@@ -342,6 +376,7 @@ export function createLocalApi (
           .andThen((row) => {
             if (row === null) return okAsync(null)
             return applyFieldAfterRead(col.value.fields, [row], args.collection)
+              .andThen((rows) => applyCollectionAfterRead(col.value.hooks?.afterRead, rows, args.collection))
               .map((rows) => {
                 const doc = rows[0] ?? null
                 return doc ? applyReadFilter(doc, args.collection) : null
@@ -371,32 +406,41 @@ export function createLocalApi (
       }
 
       const fields = col.value.fields
-      const beforeValidateHooks = col.value.hooks?.beforeValidate
+      const colHooks = col.value.hooks
 
+      // Canonical write order (#335): beforeValidate(col) → beforeValidate(field)
+      // → beforeChange(col) → beforeChange(field) → INSERT → afterChange(field)
+      // → afterChange(col). Change hooks run inside the transaction; a throwing
+      // hook rolls the write back. afterChange(col) is side-effect-only — the
+      // written row is authoritative.
       const executeCreate = (createData: DocumentData): ResultAsync<DocumentRow, CmsError> =>
         ResultAsync.fromPromise(
           pool.sql.begin(async (tx) => {
             const txPool = txAsPool(tx)
             const txQb = createQueryBuilder(txPool, collections, defaultLocale)
 
+            const colChanged = await unwrapTx(
+              runCollectionHookList(colHooks?.beforeChange, createData, undefined, args.collection)
+            )
             const fieldData = await unwrapTx(
-              runFieldHooks('beforeChange', fields, createData, undefined, args.collection)
+              runFieldHooks('beforeChange', fields, colChanged, undefined, args.collection)
             )
             const filteredData = applyWriteFilter(fieldData as DocumentData, args.collection, 'create')
             const result = await unwrapTx(txQb.query(args.collection).insert(filteredData))
             const afterResult = await unwrapTx(
               runFieldHooks('afterChange', fields, result, result.id as string | undefined, args.collection)
             )
+            await unwrapTx(
+              runCollectionHookList(colHooks?.afterChange, afterResult as DocumentData, result.id as string | undefined, args.collection)
+            )
             return applyReadFilter(afterResult as DocumentRow, args.collection)
           }),
           mapTxError
         )
 
-      if (beforeValidateHooks && beforeValidateHooks.length > 0) {
-        return runHooks(beforeValidateHooks, { data, collection: args.collection })
-          .andThen((hookData) => executeCreate(hookData as DocumentData))
-      }
-      return executeCreate(data)
+      return runCollectionHookList(colHooks?.beforeValidate, data, undefined, args.collection)
+        .andThen((hookData) => runFieldHooks('beforeValidate', fields, hookData, undefined, args.collection))
+        .andThen((hookData) => executeCreate(hookData as DocumentData))
     },
 
     update (args) {
@@ -428,48 +472,52 @@ export function createLocalApi (
       }
 
       const fields = col.value.fields
-      const beforeValidateHooks = col.value.hooks?.beforeValidate
+      const colHooks = col.value.hooks
 
+      // Same canonical order as create; publish updates nest the write in
+      // beforePublish → UPDATE → afterPublish before the afterChange hooks.
       const executeUpdate = (updateData: DocumentData): ResultAsync<DocumentRow, CmsError> =>
         ResultAsync.fromPromise(
           pool.sql.begin(async (tx) => {
             const txPool = txAsPool(tx)
             const txQb = createQueryBuilder(txPool, collections, defaultLocale)
 
+            const colChanged = await unwrapTx(
+              runCollectionHookList(colHooks?.beforeChange, updateData, args.id, args.collection)
+            )
             const fieldData = await unwrapTx(
-              runFieldHooks('beforeChange', fields, updateData, args.id, args.collection)
+              runFieldHooks('beforeChange', fields, colChanged, args.id, args.collection)
             )
 
-            if (isVersioned && args.publish && col.value.hooks) {
-              const result = await unwrapTx(
+            const written = (isVersioned && args.publish && colHooks)
+              ? await unwrapTx(
                 executeWithHooks(
-                  col.value.hooks.beforePublish,
-                  col.value.hooks.afterPublish,
+                  colHooks.beforePublish,
+                  colHooks.afterPublish,
                   fieldData as DocumentData,
                   args.id,
                   args.collection,
                   (finalData) => txQb.query(args.collection).where('id', args.id).update(finalData)
                 )
               )
-              return applyReadFilter(result, args.collection)
-            }
+              : await unwrapTx(
+                txQb.query(args.collection).where('id', args.id).update(fieldData as DocumentData)
+              )
 
-            const result = await unwrapTx(
-              txQb.query(args.collection).where('id', args.id).update(fieldData as DocumentData)
-            )
             const afterResult = await unwrapTx(
-              runFieldHooks('afterChange', fields, result, args.id, args.collection)
+              runFieldHooks('afterChange', fields, written, args.id, args.collection)
+            )
+            await unwrapTx(
+              runCollectionHookList(colHooks?.afterChange, afterResult as DocumentData, args.id, args.collection)
             )
             return applyReadFilter(afterResult as DocumentRow, args.collection)
           }),
           mapTxError
         )
 
-      if (beforeValidateHooks && beforeValidateHooks.length > 0) {
-        return runHooks(beforeValidateHooks, { data, id: args.id, collection: args.collection })
-          .andThen((hookData) => executeUpdate(hookData as DocumentData))
-      }
-      return executeUpdate(data)
+      return runCollectionHookList(colHooks?.beforeValidate, data, args.id, args.collection)
+        .andThen((hookData) => runFieldHooks('beforeValidate', fields, hookData, args.id, args.collection))
+        .andThen((hookData) => executeUpdate(hookData as DocumentData))
     },
 
     delete (args) {
