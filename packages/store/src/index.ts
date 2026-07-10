@@ -77,6 +77,11 @@ export function store (input: StoreInput): Result<StoreDefinition, StoreError> {
 }
 
 export { field, StoreFieldType } from './fields/index.js'
+
+// #337 — `field` collides with @valencets/cms's field factory in files
+// that define collections AND stores (most valence.config.ts). The
+// documented alias saves every consumer the manual rename.
+export { field as storeField } from './fields/index.js'
 export type {
   StoreFieldConfig,
   TextFieldConfig,
