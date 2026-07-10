@@ -112,13 +112,15 @@ describe('boot gating source guards', () => {
     expect(mounts.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('dev provisions the dev database only when the plan needs it', () => {
+  it('the database provisioner gates on the plan before touching infrastructure', () => {
     const source = cliSource()
-    const devBody = source.slice(source.indexOf('async function runDev'), source.indexOf('// -- start --'))
-    const planAt = devBody.indexOf('planBoot(')
-    const provisionAt = devBody.indexOf('ensureDevDatabase(')
-    expect(planAt).toBeGreaterThan(-1)
-    expect(provisionAt).toBeGreaterThan(planAt)
+    const fnStart = source.indexOf('async function provisionDatabase')
+    expect(fnStart).toBeGreaterThan(-1)
+    const fnBody = source.slice(fnStart, source.indexOf('async function buildCmsIfPlanned'))
+    const gateAt = fnBody.indexOf('needsDatabase')
+    const provisionAt = fnBody.indexOf('ensureDevDatabase(')
+    expect(gateAt).toBeGreaterThan(-1)
+    expect(provisionAt).toBeGreaterThan(gateAt)
   })
 
   it('the secret guard runs only when the plan requires a secret', () => {

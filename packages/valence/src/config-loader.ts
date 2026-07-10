@@ -24,6 +24,13 @@ export async function registerTsxLoader (): Promise<void> {
 
 export interface UserConfig {
   readonly collections: ReadonlyArray<CollectionConfig>
+  // Resolved db section from valence.config.ts — the CLI prefers it over
+  // DB_* env vars; both are optional for database-less apps.
+  readonly db?: DbConfig | undefined
+  readonly server?: {
+    readonly port: number
+    readonly host: string
+  } | undefined
   readonly admin?: {
     readonly requireAuth?: boolean | undefined
   } | undefined
@@ -122,6 +129,8 @@ export async function loadUserConfig (): Promise<UserConfig | null> {
     if (result && typeof result.isOk === 'function' && result.isOk()) {
       return {
         collections: result.value?.collections ?? [],
+        db: result.value?.db,
+        server: result.value?.server,
         admin: result.value?.admin,
         telemetry: result.value?.telemetry,
         // onServer, routes, and stores contain functions and can only be
@@ -152,6 +161,8 @@ async function loadViaSubprocess (configPath: string): Promise<UserConfig | null
     '        slug: c.slug, labels: c.labels, auth: c.auth, upload: c.upload,',
     '        timestamps: c.timestamps, fields: c.fields',
     '      })),',
+    '      db: r.value.db,',
+    '      server: r.value.server,',
     '      admin: r.value.admin,',
     '      telemetry: r.value.telemetry,',
     '      graphql: r.value.graphql',
@@ -182,11 +193,11 @@ async function loadViaSubprocess (configPath: string): Promise<UserConfig | null
 
   const parseResult = safeJsonParseConfig(output)
   if (parseResult.isErr() || parseResult.value === null) return null
-  const parsed = parseResult.value as { collections: import('@valencets/cms').CollectionConfig[]; admin?: UserConfig['admin']; telemetry?: UserConfig['telemetry']; graphql?: boolean }
+  const parsed = parseResult.value as { collections: import('@valencets/cms').CollectionConfig[]; db?: DbConfig; server?: UserConfig['server']; admin?: UserConfig['admin']; telemetry?: UserConfig['telemetry']; graphql?: boolean }
 
   // Re-hydrate through collection() to get proper CollectionConfig objects.
   // onServer and routes cannot be recovered from the subprocess — functions are not serialisable.
   const { collection: col } = await import('@valencets/cms')
   const collections = parsed.collections.map((c) => col(c))
-  return { collections, admin: parsed.admin, telemetry: parsed.telemetry, graphql: parsed.graphql }
+  return { collections, db: parsed.db, server: parsed.server, admin: parsed.admin, telemetry: parsed.telemetry, graphql: parsed.graphql }
 }

@@ -10,6 +10,8 @@ import { ResultAsync, fromThrowable } from '@valencets/resultkit'
 import { createPool, closePool, loadMigrations, runMigrations } from '@valencets/db'
 import type { DbConfig, DbPool } from '@valencets/db'
 import { buildCms, validateSession } from '@valencets/cms'
+import type { CmsInstance } from '@valencets/cms'
+import { planBoot } from './boot-plan.js'
 import type { RestRouteEntry } from '@valencets/cms'
 import { readLearnProgress, writeLearnProgress, createInitialProgress } from './learn/index.js'
 import { log } from './cli-utils.js'
@@ -580,25 +582,21 @@ CREATE TABLE IF NOT EXISTS "store_states" (
   console.log(initSummary(projectName, serverPort, failures, learnMode, { includeCms, adminCredentials: mintedAdmin }))
 }
 
-// -- dev --
+// -- shared boot phases (dev + start) --
 
-async function runDev (): Promise<void> {
+interface LoadedBoot {
+  readonly envDb: DbConfig | null
+  readonly loadedConfig: NonNullable<Awaited<ReturnType<typeof loadUserConfig>>>
+  readonly plan: ReturnType<typeof planBoot>
+  readonly port: number
+}
+
+/** Config first: the config alone decides what boots. Exits when absent. */
+async function loadConfigAndPlan (): Promise<LoadedBoot> {
   await registerTsxLoader()
-  const config = loadEnvConfig()
-  if (!config) {
-    console.error('  Error: missing .env or database configuration. Run from your project root.')
-    process.exit(1)
-  }
-
-  const devConfig = toDevDbConfig(config)
-
-  const port = Number(process.env.PORT ?? 3000)
-  const projectDir = process.cwd()
-
-  await ensureDevDatabase(devConfig, { createPool, closePool })
-
-  log('Running migrations...')
-  await runMigrationsForProject(projectDir, devConfig)
+  // Loads .env into process.env as a side effect; a missing database
+  // section is fine — only database-backed features demand one.
+  const envDb = loadEnvConfig()
 
   log('Loading config...')
   const loadedConfig = await loadUserConfig()
@@ -607,21 +605,51 @@ async function runDev (): Promise<void> {
     process.exit(1)
   }
 
-  const userConfig = loadedConfig.collections
-  const telemetryEnabled = loadedConfig.telemetry?.enabled ?? false
+  const plan = planBoot(loadedConfig)
+  const port = Number(process.env.PORT ?? loadedConfig.server?.port ?? 3000)
+  return { envDb, loadedConfig, plan, port }
+}
+
+/** Database only when the plan demands it — refusals name the feature. */
+async function provisionDatabase (boot: LoadedBoot, projectDir: string, mode: 'dev' | 'start'): Promise<DbPool | null> {
+  if (!boot.plan.needsDatabase) return null
+
+  const baseDb = boot.loadedConfig.db ?? boot.envDb
+  if (!baseDb) {
+    console.error(`  Error: ${boot.plan.databaseReasons.join(' + ')} need a database — add a db section to valence.config.ts or DB_* variables to .env.`)
+    process.exit(1)
+  }
+
+  if (mode === 'dev') {
+    const devConfig = toDevDbConfig(baseDb)
+    await ensureDevDatabase(devConfig, { createPool, closePool })
+    log('Running migrations...')
+    await runMigrationsForProject(projectDir, devConfig)
+    return createPool(devConfig)
+  }
+
+  log('Running migrations...')
+  const migrated = await runMigrationsForProject(projectDir, baseDb)
+  if (!migrated) {
+    console.error('  Error: migrations failed. Fix your database before starting.')
+    process.exit(1)
+  }
+  return createPool(baseDb)
+}
+
+/** CMS only when collections exist — a routes-only app never builds one. */
+async function buildCmsIfPlanned (boot: LoadedBoot, pool: DbPool | null, secret: string, projectDir: string): Promise<CmsInstance | null> {
+  if (!boot.plan.mountCms || pool === null) return null
 
   log('Building CMS...')
-  const pool = createPool(devConfig)
-
-  const devCmsSecret = process.env.CMS_SECRET ?? 'dev-secret'
   const cmsResult = buildCms({
     db: pool,
-    secret: devCmsSecret,
+    secret,
     uploadDir: join(projectDir, 'uploads'),
-    collections: userConfig,
-    telemetryPool: telemetryEnabled ? pool : undefined,
-    telemetrySiteId: loadedConfig.telemetry?.siteId,
-    requireAuth: loadedConfig.admin?.requireAuth
+    collections: boot.loadedConfig.collections,
+    telemetryPool: boot.plan.mountTelemetry ? pool : undefined,
+    telemetrySiteId: boot.loadedConfig.telemetry?.siteId,
+    requireAuth: boot.loadedConfig.admin?.requireAuth
   })
 
   if (cmsResult.isErr()) {
@@ -630,15 +658,30 @@ async function runDev (): Promise<void> {
   }
 
   const cms = cmsResult.value
-
-  // Fire plugin onInit hooks
   for (const hooks of cms.pluginHooks) {
     if (hooks.onInit) await hooks.onInit(cms)
   }
+  return cms
+}
 
-  // Learn mode setup
+// -- dev --
+
+async function runDev (): Promise<void> {
+  const boot = await loadConfigAndPlan()
+  const { loadedConfig, plan, port } = boot
+  const projectDir = process.cwd()
+  const userConfig = loadedConfig.collections
+  const devCmsSecret = process.env.CMS_SECRET ?? 'dev-secret'
+
+  const pool = await provisionDatabase(boot, projectDir, 'dev')
+  const cms = await buildCmsIfPlanned(boot, pool, devCmsSecret, projectDir)
+
+  // Learn mode setup — the tutorial walks the CMS, so it needs the database
   const learnProgress = await readLearnProgress(projectDir)
-  const learnActive = learnProgress !== null && learnProgress.enabled
+  const learnActive = learnProgress !== null && learnProgress.enabled && pool !== null
+  if (learnProgress !== null && learnProgress.enabled && pool === null) {
+    log('Learn mode needs the CMS — add collections and a database to continue the tutorial.')
+  }
 
   let learnSignals: import('./learn/types.js').LearnSignals | null = null
   let currentConfigSlugs: ReadonlyArray<string> = userConfig.map(c => c.slug)
@@ -739,7 +782,7 @@ async function runDev (): Promise<void> {
     }
 
     // Learn mode routes (before everything else)
-    if (learnActive && learnSignals && currentLearnProgress) {
+    if (learnActive && learnSignals && currentLearnProgress && pool) {
       if (pathname === '/_learn' && method === 'GET') {
         const { checkAllSteps, renderLearnPage } = await import('./learn/index.js')
         const deps = { pool, signals: learnSignals, configSlugs: currentConfigSlugs, projectDir }
@@ -782,8 +825,8 @@ async function runDev (): Promise<void> {
       return
     }
 
-    // Try admin routes first
-    const adminMatch = matchRoute(pathname, cms.adminRoutes)
+    // Try admin routes — mounted only when the plan includes the panel
+    const adminMatch = (plan.mountAdmin && cms) ? matchRoute(pathname, cms.adminRoutes) : null
     if (adminMatch) {
       if (learnActive && learnSignals) {
         const { incrementAdminViews } = await import('./learn/index.js')
@@ -796,8 +839,8 @@ async function runDev (): Promise<void> {
       }
     }
 
-    // Try REST API routes
-    const restMatch = matchRoute(pathname, cms.restRoutes)
+    // Try REST API routes — only when collections mounted the CMS
+    const restMatch = cms ? matchRoute(pathname, cms.restRoutes) : null
     if (restMatch) {
       if (learnActive && learnSignals && method === 'GET' && !req.headers['x-valence-learn']) {
         const { incrementApiGets } = await import('./learn/index.js')
@@ -888,14 +931,19 @@ async function runDev (): Promise<void> {
 
   // Register store routes (no-op if no stores defined)
   const { maybeRegisterStores } = await import('./store-wiring.js')
-  const storeHydrator = maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool, devCmsSecret, clientBundleUrl)
+  const storeHydrator = maybeRegisterStores(loadedConfig.stores, registerRoute, log, pool ?? undefined, devCmsSecret, clientBundleUrl)
 
   // Mount beacon ingestion at the configured endpoint (#349)
-  maybeRegisterTelemetry(loadedConfig.telemetry, registerRoute, pool, log)
+  if (pool) {
+    maybeRegisterTelemetry(loadedConfig.telemetry, registerRoute, pool, log)
+  }
 
   // Mount the GraphQL endpoint when enabled (#350) — cms_session gated
-  await maybeRegisterGraphQL(loadedConfig.graphql, registerRoute, cms, (sessionId) =>
-    validateSession(sessionId, pool).match((userId) => userId, () => null), log)
+  if (cms && pool) {
+    const graphqlPool = pool
+    await maybeRegisterGraphQL(loadedConfig.graphql, registerRoute, cms, (sessionId) =>
+      validateSession(sessionId, graphqlPool).match((userId) => userId, () => null), log)
+  }
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
@@ -904,17 +952,19 @@ async function runDev (): Promise<void> {
   // User-defined routes with loaders/actions
   const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms, storeHydrator)
 
+  const adminLine = plan.mountAdmin ? `\n  Admin: http://localhost:${port}/admin` : ''
   server.listen(port, async () => {
     // Fire plugin onReady hooks
-    for (const hooks of cms.pluginHooks) {
-      if (hooks.onReady) await hooks.onReady(cms)
+    if (cms) {
+      for (const hooks of cms.pluginHooks) {
+        if (hooks.onReady) await hooks.onReady(cms)
+      }
     }
 
     console.log(`
   Valence dev server running.
 
-  Site:  http://localhost:${port}
-  Admin: http://localhost:${port}/admin${learnLine}
+  Site:  http://localhost:${port}${adminLine}${learnLine}
 
   Press Ctrl+C to stop.
 `)
@@ -924,7 +974,7 @@ async function runDev (): Promise<void> {
     log('Shutting down...')
     if (configWatcher) configWatcher.close()
     server.close()
-    await closePool(pool)
+    if (pool) await closePool(pool)
     process.exit(0)
   })
 }
@@ -954,72 +1004,32 @@ async function setupClientBundle (
 }
 
 export async function runStart (): Promise<void> {
-  await registerTsxLoader()
-  const config = loadEnvConfig()
-  if (!config) {
-    console.error('  Error: missing .env or database configuration. Run from your project root.')
-    process.exit(1)
-  }
+  const boot = await loadConfigAndPlan()
+  const { loadedConfig, plan, port } = boot
 
-  const rawPort = process.env.PORT ?? '3000'
-  const port = Number(rawPort)
   if (!Number.isFinite(port) || port < 1 || port > 65535) {
-    console.error(`  Error: invalid PORT "${rawPort}". Must be a number between 1 and 65535.`)
+    console.error(`  Error: invalid PORT "${port}". Must be a number between 1 and 65535.`)
     process.exit(1)
   }
 
-  // #339 — the secret signs anonymous store sessions; missing, default,
-  // or short values must refuse to boot rather than run forgeable.
-  const secretResult = validateProductionSecret(process.env.CMS_SECRET)
-  if (secretResult.isErr()) {
-    console.error(`  Error: ${secretResult.error.message}`)
-    process.exit(1)
+  // #339 — the secret signs cms and store sessions; missing, default, or
+  // short values must refuse to boot rather than run forgeable. Apps with
+  // no session-bearing features have nothing to sign and need no secret.
+  let cmsSecret = ''
+  if (plan.requiresSecret) {
+    const secretResult = validateProductionSecret(process.env.CMS_SECRET)
+    if (secretResult.isErr()) {
+      console.error(`  Error: ${secretResult.error.message}`)
+      process.exit(1)
+    }
+    cmsSecret = secretResult.value
   }
-  const cmsSecret = secretResult.value
 
   const projectDir = process.cwd()
-
-  log('Running migrations...')
-  const migrated = await runMigrationsForProject(projectDir, config)
-  if (!migrated) {
-    console.error('  Error: migrations failed. Fix your database before starting.')
-    process.exit(1)
-  }
-
-  log('Loading config...')
-  const loadedConfig = await loadUserConfig()
-  if (!loadedConfig) {
-    console.error('  Error: could not load valence.config.ts. Make sure it exists and exports defineConfig().')
-    process.exit(1)
-  }
-
   const userConfig = loadedConfig.collections
-  const telemetryEnabled = loadedConfig.telemetry?.enabled ?? false
 
-  log('Building CMS...')
-  const pool = createPool(config)
-
-  const cmsResult = buildCms({
-    db: pool,
-    secret: cmsSecret,
-    uploadDir: join(projectDir, 'uploads'),
-    collections: userConfig,
-    telemetryPool: telemetryEnabled ? pool : undefined,
-    telemetrySiteId: loadedConfig.telemetry?.siteId,
-    requireAuth: loadedConfig.admin?.requireAuth
-  })
-
-  if (cmsResult.isErr()) {
-    console.error('  CMS build failed:', cmsResult.error.message)
-    process.exit(1)
-  }
-
-  const cms = cmsResult.value
-
-  // Fire plugin onInit hooks
-  for (const hooks of cms.pluginHooks) {
-    if (hooks.onInit) await hooks.onInit(cms)
-  }
+  const pool = await provisionDatabase(boot, projectDir, 'start')
+  const cms = await buildCmsIfPlanned(boot, pool, cmsSecret, projectDir)
 
   // eslint-disable-next-line complexity
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -1074,8 +1084,8 @@ export async function runStart (): Promise<void> {
       return
     }
 
-    // Try admin routes first
-    const adminMatch = matchRoute(pathname, cms.adminRoutes)
+    // Try admin routes — mounted only when the plan includes the panel
+    const adminMatch = (plan.mountAdmin && cms) ? matchRoute(pathname, cms.adminRoutes) : null
     if (adminMatch) {
       const handler = adminMatch.entry[method]
       if (handler) {
@@ -1084,8 +1094,8 @@ export async function runStart (): Promise<void> {
       }
     }
 
-    // Try REST API routes
-    const restMatch = matchRoute(pathname, cms.restRoutes)
+    // Try REST API routes — only when collections mounted the CMS
+    const restMatch = cms ? matchRoute(pathname, cms.restRoutes) : null
     if (restMatch) {
       const handler = restMatch.entry[method]
       if (handler) {
@@ -1154,14 +1164,19 @@ export async function runStart (): Promise<void> {
 
   // Register store routes (no-op if no stores defined)
   const { maybeRegisterStores: maybeRegisterStoresProd } = await import('./store-wiring.js')
-  const storeHydrator = maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool, cmsSecret, clientBundleUrl)
+  const storeHydrator = maybeRegisterStoresProd(loadedConfig.stores, registerRoute, undefined, pool ?? undefined, cmsSecret, clientBundleUrl)
 
   // Mount beacon ingestion at the configured endpoint (#349)
-  maybeRegisterTelemetry(loadedConfig.telemetry, registerRoute, pool, log)
+  if (pool) {
+    maybeRegisterTelemetry(loadedConfig.telemetry, registerRoute, pool, log)
+  }
 
   // Mount the GraphQL endpoint when enabled (#350) — cms_session gated
-  await maybeRegisterGraphQL(loadedConfig.graphql, registerRoute, cms, (sessionId) =>
-    validateSession(sessionId, pool).match((userId) => userId, () => null), log)
+  if (cms && pool) {
+    const graphqlPool = pool
+    await maybeRegisterGraphQL(loadedConfig.graphql, registerRoute, cms, (sessionId) =>
+      validateSession(sessionId, graphqlPool).match((userId) => userId, () => null), log)
+  }
 
   // Schema-driven generated route map (custom routes take priority)
   const generatedRoutes = generateCollectionRoutes(userConfig, loadedConfig.routes)
@@ -1170,17 +1185,19 @@ export async function runStart (): Promise<void> {
   // User-defined routes with loaders/actions
   const userRouteMap = buildUserRouteMap(loadedConfig.routes, projectDir, pool, cms, storeHydrator)
 
+  const adminLine = plan.mountAdmin ? `\n  Admin: http://localhost:${port}/admin` : ''
   server.listen(port, async () => {
     // Fire plugin onReady hooks
-    for (const hooks of cms.pluginHooks) {
-      if (hooks.onReady) await hooks.onReady(cms)
+    if (cms) {
+      for (const hooks of cms.pluginHooks) {
+        if (hooks.onReady) await hooks.onReady(cms)
+      }
     }
 
     console.log(`
   Valence server running.
 
-  Site:  http://localhost:${port}
-  Admin: http://localhost:${port}/admin
+  Site:  http://localhost:${port}${adminLine}
 
   Press Ctrl+C to stop.
 `)
@@ -1189,7 +1206,7 @@ export async function runStart (): Promise<void> {
   const shutdown = async () => {
     log('Shutting down...')
     server.close(async () => {
-      await closePool(pool)
+      if (pool) await closePool(pool)
       process.exit(0)
     })
   }
@@ -1200,10 +1217,22 @@ export async function runStart (): Promise<void> {
 
 // -- migrate --
 
+/** DB-backed commands accept the database from either source: DB_* env
+ *  vars (cheap, no config load) or the config file's db section. */
+async function resolveDbForCommand (): Promise<DbConfig | null> {
+  const fromEnv = loadEnvConfig()
+  if (fromEnv) return fromEnv
+  await registerTsxLoader()
+  const loaded = await loadUserConfig()
+  return loaded?.db ?? null
+}
+
+const DB_COMMAND_HINT = '  Error: this command needs a database — add DB_* variables to .env or a db section to valence.config.ts.'
+
 async function runMigrate (): Promise<void> {
-  const config = loadEnvConfig()
+  const config = await resolveDbForCommand()
   if (!config) {
-    console.error('  Error: missing .env or database configuration. Run from your project root.')
+    console.error(DB_COMMAND_HINT)
     process.exit(1)
   }
 
@@ -1220,9 +1249,9 @@ async function runMigrate (): Promise<void> {
 // -- user:create --
 
 async function runUserCreate (): Promise<void> {
-  const config = loadEnvConfig()
+  const config = await resolveDbForCommand()
   if (!config) {
-    console.error('  Error: missing .env or database configuration.')
+    console.error(DB_COMMAND_HINT)
     process.exit(1)
   }
 
@@ -1320,9 +1349,9 @@ function detectPackageManager (): string {
 
 // -- telemetry:aggregate --
 async function runTelemetryAggregate (_args: ReadonlyArray<string>): Promise<void> {
-  const dbConfig = loadEnvConfig()
+  const dbConfig = await resolveDbForCommand()
   if (!dbConfig) {
-    console.error('  Error: missing .env or database configuration. Run from your project root.')
+    console.error(DB_COMMAND_HINT)
     process.exit(1)
   }
 

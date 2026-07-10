@@ -145,8 +145,8 @@ function mergeResponseHeaders (
 function makeLoaderHandler (
   route: RouteConfig,
   projectDir: string,
-  pool: DbPool,
-  cms: CmsInstance,
+  pool: DbPool | null,
+  cms: CmsInstance | null,
   storeHydrator?: StoreHydrator
 ): RouteHandler {
   const loader = route.loader!
@@ -193,8 +193,8 @@ function makeLoaderHandler (
 function makeActionHandler (
   route: RouteConfig,
   projectDir: string,
-  pool: DbPool,
-  cms: CmsInstance
+  pool: DbPool | null,
+  cms: CmsInstance | null
 ): RouteHandler {
   const action = route.action!
   const templatePath = resolveTemplatePath(route.path, projectDir)
@@ -238,8 +238,8 @@ function makeActionHandler (
 export function buildUserRouteMap (
   routes: readonly RouteConfig[] | undefined,
   projectDir: string,
-  pool: DbPool,
-  cms: CmsInstance,
+  pool: DbPool | null,
+  cms: CmsInstance | null,
   storeHydrator?: StoreHydrator
 ): Map<string, Map<string, RouteHandler>> {
   const routeMap = new Map<string, Map<string, RouteHandler>>()

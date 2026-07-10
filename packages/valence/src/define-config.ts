@@ -14,8 +14,10 @@ export interface LoaderContext {
   readonly params: Record<string, string>
   readonly query: URLSearchParams
   readonly req: IncomingMessage
-  readonly pool: DbPool
-  readonly cms: CmsInstance
+  /** null when the app runs without a database (optional-everything boot). */
+  readonly pool: DbPool | null
+  /** null when the app runs without collections. */
+  readonly cms: CmsInstance | null
 }
 
 // Result returned by a loader function
@@ -31,8 +33,10 @@ export interface ActionContext {
   readonly params: Record<string, string>
   readonly body: URLSearchParams
   readonly req: IncomingMessage
-  readonly pool: DbPool
-  readonly cms: CmsInstance
+  /** null when the app runs without a database (optional-everything boot). */
+  readonly pool: DbPool | null
+  /** null when the app runs without collections. */
+  readonly cms: CmsInstance | null
 }
 
 // Result returned by an action function
@@ -65,8 +69,10 @@ export interface RouteConfig {
 // register custom routes, etc., without abandoning `valence dev`.
 export interface OnServerContext {
   readonly server: Server
-  readonly pool: DbPool
-  readonly cms: CmsInstance
+  /** null when the app runs without a database (optional-everything boot). */
+  readonly pool: DbPool | null
+  /** null when the app runs without collections. */
+  readonly cms: CmsInstance | null
   readonly registerRoute: (method: string, path: string, handler: RouteHandler) => void
 }
 
