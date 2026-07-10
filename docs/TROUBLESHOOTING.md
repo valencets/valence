@@ -124,3 +124,19 @@ This ensures the component is registered exactly once per test file.
 1. Ensure `pnpm-workspace.yaml` contains `packages: ["packages/*"]`
 2. Ensure each package's `package.json` uses `"workspace:*"` for internal dependencies
 3. Run `pnpm install` from the repository root, not from inside a package directory
+
+## `valence start` refuses to boot: CMS_SECRET error
+
+**Symptom**: Production start exits with `Error: CMS_SECRET must be set…`, `…is the known default…`, or `…must be at least 32 characters…`.
+
+**Cause**: `CMS_SECRET` signs anonymous store sessions (HMAC-SHA256) and underpins session security. Production refuses to run with a missing, default (`dev-secret`, `change-me`), or short secret — a forgeable secret means forgeable sessions.
+
+**Fix**: Mint a real secret and put it in `.env`:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+`valence init` already writes a CSPRNG-minted secret into the scaffolded `.env`; the `.env.example` placeholder `change-me` is rejected by design so it can never be promoted to production unchanged.
+
+**Rotation semantics**: rotating `CMS_SECRET` invalidates every signed anonymous store session immediately — anonymous visitors get fresh (empty) session-scoped store buckets on next contact. This is by design: signed anonymous sessions are stateless and cannot be revoked individually (see `docs/STORES.md`). Authenticated `cms_session` logins are stored server-side and survive rotation. Rotate during a low-traffic window if anonymous carts/drafts matter to you.
